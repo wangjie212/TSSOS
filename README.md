@@ -1,82 +1,116 @@
-# Multivariate Polynomials
+# BlockPOP
+BlockPOP is a sparse polynomial optimization tool based on blocking Moment-SOS hierarchies. The Julia version of BlockPOP provides a usage based on the Julia language. To use the Matlab version of BlockPOP, one shoud use the *matlab* branch. Generally, the Julia version is more efficient.
+## Dependencies
+- Julia
+- MATLAB
+- MOSEK
 
-| **Documentation** | **Build Status** | **Social** | **References to cite** |
-|:-----------------:|:----------------:|:----------:|:----------------------:|
-| [![][docs-stable-img]][docs-stable-url] | [![Build Status][build-img]][build-url] [![Build Status][winbuild-img]][winbuild-url] | [![Gitter][gitter-img]][gitter-url] | [![DOI][zenodo-img]][zenodo-url] |
-| [![][docs-latest-img]][docs-latest-url] | [![Coveralls branch][coveralls-img]][coveralls-url] [![Codecov branch][codecov-img]][codecov-url] | [<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Discourse_logo.png/799px-Discourse_logo.png" width="64">][discourse-url] | |
-
-This package provides an interface for manipulating multivariate polynomials.
-Implementing algorithms on polynomials using this interface will allow the algorithm to work for all polynomials implementing the interface.
-
-The interface contains functions for accessing the coefficients, monomials, terms of the polynomial, defines arithmetic operations on them, rational functions, division with remainder, calculus/differentiation and evaluation/substitution.
-
-## Documentation
-
-- [**STABLE**][docs-stable-url] &mdash; **most recently tagged version of the documentation.**
-- [**LATEST**][docs-latest-url] &mdash; *in-development version of the documentation.*
-
-## Examples
-
-Below is a simple usage example
-```julia
-using TypedPolynomials
-@polyvar x y # assigns x (resp. y) to a variable of name x (resp. y)
-p = 2x + 3.0x*y^2 + y
-@test differentiate(p, x) # compute the derivative of p with respect to x
-@test differentiate.(p, (x, y)) # compute the gradient of p
-@test p((x, y)=>(y, x)) # replace any x by y and y by x
-@test subs(p, y=>x^2) # replace any occurence of y by x^2
-@test p(x=>1, y=>2) # evaluate p at [1, 2]
+Since the Julia version of BlockPOP calls MATLAB to handle polynomials, one needs to add the path of MATLAB to the environment variable PATH. The Julia version of BlockPOP has been tested on WINDOW 10, Julia 1.2.0, MATLAB R2016a and MOSEK 8.1.
+## Usage
+### Unconstrained polynomial optimization problems
+The unconstrained polynomial optimization problem formulizes as
 ```
-Below is an example with `@polyvar x[1:3]`
-```julia
-using TypedPolynomials
-A = rand(3, 3)
-@polyvar x[1:3] # assign x to a tuple of variables x1, x2, x3
-p = sum(x .* x) # x_1^2 + x_2^2 + x_3^2
-subs(p, x[1]=>2, x[3]=>3) # x_2^2 + 13
-p(x=>A*vec(x)) # corresponds to dot(A*x, A*x), need vec to convert the tuple to a vector
+Inf{f(x): x\in R^n}
+```
+where f is a polynomial with variables x1,...,xn and of degree d.
+
+Taking f=x1^4+x2^4-x1\*x2 as an example, to exetute the first blocking hierarchy, run
+```Julia
+julia> using BlockPOP
+julia> n=2;d=4
+# call MATLAB
+ms=MSession()
+mat"x = sym('x',[1 $n]);
+poly=x(1)^4+x(2)^4-x(1)*x(2);
+[coe, terms] = coeffs(poly,x);
+lt=length(terms);
+supp=zeros($n,lt);
+for i=1:lt
+    for j=1:$n
+        supp(j,i)=feval(symengine,'degree',terms(i),x(j));
+    end
+end
+coe=double(coe)"
+coe=jarray(get_mvariable(ms,:coe))
+supp=jarray(get_mvariable(ms,:supp))
+supp=convert(Array{UInt8},supp)
+julia> opt,data,status=blockupop_first(n,d,supp,coe)
+```
+By default, a monomial basis computed by the Newton polytope method will be used. If we set the key newton=0 in the input,
+```Julia
+julia> opt,data,status=blockupop_first(n,d,supp,coe,newton=0)
+```
+then the standard monomial basis will be used.
+
+Two vectors will be outputed. The first vector is the size of blocks and the second vector is the number of blocks of size corresponding to the first vector.
+
+In most cases, the first blocking hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
+
+To exetute higher blocking hierarchies, repeatedly run
+
+```Julia
+julia> opt,data,status=blockupop_higher!(n,data)
 ```
 
-## Ecosystem
+### Constrained polynomial optimization problems
+The constrained polynomial optimization problem formulizes as
+```
+inf{f(x): x\in K}
+```
+where f is a polynomial and K is the basic semi-algebraic set
+```
+K={x\in R^n: g_j(x)>=0, j=1,...,m},
+```
+for some polynomials g_j, j=1,...,m.
 
-The following packages provides multivariate polynomials that implement the interface:
+Taking f=x1^4+x2^4-x1\*x2 and g_1=1-x1^2-2\*x2^2 as an example, to exetute the first blocking hierarchy, run
 
-* [TypedPolynomials](https://github.com/rdeits/TypedPolynomials.jl) : Commutative polynomials of arbitrary coefficient types
-* [DynamicPolynomials](https://github.com/JuliaAlgebra/DynamicPolynomials.jl) : Commutative and non-commutative polynomials of arbitrary coefficient types
+```Julia
+julia> n=2;m=1
+d=2 # the order of Lasserre's hierarchy
+dg=[2] # the degree vector of {g_j}
+# call MATLAB
+ms=MSession()
+mat"x = sym('x',[1 $n]);
+f=x(1)^4+x(2)^4-x(1)*x(2);
+g_1=1-x(1)^2-2*x(2)^2;
+pop=[f,g_1];
+coe=cell(1,$m+1);
+terms=cell(1,$m+1);
+ssupp=cell(1,$m+1);
+supp=[];
+lt=zeros(1,$m+1);
+for k=1:$m+1
+    [coe{k}, terms{k}] = coeffs(pop(k),x);
+    lt(k)=length(terms{k});
+    ssupp{k}=zeros($n,lt(k));
+    for i=1:lt(k)
+        for j=1:$n
+            ssupp{k}(j,i)=feval(symengine,'degree',terms{k}(i),x(j));
+        end
+    end
+    supp=[supp ssupp{k}];
+end
+for k=1:$m+1
+    coe{k}=double(coe{k});
+end"
+coe=jarray(get_mvariable(ms,:coe))
+supp=jarray(get_mvariable(ms,:supp))
+supp=convert(Array{UInt8},supp)
+supp=unique(supp,dims=2)
+ssupp=jarray(get_mvariable(ms,:ssupp))
+for k=1:m+1
+    ssupp[k]=convert(Array{UInt8},ssupp[k])
+end
+lt=jarray(get_mvariable(ms,:lt))
+lt=convert(Array{UInt32},lt)
+julia> opt,data,status=blockcpop_first(n,m,d,dg,supp,ssupp,coe,lt)
+```
 
-The following packages extend/use the interface:
+In most cases, the first blocking hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
 
-* [SemialgebraicSets](https://github.com/JuliaAlgebra/SemialgebraicSets.jl) : Sets defined by inequalities and equalities between polynomials and algorithms for solving polynomial systems of equations.
-* [FixedPolynomials](https://github.com/JuliaAlgebra/FixedPolynomials.jl) : Fast evaluation of multivariate polynomials
-* [HomotopyContinuation](https://github.com/saschatimme/HomotopyContinuation.jl) : Solving systems of polynomials via homotopy continuation.
-* [MultivariateMoments](https://github.com/JuliaAlgebra/MultivariateMoments.jl) : Moments of multivariate measures and their scalar product with polynomials.
-* [PolyJuMP](https://github.com/JuliaOpt/PolyJuMP.jl) : A [JuMP](https://github.com/JuliaOpt/JuMP.jl) extension for Polynomial Optimization.
-* [SumOfSquares](https://github.com/JuliaOpt/SumOfSquares.jl) : Certifying the nonnegativity of polynomials, minimizing/maximizing polynomials and optimization over sum of squares polynomials using Sum of Squares Programming.
+To exetute higher blocking hierarchies, repeatedly run
 
-### See also
-
-* [Nemo](https://github.com/wbhart/Nemo.jl) for generic polynomial rings, matrix spaces, fraction fields, residue rings, power series
-* [Polynomials](https://github.com/Keno/Polynomials.jl) for univariate polynomials
-* [PolynomialRoots](https://github.com/giordano/PolynomialRoots.jl) for a fast complex polynomial root finder
-
-[docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
-[docs-latest-img]: https://img.shields.io/badge/docs-latest-blue.svg
-[docs-stable-url]: https://JuliaAlgebra.github.io/MultivariatePolynomials.jl/stable
-[docs-latest-url]: https://JuliaAlgebra.github.io/MultivariatePolynomials.jl/latest
-
-[build-img]: https://travis-ci.org/JuliaAlgebra/MultivariatePolynomials.jl.svg?branch=master
-[build-url]: https://travis-ci.org/JuliaAlgebra/MultivariatePolynomials.jl
-[winbuild-img]: https://ci.appveyor.com/api/projects/status/4l5i8sbxev8405jl?svg=true
-[winbuild-url]: https://ci.appveyor.com/project/blegat/multivariatepolynomials-jl
-[coveralls-img]: https://coveralls.io/repos/github/JuliaAlgebra/MultivariatePolynomials.jl/badge.svg?branch=master
-[coveralls-url]: https://coveralls.io/github/JuliaAlgebra/MultivariatePolynomials.jl?branch=master
-[codecov-img]: http://codecov.io/github/JuliaAlgebra/MultivariatePolynomials.jl/coverage.svg?branch=master
-[codecov-url]: http://codecov.io/github/JuliaAlgebra/MultivariatePolynomials.jl?branch=master
-
-[gitter-url]: https://gitter.im/JuliaAlgebra/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link
-[gitter-img]: https://badges.gitter.im/JuliaAlgebra/Lobby.svg
-[discourse-url]: https://discourse.julialang.org/c/domain/opt
-
-[zenodo-url]: https://zenodo.org/badge/latestdoi/72210778
-[zenodo-img]: https://zenodo.org/badge/72210778.svg
+```Julia
+julia> opt,data,status=blockcpop_higher!(n,m,data)
+```
