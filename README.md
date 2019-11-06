@@ -114,3 +114,6 @@ To exetute higher blocking hierarchies, repeatedly run
 ```Julia
 julia> opt,data,status=blockcpop_higher!(n,m,data)
 ```
+
+## Contact
+If there is any problems, you can contact: wangjie212@mails.ucas.ac.cn.
