@@ -17,6 +17,7 @@ where f is a polynomial with variables x1,...,xn and of degree d.
 Taking f=x1^4+x2^4-x1\*x2 as an example, to exetute the first blocking hierarchy, run
 ```Julia
 julia> using BlockPOP
+julia> using MATLAB
 julia> n=2;d=4
 # call MATLAB
 ms=MSession()
