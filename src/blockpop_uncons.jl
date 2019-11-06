@@ -230,7 +230,7 @@ if cl==1
 else
    ub=unique(blocksize)
    sizes=[sum(blocksize.== i) for i in ub]
-   println("$ub\n$sizes")
+   println("blocksizes:\n$ub\n$sizes")
    return blocks,cl,blocksize,ub,sizes,1
 end
 end
@@ -295,7 +295,7 @@ if cl==1
 else
    ub=unique(blocksize)
    sizes=[sum(blocksize.== i) for i in ub]
-   println("$ub\n$sizes")
+   println("blocksizes:\n$ub\n$sizes")
    return blocks,cl,blocksize,ub,sizes,1
 end
 end
@@ -352,9 +352,9 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize)
     status=termination_status(model)
     if status == MOI.OPTIMAL
        objv = objective_value(model)
-       println("$objv")
+       println("optimum=\n$objv")
     else
-       println("$status")
+       println("Failed, status=\n$status")
     end
     return objv,supp1
 end
@@ -482,7 +482,7 @@ for i=1:cl
     blocksize[i]=length(blocks[i])
 end
 if cl==1
-   println("$blocksize\n[1]")
+   println("blocksizes:\n$blocksize\n[1]")
    return blocks,cl,blocksize,blocksize,[1],1
 else
    nub=unique(blocksize)
@@ -490,7 +490,7 @@ else
    if nub!=ub||nsizes!=sizes
       ub=nub
       sizes=nsizes
-      println("$ub\n$sizes")
+      println("blocksizes:\n$ub\n$sizes")
       return blocks,cl,blocksize,ub,sizes,1
    else
       println("No higher blocking hierarchy")

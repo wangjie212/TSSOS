@@ -73,9 +73,9 @@ if fcl==1
 else
    ub=unique(fblocksize)
    sizes=[sum(fblocksize.== i) for i in ub]
-   println("$ub\n$sizes")
+   println("fblocksizes:\n$ub\n$sizes")
 end
-
+println("gblocksizes:")
 glb=Array{UInt16}(undef, m)
 gcl=Array{UInt8}(undef, m)
 gblocks=Array{Any}(undef, m)
@@ -213,9 +213,9 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
     status=termination_status(model)
     if  status==MOI.OPTIMAL
         objv=objective_value(model)
-        println("$objv")
+        println("optimum=\n$objv")
     else
-        println("$status")
+        println("Failed, status=\n$status")
     end
     return objv,fsupp,gsupp
 end
@@ -241,7 +241,7 @@ for i=1:fcl
     fblocksize[i]=length(fblocks[i])
 end
 if fcl==1
-   println("$fblocksize\n[1]")
+   println("fblocksizes:\n$fblocksize\n[1]")
    gblocksize=Array{Any}(undef, m)
    gcl=Array{UInt8}(undef, m)
    for k=1:m
@@ -255,13 +255,13 @@ else
    if nub!=ub||nsizes!=sizes
       ub=nub
       sizes=nsizes
-      println("$ub\n$sizes")
+      println("fblocksizes:\n$ub\n$sizes")
    else
       println("No higher blocking hierarchy")
       return 0,0,0,0,0,0,0,0,0,0,0
    end
 end
-
+println("gblocksizes:")
 glb=Array{UInt16}(undef, m)
 gcl=Array{UInt8}(undef, m)
 gblocks=Array{Any}(undef, m)
