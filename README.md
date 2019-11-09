@@ -1,5 +1,5 @@
 # BlockPOP
-BlockPOP is a sparse polynomial optimization tool based on blocking Moment-SOS hierarchies. The Julia version of BlockPOP provides a usage based on the Julia language. To use the Matlab version of BlockPOP, one shoud use the *matlab* branch. Generally, the Julia version is more efficient.
+BlockPOP is a sparse polynomial optimization tool based on block Moment-SOS hierarchies. The Julia version of BlockPOP provides a usage based on the Julia language. To use the Matlab version of BlockPOP, one shoud use the *matlab* branch. Generally, the Julia version is more efficient.
 ## Dependencies
 - Julia
 - MATLAB
@@ -45,9 +45,9 @@ then the standard monomial basis will be used.
 
 Two vectors will be outputed. The first vector is the size of blocks and the second vector is the number of blocks of size corresponding to the first vector.
 
-In most cases, the first blocking hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
+In most cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
 
-To exetute higher blocking hierarchies, repeatedly run
+To exetute higher block hierarchies, repeatedly run
 
 ```Julia
 julia> opt,data,status=blockupop_higher!(n,data)
@@ -64,7 +64,7 @@ K={x\in R^n: g_j(x)>=0, j=1,...,m},
 ```
 for some polynomials g_j, j=1,...,m.
 
-Taking f=x1^4+x2^4-x1\*x2 and g_1=1-x1^2-2\*x2^2 as an example, to exetute the first blocking hierarchy, run
+Taking f=x1^4+x2^4-x1\*x2 and g_1=1-x1^2-2\*x2^2 as an example, to exetute the first block hierarchy, run
 
 ```Julia
 julia> n=2;m=1
@@ -108,9 +108,9 @@ lt=convert(Array{UInt32},lt)
 julia> opt,data,status=blockcpop_first(n,m,d,dg,supp,ssupp,coe,lt)
 ```
 
-In most cases, the first blocking hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
+In most cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
 
-To exetute higher blocking hierarchies, repeatedly run
+To exetute higher block hierarchies, repeatedly run
 
 ```Julia
 julia> opt,data,status=blockcpop_higher!(n,m,data)
