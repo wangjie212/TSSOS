@@ -493,7 +493,7 @@ else
       println("blocksizes:\n$ub\n$sizes")
       return blocks,cl,blocksize,ub,sizes,1
    else
-      println("No higher blocking hierarchy")
+      println("No higher block hierarchy")
       return 0,0,0,0,0,0
    end
 end

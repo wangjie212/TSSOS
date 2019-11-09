@@ -257,7 +257,7 @@ else
       sizes=nsizes
       println("fblocksizes:\n$ub\n$sizes")
    else
-      println("No higher blocking hierarchy")
+      println("No higher block hierarchy")
       return 0,0,0,0,0,0,0,0,0,0,0
    end
 end
