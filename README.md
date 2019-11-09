@@ -75,4 +75,4 @@ To exetute higher block hierarchies, repeatedly run
 ```
 
 ## Contact
-If there is any problems, you can contact: wangjie212@mails.ucas.ac.cn.
+If there are any problems, you can contact: wangjie212@mails.ucas.ac.cn.
