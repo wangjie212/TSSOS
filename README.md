@@ -1,5 +1,5 @@
 # BlockPOP
-BlockPOP is a sparse polynomial optimization tool based on blocking Moment-SOS hierarchies. The Matlab version of BlockPOP provides a usage based on MATLAB. Note that this Matlab version may be inefficient for large problems since it is written using high-level YALMIP code. For the efficency purpose, one should use the Julia version of BlockPOP (the *master* branch).
+BlockPOP is a sparse polynomial optimization tool based on block Moment-SOS hierarchies. The Matlab version of BlockPOP provides a usage based on MATLAB. Note that this Matlab version may be inefficient for large problems since it is written using high-level YALMIP code. For the efficency purpose, one should use the Julia version of BlockPOP (the *master* branch).
 ## Dependencies
 - MATLAB
 - YALMIP
@@ -14,7 +14,7 @@ Inf{f(x): x\in R^n}
 ```
 where f is a polynomial with variables x1,...,xn and of degree d.
 
-Taking f=x1^4+x2^4-x1\*x2 as an example, to exetute the first blocking hierarchy, run
+Taking f=x1^4+x2^4-x1\*x2 as an example, to exetute the first block hierarchy, run
 
 ```matlab
 >>syms x1,x2;
@@ -34,9 +34,9 @@ then the standard monomial basis will be used.
 
 Two lines will be outputed. The first line is the size of blocks and the second line is the number of blocks of size corresponding to the first line.
 
-In most cases, the first blocking hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
+In most cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
 
-To exetute higher blocking hierarchies, repeatedly run
+To exetute higher block hierarchies, repeatedly run
 
 ```matlab
 >>[opt,data,status]=blockpop_uncons_higher(n,data,'mosek')
@@ -53,7 +53,7 @@ K={x\in R^n: g_j(x)>=0, j=1,...,m},
 ```
 for some polynomials g_j, j=1,...,m.
 
-Taking f=x1^4+x2^4-x1\*x2 and g_1=1-x1^2-2\*x2^2 as an example, to exetute the first blocking hierarchy, run
+Taking f=x1^4+x2^4-x1\*x2 and g_1=1-x1^2-2\*x2^2 as an example, to exetute the first block hierarchy, run
 
 ```matlab
 >>syms x1,x2;
@@ -66,9 +66,9 @@ Taking f=x1^4+x2^4-x1\*x2 and g_1=1-x1^2-2\*x2^2 as an example, to exetute the f
 >>[opt,data,status]=blockpop_cons_first(f,g,n,m,d,dg,'mosek')
 ```
 
-In most cases, the first blocking hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
+In most cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
 
-To exetute higher blocking hierarchies, repeatedly run
+To exetute higher block hierarchies, repeatedly run
 
 ```matlab
 >>[opt,data,status]=blockpop_cons_higher(n,m,data,'mosek')
