@@ -36,7 +36,7 @@ gsupp=data.gsupp
 ub=data.ub
 sizes=data.sizes
 opt=0
-fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,gsupp,ub,sizes)
+fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gsupp,ub,sizes)
 if status==1
    opt,fsupp,gsupp=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize)
 end
