@@ -249,7 +249,7 @@ if fcl==1
    gblocksize=Array{Any}(undef, m)
    gcl=Array{UInt8}(undef, m)
    for k=1:m
-       gblocks[k]=[i for i=1:size(gbasis[k],1)]
+       gblocks[k]=[[i for i=1:size(gbasis[k],1)]]
        gblocksize[k]=[size(gbasis[k],1)]
        gcl[k]=1
    end
