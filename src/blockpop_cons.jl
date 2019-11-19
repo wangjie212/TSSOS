@@ -245,6 +245,7 @@ for i=1:fcl
 end
 if fcl==1
    println("fblocksizes:\n$fblocksize\n[1]")
+   println("gblocksizes:")
    gblocks=Array{Any}(undef, m)
    gblocksize=Array{Any}(undef, m)
    gcl=Array{UInt8}(undef, m)
@@ -252,6 +253,8 @@ if fcl==1
        gblocks[k]=[[i for i=1:size(gbasis[k],1)]]
        gblocksize[k]=[size(gbasis[k],1)]
        gcl[k]=1
+       gbk=gblocksize[k]
+       println("$gbk\n[1]")
    end
    return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
 else
