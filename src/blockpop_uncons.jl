@@ -137,6 +137,22 @@ end
 return supp[:,indexb]
 end
 
+function even_supp(n,supp)
+lo=size(supp,2)
+indexb=[i for i=1:lo]
+i=Int(1)
+while lo>=i
+      bi=supp[:,indexb[i]]
+      if sum(Int[iseven(bi[j]) for j=1:n])<n
+         deleteat!(indexb,i)
+         lo=lo-1
+      else
+         i=i+1
+      end
+end
+return supp[:,indexb]
+end
+
 function comp(a,b,n)
     i=Int(1)
     while i<=n

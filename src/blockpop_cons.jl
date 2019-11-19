@@ -19,6 +19,7 @@ end
 fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis)
 if status==1
    opt,fsupp,gsupp=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize)
+else
    opt=0
    fsupp=0
    gsupp=0
