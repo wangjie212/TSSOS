@@ -253,7 +253,7 @@ if fcl==1
        gblocksize[k]=[size(gbasis[k],1)]
        gcl[k]=1
    end
-   return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,[1],fblocksize,1
+   return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
 else
    nub=unique(fblocksize)
    nsizes=[sum(fblocksize.== i) for i in nub]
