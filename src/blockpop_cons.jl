@@ -51,7 +51,7 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis)
 osupp=odd_supp(n,supp)
 osupp=sortslices(osupp,dims=2)
 lo=size(osupp,2)
-flb=binomial(n+d,d)
+flb=size(fbasis,2)
 fG=SimpleGraph(flb)
 for i = 1:flb
     for j = i:flb
