@@ -245,13 +245,15 @@ for i=1:fcl
 end
 if fcl==1
    println("fblocksizes:\n$fblocksize\n[1]")
+   gblocks=Array{Any}(undef, m)
    gblocksize=Array{Any}(undef, m)
    gcl=Array{UInt8}(undef, m)
    for k=1:m
-       gblocksize[k]=[i for i=1:size(gbasis[k],1)]
-       gcl[k]=size(gblocks[k],1)
+       gblocks[k]=[i for i=1:size(gbasis[k],1)]
+       gblocksize[k]=[size(gbasis[k],1)]
+       gcl[k]=1
    end
-   return fblocks,fcl,fblocksize,gblocks,gcl,[1],fblocksize,1
+   return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,[1],fblocksize,1
 else
    nub=unique(fblocksize)
    nsizes=[sum(fblocksize.== i) for i in nub]
@@ -261,7 +263,7 @@ else
       println("fblocksizes:\n$ub\n$sizes")
    else
       println("No higher block hierarchy")
-      return 0,0,0,0,0,0,0,0,0,0,0
+      return 0,0,0,0,0,0,0,0,0
    end
 end
 println("gblocksizes:")
