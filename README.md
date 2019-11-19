@@ -1,9 +1,15 @@
 # BlockPOP
 BlockPOP is a sparse polynomial optimization tool based on block Moment-SOS hierarchies. The Julia version of BlockPOP provides a usage based on the Julia language. To use the Matlab version of BlockPOP, one shoud use the *matlab* branch. Generally, the Julia version is more efficient.
+
+To use the Julia version of  BlockPOP, run
+```Julia
+pkg> add https://github.com/wangjie212/BlockPOP
+ ```
+
 ## Dependencies
 - Julia
 - MATLAB
-- MOSEK
+- MOSEK 8.1
 
 Since the Julia version of BlockPOP calls MATLAB to handle polynomials, one needs to add the path of MATLAB to the environment variable PATH. The Julia version of BlockPOP has been tested on WINDOW 10, Julia 1.2.0, MATLAB R2016a and MOSEK 8.1.
 ## Usage
