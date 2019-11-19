@@ -19,10 +19,12 @@ if newton==1
 else
    basis=get_basis(n,d)
 end
-opt=0
 blocks,cl,blocksize,ub,sizes,status=get_blocks(n,supp,basis)
 if status==1
    opt,supp1=blockupop(n,supp,coe,basis,blocks,cl,blocksize)
+else
+   opt=0
+   supp1=0
 end
 data=data_type(supp,basis,coe,supp1,ub,sizes)
 return opt,data,status

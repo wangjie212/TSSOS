@@ -13,13 +13,15 @@ end
 function blockcpop_first(n,m,d,dg,supp,ssupp,coe,lt)
 fbasis=get_basis(n,d)
 gbasis=Array{Any}(undef,m)
-opt=0
 for k=1:m
     gbasis[k]=get_basis(n,d-Int(ceil(dg[k]/2)))
 end
 fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis)
 if status==1
    opt,fsupp,gsupp=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize)
+   opt=0
+   fsupp=0
+   gsupp=0
 end
 data=cdata_type(ssupp,coe,lt,fbasis,gbasis,fsupp,gsupp,ub,sizes)
 return opt,data,status
