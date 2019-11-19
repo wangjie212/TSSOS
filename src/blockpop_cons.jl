@@ -220,7 +220,7 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
     return objv,fsupp,gsupp
 end
 
-function get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,gsupp,ub,sizes)
+function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gsupp,ub,sizes)
 ofsupp=odd_supp(n,fsupp)
 ofsupp=sortslices(ofsupp,dims=2)
 lfo=size(ofsupp,2)
