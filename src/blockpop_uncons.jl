@@ -7,7 +7,7 @@ mutable struct data_type
     sizes
 end
 
-function blockupop_first(n,pd,supp,coe;newton=1)
+function blockupop_first(n,pd,supp,coe;newton=1,method="block",reducebasis=0)
 d=Int(pd/2)
 if newton==1
    lsupp=size(supp,2)
@@ -19,7 +19,25 @@ if newton==1
 else
    basis=get_basis(n,d)
 end
+if method=="block"&&reducebasis==0
 blocks,cl,blocksize,ub,sizes,status=get_blocks(n,supp,basis)
+elseif method=="block"&&reducebasis==1
+    flag=1
+    while flag==1
+          blocks,cl,blocksize,ub,sizes,status=get_blocks(n,supp,basis,reduce=1)
+          tsupp=[supp zeros(UInt8,n,1)]
+          basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
+    end
+elseif method=="clique"&&reducebasis==0
+blocks,cl,blocksize,ub,sizes,status=get_cliques(n,supp,basis)
+else
+    flag=1
+    while flag==1
+          blocks,cl,blocksize,ub,sizes,status=get_cliques(n,supp,basis,reduce=1)
+          tsupp=[supp zeros(UInt8,n,1)]
+          basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
+    end
+end
 if status==1
    opt,supp1=blockupop(n,supp,coe,basis,blocks,cl,blocksize)
 else
@@ -30,7 +48,7 @@ data=data_type(supp,basis,coe,supp1,ub,sizes)
 return opt,data,status
 end
 
-function blockupop_higher!(n,data)
+function blockupop_higher!(n,data;method="block",reducebasis=0)
 supp=data.supp
 basis=data.basis
 coe=data.coe
@@ -38,7 +56,25 @@ supp1=data.supp1
 ub=data.ub
 sizes=data.sizes
 opt=0
+if method=="block"&&reducebasis==0
 blocks,cl,blocksize,ub,sizes,status=get_hblocks!(n,supp1,basis,ub,sizes)
+elseif method=="block"&&reducebasis==1
+    flag=1
+    while flag==1
+          blocks,cl,blocksize,ub,sizes,status=get_hblocks!(n,supp1,basis,ub,sizes,redcue=1)
+          tsupp=[supp zeros(UInt8,n,1)]
+          basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
+    end
+elseif method=="clique"&&reducebasis==0
+blocks,cl,blocksize,ub,sizes,status=get_hcliques!(n,supp1,basis,ub,sizes)
+else
+    flag=1
+    while flag==1
+          blocks,cl,blocksize,ub,sizes,status=get_hcliques!(n,supp1,basis,ub,sizes,reduce=1)
+          tsupp=[supp zeros(UInt8,n,1)]
+          basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
+    end
+end
 if status==1
    opt,supp1=blockupop(n,supp,coe,basis,blocks,cl,blocksize)
 end
@@ -118,6 +154,25 @@ while t<=lb
          end
       end
 end
+return basis[:,indexb]
+end
+
+function generate_basis!(n,supp,basis)
+supp=sortslices(supp,dims=2)
+lsupp=size(supp,2)
+lb=size(basis,2)
+indexb=[0]
+for i = 1:lb
+    for j = i:lb
+        bi=basis[:,i]+basis[:,j]
+         if bfind(supp,lsupp,bi,n)!=0
+            indexb=[indexb i j]
+         end
+    end
+end
+indexb=indexb[2:end]
+indexb=sort(indexb)
+indexb=unique(indexb)
 return basis[:,indexb]
 end
 
@@ -226,18 +281,36 @@ end
 return blocks,cl,blocksize
 end
 
-function get_cliques(n,supp,basis)
-osupp=odd_supp(n,supp)
-osupp=sortslices(osupp,dims=2)
-lo=size(osupp,2)
+function get_cliques(n,supp,basis;reduce=0)
+if reduce==1
+supp1=[supp 2*basis]
+supp1=sortslices(supp1,dims=2)
+supp1=unique(supp1,dims=2)
+lsupp1=size(supp1,2)
 lb=size(basis,2)
 A=zeros(UInt8,lb,lb)
 for i = 1:lb
     for j = i:lb
         bi=basis[:,i]+basis[:,j]
-        if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
+         if bfind(supp1,lsupp1,bi,n)!=0
            A[i,j]=1
            A[j,i]=1
+        end
+    end
+end
+else
+    osupp=odd_supp(n,supp)
+    osupp=sortslices(osupp,dims=2)
+    lo=size(osupp,2)
+    lb=size(basis,2)
+    A=zeros(UInt8,lb,lb)
+    for i = 1:lb
+        for j = i:lb
+            bi=basis[:,i]+basis[:,j]
+            if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
+               A[i,j]=1
+               A[j,i]=1
+            end
         end
     end
 end
@@ -253,18 +326,36 @@ else
 end
 end
 
-function get_hcliques!(n,supp,basis,ub,sizes)
-osupp=odd_supp(n,supp)
-osupp=sortslices(osupp,dims=2)
-lo=size(osupp,2)
+function get_hcliques!(n,supp,basis,ub,sizes;reduce=0)
+if reduce==1
+supp1=[supp 2*basis]
+supp1=sortslices(supp1,dims=2)
+supp1=unique(supp1,dims=2)
+lsupp1=size(supp1,2)
 lb=size(basis,2)
 A=zeros(UInt8,lb,lb)
 for i = 1:lb
     for j = i:lb
         bi=basis[:,i]+basis[:,j]
-        if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
+         if bfind(supp1,lsupp1,bi,n)!=0
            A[i,j]=1
            A[j,i]=1
+        end
+    end
+end
+else
+    osupp=odd_supp(n,supp)
+    osupp=sortslices(osupp,dims=2)
+    lo=size(osupp,2)
+    lb=size(basis,2)
+    A=zeros(UInt8,lb,lb)
+    for i = 1:lb
+        for j = i:lb
+            bi=basis[:,i]+basis[:,j]
+            if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
+               A[i,j]=1
+               A[j,i]=1
+            end
         end
     end
 end
@@ -287,17 +378,34 @@ else
 end
 end
 
-function get_blocks(n,supp,basis)
-osupp=odd_supp(n,supp)
-osupp=sortslices(osupp,dims=2)
-lo=size(osupp,2)
+function get_blocks(n,supp,basis;reduce=0)
+if reduce==1
+supp1=[supp 2*basis]
+supp1=sortslices(supp1,dims=2)
+supp1=unique(supp1,dims=2)
+lsupp1=size(supp1,2)
 lb=size(basis,2)
 G=SimpleGraph(lb)
 for i = 1:lb
     for j = i:lb
-        bi=basis[:,i]+basis[:,j]
-        if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
-           add_edge!(G,i,j)
+         bi=basis[:,i]+basis[:,j]
+         if bfind(supp1,lsupp1,bi,n)!=0
+            add_edge!(G,i,j)
+         end
+    end
+end
+else
+    osupp=odd_supp(n,supp)
+    osupp=sortslices(osupp,dims=2)
+    lo=size(osupp,2)
+    lb=size(basis,2)
+    G=SimpleGraph(lb)
+    for i = 1:lb
+        for j = i:lb
+            bi=basis[:,i]+basis[:,j]
+            if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
+               add_edge!(G,i,j)
+            end
         end
     end
 end
@@ -372,6 +480,7 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize)
        objv = objective_value(model)
        println("optimum=\n$objv")
     else
+       objv = 0
        println("Failed, status=\n$status")
     end
     return objv,supp1
@@ -480,16 +589,33 @@ function blockupopm(n,supp,coe,basis,blocks,cl,blocksize)
     return supp1
 end
 
-function get_hblocks!(n,supp,basis,ub,sizes)
-osupp=odd_supp(n,supp)
-lo=size(osupp,2)
+function get_hblocks!(n,supp,basis,ub,sizes;reduce=0)
+if reduce==1
+supp1=[supp 2*basis]
+supp1=sortslices(supp1,dims=2)
+supp1=unique(supp1,dims=2)
+lsupp1=size(supp1,2)
 lb=size(basis,2)
 G=SimpleGraph(lb)
 for i = 1:lb
     for j = i:lb
         bi=basis[:,i]+basis[:,j]
-        if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
+        if bfind(supp1,lsupp1,bi,n)!=0
            add_edge!(G,i,j)
+        end
+    end
+end
+else
+    osupp=odd_supp(n,supp)
+    lo=size(osupp,2)
+    lb=size(basis,2)
+    G=SimpleGraph(lb)
+    for i = 1:lb
+        for j = i:lb
+            bi=basis[:,i]+basis[:,j]
+            if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
+               add_edge!(G,i,j)
+            end
         end
     end
 end
