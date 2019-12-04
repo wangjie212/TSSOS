@@ -1,11 +1,11 @@
-# BlockPOP
-BlockPOP is a sparse polynomial optimization tool based on block Moment-SOS hierarchies. The Matlab version of BlockPOP provides a usage based on MATLAB. Note that this Matlab version may be inefficient for large problems since it is written using high-level YALMIP code. For the efficency purpose, one should use the Julia version of BlockPOP (the *master* branch).
+# TSSOS
+TSSOS is a sparse polynomial optimization tool based on block Moment-SOS hierarchies. The Matlab version of TSSOS provides a usage based on MATLAB. Note that this Matlab version may be inefficient for large problems since it is written using high-level YALMIP code. For the efficency purpose, one should use the Julia version of TSSOS (the *master* branch).
 ## Dependencies
 - MATLAB
 - YALMIP
 - an SDP solver (recommend MOSEK)
 
-The Matlab version of BlockPOP has been tested on WINDOW 10, MATLAB R2016a and MOSEK 9.
+The Matlab version of TSSOS has been tested on WINDOW 10, MATLAB R2016a and MOSEK 9.
 ## Usage
 ### Unconstrained polynomial optimization problems
 The unconstrained polynomial optimization problem formulizes as
