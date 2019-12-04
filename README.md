@@ -1,9 +1,9 @@
-# BlockPOP
-BlockPOP is a sparse polynomial optimization tool based on block Moment-SOS hierarchies. The Julia version of BlockPOP provides a usage based on the Julia language. To use the Matlab version of BlockPOP, one shoud use the *matlab* branch. Generally, the Julia version is more efficient.
+# TSSOS
+TSSOS is a sparse polynomial optimization tool based on block Moment-SOS hierarchies. The Julia version of BlockPOP provides a usage based on the Julia language. To use the Matlab version of TSSOS, one shoud use the *matlab* branch. Generally, the Julia version is more efficient.
 
-To use the Julia version of  BlockPOP, run
+To use the Julia version of TSSOS, run
 ```Julia
-pkg> add https://github.com/wangjie212/BlockPOP
+pkg> add https://github.com/wangjie212/TSSOS
  ```
 
 ## Dependencies
@@ -11,7 +11,7 @@ pkg> add https://github.com/wangjie212/BlockPOP
 - MATLAB
 - MOSEK 8.1
 
-Since the Julia version of BlockPOP calls MATLAB to handle polynomials, one needs to add the path of MATLAB to the environment variable PATH. The Julia version of BlockPOP has been tested on WINDOW 10, Julia 1.2.0, MATLAB R2016a and MOSEK 8.1.
+Since the Julia version of TSSOS calls MATLAB to handle polynomials, one needs to add the path of MATLAB to the environment variable PATH. The Julia version of TSSOS has been tested on WINDOW 10, Julia 1.2.0, MATLAB R2016a and MOSEK 8.1.
 ## Usage
 ### Unconstrained polynomial optimization problems
 The unconstrained polynomial optimization problem formulizes as
@@ -22,7 +22,7 @@ where f is a polynomial with variables x1,...,xn and of degree d.
 
 Taking f=x1^4+x2^4-x1\*x2 as an example, to exetute the first blocking hierarchy, run
 ```Julia
-julia> using BlockPOP
+julia> using TSSOS
 julia> using MATLAB
 julia> n=2;d=4
 # call MATLAB
