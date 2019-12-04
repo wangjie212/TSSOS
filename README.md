@@ -1,5 +1,5 @@
 # TSSOS
-TSSOS is a sparse polynomial optimization tool based on block Moment-SOS hierarchies. The Julia version of BlockPOP provides a usage based on the Julia language. To use the Matlab version of TSSOS, one shoud use the *matlab* branch. Generally, the Julia version is more efficient.
+TSSOS is a sparse polynomial optimization tool based on block Moment-SOS hierarchies. The Julia version of TSSOS provides a usage based on the Julia language. To use the Matlab version of TSSOS, one shoud use the *matlab* branch. Generally, the Julia version is more efficient.
 
 To use the Julia version of TSSOS, run
 ```Julia
