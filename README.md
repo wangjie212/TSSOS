@@ -74,5 +74,5 @@ To exetute higher block hierarchies, repeatedly run
 >>[opt,data,status]=blockpop_cons_higher(n,m,data,'mosek')
 ```
 
-## Contact
-If there are any problems, you can contact: wangjie212@mails.ucas.ac.cn.
+## Reference
+For more details about TSSOS, please refer to [TSSOS: A Moment-SOS hierarchy that exploits term sparsity](https://arxiv.org/abs/1912.08899). If there are any problems, you can contact Jie Wang: wangjie212@mails.ucas.ac.cn.
