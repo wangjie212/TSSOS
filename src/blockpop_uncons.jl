@@ -10,8 +10,7 @@ end
 function blockupop_first(n,pd,supp,coe;newton=1,method="block",reducebasis=0)
 d=Int(pd/2)
 if newton==1
-   lsupp=size(supp,2)
-   if sum(supp[:,lsupp])!=0
+   if sum(supp[:,end])!=0
       supp=[supp zeros(UInt8,n,1)]
       coe=[coe 0]
    end
@@ -478,10 +477,11 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize)
     status=termination_status(model)
     if status == MOI.OPTIMAL
        objv = objective_value(model)
-       println("optimum=\n$objv")
+       println("optimum = $objv")
     else
-       objv = 0
-       println("Failed, status=\n$status")
+       objv = objective_value(model)
+       println("$status")
+       println("optimum = $objv")
     end
     return objv,supp1
 end
