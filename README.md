@@ -8,10 +8,9 @@ pkg> add https://github.com/wangjie212/TSSOS
 
 ## Dependencies
 - Julia
-- MATLAB
 - MOSEK 8.1
 
-Since the Julia version of TSSOS calls MATLAB to handle polynomials, one needs to add the path of MATLAB to the environment variable PATH. The Julia version of TSSOS has been tested on WINDOW 10, Julia 1.2.0, MATLAB R2016a and MOSEK 8.1.
+The Julia version of TSSOS has been tested on WINDOW 10, Julia 1.2.0, and MOSEK 8.1.
 ## Usage
 ### Unconstrained polynomial optimization problems
 The unconstrained polynomial optimization problem formulizes as
@@ -20,27 +19,23 @@ Inf{f(x): x\in R^n}
 ```
 where f is a polynomial with variables x1,...,xn and of degree d.
 
-Taking f=x1^4+x2^4-x1\*x2 as an example, to exetute the first blocking hierarchy, run
+Taking f=x1^4+x2^4-x1\*x2 as an example, to exetute the first block hierarchy, run
 ```Julia
 julia> using TSSOS
-julia> using MATLAB
+julia> using TypedPolynomials
+julia> using MultivariatePolynomials
 julia> n=2;d=4
-# call MATLAB
-ms=MSession()
-mat"x = sym('x',[1 $n]);
-poly=x(1)^4+x(2)^4-x(1)*x(2);
-[coe, terms] = coeffs(poly,x);
-lt=length(terms);
-supp=zeros($n,lt);
-for i=1:lt
-    for j=1:$n
-        supp(j,i)=feval(symengine,'degree',terms(i),x(j));
+@polyvar x[1:2]
+f=x[1]^4+x[2]^4-x[1]*x[2]
+mon=monomials(f)
+coe=coefficients(f)
+lm=length(mon)
+supp=zeros(UInt8,n,lm)
+for i=1:lm
+    for j=1:n
+        supp[j,i]=degree(mon[i],x[j])
     end
 end
-coe=double(coe)"
-coe=jarray(get_mvariable(ms,:coe))
-supp=jarray(get_mvariable(ms,:supp))
-supp=convert(Array{UInt8},supp)
 julia> opt,data,status=blockupop_first(n,d,supp,coe)
 ```
 By default, a monomial basis computed by the Newton polytope method will be used. If we set the key newton=0 in the input,
@@ -76,41 +71,30 @@ Taking f=x1^4+x2^4-x1\*x2 and g_1=1-x1^2-2\*x2^2 as an example, to exetute the f
 julia> n=2;m=1
 d=2 # the order of Lasserre's hierarchy
 dg=[2] # the degree vector of {g_j}
-# call MATLAB
-ms=MSession()
-mat"x = sym('x',[1 $n]);
-f=x(1)^4+x(2)^4-x(1)*x(2);
-g_1=1-x(1)^2-2*x(2)^2;
-pop=[f,g_1];
-coe=cell(1,$m+1);
-terms=cell(1,$m+1);
-ssupp=cell(1,$m+1);
-supp=[];
-lt=zeros(1,$m+1);
-for k=1:$m+1
-    [coe{k}, terms{k}] = coeffs(pop(k),x);
-    lt(k)=length(terms{k});
-    ssupp{k}=zeros($n,lt(k));
-    for i=1:lt(k)
-        for j=1:$n
-            ssupp{k}(j,i)=feval(symengine,'degree',terms{k}(i),x(j));
+@polyvar x[1:2]
+f=x[1]^4+x[2]^4-x[1]*x[2]
+g_1=1-x[1]^2-2*x[2]^2;
+pop=[f,g_1]
+coe=Array{Any}(undef, m+1)
+mon=Array{Any}(undef, m+1)
+ssupp=Array{Any}(undef, m+1)
+lt=zeros(Int,1,m+1)
+for k=1:m+1
+    mon[k]=monomials(pop[k])
+    coe[k]=coefficients(pop[k])
+    lt[k]=length(mon[k])
+    ssupp[k]=zeros(UInt8,n,lt[k])
+    for i=1:lt[k]
+        for j=1:n
+            ssupp[k][j,i]=degree(mon[k][i],x[j])
         end
     end
-    supp=[supp ssupp{k}];
 end
-for k=1:$m+1
-    coe{k}=double(coe{k});
-end"
-coe=jarray(get_mvariable(ms,:coe))
-supp=jarray(get_mvariable(ms,:supp))
-supp=convert(Array{UInt8},supp)
+supp=ssupp[1]
+for i=2:m+1
+    global supp=[supp ssupp[i]]
+end
 supp=unique(supp,dims=2)
-ssupp=jarray(get_mvariable(ms,:ssupp))
-for k=1:m+1
-    ssupp[k]=convert(Array{UInt8},ssupp[k])
-end
-lt=jarray(get_mvariable(ms,:lt))
-lt=convert(Array{UInt32},lt)
 julia> opt,data,status=blockcpop_first(n,m,d,dg,supp,ssupp,coe,lt)
 ```
 
@@ -122,5 +106,5 @@ To exetute higher block hierarchies, repeatedly run
 julia> opt,data,status=blockcpop_higher!(n,m,data)
 ```
 
-## Contact
-If there are any problems, you can contact: wangjie212@mails.ucas.ac.cn.
+## Reference
+For more details about TSSOS, please refer to [TSSOS: A Moment-SOS hierarchy that exploits term sparsity](https://arxiv.org/abs/1912.08899). If there are any problems, you can contact Jie Wang: wangjie212@mails.ucas.ac.cn.
