@@ -14,7 +14,9 @@ The Julia version of TSSOS has been tested on WINDOW 10, Julia 1.2.0, and MOSEK 
 ## Usage
 ### Unconstrained polynomial optimization problems
 The unconstrained polynomial optimization problem formulizes as
-$$Inf{f(x): x\in R^n}$$
+```html
+<a href="https://www.codecogs.com/eqnedit.php?latex=\inf\{f(x):&space;x\in&space;R^n\}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\inf\{f(x):&space;x\in&space;R^n\}" title="\inf\{f(x): x\in R^n\}" /></a>
+```
 where f is a polynomial with variables x1,...,xn and of degree d.
 
 Taking f=x1^4+x2^4-x1\*x2 as an example, to exetute the first block hierarchy, run
