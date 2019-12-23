@@ -1,4 +1,6 @@
 mutable struct cdata_type
+    n
+    m
     ssupp
     coe
     lt
@@ -12,7 +14,31 @@ mutable struct cdata_type
     sizes
 end
 
-function blockcpop_first(n,m,d,dg,supp,ssupp,coe,lt;method="block",reducebasis=0,numeq=0)
+function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0)
+n=length(x)
+m=length(pop)-1
+dg=zeros(UInt8,1,m)
+coe=Array{Any}(undef, m+1)
+mon=Array{Any}(undef, m+1)
+ssupp=Array{Any}(undef, m+1)
+lt=zeros(Int,1,m+1)
+for k=1:m+1
+    mon[k]=monomials(pop[k])
+    coe[k]=coefficients(pop[k])
+    lt[k]=length(mon[k])
+    ssupp[k]=zeros(UInt8,n,lt[k])
+    for i=1:lt[k]
+        for j=1:n
+            ssupp[k][j,i]=MultivariatePolynomials.degree(mon[k][i],x[j])
+        end
+    end
+end
+supp=ssupp[1]
+for i=2:m+1
+    dg[i-1]=maxdegree(pop[i])
+    supp=[supp ssupp[i]]
+end
+supp=unique(supp,dims=2)
 fbasis=get_basis(n,d)
 gbasis=Array{Any}(undef,m)
 for k=1:m
@@ -72,11 +98,13 @@ else
    fsupp=0
    gsupp=0
 end
-data=cdata_type(ssupp,coe,lt,d,dg,fbasis,gbasis,fsupp,gsupp,ub,sizes)
+data=cdata_type(n,m,ssupp,coe,lt,d,dg,fbasis,gbasis,fsupp,gsupp,ub,sizes)
 return opt,data,status
 end
 
-function blockcpop_higher!(n,m,data;method="block",reducebasis=0,numeq=0)
+function blockcpop_higher!(data;method="block",reducebasis=0,numeq=0)
+n=data.n
+m=data.m
 ssupp=data.ssupp
 coe=data.coe
 lt=data.lt

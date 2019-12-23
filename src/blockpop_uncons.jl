@@ -1,4 +1,5 @@
 mutable struct data_type
+    n
     supp
     basis
     coe
@@ -7,12 +8,22 @@ mutable struct data_type
     sizes
 end
 
-function blockupop_first(n,pd,supp,coe;newton=1,method="block",reducebasis=0)
-d=Int(pd/2)
+function blockupop_first(f,x;newton=1,method="block",reducebasis=0)
+n=length(x)
+mon=monomials(f)
+coe=coefficients(f)
+lm=length(mon)
+supp=zeros(UInt8,n,lm)
+for i=1:lm
+    for j=1:n
+        supp[j,i]=MultivariatePolynomials.degree(mon[i],x[j])
+    end
+end
+d=Int(maxdegree(f)/2)
 if newton==1
    if sum(supp[:,end])!=0
       supp=[supp zeros(UInt8,n,1)]
-      coe=[coe 0]
+      coe=[coe;0]
    end
    basis=newton_basis(n,d,supp)
 else
@@ -43,11 +54,12 @@ else
    opt=0
    supp1=0
 end
-data=data_type(supp,basis,coe,supp1,ub,sizes)
+data=data_type(n,supp,basis,coe,supp1,ub,sizes)
 return opt,data,status
 end
 
-function blockupop_higher!(n,data;method="block",reducebasis=0)
+function blockupop_higher!(data;method="block",reducebasis=0)
+n=data.n
 supp=data.supp
 basis=data.basis
 coe=data.coe
