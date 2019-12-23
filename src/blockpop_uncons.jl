@@ -30,32 +30,27 @@ else
    basis=get_basis(n,d)
 end
 if method=="block"&&reducebasis==0
-blocks,cl,blocksize,ub,sizes,status=get_blocks(n,supp,basis)
+blocks,cl,blocksize,ub,sizes=get_blocks(n,supp,basis)
 elseif method=="block"&&reducebasis==1
     flag=1
     while flag==1
-          blocks,cl,blocksize,ub,sizes,status=get_blocks(n,supp,basis,reduce=1)
+          blocks,cl,blocksize,ub,sizes=get_blocks(n,supp,basis,reduce=1)
           tsupp=[supp zeros(UInt8,n,1)]
           basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
     end
 elseif method=="clique"&&reducebasis==0
-blocks,cl,blocksize,ub,sizes,status=get_cliques(n,supp,basis)
+blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis)
 else
     flag=1
     while flag==1
-          blocks,cl,blocksize,ub,sizes,status=get_cliques(n,supp,basis,reduce=1)
+          blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis,reduce=1)
           tsupp=[supp zeros(UInt8,n,1)]
           basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
     end
 end
-if status==1
-   opt,supp1=blockupop(n,supp,coe,basis,blocks,cl,blocksize)
-else
-   opt=0
-   supp1=0
-end
+opt,supp1=blockupop(n,supp,coe,basis,blocks,cl,blocksize)
 data=data_type(n,supp,basis,coe,supp1,ub,sizes)
-return opt,data,status
+return opt,data
 end
 
 function blockupop_higher!(data;method="block",reducebasis=0)
@@ -92,7 +87,7 @@ end
 data.supp1=supp1
 data.ub=ub
 data.sizes=sizes
-return opt,data,status
+return opt,data
 end
 
 function get_basis(n,d)
@@ -326,15 +321,10 @@ else
     end
 end
 blocks,cl,blocksize=cliquesFromSpMatD(A)
-if cl==1
-   println("Unblockable")
-   return blocks,cl,blocksize,blocksize,[1],0
-else
-   ub=unique(blocksize)
-   sizes=[sum(blocksize.== i) for i in ub]
-   println("blocksizes:\n$ub\n$sizes")
-   return blocks,cl,blocksize,ub,sizes,1
-end
+ub=unique(blocksize)
+sizes=[sum(blocksize.== i) for i in ub]
+println("blocksizes:\n$ub\n$sizes")
+return blocks,cl,blocksize,ub,sizes
 end
 
 function get_hcliques!(n,supp,basis,ub,sizes;reduce=0)
@@ -371,21 +361,16 @@ else
     end
 end
 blocks,cl,blocksize=cliquesFromSpMatD(A)
-if cl==1
-   println("$blocksize\n[1]")
-   return blocks,cl,blocksize,blocksize,[1],1
+nub=unique(blocksize)
+nsizes=[sum(blocksize.== i) for i in nub]
+if nub!=ub||nsizes!=sizes
+   ub=nub
+   sizes=nsizes
+   println("$ub\n$sizes")
+   return blocks,cl,blocksize,ub,sizes,1
 else
-   nub=unique(blocksize)
-   nsizes=[sum(blocksize.== i) for i in nub]
-   if nub!=ub||nsizes!=sizes
-      ub=nub
-      sizes=nsizes
-      println("$ub\n$sizes")
-      return blocks,cl,blocksize,ub,sizes,1
-   else
-      println("No higher blocking hierarchy")
-      return 0,0,0,0,0,0
-   end
+   println("No higher block hierarchy")
+   return 0,0,0,0,0,0
 end
 end
 
@@ -426,15 +411,10 @@ blocksize=zeros(Int,1,cl)
 for i=1:cl
     blocksize[i]=length(blocks[i])
 end
-if cl==1
-   println("Unblockable")
-   return blocks,cl,blocksize,blocksize,[1],0
-else
-   ub=unique(blocksize)
-   sizes=[sum(blocksize.== i) for i in ub]
-   println("blocksizes:\n$ub\n$sizes")
-   return blocks,cl,blocksize,ub,sizes,1
-end
+ub=unique(blocksize)
+sizes=[sum(blocksize.== i) for i in ub]
+println("blocksizes:\n$ub\n$sizes")
+return blocks,cl,blocksize,ub,sizes
 end
 
 function blockupop(n,supp,coe,basis,blocks,cl,blocksize)
@@ -598,7 +578,7 @@ function blockupopm(n,supp,coe,basis,blocks,cl,blocksize)
        println("Other solution status")
     end
     end
-    return supp1
+    return opt,supp1
 end
 
 function get_hblocks!(n,supp,basis,ub,sizes;reduce=0)
@@ -637,20 +617,15 @@ blocksize=zeros(Int,1,cl)
 for i=1:cl
     blocksize[i]=length(blocks[i])
 end
-if cl==1
-   println("blocksizes:\n$blocksize\n[1]")
-   return blocks,cl,blocksize,blocksize,[1],1
+nub=unique(blocksize)
+nsizes=[sum(blocksize.== i) for i in nub]
+if nub!=ub||nsizes!=sizes
+   ub=nub
+   sizes=nsizes
+   println("blocksizes:\n$ub\n$sizes")
+   return blocks,cl,blocksize,ub,sizes,1
 else
-   nub=unique(blocksize)
-   nsizes=[sum(blocksize.== i) for i in nub]
-   if nub!=ub||nsizes!=sizes
-      ub=nub
-      sizes=nsizes
-      println("blocksizes:\n$ub\n$sizes")
-      return blocks,cl,blocksize,ub,sizes,1
-   else
-      println("No higher block hierarchy")
-      return 0,0,0,0,0,0
-   end
+   println("No higher block hierarchy")
+   return 0,0,0,0,0,0
 end
 end
