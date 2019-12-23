@@ -24,23 +24,13 @@ Taking f=x1^4+x2^4-x1\*x2 as an example, to exetute the first block hierarchy, r
 julia> using TSSOS
 julia> using TypedPolynomials
 julia> using MultivariatePolynomials
-julia> n=2;d=4
-@polyvar x[1:2]
+julia> @polyvar x[1:2]
 f=x[1]^4+x[2]^4-x[1]*x[2]
-mon=monomials(f)
-coe=coefficients(f)
-lm=length(mon)
-supp=zeros(UInt8,n,lm)
-for i=1:lm
-    for j=1:n
-        supp[j,i]=degree(mon[i],x[j])
-    end
-end
-julia> opt,data,status=blockupop_first(n,d,supp,coe)
+julia> opt,data,status=blockupop_first(f,x)
 ```
 By default, a monomial basis computed by the Newton polytope method will be used. If we set the key newton=0 in the input,
 ```Julia
-julia> opt,data,status=blockupop_first(n,d,supp,coe,newton=0)
+julia> opt,data,status=blockupop_first(f,x,newton=0)
 ```
 then the standard monomial basis will be used.
 
@@ -51,7 +41,7 @@ In most cases, the first block hierarchy already obtains the same optimum as the
 To exetute higher block hierarchies, repeatedly run
 
 ```Julia
-julia> opt,data,status=blockupop_higher!(n,data)
+julia> opt,data,status=blockupop_higher!(data)
 ```
 
 ### Constrained polynomial optimization problems
@@ -68,34 +58,12 @@ for some polynomials g_j, j=1,...,m.
 Taking f=x1^4+x2^4-x1\*x2 and g_1=1-x1^2-2\*x2^2 as an example, to exetute the first block hierarchy, run
 
 ```Julia
-julia> n=2;m=1
-d=2 # the order of Lasserre's hierarchy
-dg=[2] # the degree vector of {g_j}
-@polyvar x[1:2]
+julia> @polyvar x[1:2]
 f=x[1]^4+x[2]^4-x[1]*x[2]
-g_1=1-x[1]^2-2*x[2]^2;
+g_1=1-x[1]^2-2*x[2]^2
 pop=[f,g_1]
-coe=Array{Any}(undef, m+1)
-mon=Array{Any}(undef, m+1)
-ssupp=Array{Any}(undef, m+1)
-lt=zeros(Int,1,m+1)
-for k=1:m+1
-    mon[k]=monomials(pop[k])
-    coe[k]=coefficients(pop[k])
-    lt[k]=length(mon[k])
-    ssupp[k]=zeros(UInt8,n,lt[k])
-    for i=1:lt[k]
-        for j=1:n
-            ssupp[k][j,i]=degree(mon[k][i],x[j])
-        end
-    end
-end
-supp=ssupp[1]
-for i=2:m+1
-    global supp=[supp ssupp[i]]
-end
-supp=unique(supp,dims=2)
-julia> opt,data,status=blockcpop_first(n,m,d,dg,supp,ssupp,coe,lt)
+d=2 # the order of Lasserre's hierarchy
+julia> opt,data,status=blockcpop_first(pop,x,d)
 ```
 
 In most cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
@@ -103,7 +71,7 @@ In most cases, the first block hierarchy already obtains the same optimum as the
 To exetute higher block hierarchies, repeatedly run
 
 ```Julia
-julia> opt,data,status=blockcpop_higher!(n,m,data)
+julia> opt,data,status=blockcpop_higher!(data)
 ```
 
 ## Reference
