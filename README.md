@@ -26,11 +26,11 @@ julia> using TypedPolynomials
 julia> using MultivariatePolynomials
 julia> @polyvar x[1:2]
 f=x[1]^4+x[2]^4-x[1]*x[2]
-julia> opt,data,status=blockupop_first(f,x)
+julia> opt,data=blockupop_first(f,x)
 ```
 By default, a monomial basis computed by the Newton polytope method will be used. If we set the key newton=0 in the input,
 ```Julia
-julia> opt,data,status=blockupop_first(f,x,newton=0)
+julia> opt,data=blockupop_first(f,x,newton=0)
 ```
 then the standard monomial basis will be used.
 
@@ -63,7 +63,7 @@ f=x[1]^4+x[2]^4-x[1]*x[2]
 g_1=1-x[1]^2-2*x[2]^2
 pop=[f,g_1]
 d=2 # the order of Lasserre's hierarchy
-julia> opt,data,status=blockcpop_first(pop,x,d)
+julia> opt,data=blockcpop_first(pop,x,d)
 ```
 
 In most cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
@@ -71,7 +71,7 @@ In most cases, the first block hierarchy already obtains the same optimum as the
 To exetute higher block hierarchies, repeatedly run
 
 ```Julia
-julia> opt,data,status=blockcpop_higher!(data)
+julia> opt,data=blockcpop_higher!(data)
 ```
 
 ## Reference
