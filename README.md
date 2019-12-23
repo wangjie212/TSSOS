@@ -14,7 +14,7 @@ The Julia version of TSSOS has been tested on WINDOW 10, Julia 1.2.0, and MOSEK 
 ## Usage
 ### Unconstrained polynomial optimization problems
 The unconstrained polynomial optimization problem formulizes as
-```katex
+```math
 \displaystyle
 Inf{f(x): x\in R^n}
 ```
