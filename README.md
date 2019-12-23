@@ -14,8 +14,8 @@ The Julia version of TSSOS has been tested on WINDOW 10, Julia 1.2.0, and MOSEK 
 ## Usage
 ### Unconstrained polynomial optimization problems
 The unconstrained polynomial optimization problem formulizes as
-```html
-<a href="https://www.codecogs.com/eqnedit.php?latex=\inf\{f(x):&space;x\in&space;R^n\}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\inf\{f(x):&space;x\in&space;R^n\}" title="\inf\{f(x): x\in R^n\}" /></a>
+```
+Inf{f(x): x\in R^n}
 ```
 where f is a polynomial with variables x1,...,xn and of degree d.
 
@@ -45,11 +45,11 @@ julia> opt,data=blockupop_higher!(data)
 
 ### Constrained polynomial optimization problems
 The constrained polynomial optimization problem formulizes as
-```latex
+```
 Inf{f(x): x\in K}
 ```
 where f is a polynomial and K is the basic semi-algebraic set
-```latex
+```
 K={x\in R^n: g_j(x)>=0, j=1,...,m},
 ```
 for some polynomials g_j, j=1,...,m.
