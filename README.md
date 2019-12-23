@@ -14,7 +14,7 @@ The Julia version of TSSOS has been tested on WINDOW 10, Julia 1.2.0, and MOSEK 
 ## Usage
 ### Unconstrained polynomial optimization problems
 The unconstrained polynomial optimization problem formulizes as
-```
+```latex
 Inf{f(x): x\in R^n}
 ```
 where f is a polynomial with variables x1,...,xn and of degree d.
@@ -23,7 +23,6 @@ Taking f=x1^4+x2^4-x1\*x2 as an example, to exetute the first block hierarchy, r
 ```Julia
 julia> using TSSOS
 julia> using TypedPolynomials
-julia> using MultivariatePolynomials
 julia> @polyvar x[1:2]
 f=x[1]^4+x[2]^4-x[1]*x[2]
 julia> opt,data=blockupop_first(f,x)
@@ -46,11 +45,11 @@ julia> opt,data=blockupop_higher!(data)
 
 ### Constrained polynomial optimization problems
 The constrained polynomial optimization problem formulizes as
-```
+```latex
 inf{f(x): x\in K}
 ```
 where f is a polynomial and K is the basic semi-algebraic set
-```
+```latex
 K={x\in R^n: g_j(x)>=0, j=1,...,m},
 ```
 for some polynomials g_j, j=1,...,m.
