@@ -45,7 +45,7 @@ To exetute higher block hierarchies, repeatedly run
 ### Constrained polynomial optimization problems
 The constrained polynomial optimization problem formulizes as
 ```
-inf{f(x): x\in K}
+Inf{f(x): x\in K}
 ```
 where f is a polynomial and K is the basic semi-algebraic set
 ```
