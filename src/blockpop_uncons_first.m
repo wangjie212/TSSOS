@@ -32,16 +32,20 @@ while t<=lb
          t=t+1;
       else  
          A=[A0;[basis(i,:),-1]];
-         [vx,~,exitflag]=linprog([basis(i,:),-1],A,zeros(1,lsupp+1));
-         if exitflag==1
+         [vx,fval,~]=linprog([basis(i,:),-1],A,zeros(1,lsupp+1),[],[],-10*ones(1,n+1),10*ones(1,n+1));
+         if abs(fval)<=1e-5
             t=t+1;
          else
-            lb=lb-1;
-            indexb(t)=[];
+            if sum(abs(vx))<=1e-5
+               t=t+1;
+            else
+               lb=lb-1;
+               indexb(t)=[];
+            end
             r=t;
             while lb>=r
                   j=indexb(r);
-                  if [basis(j,:),-1]*vx<=-0.001&&bfind(supp,lsupp,2*basis(i,:),n)==0
+                  if [basis(j,:),-1]*vx<=-1e-5
                      lb=lb-1;
                      indexb(r)=[];
                   else
