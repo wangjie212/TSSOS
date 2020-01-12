@@ -8,7 +8,7 @@ mutable struct data_type
     sizes
 end
 
-function blockupop_first(f,x;newton=1,method="block",reducebasis=0)
+function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=true)
 n=length(x)
 mon=monomials(f)
 coe=coefficients(f)
@@ -25,7 +25,7 @@ if newton==1
       supp=[supp zeros(UInt8,n,1)]
       coe=[coe;0]
    end
-   basis=newton_basis(n,d,supp)
+   basis=newton_basis(n,d,supp,e=e)
 else
    basis=get_basis(n,d)
 end
@@ -48,12 +48,12 @@ else
           basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
     end
 end
-opt,supp1=blockupop(n,supp,coe,basis,blocks,cl,blocksize)
+opt,supp1=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
 data=data_type(n,supp,basis,coe,supp1,ub,sizes)
 return opt,data
 end
 
-function blockupop_higher!(data;method="block",reducebasis=0)
+function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true)
 n=data.n
 supp=data.supp
 basis=data.basis
@@ -82,7 +82,7 @@ else
     end
 end
 if status==1
-   opt,supp1=blockupop(n,supp,coe,basis,blocks,cl,blocksize)
+   opt,supp1=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
 end
 data.supp1=supp1
 data.ub=ub
@@ -123,7 +123,7 @@ end
 return basis
 end
 
-function newton_basis(n,d,supp)
+function newton_basis(n,d,supp;e=1e-5)
 lsupp=size(supp,2)
 lb=binomial(n+d,d)
 basis=get_basis(n,d)
@@ -137,20 +137,24 @@ while t<=lb
          t=t+1
       else
          model=Model(with_optimizer(Mosek.Optimizer, QUIET=true))
-         @variable(model, x[1:n+1])
-         @constraint(model, con, [A0; [basis[:,i]' -1]]*x.<=zeros(lsupp+1,1))
+         @variable(model, x[1:n+1], lower_bound=-10, upper_bound=10)
+         @constraint(model, [A0; [basis[:,i]' -1]]*x.<=zeros(lsupp+1,1))
          @objective(model, Min, [basis[:,i]' -1]*x)
          optimize!(model)
-         if termination_status(model) == MOI.OPTIMAL
+         vx=value.(x)
+         if abs(objective_value(model))<=e
             t=t+1
          else
-            vx = value.(x)
-            lb=lb-1
-            indexb=deleteat!(indexb,t)
+            if sum(abs.(vx))<=e
+                t=t+1
+            else
+                lb=lb-1
+                indexb=deleteat!(indexb,t)
+            end
             r=t
             while lb>=r
                   j=indexb[r]
-                  if [basis[:,j]' -1]*vx<=-0.001&&bfind(temp,lsupp,2*basis[:,i],n)==0
+                  if [basis[:,j]' -1]*vx<=-e
                      lb=lb-1
                      indexb=deleteat!(indexb,r)
                   else
@@ -417,7 +421,7 @@ println("blocksizes:\n$ub\n$sizes")
 return blocks,cl,blocksize,ub,sizes
 end
 
-function blockupop(n,supp,coe,basis,blocks,cl,blocksize)
+function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     lsupp=size(supp,2)
     supp1=zeros(UInt8,n,1)
     for i=1:cl
@@ -431,7 +435,7 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize)
     supp1=sortslices(supp1,dims=2)
     supp1=unique(supp1,dims=2)
     lsupp1=size(supp1,2)
-    model=Model(with_optimizer(Mosek.Optimizer, QUIET=true))
+    model=Model(with_optimizer(Mosek.Optimizer, QUIET=QUIET))
     cons=Array{Any}(undef, lsupp1)
     cons.=AffExpr(0)
     pos=Array{Any}(undef, cl)
