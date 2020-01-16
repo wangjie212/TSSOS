@@ -33,10 +33,10 @@ while t<=lb
       else  
          A=[A0;[basis(i,:),-1]];
          [vx,fval,~]=linprog([basis(i,:),-1],A,zeros(1,lsupp+1),[],[],-10*ones(1,n+1),10*ones(1,n+1));
-         if abs(fval)<=1e-5
+         if abs(fval)<=1e-5&&sum(abs(vx))<=1e-5
             t=t+1;
          else
-            if sum(abs(vx))<=1e-5
+            if abs(fval)<=1e-5&&sum(abs(vx))>1e-5
                t=t+1;
             else
                lb=lb-1;
