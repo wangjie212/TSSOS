@@ -9,18 +9,17 @@ mutable struct cdata_type
     fbasis
     gbasis
     fsupp
-    gsupp
     ub
     sizes
 end
 
-function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0)
+function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0,QUIET=true,dense=10)
 n=length(x)
 m=length(pop)-1
 dg=zeros(UInt8,1,m)
-coe=Array{Any}(undef, m+1)
+coe=Array{Array{Float64,1}}(undef, m+1)
 mon=Array{Any}(undef, m+1)
-ssupp=Array{Any}(undef, m+1)
+ssupp=Array{Array{UInt8,2}}(undef, m+1)
 lt=zeros(Int,1,m+1)
 for k=1:m+1
     mon[k]=monomials(pop[k])
@@ -40,7 +39,7 @@ for i=2:m+1
 end
 supp=unique(supp,dims=2)
 fbasis=get_basis(n,d)
-gbasis=Array{Any}(undef,m)
+gbasis=Array{Array{UInt8,2}}(undef,m)
 for k=1:m
     gbasis[k]=get_basis(n,d-Int(ceil(dg[k]/2)))
 end
@@ -52,47 +51,55 @@ elseif method=="block"&&reducebasis==1
           fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis,reduce=1)
           tsupp=[ssupp[1] zeros(UInt8,n,1)]
           for k=1:m
+              gsupp=zeros(UInt8,n,lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2))
+              l=1
               for i=1:gcl[k]
                   for j=1:gblocksize[k][i]
                       for r=j:gblocksize[k][i]
                           for s=1:lt[k+1]
                               bi=ssupp[k+1][:,s]+gbasis[k][:,gblocks[k][i][j]]+gbasis[k][:,gblocks[k][i][r]]
-                              tsupp=[tsupp bi]
+                              gsupp[:,l]=bi
+                              l+=1
                           end
                       end
                   end
               end
+              tsupp=[tsupp gsupp]
           end
           fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize)
     end
 elseif method=="clique"&&reducebasis==0
-    fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis)
+    fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,dense=dense)
 else
     flag=1
     while flag==1
-          fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,reduce=1)
+          fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,reduce=1,dense=dense)
           tsupp=[ssupp[1] zeros(UInt8,n,1)]
           for k=1:m
+              gsupp=zeros(UInt8,n,lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2))
+              l=1
               for i=1:gcl[k]
                   for j=1:gblocksize[k][i]
                       for r=j:gblocksize[k][i]
                           for s=1:lt[k+1]
                               bi=ssupp[k+1][:,s]+gbasis[k][:,gblocks[k][i][j]]+gbasis[k][:,gblocks[k][i][r]]
-                              tsupp=[tsupp bi]
+                              gsupp[:,l]=bi
+                              l+=1
                           end
                       end
                   end
               end
+              tsupp=[tsupp gsupp]
           end
           fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize)
     end
 end
-opt,fsupp,gsupp=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq)
-data=cdata_type(n,m,ssupp,coe,lt,d,dg,fbasis,gbasis,fsupp,gsupp,ub,sizes)
+opt,fsupp=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET)
+data=cdata_type(n,m,ssupp,coe,lt,d,dg,fbasis,gbasis,fsupp,ub,sizes)
 return opt,data
 end
 
-function blockcpop_higher!(data;method="block",reducebasis=0,numeq=0)
+function blockcpop_higher!(data;method="block",reducebasis=0,numeq=0,QUIET=true,dense=10)
 n=data.n
 m=data.m
 ssupp=data.ssupp
@@ -102,62 +109,68 @@ d=data.d
 dg=data.dg
 gbasis=data.gbasis
 fsupp=data.fsupp
-gsupp=data.gsupp
 ub=data.ub
 sizes=data.sizes
 opt=0
 if method=="block"&&reducebasis==0
    fbasis=data.fbasis
-   fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gsupp,ub,sizes)
+   fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes)
 elseif method=="block"&&reducebasis==1
     fbasis=get_basis(n,d)
     flag=1
     while flag==1
-          fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gsupp,ub,sizes,reduce=1)
+          fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,reduce=1)
           tsupp=[ssupp[1] zeros(UInt8,n,1)]
           for k=1:m
+              gsupp=zeros(UInt8,n,lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2))
+              l=1
               for i=1:gcl[k]
                   for j=1:gblocksize[k][i]
                       for r=j:gblocksize[k][i]
                           for s=1:lt[k+1]
                               bi=ssupp[k+1][:,s]+gbasis[k][:,gblocks[k][i][j]]+gbasis[k][:,gblocks[k][i][r]]
-                              tsupp=[tsupp bi]
+                              gsupp[:,l]=bi
+                              l+=1
                           end
                       end
                   end
               end
+              tsupp=[tsupp gsupp]
           end
           fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize)
     end
 elseif method=="clique"&&reducebasis==0
     fbasis=data.fbasis
-    fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes)
+    fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,dense=dense)
 else
     fbasis=get_basis(n,d)
     flag=1
     while flag==1
-          fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,reduce=1)
+          fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,reduce=1,dense=dense)
           tsupp=[ssupp[1] zeros(UInt8,n,1)]
           for k=1:m
+              gsupp=zeros(UInt8,n,lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2))
+              l=1
               for i=1:gcl[k]
                   for j=1:gblocksize[k][i]
                       for r=j:gblocksize[k][i]
                           for s=1:lt[k+1]
                               bi=ssupp[k+1][:,s]+gbasis[k][:,gblocks[k][i][j]]+gbasis[k][:,gblocks[k][i][r]]
-                              tsupp=[tsupp bi]
+                              gsupp[:,l]=bi
+                              l+=1
                           end
                       end
                   end
               end
+              tsupp=[tsupp gsupp]
           end
           fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize)
     end
 end
 if status==1
-    opt,fsupp,gsupp=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq)
+    opt,fsupp=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET)
 end
 data.fsupp=fsupp
-data.gsupp=gsupp
 data.fbasis=fbasis
 data.ub=ub
 data.sizes=sizes
@@ -189,7 +202,7 @@ lsupp1=size(supp1,2)
 for i=1:cl
     lo=blocksize[i]
     indexb=[k for k=1:lo]
-    j=Int(1)
+    j=1
     while lo>=j
         bi=2*basis[:,blocks[i][indexb[j]]]
         Locb=bfind(supp1,lsupp1,bi,n)
@@ -245,9 +258,9 @@ if fcl==1
     println("fblocksizes:\n$fblocksize\n[1]")
     println("-----------------------------------------------")
     println("gblocksizes:")
-    gblocks=Array{Any}(undef, m)
-    gblocksize=Array{Any}(undef, m)
-    gcl=Array{UInt8}(undef, m)
+    gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+    gblocksize=Array{Array{Int,1}}(undef, m)
+    gcl=zeros(Int,1,m)
     for k=1:m
         gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
         gblocksize[k]=[size(gbasis[k],2)]
@@ -263,10 +276,10 @@ sizes=[sum(fblocksize.== i) for i in ub]
 println("fblocksizes:\n$ub\n$sizes")
 println("-----------------------------------------------")
 println("gblocksizes:")
-glb=Array{UInt16}(undef, m)
-gcl=Array{UInt8}(undef, m)
-gblocks=Array{Any}(undef, m)
-gblocksize=Array{Any}(undef, m)
+glb=zeros(Int,1,m)
+gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+gblocksize=Array{Array{Int,2}}(undef, m)
+gcl=zeros(Int,1,m)
 for k=1:m
     glb[k]=size(gbasis[k],2)
     gG=SimpleGraph(glb[k])
@@ -328,9 +341,9 @@ else
         println("fblocksizes:\n$fblocksize\n[1]")
         println("-----------------------------------------------")
         println("gblocksizes:")
-        gblocks=Array{Any}(undef, m)
-        gblocksize=Array{Any}(undef, m)
-        gcl=Array{UInt8}(undef, m)
+        gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+        gblocksize=Array{Array{Int,1}}(undef, m)
+        gcl=zeros(Int,1,m)
         for k=1:m
             gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
             gblocksize[k]=[size(gbasis[k],2)]
@@ -347,10 +360,10 @@ else
        println("-----------------------------------------------")
     end
     println("gblocksizes:")
-    glb=Array{UInt16}(undef, m)
-    gcl=Array{UInt8}(undef, m)
-    gblocks=Array{Any}(undef, m)
-    gblocksize=Array{Any}(undef, m)
+    glb=zeros(Int,1,m)
+    gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+    gblocksize=Array{Array{Int,2}}(undef, m)
+    gcl=zeros(Int,1,m)
     for k=1:m
         glb[k]=size(gbasis[k],2)
         gG=SimpleGraph(glb[k])
@@ -391,7 +404,7 @@ end
 return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes
 end
 
-function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0)
+function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10)
 if reduce==1
 supp1=[supp 2*fbasis]
 supp1=sortslices(supp1,dims=2)
@@ -408,14 +421,14 @@ for i = 1:flb
         end
     end
 end
-fblocks,fcl,fblocksize=cliquesFromSpMatD(A)
+fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
 if fcl==1
     println("fblocksizes:\n$fblocksize\n[1]")
     println("-----------------------------------------------")
     println("gblocksizes:")
-    gblocks=Array{Any}(undef, m)
-    gblocksize=Array{Any}(undef, m)
-    gcl=Array{UInt8}(undef, m)
+    gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+    gblocksize=Array{Array{Int,1}}(undef, m)
+    gcl=zeros(Int,1,m)
     for k=1:m
         gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
         gblocksize[k]=[size(gbasis[k],2)]
@@ -432,10 +445,10 @@ else
    println("-----------------------------------------------")
 end
 println("gblocksizes:")
-glb=Array{UInt16}(undef, m)
-gcl=Array{UInt16}(undef, m)
-gblocks=Array{Any}(undef, m)
-gblocksize=Array{Any}(undef, m)
+glb=zeros(Int,1,m)
+gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+gblocksize=Array{Array{Int,2}}(undef, m)
+gcl=zeros(Int,1,m)
 for k=1:m
     glb[k]=size(gbasis[k],2)
     A=zeros(UInt8,glb[k],glb[k])
@@ -456,7 +469,7 @@ for k=1:m
             end
         end
     end
-    gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A)
+    gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
     if gcl[k]==1
        gbk=gblocksize[k]
        println("$gbk\n[1]")
@@ -483,14 +496,14 @@ else
             end
         end
     end
-    fblocks,fcl,fblocksize=cliquesFromSpMatD(A)
+    fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
     if fcl==1
         println("fblocksizes:\n$fblocksize\n[1]")
         println("-----------------------------------------------")
         println("gblocksizes:")
-        gblocks=Array{Any}(undef, m)
-        gblocksize=Array{Any}(undef, m)
-        gcl=Array{UInt8}(undef, m)
+        gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+        gblocksize=Array{Array{Int,1}}(undef, m)
+        gcl=zeros(Int,1,m)
         for k=1:m
             gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
             gblocksize[k]=[size(gbasis[k],2)]
@@ -507,10 +520,10 @@ else
        println("-----------------------------------------------")
     end
     println("gblocksizes:")
-    glb=Array{UInt16}(undef, m)
-    gcl=Array{UInt16}(undef, m)
-    gblocks=Array{Any}(undef, m)
-    gblocksize=Array{Any}(undef, m)
+    glb=zeros(Int,1,m)
+    gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+    gblocksize=Array{Array{Int,2}}(undef, m)
+    gcl=zeros(Int,1,m)
     for k=1:m
         glb[k]=size(gbasis[k],2)
         A=zeros(UInt8,glb[k],glb[k])
@@ -531,7 +544,7 @@ else
                 end
             end
         end
-        gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A)
+        gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
         if gcl[k]==1
            gbk=gblocksize[k]
            println("$gbk\n[1]")
@@ -547,7 +560,7 @@ end
 return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes
 end
 
-function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0)
+function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense=10)
 if reduce==1
     supp1=[fsupp 2*fbasis]
     supp1=sortslices(supp1,dims=2)
@@ -564,14 +577,14 @@ if reduce==1
             end
         end
     end
-    fblocks,fcl,fblocksize=cliquesFromSpMatD(A)
+    fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
     if fcl==1
        println("fblocksizes:\n$fblocksize\n[1]")
        println("-----------------------------------------------")
        println("gblocksizes:")
-       gblocks=Array{Any}(undef, m)
-       gblocksize=Array{Any}(undef, m)
-       gcl=Array{UInt8}(undef, m)
+       gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+       gblocksize=Array{Array{Int,1}}(undef, m)
+       gcl=zeros(Int,1,m)
        for k=1:m
            gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
            gblocksize[k]=[size(gbasis[k],2)]
@@ -590,15 +603,15 @@ if reduce==1
           println("fblocksizes:\n$ub\n$sizes")
           println("-----------------------------------------------")
        else
-          println("No higher block hierarchy")
+          println("No higher clique hierarchy")
           return 0,0,0,0,0,0,0,0,0
        end
     end
     println("gblocksizes:")
-    glb=Array{UInt16}(undef, m)
-    gcl=Array{UInt16}(undef, m)
-    gblocks=Array{Any}(undef, m)
-    gblocksize=Array{Any}(undef, m)
+    glb=zeros(Int,1,m)
+    gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+    gblocksize=Array{Array{Int,2}}(undef, m)
+    gcl=zeros(Int,1,m)
     for k=1:m
         glb[k]=size(gbasis[k],2)
         A=zeros(UInt8,glb[k],glb[k])
@@ -619,7 +632,7 @@ if reduce==1
                 end
             end
         end
-        gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A)
+        gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
         if gcl[k]==1
            gbk=gblocksize[k]
            println("$gbk\n[1]")
@@ -646,14 +659,196 @@ for i = 1:flb
         end
     end
 end
-fblocks,fcl,fblocksize=cliquesFromSpMatD(A)
+fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
 if fcl==1
    println("fblocksizes:\n$fblocksize\n[1]")
    println("-----------------------------------------------")
    println("gblocksizes:")
-   gblocks=Array{Any}(undef, m)
-   gblocksize=Array{Any}(undef, m)
-   gcl=Array{UInt8}(undef, m)
+   gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+   gblocksize=Array{Array{Int,1}}(undef, m)
+   gcl=zeros(Int,1,m)
+   for k=1:m
+       gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
+       gblocksize[k]=[size(gbasis[k],2)]
+       gcl[k]=1
+       gbk=gblocksize[k]
+       println("$gbk\n[1]")
+       println("-----------------------------------------------")
+   end
+   return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+else
+   nub=unique(fblocksize)
+   nsizes=[sum(fblocksize.== i) for i in nub]
+   if nub!=ub||nsizes!=sizes
+      ub=nub
+      sizes=nsizes
+      println("fblocksizes:\n$ub\n$sizes")
+      println("-----------------------------------------------")
+   else
+      println("No higher clique hierarchy")
+      return 0,0,0,0,0,0,0,0,0
+   end
+end
+println("gblocksizes:")
+glb=zeros(Int,1,m)
+gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+gblocksize=Array{Array{Int,2}}(undef, m)
+gcl=zeros(Int,1,m)
+for k=1:m
+    glb[k]=size(gbasis[k],2)
+    A=zeros(UInt8,glb[k],glb[k])
+    for i = 1:glb[k]
+        for j = i:glb[k]
+            r=1
+            while r<=lt[k+1]
+                  bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
+                  if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(ofsupp,lfo,bi,n)!=0
+                     break
+                  else
+                     r=r+1
+                  end
+            end
+            if r<=lt[k+1]
+                A[i,j]=1
+                A[j,i]=1
+            end
+        end
+    end
+    gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
+    if gcl[k]==1
+       gbk=gblocksize[k]
+       println("$gbk\n[1]")
+       println("-----------------------------------------------")
+    else
+       gub=unique(gblocksize[k])
+       gsizes=[sum(gblocksize[k].== i) for i in gub]
+       println("$gub\n$gsizes")
+       println("-----------------------------------------------")
+    end
+end
+end
+return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,1
+end
+
+function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0)
+if reduce==1
+    supp1=[fsupp 2*fbasis]
+    supp1=sortslices(supp1,dims=2)
+    supp1=unique(supp1,dims=2)
+    lsupp1=size(supp1,2)
+    flb=size(fbasis,2)
+    fG=SimpleGraph(flb)
+    for i = 1:flb
+        for j = i:flb
+            bi=fbasis[:,i]+fbasis[:,j]
+            if bfind(supp1,lsupp1,bi,n)!=0
+               add_edge!(fG,i,j)
+            end
+        end
+    end
+    fblocks=connected_components(fG)
+    fcl=size(fblocks,1)
+    fblocksize=zeros(Int,1,fcl)
+    for i=1:fcl
+        fblocksize[i]=length(fblocks[i])
+    end
+    if fcl==1
+       println("fblocksizes:\n$fblocksize\n[1]")
+       println("-----------------------------------------------")
+       println("gblocksizes:")
+       gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+       gblocksize=Array{Array{Int,1}}(undef, m)
+       gcl=zeros(Int,1,m)
+       for k=1:m
+           gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
+           gblocksize[k]=[size(gbasis[k],2)]
+           gcl[k]=1
+           gbk=gblocksize[k]
+           println("$gbk\n[1]")
+           println("-----------------------------------------------")
+       end
+       return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+    else
+       nub=unique(fblocksize)
+       nsizes=[sum(fblocksize.== i) for i in nub]
+       if nub!=ub||nsizes!=sizes
+          ub=nub
+          sizes=nsizes
+          println("fblocksizes:\n$ub\n$sizes")
+          println("-----------------------------------------------")
+       else
+          println("No higher block hierarchy")
+          return 0,0,0,0,0,0,0,0,0
+       end
+    end
+    println("gblocksizes:")
+    glb=zeros(Int,1,m)
+    gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+    gblocksize=Array{Array{Int,2}}(undef, m)
+    gcl=zeros(Int,1,m)
+    for k=1:m
+        glb[k]=size(gbasis[k],2)
+        gG=SimpleGraph(glb[k])
+        for i = 1:glb[k]
+            for j = i:glb[k]
+                r=1
+                while r<=lt[k+1]
+                      bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
+                      if bfind(supp1,lsupp1,bi,n)!=0
+                         break
+                      else
+                         r=r+1
+                      end
+                end
+                if r<=lt[k+1]
+                   add_edge!(gG,i,j)
+                end
+            end
+        end
+        gblocks[k]=connected_components(gG)
+        gcl[k]=size(gblocks[k],1)
+        gblocksize[k]=zeros(Int,1,gcl[k])
+        for i=1:gcl[k]
+            gblocksize[k][i]=length(gblocks[k][i])
+        end
+        if gcl[k]==1
+           gbk=gblocksize[k]
+           println("$gbk\n[1]")
+           println("-----------------------------------------------")
+        else
+           gub=unique(gblocksize[k])
+           gsizes=[sum(gblocksize[k].== i) for i in gub]
+           println("$gub\n$gsizes")
+           println("-----------------------------------------------")
+        end
+    end
+else
+ofsupp=odd_supp(n,fsupp)
+ofsupp=sortslices(ofsupp,dims=2)
+lfo=size(ofsupp,2)
+flb=size(fbasis,2)
+fG=SimpleGraph(flb)
+for i = 1:flb
+    for j = i:flb
+        bi=fbasis[:,i]+fbasis[:,j]
+        if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(ofsupp,lfo,bi,n)!=0
+           add_edge!(fG,i,j)
+        end
+    end
+end
+fblocks=connected_components(fG)
+fcl=size(fblocks,1)
+fblocksize=zeros(Int,1,fcl)
+for i=1:fcl
+    fblocksize[i]=length(fblocks[i])
+end
+if fcl==1
+   println("fblocksizes:\n$fblocksize\n[1]")
+   println("-----------------------------------------------")
+   println("gblocksizes:")
+   gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+   gblocksize=Array{Array{Int,1}}(undef, m)
+   gcl=zeros(Int,1,m)
    for k=1:m
        gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
        gblocksize[k]=[size(gbasis[k],2)]
@@ -677,13 +872,13 @@ else
    end
 end
 println("gblocksizes:")
-glb=Array{UInt16}(undef, m)
-gcl=Array{UInt16}(undef, m)
-gblocks=Array{Any}(undef, m)
-gblocksize=Array{Any}(undef, m)
+glb=zeros(Int,1,m)
+gblocks=Array{Array{Array{Int,1},1}}(undef, m)
+gblocksize=Array{Array{Int,2}}(undef, m)
+gcl=zeros(Int,1,m)
 for k=1:m
     glb[k]=size(gbasis[k],2)
-    A=zeros(UInt8,glb[k],glb[k])
+    gG=SimpleGraph(glb[k])
     for i = 1:glb[k]
         for j = i:glb[k]
             r=1
@@ -696,12 +891,16 @@ for k=1:m
                   end
             end
             if r<=lt[k+1]
-                A[i,j]=1
-                A[j,i]=1
+               add_edge!(gG,i,j)
             end
         end
     end
-    gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A)
+    gblocks[k]=connected_components(gG)
+    gcl[k]=size(gblocks[k],1)
+    gblocksize[k]=zeros(Int,1,gcl[k])
+    for i=1:gcl[k]
+        gblocksize[k][i]=length(gblocks[k][i])
+    end
     if gcl[k]==1
        gbk=gblocksize[k]
        println("$gbk\n[1]")
@@ -717,38 +916,41 @@ end
 return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,1
 end
 
-function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize;numeq=0)
+function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize;numeq=0,QUIET=true)
     fsupp=zeros(UInt8,n,1)
+    fsupp=zeros(UInt8,n,Int(sum(fblocksize.^2+fblocksize)/2))
+    k=1
     for i=1:fcl
         for j=1:fblocksize[i]
             for r=j:fblocksize[i]
                 bi=fbasis[:,fblocks[i][j]]+fbasis[:,fblocks[i][r]]
-                fsupp=[fsupp bi]
+                fsupp[:,k]=bi
+                k+=1
             end
         end
     end
-    gsupp=Array{Any}(undef, m)
     supp1=fsupp
     for k=1:m
-        gsupp[k]=zeros(UInt8,n,1)
+        gsupp=zeros(UInt8,n,lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2))
+        l=1
         for i=1:gcl[k]
             for j=1:gblocksize[k][i]
                 for r=j:gblocksize[k][i]
                     for s=1:lt[k+1]
                         bi=ssupp[k+1][:,s]+gbasis[k][:,gblocks[k][i][j]]+gbasis[k][:,gblocks[k][i][r]]
-                        gsupp[k]=[gsupp[k] bi]
+                        gsupp[:,l]=bi
+                        l+=1
                     end
                 end
             end
         end
-        supp1=[supp1 gsupp[k]]
+        supp1=[supp1 gsupp]
     end
     supp1=sortslices(supp1,dims=2)
     supp1=unique(supp1,dims=2)
     lsupp1=size(supp1,2)
-    model=Model(with_optimizer(Mosek.Optimizer, QUIET=true))
-    cons=Array{Any}(undef, lsupp1)
-    cons.=AffExpr(0)
+    model=Model(with_optimizer(Mosek.Optimizer, QUIET=QUIET))
+    cons=[AffExpr(0) for i=1:lsupp1]
     pos=Array{Any}(undef, fcl)
     for i=1:fcl
         if fblocksize[i]==1
@@ -849,200 +1051,5 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
         println("$status")
         println("optimum = $objv")
     end
-    return objv,fsupp,gsupp
-end
-
-function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gsupp,ub,sizes;reduce=0)
-if reduce==1
-    supp1=[fsupp 2*fbasis]
-    supp1=sortslices(supp1,dims=2)
-    supp1=unique(supp1,dims=2)
-    lsupp1=size(supp1,2)
-    flb=size(fbasis,2)
-    fG=SimpleGraph(flb)
-    for i = 1:flb
-        for j = i:flb
-            bi=fbasis[:,i]+fbasis[:,j]
-            if bfind(supp1,lsupp1,bi,n)!=0
-               add_edge!(fG,i,j)
-            end
-        end
-    end
-    fblocks=connected_components(fG)
-    fcl=size(fblocks,1)
-    fblocksize=zeros(Int,1,fcl)
-    for i=1:fcl
-        fblocksize[i]=length(fblocks[i])
-    end
-    if fcl==1
-       println("fblocksizes:\n$fblocksize\n[1]")
-       println("-----------------------------------------------")
-       println("gblocksizes:")
-       gblocks=Array{Any}(undef, m)
-       gblocksize=Array{Any}(undef, m)
-       gcl=Array{UInt8}(undef, m)
-       for k=1:m
-           gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
-           gblocksize[k]=[size(gbasis[k],2)]
-           gcl[k]=1
-           gbk=gblocksize[k]
-           println("$gbk\n[1]")
-           println("-----------------------------------------------")
-       end
-       return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
-    else
-       nub=unique(fblocksize)
-       nsizes=[sum(fblocksize.== i) for i in nub]
-       if nub!=ub||nsizes!=sizes
-          ub=nub
-          sizes=nsizes
-          println("fblocksizes:\n$ub\n$sizes")
-          println("-----------------------------------------------")
-       else
-          println("No higher block hierarchy")
-          return 0,0,0,0,0,0,0,0,0
-       end
-    end
-    println("gblocksizes:")
-    glb=Array{UInt16}(undef, m)
-    gcl=Array{UInt8}(undef, m)
-    gblocks=Array{Any}(undef, m)
-    gblocksize=Array{Any}(undef, m)
-    for k=1:m
-        glb[k]=size(gbasis[k],2)
-        gG=SimpleGraph(glb[k])
-        ggsupp=[fsupp gsupp[k]]
-        supp2=[ggsupp 2*fbasis]
-        supp2=sortslices(supp2,dims=2)
-        supp2=unique(supp2,dims=2)
-        lsupp2=size(supp2,2)
-        for i = 1:glb[k]
-            for j = i:glb[k]
-                r=1
-                while r<=lt[k+1]
-                      bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
-                      if bfind(supp2,lsupp2,bi,n)!=0
-                         break
-                      else
-                         r=r+1
-                      end
-                end
-                if r<=lt[k+1]
-                   add_edge!(gG,i,j)
-                end
-            end
-        end
-        gblocks[k]=connected_components(gG)
-        gcl[k]=size(gblocks[k],1)
-        gblocksize[k]=zeros(Int,1,gcl[k])
-        for i=1:gcl[k]
-            gblocksize[k][i]=length(gblocks[k][i])
-        end
-        if gcl[k]==1
-           gbk=gblocksize[k]
-           println("$gbk\n[1]")
-           println("-----------------------------------------------")
-        else
-           gub=unique(gblocksize[k])
-           gsizes=[sum(gblocksize[k].== i) for i in gub]
-           println("$gub\n$gsizes")
-           println("-----------------------------------------------")
-        end
-    end
-else
-ofsupp=odd_supp(n,fsupp)
-ofsupp=sortslices(ofsupp,dims=2)
-lfo=size(ofsupp,2)
-flb=size(fbasis,2)
-fG=SimpleGraph(flb)
-for i = 1:flb
-    for j = i:flb
-        bi=fbasis[:,i]+fbasis[:,j]
-        if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(ofsupp,lfo,bi,n)!=0
-           add_edge!(fG,i,j)
-        end
-    end
-end
-fblocks=connected_components(fG)
-fcl=size(fblocks,1)
-fblocksize=zeros(Int,1,fcl)
-for i=1:fcl
-    fblocksize[i]=length(fblocks[i])
-end
-if fcl==1
-   println("fblocksizes:\n$fblocksize\n[1]")
-   println("-----------------------------------------------")
-   println("gblocksizes:")
-   gblocks=Array{Any}(undef, m)
-   gblocksize=Array{Any}(undef, m)
-   gcl=Array{UInt8}(undef, m)
-   for k=1:m
-       gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
-       gblocksize[k]=[size(gbasis[k],2)]
-       gcl[k]=1
-       gbk=gblocksize[k]
-       println("$gbk\n[1]")
-       println("-----------------------------------------------")
-   end
-   return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
-else
-   nub=unique(fblocksize)
-   nsizes=[sum(fblocksize.== i) for i in nub]
-   if nub!=ub||nsizes!=sizes
-      ub=nub
-      sizes=nsizes
-      println("fblocksizes:\n$ub\n$sizes")
-      println("-----------------------------------------------")
-   else
-      println("No higher block hierarchy")
-      return 0,0,0,0,0,0,0,0,0
-   end
-end
-println("gblocksizes:")
-glb=Array{UInt16}(undef, m)
-gcl=Array{UInt8}(undef, m)
-gblocks=Array{Any}(undef, m)
-gblocksize=Array{Any}(undef, m)
-for k=1:m
-    glb[k]=size(gbasis[k],2)
-    gG=SimpleGraph(glb[k])
-    ggsupp=[fsupp gsupp[k]]
-    ogsupp=odd_supp(n,ggsupp)
-    ogsupp=sortslices(ogsupp,dims=2)
-    lgo=size(ogsupp,2)
-    for i = 1:glb[k]
-        for j = i:glb[k]
-            r=1
-            while r<=lt[k+1]
-                  bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
-                  if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(ogsupp,lgo,bi,n)!=0
-                     break
-                  else
-                     r=r+1
-                  end
-            end
-            if r<=lt[k+1]
-               add_edge!(gG,i,j)
-            end
-        end
-    end
-    gblocks[k]=connected_components(gG)
-    gcl[k]=size(gblocks[k],1)
-    gblocksize[k]=zeros(Int,1,gcl[k])
-    for i=1:gcl[k]
-        gblocksize[k][i]=length(gblocks[k][i])
-    end
-    if gcl[k]==1
-       gbk=gblocksize[k]
-       println("$gbk\n[1]")
-       println("-----------------------------------------------")
-    else
-       gub=unique(gblocksize[k])
-       gsizes=[sum(gblocksize[k].== i) for i in gub]
-       println("$gub\n$gsizes")
-       println("-----------------------------------------------")
-    end
-end
-end
-return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,1
+    return objv,fsupp
 end

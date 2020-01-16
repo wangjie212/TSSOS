@@ -8,7 +8,7 @@ mutable struct data_type
     sizes
 end
 
-function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=true)
+function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=true,dense=10,table="JuMP")
 n=length(x)
 mon=monomials(f)
 coe=coefficients(f)
@@ -39,7 +39,7 @@ elseif method=="block"&&reducebasis==1
           basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
     end
 elseif method=="clique"&&reducebasis==0
-blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis)
+blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis,dense=dense)
 else
     flag=1
     while flag==1
@@ -48,12 +48,16 @@ else
           basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
     end
 end
-opt,supp1=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
+if table=="JuMP"
+   opt,supp1=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
+else
+   opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
+end
 data=data_type(n,supp,basis,coe,supp1,ub,sizes)
 return opt,data
 end
 
-function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true)
+function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10,table="JuMP")
 n=data.n
 supp=data.supp
 basis=data.basis
@@ -76,13 +80,17 @@ blocks,cl,blocksize,ub,sizes,status=get_hcliques!(n,supp1,basis,ub,sizes)
 else
     flag=1
     while flag==1
-          blocks,cl,blocksize,ub,sizes,status=get_hcliques!(n,supp1,basis,ub,sizes,reduce=1)
+          blocks,cl,blocksize,ub,sizes,status=get_hcliques!(n,supp1,basis,ub,sizes,reduce=1,dense=dense)
           tsupp=[supp zeros(UInt8,n,1)]
           basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
     end
 end
 if status==1
-   opt,supp1=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
+    if table=="JuMP"
+       opt,supp1=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
+    else
+       opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
+    end
 end
 data.supp1=supp1
 data.ub=ub
@@ -93,8 +101,8 @@ end
 function get_basis(n,d)
 lb=binomial(n+d,d)
 basis=zeros(UInt8,n,lb)
-i=UInt16(0)
-t=UInt16(1)
+i=0
+t=1
 while i<d+1
     if basis[n,t]==i
        if i<d
@@ -142,14 +150,14 @@ while t<=lb
          @objective(model, Min, [basis[:,i]' -1]*x)
          optimize!(model)
          vx=value.(x)
-         if abs(objective_value(model))<=e
+         if abs(objective_value(model))<=e&&sum(abs.(vx))<=e
             t=t+1
          else
-            if sum(abs.(vx))<=e
-                t=t+1
+            if abs(objective_value(model))<=e&&sum(abs.(vx))>e
+               t=t+1
             else
-                lb=lb-1
-                indexb=deleteat!(indexb,t)
+               lb=lb-1
+               indexb=deleteat!(indexb,t)
             end
             r=t
             while lb>=r
@@ -169,18 +177,19 @@ end
 
 function generate_basis!(n,supp,basis)
 supp=sortslices(supp,dims=2)
+supp=unique(supp,dims=2)
 lsupp=size(supp,2)
 lb=size(basis,2)
-indexb=[0]
+indexb=[]
 for i = 1:lb
     for j = i:lb
         bi=basis[:,i]+basis[:,j]
          if bfind(supp,lsupp,bi,n)!=0
-            indexb=[indexb i j]
+             push!(indexb,i)
+             push!(indexb,j)
          end
     end
 end
-indexb=indexb[2:end]
 indexb=sort(indexb)
 indexb=unique(indexb)
 return basis[:,indexb]
@@ -189,7 +198,7 @@ end
 function odd_supp(n,supp)
 lo=size(supp,2)
 indexb=[i for i=1:lo]
-i=Int(1)
+i=1
 while lo>=i
       bi=supp[:,indexb[i]]
       if sum(Int[iseven(bi[j]) for j=1:n])==n
@@ -205,7 +214,7 @@ end
 function even_supp(n,supp)
 lo=size(supp,2)
 indexb=[i for i=1:lo]
-i=Int(1)
+i=1
 while lo>=i
       bi=supp[:,indexb[i]]
       if sum(Int[iseven(bi[j]) for j=1:n])<n
@@ -219,7 +228,7 @@ return supp[:,indexb]
 end
 
 function comp(a,b,n)
-    i=Int(1)
+    i=1
     while i<=n
           if a[i]<b[i]
              return -1
@@ -238,7 +247,7 @@ function bfind(A,l,a,n)
     if l==0
         return 0
     end
-    low=Int(1)
+    low=1
     high=l
     while low<=high
         mid=Int(ceil(1/2*(low+high)))
@@ -254,11 +263,12 @@ function bfind(A,l,a,n)
     return 0
 end
 
-function cliquesFromSpMatD(A)
+function cliquesFromSpMatD(A;dense=10)
 ms=MSession()
 mat"lb = size($A,1);
 A = spones($A) + (2*lb+1)*speye(lb);
-I = amd(A);
+opts.dense=$dense;
+I = amd(A,opts);
 R = chol(A(I,I));
 Cliques = spones(R);
 [value,orig_idx] = sort(I);
@@ -282,7 +292,7 @@ blocksize=jarray(get_mvariable(ms,:NoElem))
 cl=convert(UInt16,cl)
 Elem=convert(Array{UInt16},Elem)
 blocksize=convert(Array{Int},blocksize)
-blocks=Array{Any}(undef,cl)
+blocks=Array{Array{Int,1},1}(undef,cl)
 blocks[1]=Elem[1:blocksize[1]]
 for i=2:cl
     idx=sum(blocksize[1:i-1])
@@ -291,7 +301,7 @@ end
 return blocks,cl,blocksize
 end
 
-function get_cliques(n,supp,basis;reduce=0)
+function get_cliques(n,supp,basis;reduce=0,dense=10)
 if reduce==1
 supp1=[supp 2*basis]
 supp1=sortslices(supp1,dims=2)
@@ -324,14 +334,14 @@ else
         end
     end
 end
-blocks,cl,blocksize=cliquesFromSpMatD(A)
+blocks,cl,blocksize=cliquesFromSpMatD(A,dense=dense)
 ub=unique(blocksize)
 sizes=[sum(blocksize.== i) for i in ub]
 println("blocksizes:\n$ub\n$sizes")
 return blocks,cl,blocksize,ub,sizes
 end
 
-function get_hcliques!(n,supp,basis,ub,sizes;reduce=0)
+function get_hcliques!(n,supp,basis,ub,sizes;reduce=0,dense=10)
 if reduce==1
 supp1=[supp 2*basis]
 supp1=sortslices(supp1,dims=2)
@@ -364,7 +374,7 @@ else
         end
     end
 end
-blocks,cl,blocksize=cliquesFromSpMatD(A)
+blocks,cl,blocksize=cliquesFromSpMatD(A,dense=dense)
 nub=unique(blocksize)
 nsizes=[sum(blocksize.== i) for i in nub]
 if nub!=ub||nsizes!=sizes
@@ -373,7 +383,7 @@ if nub!=ub||nsizes!=sizes
    println("$ub\n$sizes")
    return blocks,cl,blocksize,ub,sizes,1
 else
-   println("No higher block hierarchy")
+   println("No higher clique hierarchy")
    return 0,0,0,0,0,0
 end
 end
@@ -423,12 +433,14 @@ end
 
 function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     lsupp=size(supp,2)
-    supp1=zeros(UInt8,n,1)
+    supp1=zeros(UInt8,n,Int(sum(blocksize.^2+blocksize)/2))
+    k=1
     for i=1:cl
         for j=1:blocksize[i]
             for r=j:blocksize[i]
                 bi=basis[:,blocks[i][j]]+basis[:,blocks[i][r]]
-                supp1=[supp1 bi]
+                supp1[:,k]=bi
+                k+=1
             end
         end
     end
@@ -436,8 +448,7 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     supp1=unique(supp1,dims=2)
     lsupp1=size(supp1,2)
     model=Model(with_optimizer(Mosek.Optimizer, QUIET=QUIET))
-    cons=Array{Any}(undef, lsupp1)
-    cons.=AffExpr(0)
+    cons=[AffExpr(0) for i=1:lsupp1]
     pos=Array{Any}(undef, cl)
     for i=1:cl
         if blocksize[i]==1
@@ -463,7 +474,12 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     bc=zeros(1,lsupp1)
     for i=1:lsupp
         Locb=bfind(supp1,lsupp1,supp[:,i],n)
-        bc[Locb]=coe[i]
+        if Locb==0
+           println("INFEASIBLE")
+           return 0,0
+        else
+           bc[Locb]=coe[i]
+        end
     end
     @constraint(model, cons[2:end].==bc[2:end])
     @variable(model, lower)
@@ -482,21 +498,22 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     return objv,supp1
 end
 
-function blockupopm(n,supp,coe,basis,blocks,cl,blocksize)
+function blockupopm(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     lsupp=size(supp,2)
-    supp1=zeros(UInt8,n,1)
+    supp1=zeros(UInt8,n,Int(sum(blocksize.^2+blocksize)/2))
+    k=1
     for i=1:cl
         for j=1:blocksize[i]
             for r=j:blocksize[i]
                 bi=basis[:,blocks[i][j]]+basis[:,blocks[i][r]]
-                supp1=[supp1 bi]
+                supp1[:,k]=bi
+                k+=1
             end
         end
     end
     supp1=sortslices(supp1,dims=2)
     supp1=unique(supp1,dims=2)
     lsupp1=size(supp1,2)
-    # printstream(msg::String)=print(msg)
     indexb=[i for i=1:cl]
     oneb=indexb[[blocksize[k]==1 for k=1:cl]]
     semb=indexb[[blocksize[k]!=1 for k=1:cl]]
@@ -509,36 +526,26 @@ function blockupopm(n,supp,coe,basis,blocks,cl,blocksize)
     bc=zeros(1,lsupp1)[1:end]
     for i=1:lsupp
         Locb=bfind(supp1,lsupp1,supp[:,i],n)
-        bc[Locb]=coe[i]
-    end
-    consi=Array{Any}(undef,lsupp1,scl)
-    consj=Array{Any}(undef,lsupp1,scl)
-    consk=Array{Any}(undef,lsupp1,scl)
-    dims=zeros(UInt16,lsupp1,scl)
-    for i=1:lsupp1
-        for j=1:scl
-            dims[i,j]=sblocksize[j]
-            consi[i,j]=[UInt32(0)]
-            consj[i,j]=[UInt32(0)]
-            consk[i,j]=[0]
+        if Locb==0
+           println("INFEASIBLE")
+           return 0,0
+        else
+           bc[Locb]=coe[i]
         end
     end
+    consi=[[] for i=1:lsupp1,j=1:scl]
+    consj=[[] for i=1:lsupp1,j=1:scl]
+    consk=[[] for i=1:lsupp1,j=1:scl]
+    dims=[sblocksize[j] for i=1:lsupp1,j=1:scl]
     for i=1:scl
         for j=1:sblocksize[i]
             for r=j:sblocksize[i]
                 bi=basis[:,sblocks[i][j]]+basis[:,sblocks[i][r]]
                 Locb=bfind(supp1,lsupp1,bi,n)
-                consi[Locb,i]=[consi[Locb,i];r]
-                consj[Locb,i]=[consj[Locb,i];j]
-                consk[Locb,i]=[consk[Locb,i];1.0]
+                push!(consi[Locb,i],r)
+                push!(consj[Locb,i],j)
+                push!(consk[Locb,i],1.0)
            end
-        end
-    end
-    for i=1:lsupp1
-        for j=1:scl
-            consi[i,j]=consi[i,j][2:end]
-            consj[i,j]=consj[i,j][2:end]
-            consk[i,j]=consk[i,j][2:end]
         end
     end
     oLocb=zeros(UInt32,lone,1)[1:end]
@@ -548,7 +555,10 @@ function blockupopm(n,supp,coe,basis,blocks,cl,blocksize)
     end
     A=sparse(oLocb,[i for i=1:lone],[1.0 for i=1:lone])
     maketask() do task
-    # putstreamfunc(task,MSK_STREAM_LOG,printstream)
+    if QUIET==false
+        printstream(msg)=print(msg)
+        putstreamfunc(task,MSK_STREAM_LOG,printstream)
+    end
     appendvars(task,1+lone)
     appendcons(task,lsupp1)
     appendbarvars(task,sblocksize[1:end])
@@ -571,18 +581,16 @@ function blockupopm(n,supp,coe,basis,blocks,cl,blocksize)
     if solsta==MSK_SOL_STA_OPTIMAL
        opt=getprimalobj(task,MSK_SOL_ITR)
        barx=getbarxj(task,MSK_SOL_ITR,1)
-    #   @printf("Optimal solution: \n%s\n", opt')
-    elseif solsta==MSK_SOL_STA_DUAL_INFEAS_CER
-       println("Primal or dual infeasibility.\n")
-    elseif solsta==MSK_SOL_STA_PRIM_INFEAS_CER
-       println("Primal or dual infeasibility.\n")
-    elseif solsta==MSK_SOL_STA_UNKNOWN
-       println("Unknown solution status")
+       println("optimum = $opt")
+       return opt,supp1
+    elseif solsta==MSK_SOL_STA_DUAL_INFEAS_CER||solsta==MSK_SOL_STA_PRIM_INFEAS_CER
+       println("Primal or dual infeasibility")
+       return 0,0
     else
-       println("Other solution status")
+       println("Unknown solution status")
+       return 0,0
     end
     end
-    return opt,supp1
 end
 
 function get_hblocks!(n,supp,basis,ub,sizes;reduce=0)
