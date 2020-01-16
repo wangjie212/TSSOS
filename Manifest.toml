@@ -153,6 +153,12 @@ git-tree-sha1 = "78427dcc212e0c0ad9658049bc56a50303ad9737"
 uuid = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 version = "0.9.7"
 
+[[MathProgBase]]
+deps = ["Compat"]
+git-tree-sha1 = "3bf2e534e635df810e5f4b4f1a8b6de9004a0d53"
+uuid = "fdba3010-5040-5b88-9595-932c9decdf73"
+version = "0.7.7"
+
 [[MbedTLS]]
 deps = ["BinaryProvider", "Dates", "Libdl", "Pkg", "Random", "Sockets"]
 uuid = "739be429-bea8-5141-9913-cc70e7f3736d"
@@ -161,10 +167,12 @@ uuid = "739be429-bea8-5141-9913-cc70e7f3736d"
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[Mosek]]
-deps = ["Libdl", "Pkg", "Printf", "SparseArrays"]
-git-tree-sha1 = "aa1f2930edac8305a75b5e03113df6a1467fffe7"
+deps = ["Libdl", "MathProgBase", "Pkg", "Printf", "SparseArrays", "Test"]
+git-tree-sha1 = "a53dca5a6f48d977c0f0282e2bcecdd5ecae82cd"
+repo-rev = "b0.9"
+repo-url = "https://github.com/JuliaOpt/Mosek.jl.git"
 uuid = "6405355b-0ac2-5fba-af84-adbd65488c0e"
-version = "1.0.4"
+version = "1.1.1+"
 
 [[MosekTools]]
 deps = ["MathOptInterface", "Mosek", "Printf"]
