@@ -54,7 +54,7 @@ else
    opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
 end
 data=data_type(n,supp,basis,coe,supp1,ub,sizes)
-return opt,data
+return opt,data,Gram
 end
 
 function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10,table="JuMP")
@@ -95,7 +95,7 @@ end
 data.supp1=supp1
 data.ub=ub
 data.sizes=sizes
-return opt,data
+return opt,data,Gram
 end
 
 function get_basis(n,d)
@@ -487,16 +487,21 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     @objective(model, Max, lower)
     optimize!(model)
     status=termination_status(model)
+    gram=Array{Array{Float64,2}}(undef, cl)
     if status == MOI.OPTIMAL
        objv = objective_value(model)
        println("optimum = $objv")
-       gram=value.(pos)
+       for i=1:cl
+           gram[i]=value.(pos[i])
+       end
        return objv,supp1,gram
     else
        objv = objective_value(model)
        println("$status")
        println("optimum = $objv")
-       gram=value.(pos)
+       for i=1:cl
+           gram[i]=value.(pos[i])
+       end
        return objv,supp1,gram
     end
 end

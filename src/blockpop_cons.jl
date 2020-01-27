@@ -96,7 +96,7 @@ else
 end
 opt,fsupp,Gram=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET)
 data=cdata_type(n,m,ssupp,coe,lt,d,dg,fbasis,gbasis,fsupp,ub,sizes)
-return opt,data
+return opt,data,Gram
 end
 
 function blockcpop_higher!(data;method="block",reducebasis=0,numeq=0,QUIET=true,dense=10)
@@ -174,7 +174,7 @@ data.fsupp=fsupp
 data.fbasis=fbasis
 data.ub=ub
 data.sizes=sizes
-return opt,data
+return opt,data,Gram
 end
 
 function reducebasis!(n,supp,basis,blocks,cl,blocksize)
@@ -1043,15 +1043,20 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
     @objective(model, Max, lower)
     optimize!(model)
     status=termination_status(model)
+    gram=Array{Array{Float64,2}}(undef, fcl)
     if  status==MOI.OPTIMAL
         objv=objective_value(model)
         println("optimum = $objv")
-        gram=value.(pos)
+        for i=1:fcl
+            gram[i]=value.(pos[i])
+        end
     else
         objv=objective_value(model)
         println("$status")
         println("optimum = $objv")
-        gram=value.(pos)
+        for i=1:fcl
+            gram[i]=value.(pos[i])
+        end
     end
     return objv,fsupp,gram
 end
