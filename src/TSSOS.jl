@@ -5,7 +5,6 @@ using Mosek
 using MosekTools
 using JuMP
 using LightGraphs
-using TypedPolynomials
 using MultivariatePolynomials
 using SparseArrays
 

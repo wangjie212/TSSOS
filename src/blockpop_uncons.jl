@@ -49,7 +49,7 @@ else
     end
 end
 if table=="JuMP"
-   opt,supp1=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
+   opt,supp1,Gram=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
 else
    opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
 end
@@ -87,7 +87,7 @@ else
 end
 if status==1
     if table=="JuMP"
-       opt,supp1=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
+       opt,supp1,Gram=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
     else
        opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
     end
@@ -490,12 +490,15 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     if status == MOI.OPTIMAL
        objv = objective_value(model)
        println("optimum = $objv")
+       gram=value.(pos)
+       return objv,supp1,gram
     else
        objv = objective_value(model)
        println("$status")
        println("optimum = $objv")
+       gram=value.(pos)
+       return objv,supp1,gram
     end
-    return objv,supp1
 end
 
 function blockupopm(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
@@ -580,7 +583,7 @@ function blockupopm(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     solsta=getsolsta(task,MSK_SOL_ITR)
     if solsta==MSK_SOL_STA_OPTIMAL
        opt=getprimalobj(task,MSK_SOL_ITR)
-       barx=getbarxj(task,MSK_SOL_ITR,1)
+       #barx=getbarxj(task,MSK_SOL_ITR,1)
        println("optimum = $opt")
        return opt,supp1
     elseif solsta==MSK_SOL_STA_DUAL_INFEAS_CER||solsta==MSK_SOL_STA_PRIM_INFEAS_CER
