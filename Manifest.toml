@@ -266,12 +266,6 @@ uuid = "9d418dce-91a8-11e8-0173-7b01a971d501"
 deps = ["Distributed", "InteractiveUtils", "Logging", "Random"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
-[[TypedPolynomials]]
-deps = ["LinearAlgebra", "MacroTools", "MultivariatePolynomials", "Pkg", "Random"]
-git-tree-sha1 = "f187799f3d7e7c107b03ecb1bb595372aee94b58"
-uuid = "afbbf031-7a57-5f58-a1b9-b774a0fad08d"
-version = "0.2.2"
-
 [[URIParser]]
 deps = ["Test", "Unicode"]
 git-tree-sha1 = "6ddf8244220dfda2f17539fa8c9de20d6c575b69"
