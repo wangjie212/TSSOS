@@ -96,7 +96,7 @@ else
 end
 opt,fsupp,Gram=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET)
 data=cdata_type(n,m,ssupp,coe,lt,d,dg,fbasis,gbasis,fsupp,ub,sizes)
-return opt,data,Gram
+return opt,data
 end
 
 function blockcpop_higher!(data;method="block",reducebasis=0,numeq=0,QUIET=true,dense=10)
@@ -174,7 +174,7 @@ data.fsupp=fsupp
 data.fbasis=fbasis
 data.ub=ub
 data.sizes=sizes
-return opt,data,Gram
+return opt,data
 end
 
 function reducebasis!(n,supp,basis,blocks,cl,blocksize)
@@ -604,7 +604,7 @@ if reduce==1
           println("-----------------------------------------------")
        else
           println("No higher clique hierarchy")
-          return 0,0,0,0,0,0,0,0,0
+          return nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,0
        end
     end
     println("gblocksizes:")
@@ -686,7 +686,7 @@ else
       println("-----------------------------------------------")
    else
       println("No higher clique hierarchy")
-      return 0,0,0,0,0,0,0,0,0
+      return nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,0
    end
 end
 println("gblocksizes:")
@@ -778,7 +778,7 @@ if reduce==1
           println("-----------------------------------------------")
        else
           println("No higher block hierarchy")
-          return 0,0,0,0,0,0,0,0,0
+          return nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,0
        end
     end
     println("gblocksizes:")
@@ -868,7 +868,7 @@ else
       println("-----------------------------------------------")
    else
       println("No higher block hierarchy")
-      return 0,0,0,0,0,0,0,0,0
+      return nothing,nothing,nothing,nothing,nothing,nothing,nothing,nothing,0
    end
 end
 println("gblocksizes:")
@@ -952,6 +952,7 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
     model=Model(with_optimizer(Mosek.Optimizer, QUIET=QUIET))
     cons=[AffExpr(0) for i=1:lsupp1]
     pos=Array{Any}(undef, fcl)
+    gram=Array{Any}(undef, fcl)
     for i=1:fcl
         if fblocksize[i]==1
            pos[i]=@variable(model, lower_bound=0)
@@ -1043,7 +1044,6 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
     @objective(model, Max, lower)
     optimize!(model)
     status=termination_status(model)
-    gram=Array{Array{Float64,2}}(undef, fcl)
     if  status==MOI.OPTIMAL
         objv=objective_value(model)
         println("optimum = $objv")

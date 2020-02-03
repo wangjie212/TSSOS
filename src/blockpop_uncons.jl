@@ -54,7 +54,7 @@ else
    opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
 end
 data=data_type(n,supp,basis,coe,supp1,ub,sizes)
-return opt,data,Gram
+return opt,data
 end
 
 function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10,table="JuMP")
@@ -95,7 +95,7 @@ end
 data.supp1=supp1
 data.ub=ub
 data.sizes=sizes
-return opt,data,Gram
+return opt,data
 end
 
 function get_basis(n,d)
@@ -384,7 +384,7 @@ if nub!=ub||nsizes!=sizes
    return blocks,cl,blocksize,ub,sizes,1
 else
    println("No higher clique hierarchy")
-   return 0,0,0,0,0,0
+   return nothing,nothing,nothing,nothing,nothing,0
 end
 end
 
@@ -450,6 +450,7 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     model=Model(with_optimizer(Mosek.Optimizer, QUIET=QUIET))
     cons=[AffExpr(0) for i=1:lsupp1]
     pos=Array{Any}(undef, cl)
+    gram=Array{Any}(undef, cl)
     for i=1:cl
         if blocksize[i]==1
            pos[i]=@variable(model, lower_bound=0)
@@ -476,7 +477,7 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
         Locb=bfind(supp1,lsupp1,supp[:,i],n)
         if Locb==0
            println("INFEASIBLE")
-           return 0,0
+           return nothing,nothing,nothing
         else
            bc[Locb]=coe[i]
         end
@@ -487,7 +488,6 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     @objective(model, Max, lower)
     optimize!(model)
     status=termination_status(model)
-    gram=Array{Array{Float64,2}}(undef, cl)
     if status == MOI.OPTIMAL
        objv = objective_value(model)
        println("optimum = $objv")
@@ -536,7 +536,7 @@ function blockupopm(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
         Locb=bfind(supp1,lsupp1,supp[:,i],n)
         if Locb==0
            println("INFEASIBLE")
-           return 0,0
+           return nothing,nothing
         else
            bc[Locb]=coe[i]
         end
@@ -593,10 +593,10 @@ function blockupopm(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
        return opt,supp1
     elseif solsta==MSK_SOL_STA_DUAL_INFEAS_CER||solsta==MSK_SOL_STA_PRIM_INFEAS_CER
        println("Primal or dual infeasibility")
-       return 0,0
+       return nothing,nothing
     else
        println("Unknown solution status")
-       return 0,0
+       return nothing,nothing
     end
     end
 end
@@ -646,6 +646,6 @@ if nub!=ub||nsizes!=sizes
    return blocks,cl,blocksize,ub,sizes,1
 else
    println("No higher block hierarchy")
-   return 0,0,0,0,0,0
+   return nothing,nothing,nothing,nothing,nothing,0
 end
 end
