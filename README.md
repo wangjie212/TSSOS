@@ -22,7 +22,7 @@ where f is a polynomial with variables x1,...,xn and of degree d.
 Taking f=x1^4+x2^4-x1\*x2 as an example, to exetute the first block hierarchy, run
 ```Julia
 julia> using TSSOS
-julia> using TypedPolynomials
+julia> using DynamicPolynomials
 julia> @polyvar x[1:2]
 f=x[1]^4+x[2]^4-x[1]*x[2]
 julia> opt,data=blockupop_first(f,x)
@@ -52,18 +52,18 @@ Inf{f(x): x\in K}
 ```
 where f is a polynomial and K is the basic semi-algebraic set
 ```
-K={x\in R^n: g_j(x)>=0, j=1,...,m, h_k(x)=0, k=1,...,l},
+K={x\in R^n: g_j(x)>=0, j=1,...,m, g_k(x)=0, k=m+1,...,m+l},
 ```
-for some polynomials g_j, j=1,...,m and h_k, k=1,...,l.
+for some polynomials g_j, j=1,...,m+l.
 
-Taking f=x1^4+x2^4-x1\*x2 and g_1=2-x1^2-2\*x2^2, h_1=x1^2-x2^2-1 as an example, to exetute the first block hierarchy, run
+Taking f=x1^4+x2^4-x1\*x2 and g_1=2-x1^2-2\*x2^2, g_2=x1^2-x2^2-1 as an example, to exetute the first block hierarchy, run
 
 ```Julia
 julia> @polyvar x[1:2]
 f=x[1]^4+x[2]^4-x[1]*x[2]
 g_1=2-x[1]^2-2*x[2]^2
-h_1=x[1]^2-x[2]^2-1
-pop=[f,g_1,h_1]
+g_2=x[1]^2-x[2]^2-1
+pop=[f,g_1,g_2]
 d=2 # the order of Lasserre's hierarchy
 julia> opt,data=blockcpop_first(pop,x,d,numeq=1)
 ```
