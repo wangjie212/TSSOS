@@ -68,7 +68,7 @@ d=2 # the order of Lasserre's hierarchy
 julia> opt,data=blockcpop_first(pop,x,d,numeq=1)
 ```
 
-You can also use the option method='clique' which may be more efficient.
+You can also use the option method="clique" which may be more efficient.
 
 In most cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
 
