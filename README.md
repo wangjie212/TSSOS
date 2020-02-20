@@ -35,7 +35,7 @@ then the standard monomial basis will be used.
 
 Two vectors will be outputed. The first vector is the size of blocks and the second vector is the number of blocks of size corresponding to the first vector.
 
-You can use the option method='clique' which may be more efficient.
+You can use the option method="clique" which may be more efficient.
 
 In most cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
 
