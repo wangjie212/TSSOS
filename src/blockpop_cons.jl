@@ -1052,7 +1052,9 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
         end
     else
         objv=objective_value(model)
-        println("$status")
+        println("termination status: $status")
+        sstatus=primal_status(model)
+        println("solution status: $sstatus")
         println("optimum = $objv")
         for i=1:fcl
             gram[i]=value.(pos[i])

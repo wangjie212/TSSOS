@@ -497,7 +497,9 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
        return objv,supp1,gram
     else
        objv = objective_value(model)
-       println("$status")
+       println("termination status: $status")
+       sstatus=primal_status(model)
+       println("solution status: $sstatus")
        println("optimum = $objv")
        for i=1:cl
            gram[i]=value.(pos[i])
