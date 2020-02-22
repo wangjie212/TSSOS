@@ -1,7 +1,5 @@
 # TSSOS
-TSSOS is a sparse polynomial optimization tool based on block Moment-SOS hierarchies. The Julia version of TSSOS provides a usage based on the Julia language. To use the Matlab version of TSSOS, one shoud use the *matlab* branch. We recommend the Julia version. Generally, the Julia version is more efficient.
-
-To use the Julia version of TSSOS, run
+TSSOS is a sparse polynomial optimization tool based on block Moment-SOS hierarchies. To use TSSOS in Julia, run
 ```Julia
 pkg> add https://github.com/wangjie212/TSSOS
  ```
@@ -33,11 +31,11 @@ julia> opt,data=blockupop_first(f,x,newton=0)
 ```
 then the standard monomial basis will be used.
 
-Two vectors will be outputed. The first vector is the size of blocks and the second vector is the number of blocks of size corresponding to the first vector.
+Two vectors will be outputed. The first vector is the size of blocks and the second vector is the number of blocks with size corresponding to the first vector.
 
-You can use the option method="clique" which may be more efficient.
+You can use the option method="clique" which is usually more efficient.
 
-In most cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
+In many cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
 
 To exetute higher block hierarchies, repeatedly run
 
@@ -68,9 +66,9 @@ d=2 # the order of Lasserre's hierarchy
 julia> opt,data=blockcpop_first(pop,x,d,numeq=1)
 ```
 
-You can also use the option method="clique" which may be more efficient.
+You can also use the option method="clique" which is usually more efficient.
 
-In most cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
+In many cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
 
 To exetute higher block hierarchies, repeatedly run
 
