@@ -32,9 +32,9 @@ By default, a monomial basis computed by the Newton polytope method will be used
 
 then the standard monomial basis will be used.
 
-Two lines will be outputed. The first line is the size of blocks and the second line is the number of blocks of size corresponding to the first line.
+Two lines will be outputed. The first line is the size of blocks and the second line is the number of blocks with size corresponding to the first line.
 
-In most cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
+In many cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
 
 To exetute higher block hierarchies, repeatedly run
 
@@ -66,7 +66,7 @@ Taking f=x1^4+x2^4-x1\*x2 and g_1=1-x1^2-2\*x2^2 as an example, to exetute the f
 >>[opt,data,status]=blockpop_cons_first(f,g,n,m,d,dg,'mosek')
 ```
 
-In most cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
+In many cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
 
 To exetute higher block hierarchies, repeatedly run
 
