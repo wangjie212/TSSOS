@@ -33,7 +33,7 @@ then the standard monomial basis will be used.
 
 Two vectors will be outputed. The first vector is the size of blocks and the second vector is the number of blocks with size corresponding to the first vector.
 
-You can use the option method="clique" which is usually more efficient.
+You can use the option method="chordal" which is usually more efficient.
 
 In many cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
 
@@ -66,7 +66,7 @@ d=2 # the order of Lasserre's hierarchy
 julia> opt,data=blockcpop_first(pop,x,d,numeq=1)
 ```
 
-You can also use the option method="clique" which is usually more efficient.
+You can also use the option method="chordal" which is usually more efficient.
 
 In many cases, the first block hierarchy already obtains the same optimum as the dense Moment-SOS relaxation.
 
