@@ -1,5 +1,6 @@
 mutable struct data_type
     n
+    d
     supp
     basis
     coe
@@ -38,7 +39,7 @@ function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=
               tsupp=[supp zeros(UInt8,n,1)]
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
-    elseif method=="clique"&&reducebasis==0
+    elseif method=="chordal"&&reducebasis==0
         blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis,dense=dense)
     else
         flag=1
@@ -48,18 +49,20 @@ function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
     end
+    sol=nothing
     if model=="JuMP"
        opt,supp1,Gram=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
-       sol=extract_solutions(n,1,[f],0,opt,basis,blocks,cl,blocksize,Gram,method=method)
+       sol=extract_solutions(n,0,[],d,[],0,opt,basis,blocks,cl,blocksize,Gram,method=method)
     else
        opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
     end
-    data=data_type(n,supp,basis,coe,supp1,ub,sizes)
+    data=data_type(n,d,supp,basis,coe,supp1,ub,sizes)
     return opt,sol,data
 end
 
 function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10,model="JuMP")
     n=data.n
+    d=data.d
     supp=data.supp
     basis=data.basis
     coe=data.coe
@@ -67,6 +70,7 @@ function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
     ub=data.ub
     sizes=data.sizes
     opt=nothing
+    sol=nothing
     if method=="block"&&reducebasis==0
         blocks,cl,blocksize,ub,sizes,status=get_hblocks!(n,supp1,basis,ub,sizes)
     elseif method=="block"&&reducebasis==1
@@ -76,7 +80,7 @@ function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
               tsupp=[supp zeros(UInt8,n,1)]
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
-    elseif method=="clique"&&reducebasis==0
+    elseif method=="chordal"&&reducebasis==0
         blocks,cl,blocksize,ub,sizes,status=get_hcliques!(n,supp1,basis,ub,sizes)
     else
         flag=1
@@ -89,7 +93,7 @@ function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
     if status==1
         if model=="JuMP"
            opt,supp1,Gram=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
-           sol=extract_solutions(n,1,[f],0,opt,basis,blocks,cl,blocksize,Gram,method=method)
+           sol=extract_solutions(n,0,[],d,[],0,opt,basis,blocks,cl,blocksize,Gram,method=method)
         else
            opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
         end
@@ -536,7 +540,7 @@ function get_hcliques!(n,supp,basis,ub,sizes;reduce=0,dense=10)
        println("$ub\n$sizes")
        return blocks,cl,blocksize,ub,sizes,1
     else
-       println("No higher clique hierarchy!")
+       println("No higher chordal hierarchy!")
        return blocks,cl,blocksize,ub,sizes,0
     end
 end
@@ -710,7 +714,7 @@ function blockupopm(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     end
 end
 
-function extract_solutions(n,m,pop,numeq,opt,basis,blocks,cl,blocksize,Gram;method="block")
+function extract_solutions(n,m,x,d,pop,numeq,opt,basis,blocks,cl,blocksize,Gram;method="block")
     lb=size(basis,2)
     V=0
     remove=UInt16[]
@@ -741,7 +745,7 @@ function extract_solutions(n,m,pop,numeq,opt,basis,blocks,cl,blocksize,Gram;meth
                  end
             end
         end
-    else
+    elseif method=="chordal"
         G=zeros(lb,lb)
         for i=1:cl
             if blocksize[i]>1
@@ -754,9 +758,17 @@ function extract_solutions(n,m,pop,numeq,opt,basis,blocks,cl,blocksize,Gram;meth
             end
         end
         V=nullspace(G, atol=1e-4)
+    else
+        V=nullspace(Gram, atol=1e-4)
     end
     sol=nothing
-    if size(V,2)>0
+    if size(V,2)==1
+        sol=V[:,1]
+        println("------------------------------------------------")
+        println("Global optimality certified!")
+        println("Extract ",1," minimizer.")
+        println("------------------------------------------------")
+    else
         U,pivots=rref_with_pivots!(Matrix(V'))
         U=Matrix(U')
         w=basis[:,pivots]
@@ -814,29 +826,33 @@ function extract_solutions(n,m,pop,numeq,opt,basis,blocks,cl,blocksize,Gram;meth
             for j = 1:n
                 atom=push!(atom, L[:,i]'*N[j]*L[:,i])
             end
-            println("------------------------------------------------")
-            println("atom ",i," = ",atom)
             flag=1
-            check=opt-polynomial(pop[1])(x => atom)
-            println("check global optimality  = ",check)
-            if abs(check)>1e-2
-                flag=0
-            end
-            if m-numeq>0
-                for j in 2:m+1-numeq
-                    check=polynomial(pop[j])(x => atom)
-                    println("check inequality ",j-1," = ",check)
-                    if check<-1e-3
+            if lw>1
+                if m>0
+                    println("------------------------------------------------")
+                    println("check atom ",i)
+                    check=opt-polynomial(pop[1])(x => atom)
+                    println("check global optimality  = ",check)
+                    if abs(check)>1e-2
                         flag=0
                     end
-                end
-            end
-            if numeq>0
-                for j in m-numeq+2:m+1
-                    check=polynomial(pop[j])(x => atom)
-                    println("check equality ",j-m+numeq-1," = ",check)
-                    if abs(check)>1e-3
-                        flag=0
+                    if m-numeq>0
+                        for j in 2:m+1-numeq
+                            check=polynomial(pop[j])(x => atom)
+                            println("check inequality ",j-1," = ",check)
+                            if check<-1e-3
+                                flag=0
+                            end
+                        end
+                    end
+                    if numeq>0
+                        for j in m-numeq+2:m+1
+                            check=polynomial(pop[j])(x => atom)
+                            println("check equality ",j-m+numeq-1," = ",check)
+                            if abs(check)>1e-3
+                                flag=0
+                            end
+                        end
                     end
                 end
             end
@@ -847,10 +863,8 @@ function extract_solutions(n,m,pop,numeq,opt,basis,blocks,cl,blocksize,Gram;meth
         nsol=length(sol)
         if nsol>0
             println("------------------------------------------------")
-            println("Extract ",nsol," minimizer:")
-            for i=1:nsol
-                println("Minimizer $i = ",sol[i])
-            end
+            println("Global optimality certified!")
+            println("Extract ",nsol," minimizer.")
             println("------------------------------------------------")
         else
             sol=nothing

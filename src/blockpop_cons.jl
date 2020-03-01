@@ -1,6 +1,8 @@
 mutable struct cdata_type
     n
     m
+    x
+    pop
     ssupp
     coe
     lt
@@ -68,7 +70,7 @@ function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0,QUIET=true
               end
               fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize)
         end
-    elseif method=="clique"&&reducebasis==0
+    elseif method=="chordal"&&reducebasis==0
         fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,dense=dense)
     else
         flag=1
@@ -95,14 +97,16 @@ function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0,QUIET=true
         end
     end
     opt,fsupp,Gram=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET)
-    sol=extract_solutions(n,m,pop,numeq,opt,fbasis,fblocks,fcl,fblocksize,Gram,method=method)
-    data=cdata_type(n,m,ssupp,coe,lt,d,dg,fbasis,gbasis,fsupp,ub,sizes,numeq)
+    sol=extract_solutions(n,m,x,d,pop,numeq,opt,fbasis,fblocks,fcl,fblocksize,Gram,method=method)
+    data=cdata_type(n,m,x,pop,ssupp,coe,lt,d,dg,fbasis,gbasis,fsupp,ub,sizes,numeq)
     return opt,sol,data
 end
 
 function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10)
     n=data.n
     m=data.m
+    x=data.x
+    pop=data.pop
     ssupp=data.ssupp
     coe=data.coe
     lt=data.lt
@@ -141,7 +145,7 @@ function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
               end
               fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize)
         end
-    elseif method=="clique"&&reducebasis==0
+    elseif method=="chordal"&&reducebasis==0
         fbasis=data.fbasis
         fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,dense=dense)
     else
@@ -172,7 +176,7 @@ function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
     sol=nothing
     if status==1
         opt,fsupp,Gram=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET)
-        sol=extract_solutions(n,m,pop,numeq,opt,fbasis,fblocks,fcl,fblocksize,Gram,method=method)
+        sol=extract_solutions(n,m,x,pop,d,pop,numeq,opt,fbasis,fblocks,fcl,fblocksize,Gram,method=method)
     end
     data.fsupp=fsupp
     data.fbasis=fbasis
@@ -760,7 +764,7 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense
               println("fblocksizes:\n$ub\n$sizes")
               println("-----------------------------------------------")
            else
-              println("No higher clique hierarchy!")
+              println("No higher chordal hierarchy!")
               return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,0
            end
         end
@@ -835,7 +839,7 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense
               println("fblocksizes:\n$ub\n$sizes")
               println("-----------------------------------------------")
            else
-              println("No higher clique hierarchy!")
+              println("No higher chordal hierarchy!")
               return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,0
            end
         end
