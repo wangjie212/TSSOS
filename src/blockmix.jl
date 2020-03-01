@@ -1,15 +1,33 @@
+-------------------------------------------------------------------
 n=6
 d=2
+@polyvar x[1:n]
+f=1+sum(x.^4)+x[1]*x[2]*x[3]+x[3]*x[4]*x[5]+x[3]*x[4]*x[6]+x[3]*x[5]*x[6]+x[4]*x[5]*x[6]
+
+mon=monomials(f)
+coe=coefficients(f)
+lm=length(mon)
+supp=zeros(UInt8,n,lm)
+for i=1:lm
+    for j=1:n
+        supp[j,i]=MultivariatePolynomials.degree(mon[i],x[j])
+    end
+end
+supp=sparse(supp)
+
+cliques,cql,cliquesize=clique_decomp(n,supp)
+mclique,lmc,blocks,cl,blocksize,ub,sizes,basis=get_blocks_mix(d,supp,cliques,cql,cliquesize,ts=4,method="block")
+blocks,cl,blocksize,ub,sizes=get_hblocks_mix!(basis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes,method="block")
+objv=blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,mclique,lmc,blocks,cl,blocksize,ts=4,QUIET=true)
+
+-------------------------------------------------------------------
+n=6
 m=2
 @polyvar x[1:n]
 f=1+sum(x.^4)+x[1]*x[2]*x[3]+x[3]*x[4]*x[5]+x[4]*x[5]*x[6]
 g1=1-sum(x[1:3].^2)
 g2=1-sum(x[3:6].^2)
 pop=[f,g1,g2]
-
-f=sum([x[i]*x[i+1] for i=1:9])+sum([x[i]*x[i+2] for i=1:8])+x[1]*x[9]+x[1]*x[10]+x[2]*x[10]+x[1]*x[5]+x[4]*x[7]
-
-dg=[1,1]
 coe=Array{Vector{Float64}}(undef, m+1)
 supp=Array{SparseMatrixCSC}(undef, m+1)
 for k=1:m+1
@@ -25,27 +43,12 @@ for k=1:m+1
     supp[k]=sparse(ssupp)
 end
 
-cliques,cql,cliquesize=clique_cdecomp(n,m,supp,d,dg)
-mclique,I,ncc,lmc,blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis=get_cblocks_mix(d,dg,m,supp,cliques,cql,cliquesize;ts=4,method="clique")
-blocks,cl,blocksize,ub,sizes=get_chblocks_mix!(d,dg,I,supp,ssupp,lt,fbasis,gbasis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes,method="clique")
-objv=blockcpop_mix(n,d,dg,supp,coe,cliques,cql,cliquesize,mclique,I,ncc,lmc,blocks,cl,blocksize,numeq=0,ts=4,QUIET=true)
+rlorder=[2,1,1]
 
--------------------------------------------------------------------
-mon=monomials(f)
-coe=coefficients(f)
-lm=length(mon)
-supp=zeros(UInt8,n,lm)
-for i=1:lm
-    for j=1:n
-        supp[j,i]=MultivariatePolynomials.degree(mon[i],x[j])
-    end
-end
-supp=sparse(supp)
-
-cliques,cql,cliquesize=clique_decomp(n,supp)
-mclique,lmc,blocks,cl,blocksize,ub,sizes,basis=get_blocks_mix(d,supp,cliques,cql,cliquesize,ts=4,method="clique")
-blocks,cl,blocksize,ub,sizes=get_hblocks_mix!(d,basis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes,method="clique")
-objv=blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,mclique,lmc,blocks,cl,blocksize,ts=4,QUIET=true)
+cliques,cql,cliquesize=clique_cdecomp(n,m,supp,rlorder)
+mclique,I,ncc,lmc,blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis=get_cblocks_mix(rlorder,m,supp,cliques,cql,cliquesize;ts=4,method="block")
+blocks,cl,blocksize,ub,sizes=get_chblocks_mix!(I,ssupp,lt,fbasis,gbasis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes,method="clique")
+objv=blockcpop_mix(n,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc,lmc,blocks,cl,blocksize,numeq=0,ts=4,QUIET=true)
 
 -------------------------------------------------------------------
 
@@ -120,8 +123,8 @@ function blockupop_mix(n,d,supp::SparseMatrixCSC,coe,cliques,cql,cliquesize,mcli
             for i=1:cl[k]
                 if blocksize[k][i]==1
                    pos2[k][i]=@variable(model, lower_bound=0)
-                   bi_row=trow[tcol[blocks[k][i]]:(tcol[blocks[k][i]+1]-1)]
-                   bi_nz=2*tnz[tcol[blocks[k][i]]:(tcol[blocks[k][i]+1]-1)]
+                   bi_row=trow[tcol[blocks[k][i][1]]:(tcol[blocks[k][i][1]+1]-1)]
+                   bi_nz=2*tnz[tcol[blocks[k][i][1]]:(tcol[blocks[k][i][1]+1]-1)]
                    Locb=bfind_sparse(supp1,bi_row,bi_nz)
                    @inbounds add_to_expression!(cons[Locb],pos2[k][i])
                 else
@@ -147,6 +150,7 @@ function blockupop_mix(n,d,supp::SparseMatrixCSC,coe,cliques,cql,cliquesize,mcli
     for i=1:supp.n
         Locb=bfind_sparse(supp1,supp.rowval[supp.colptr[i]:(supp.colptr[i+1]-1)],supp.nzval[supp.colptr[i]:(supp.colptr[i+1]-1)])
         if Locb==0
+           println(i)
            println("The monomial basis is not enough!")
            return nothing,nothing
         else
@@ -175,15 +179,15 @@ function blockupop_mix(n,d,supp::SparseMatrixCSC,coe,cliques,cql,cliquesize,mcli
     return objv
 end
 
-function blockcpop_mix(n,d,dg,supp,coe,cliques,cql,cliquesize,mclique,I,ncc,lmc,blocks,cl,blocksize;numeq=0,ts=20,QUIET=true)
+function blockcpop_mix(n,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc,lmc,blocks,cl,blocksize;numeq=0,ts=20,QUIET=true)
     fbasis=Array{SparseMatrixCSC}(undef,cql)
     col=Int[1]
     row=Int[]
     nz=UInt8[]
     for i=1:cql
-        fbasis[i]=sparse_basis(cliques[i],n,d)
+        fbasis[i]=sparse_basis(cliques[i],n,rlorder[1])
         if cliquesize[i]<ts
-            ssupp=sparse_basis(cliques[i],n,2*d)
+            ssupp=sparse_basis(cliques[i],n,2*rlorder[1])
             col=[col;ssupp.colptr[2:end].+(col[end]-1)]
             row=[row;ssupp.rowval]
             nz=[nz;ssupp.nzval]
@@ -219,7 +223,7 @@ function blockcpop_mix(n,d,dg,supp,coe,cliques,cql,cliquesize,mclique,I,ncc,lmc,
         if cliquesize[s]>=ts
             t=findfirst(isequal(s), mclique)
             for i ∈ I[s]
-                gbasis[i]=sparse_basis(cliques[s],n,d-dg[i])
+                gbasis[i]=sparse_basis(cliques[s],n,rlorder[i+1])
                 tcol=[1;gbasis[i].colptr]
                 trow=gbasis[i].rowval
                 tnz=gbasis[i].nzval
@@ -243,8 +247,8 @@ function blockcpop_mix(n,d,dg,supp,coe,cliques,cql,cliquesize,mclique,I,ncc,lmc,
             end
         else
             for i ∈ I[s]
-                gbasis[i]=sparse_basis(cliques[s],n,d-dg[i])
-                ssupp=sparse_basis(cliques[s],n,2*(d-dg[i]))
+                gbasis[i]=sparse_basis(cliques[s],n,rlorder[i+1])
+                ssupp=sparse_basis(cliques[s],n,2*rlorder[i+1])
                 tcol=[1;ssupp.colptr]
                 trow=ssupp.rowval
                 tnz=ssupp.nzval
@@ -473,7 +477,7 @@ function get_blocks_mix(d,supp::SparseMatrixCSC,cliques,cql,cliquesize;ts=20,met
             if issubset(supp.rowval[supp.colptr[j]:(supp.colptr[j+1]-1)], cliques[ind])
                 bi=zeros(UInt8,nvar,1)
                 for k=supp.colptr[j]:(supp.colptr[j+1]-1)
-                    @inbounds locb=lbfind(cliques[ind],supp.rowval[k],cliquesize[ind])
+                    @inbounds locb=lbfind(cliques[ind],cliquesize[ind],supp.rowval[k])
                     @inbounds bi[locb]=supp.nzval[k]
                 end
                 ssupp=[ssupp bi]
@@ -489,7 +493,7 @@ function get_blocks_mix(d,supp::SparseMatrixCSC,cliques,cql,cliquesize;ts=20,met
     return mclique,lmc,blocks,cl,blocksize,ub,sizes,basis
 end
 
-function get_hblocks_mix!(d,basis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
+function get_hblocks_mix!(basis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
     nub=Vector{Vector{UInt16}}(undef,lmc)
     nsizes=Vector{Vector{UInt16}}(undef,lmc)
     println("---------------------------------------------------")
@@ -519,7 +523,7 @@ function get_hblocks_mix!(d,basis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,
     return blocks,cl,blocksize,nub,nsizes
 end
 
-function get_cblocks_mix(d,dg,m,supp,cliques,cql,cliquesize;ts=20,method="block")
+function get_cblocks_mix(rlorder,m,supp,cliques,cql,cliquesize;ts=20,method="block")
     mclique=UInt8[]
     for i=1:cql
         if cliquesize[i]>=ts
@@ -530,7 +534,7 @@ function get_cblocks_mix(d,dg,m,supp,cliques,cql,cliquesize;ts=20,method="block"
     I=[UInt16[] for i=1:cql]
     ncc=UInt16[]
     for i=2:m+1
-        if d-dg[i-1]==0
+        if rlorder[i]==0
             push!(ncc, i-1)
         else
             rind=unique(supp[i].rowval)
@@ -548,7 +552,7 @@ function get_cblocks_mix(d,dg,m,supp,cliques,cql,cliquesize;ts=20,method="block"
     blocksize=Vector{Vector{Vector{Int}}}(undef,lmc)
     ssupp=Vector{Vector{Array{UInt8,2}}}(undef,lmc)
     lt=Vector{Vector{UInt16}}(undef,lmc)
-    gbasis=Vector{Array{UInt8,2}}(undef,lmc)
+    gbasis=Vector{Vector{Array{UInt8,2}}}(undef,lmc)
     fbasis=Vector{Array{UInt8,2}}(undef,lmc)
     lsupp=sum([supp[i].n for i=1:m+1])
     col=Int[1]
@@ -575,14 +579,14 @@ function get_cblocks_mix(d,dg,m,supp,cliques,cql,cliquesize;ts=20,method="block"
             if issubset(row[col[j]:(col[j+1]-1)], cliques[ind])
                 bi=zeros(UInt8,nvar,1)
                 for k=col[j]:(col[j+1]-1)
-                    @inbounds locb=lbfind(cliques[ind],row[k],cliquesize[ind])
+                    @inbounds locb=lbfind(cliques[ind],cliquesize[ind],row[k])
                     @inbounds bi[locb]=nz[k]
                 end
                 fsupp=[fsupp bi]
             end
         end
         fsupp=unique(fsupp,dims=2)
-        fbasis[i]=get_basis(cliquesize[ind],d)
+        fbasis[i]=get_basis(cliquesize[ind],rlorder[1])
         gbasis[i]=Vector{Array{UInt8,2}}(undef, lc)
         ssupp[i]=Vector{Array{UInt8,2}}(undef, lc+1)
         lt[i]=Vector{UInt16}(undef, lc+1)
@@ -590,12 +594,12 @@ function get_cblocks_mix(d,dg,m,supp,cliques,cql,cliquesize;ts=20,method="block"
         ssupp[i][1]=zeros(UInt8,nvar,supp[1].n)
         for s=1:lc
             t=I[mclique[i]][s]
-            gbasis[i][s]=get_basis(nvar,d-dg[t])
+            gbasis[i][s]=get_basis(nvar,rlorder[t+1])
             ssupp[i][s+1]=zeros(UInt8,nvar,supp[t+1].n)
             lt[i][s+1]=supp[t+1].n
             for j=1:supp[t+1].n
                 for k=supp[t+1].colptr[j]:(supp[t+1].colptr[j+1]-1)
-                    @inbounds locb=lbfind(cliques[ind],supp[t+1].rowval[k],cliquesize[ind])
+                    @inbounds locb=lbfind(cliques[ind],cliquesize[ind],supp[t+1].rowval[k])
                     @inbounds ssupp[i][s+1][locb,j]=supp[t+1].nzval[k]
                 end
             end
@@ -609,7 +613,7 @@ function get_cblocks_mix(d,dg,m,supp,cliques,cql,cliquesize;ts=20,method="block"
     return mclique,I,ncc,lmc,blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis
 end
 
-function get_chblocks_mix!(d,dg,I,supp,ssupp,lt,fbasis,gbasis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
+function get_chblocks_mix!(I,ssupp,lt,fbasis,gbasis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
     nub=Vector{Vector{UInt16}}(undef,lmc)
     nsizes=Vector{Vector{UInt16}}(undef,lmc)
     println("---------------------------------------------------")
@@ -623,7 +627,7 @@ function get_chblocks_mix!(d,dg,I,supp,ssupp,lt,fbasis,gbasis,mclique,lmc,clique
         for s=1:cl[i][1]
             for j=1:blocksize[i][1][s]
                 for r=j:blocksize[i][1][s]
-                    @inbounds bi=fbasis[:,blocks[i][1][s][j]]+fbasis[:,blocks[i][1][s][r]]
+                    @inbounds bi=fbasis[i][:,blocks[i][1][s][j]]+fbasis[i][:,blocks[i][1][s][r]]
                     @inbounds fsupp[:,k]=bi
                     k+=1
                 end
@@ -653,10 +657,10 @@ function clique_decomp(n,supp::SparseMatrixCSC)
     return cliques,cql,cliquesize
 end
 
-function clique_cdecomp(n,m,supp,d,dg)
+function clique_cdecomp(n,m,supp,rlorder)
     A=zeros(UInt8,n,n)
     for i=1:m+1
-        if i==1||d-dg[i-1]==0
+        if i==1||rlorder[i]==0
             for j = 1:supp[i].n
                 lcol=supp[i].colptr[j+1]-supp[i].colptr[j]
                 A[supp[i].rowval[supp[i].colptr[j]:(supp[i].colptr[j+1]-1)],supp[i].rowval[supp[i].colptr[j]:(supp[i].colptr[j+1]-1)]]=ones(UInt8,lcol,lcol)

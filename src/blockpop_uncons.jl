@@ -395,7 +395,7 @@ function get_blocks(n,supp,basis;reduce=0)
     end
     blocks=connected_components(G)
     cl=size(blocks,1)
-    blocksize=zeros(Int,cl,1)
+    blocksize=Vector{Int}(undef, cl)
     for i=1:cl
         blocksize[i]=length(blocks[i])
     end
@@ -437,7 +437,7 @@ function get_hblocks!(n,supp,basis,ub,sizes;reduce=0)
     end
     blocks=connected_components(G)
     cl=size(blocks,1)
-    blocksize=zeros(Int,cl,1)
+    blocksize=Vector{Int}(undef, cl)
     for i=1:cl
         blocksize[i]=length(blocks[i])
     end
