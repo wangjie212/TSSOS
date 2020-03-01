@@ -23,11 +23,11 @@ julia> using TSSOS
 julia> using DynamicPolynomials
 julia> @polyvar x[1:2]
 f=x[1]^4+x[2]^4-x[1]*x[2]
-julia> opt,data=blockupop_first(f,x)
+julia> opt,sol,data=blockupop_first(f,x)
 ```
 By default, a monomial basis computed by the Newton polytope method will be used. If we set the key newton=0 in the input,
 ```Julia
-julia> opt,data=blockupop_first(f,x,newton=0)
+julia> opt,sol,data=blockupop_first(f,x,newton=0)
 ```
 then the standard monomial basis will be used.
 
@@ -63,7 +63,7 @@ g_1=2-x[1]^2-2*x[2]^2
 g_2=x[1]^2-x[2]^2-1
 pop=[f,g_1,g_2]
 d=2 # the order of Lasserre's hierarchy
-julia> opt,data=blockcpop_first(pop,x,d,numeq=1)
+julia> opt,sol,data=blockcpop_first(pop,x,d,numeq=1)
 ```
 
 You can also use the option method="chordal" which is usually more efficient.
@@ -73,7 +73,7 @@ In many cases, the first block hierarchy already obtains the same optimum as the
 To exetute higher block hierarchies, repeatedly run
 
 ```Julia
-julia> opt,data=blockcpop_higher!(data,numeq=1)
+julia> opt,sol,data=blockcpop_higher!(data,numeq=1)
 ```
 
 ## Reference
