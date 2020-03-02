@@ -176,7 +176,7 @@ function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
     sol=nothing
     if status==1
         opt,fsupp,Gram=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET)
-        sol=extract_solutions(n,m,x,pop,d,pop,numeq,opt,fbasis,fblocks,fcl,fblocksize,Gram,method=method)
+        sol=extract_solutions(n,m,x,d,pop,numeq,opt,fbasis,fblocks,fcl,fblocksize,Gram,method=method)
     end
     data.fsupp=fsupp
     data.fbasis=fbasis
