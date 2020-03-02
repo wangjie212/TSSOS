@@ -120,12 +120,12 @@ function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
     opt=nothing
     if method=="block"&&reducebasis==0
        fbasis=data.fbasis
-       fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes)
+       fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes)
     elseif method=="block"&&reducebasis==1
         fbasis=get_basis(n,d)
         flag=1
         while flag==1
-              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,reduce=1)
+              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,reduce=1)
               tsupp=[ssupp[1] zeros(UInt8,n,1)]
               for k=1:m
                   gsupp=zeros(UInt8,n,lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2))
@@ -147,12 +147,12 @@ function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
         end
     elseif method=="chordal"&&reducebasis==0
         fbasis=data.fbasis
-        fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,dense=dense)
+        fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,dense=dense)
     else
         fbasis=get_basis(n,d)
         flag=1
         while flag==1
-              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,reduce=1,dense=dense)
+              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,reduce=1,dense=dense)
               tsupp=[ssupp[1] zeros(UInt8,n,1)]
               for k=1:m
                   gsupp=zeros(UInt8,n,lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2))
@@ -401,7 +401,7 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0)
     return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes
 end
 
-function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0)
+function get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0)
     gblocks=Vector{Vector{Vector{UInt16}}}(undef,m)
     gblocksize=Vector{Vector{Int}}(undef, m)
     gcl=Vector{UInt16}(undef,m)
@@ -443,13 +443,11 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0)
            nub=unique(fblocksize)
            nsizes=[sum(fblocksize.== i) for i in nub]
            if nub!=ub||nsizes!=sizes
-              ub=nub
-              sizes=nsizes
-              println("fblocksizes:\n$ub\n$sizes")
+              println("fblocksizes:\n$nub\n$nsizes")
               println("-----------------------------------------------")
            else
               println("No higher block hierarchy!")
-              return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,0
+              return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end
         end
         println("gblocksizes:")
@@ -526,13 +524,11 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0)
            nub=unique(fblocksize)
            nsizes=[sum(fblocksize.== i) for i in nub]
            if nub!=ub||nsizes!=sizes
-              ub=nub
-              sizes=nsizes
-              println("fblocksizes:\n$ub\n$sizes")
+              println("fblocksizes:\n$nub\n$nsizes")
               println("-----------------------------------------------")
            else
               println("No higher block hierarchy!")
-              return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,0
+              return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end
         end
         println("gblocksizes:")
@@ -573,7 +569,7 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0)
             end
         end
     end
-    return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,1
+    return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,1
 end
 
 function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10)
@@ -721,7 +717,7 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10)
     return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes
 end
 
-function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense=10)
+function get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense=10)
     gblocks=Vector{Vector{Vector{UInt16}}}(undef,m)
     gblocksize=Vector{Vector{Int}}(undef, m)
     gcl=Vector{UInt16}(undef,m)
@@ -759,13 +755,11 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense
            nub=unique(fblocksize)
            nsizes=[sum(fblocksize.== i) for i in nub]
            if nub!=ub||nsizes!=sizes
-              ub=nub
-              sizes=nsizes
-              println("fblocksizes:\n$ub\n$sizes")
+              println("fblocksizes:\n$nub\n$nsizes")
               println("-----------------------------------------------")
            else
               println("No higher chordal hierarchy!")
-              return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,0
+              return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end
         end
         println("gblocksizes:")
@@ -834,13 +828,11 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense
            nub=unique(fblocksize)
            nsizes=[sum(fblocksize.== i) for i in nub]
            if nub!=ub||nsizes!=sizes
-              ub=nub
-              sizes=nsizes
-              println("fblocksizes:\n$ub\n$sizes")
+              println("fblocksizes:\n$nub\n$nsizes")
               println("-----------------------------------------------")
            else
               println("No higher chordal hierarchy!")
-              return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,0
+              return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end
         end
         println("gblocksizes:")
@@ -877,7 +869,7 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense
             end
         end
     end
-    return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,1
+    return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,1
 end
 
 function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize;numeq=0,QUIET=true)

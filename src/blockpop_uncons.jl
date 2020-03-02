@@ -72,20 +72,20 @@ function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
     opt=nothing
     sol=nothing
     if method=="block"&&reducebasis==0
-        blocks,cl,blocksize,ub,sizes,status=get_hblocks!(n,supp1,basis,ub,sizes)
+        blocks,cl,blocksize,ub,sizes,status=get_hblocks(n,supp1,basis,ub,sizes)
     elseif method=="block"&&reducebasis==1
         flag=1
         while flag==1
-              blocks,cl,blocksize,ub,sizes,status=get_hblocks!(n,supp1,basis,ub,sizes,redcue=1)
+              blocks,cl,blocksize,ub,sizes,status=get_hblocks(n,supp1,basis,ub,sizes,redcue=1)
               tsupp=[supp zeros(UInt8,n,1)]
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
     elseif method=="chordal"&&reducebasis==0
-        blocks,cl,blocksize,ub,sizes,status=get_hcliques!(n,supp1,basis,ub,sizes)
+        blocks,cl,blocksize,ub,sizes,status=get_hcliques(n,supp1,basis,ub,sizes)
     else
         flag=1
         while flag==1
-              blocks,cl,blocksize,ub,sizes,status=get_hcliques!(n,supp1,basis,ub,sizes,reduce=1,dense=dense)
+              blocks,cl,blocksize,ub,sizes,status=get_hcliques(n,supp1,basis,ub,sizes,reduce=1,dense=dense)
               tsupp=[supp zeros(UInt8,n,1)]
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
@@ -409,7 +409,7 @@ function get_blocks(n,supp,basis;reduce=0)
     return blocks,cl,blocksize,ub,sizes
 end
 
-function get_hblocks!(n,supp,basis,ub,sizes;reduce=0)
+function get_hblocks(n,supp,basis,ub,sizes;reduce=0)
     if reduce==1
         supp1=[supp 2*basis]
         supp1=sortslices(supp1,dims=2)
@@ -448,13 +448,11 @@ function get_hblocks!(n,supp,basis,ub,sizes;reduce=0)
     nub=unique(blocksize)
     nsizes=[sum(blocksize.== i) for i in nub]
     if nub!=ub||nsizes!=sizes
-       ub=nub
-       sizes=nsizes
-       println("blocksizes:\n$ub\n$sizes")
-       return blocks,cl,blocksize,ub,sizes,1
+       println("blocksizes:\n$nub\n$nsizes")
+       return blocks,cl,blocksize,nub,nsizes,1
     else
        println("No higher block hierarchy!")
-       return blocks,cl,blocksize,ub,sizes,0
+       return blocks,cl,blocksize,nub,nsizes,0
     end
 end
 
@@ -498,7 +496,7 @@ function get_cliques(n,supp,basis;reduce=0,dense=10)
     return blocks,cl,blocksize,ub,sizes
 end
 
-function get_hcliques!(n,supp,basis,ub,sizes;reduce=0,dense=10)
+function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10)
     if reduce==1
         supp1=[supp 2*basis]
         supp1=sortslices(supp1,dims=2)
@@ -535,13 +533,11 @@ function get_hcliques!(n,supp,basis,ub,sizes;reduce=0,dense=10)
     nub=unique(blocksize)
     nsizes=[sum(blocksize.== i) for i in nub]
     if nub!=ub||nsizes!=sizes
-       ub=nub
-       sizes=nsizes
-       println("$ub\n$sizes")
-       return blocks,cl,blocksize,ub,sizes,1
+       println("$nub\n$nsizes")
+       return blocks,cl,blocksize,nub,nsizes,1
     else
        println("No higher chordal hierarchy!")
-       return blocks,cl,blocksize,ub,sizes,0
+       return blocks,cl,blocksize,nub,nsizes,0
     end
 end
 
@@ -774,7 +770,7 @@ function extract_solutions(n,m,x,d,pop,numeq,opt,basis,blocks,cl,blocksize,Gram;
         w=basis[:,pivots]
         lw=size(w,2)
         i=d
-        while i>=1
+        while i>=0
             j=1
             flag=1
             while j<=lw
@@ -796,7 +792,7 @@ function extract_solutions(n,m,x,d,pop,numeq,opt,basis,blocks,cl,blocksize,Gram;
             if flag==1
                 break
             else
-               i=-1
+                i-=1
             end
         end
         println("Rank of the moment matrix = ", lw)

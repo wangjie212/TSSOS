@@ -1,57 +1,3 @@
--------------------------------------------------------------------
-n=6
-d=2
-@polyvar x[1:n]
-f=1+sum(x.^4)+x[1]*x[2]*x[3]+x[3]*x[4]*x[5]+x[3]*x[4]*x[6]+x[3]*x[5]*x[6]+x[4]*x[5]*x[6]
-
-mon=monomials(f)
-coe=coefficients(f)
-lm=length(mon)
-supp=zeros(UInt8,n,lm)
-for i=1:lm
-    for j=1:n
-        supp[j,i]=MultivariatePolynomials.degree(mon[i],x[j])
-    end
-end
-supp=sparse(supp)
-
-cliques,cql,cliquesize=clique_decomp(n,supp)
-mclique,lmc,blocks,cl,blocksize,ub,sizes,basis=get_blocks_mix(d,supp,cliques,cql,cliquesize,ts=4,method="block")
-blocks,cl,blocksize,ub,sizes=get_hblocks_mix!(basis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes,method="block")
-objv=blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,mclique,lmc,blocks,cl,blocksize,ts=4,QUIET=true)
-
--------------------------------------------------------------------
-n=6
-m=2
-@polyvar x[1:n]
-f=1+sum(x.^4)+x[1]*x[2]*x[3]+x[3]*x[4]*x[5]+x[4]*x[5]*x[6]
-g1=1-sum(x[1:3].^2)
-g2=1-sum(x[3:6].^2)
-pop=[f,g1,g2]
-coe=Array{Vector{Float64}}(undef, m+1)
-supp=Array{SparseMatrixCSC}(undef, m+1)
-for k=1:m+1
-    mon=monomials(pop[k])
-    coe[k]=coefficients(pop[k])
-    lt=length(mon)
-    ssupp=zeros(UInt8,n,lt)
-    for i=1:lt
-        for j=1:n
-            ssupp[j,i]=MultivariatePolynomials.degree(mon[i],x[j])
-        end
-    end
-    supp[k]=sparse(ssupp)
-end
-
-rlorder=[2,1,1]
-
-cliques,cql,cliquesize=clique_cdecomp(n,m,supp,rlorder)
-mclique,I,ncc,lmc,blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis=get_cblocks_mix(rlorder,m,supp,cliques,cql,cliquesize;ts=4,method="block")
-blocks,cl,blocksize,ub,sizes=get_chblocks_mix!(I,ssupp,lt,fbasis,gbasis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes,method="clique")
-objv=blockcpop_mix(n,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc,lmc,blocks,cl,blocksize,numeq=0,ts=4,QUIET=true)
-
--------------------------------------------------------------------
-
 function blockupop_mix(n,d,supp::SparseMatrixCSC,coe,cliques,cql,cliquesize,mclique,lmc,blocks,cl,blocksize;ts=20,QUIET=true)
     basis=Array{SparseMatrixCSC}(undef,cql)
     col=Int[1]
@@ -493,7 +439,7 @@ function get_blocks_mix(d,supp::SparseMatrixCSC,cliques,cql,cliquesize;ts=20,met
     return mclique,lmc,blocks,cl,blocksize,ub,sizes,basis
 end
 
-function get_hblocks_mix!(basis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
+function get_hblocks_mix(basis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
     nub=Vector{Vector{UInt16}}(undef,lmc)
     nsizes=Vector{Vector{UInt16}}(undef,lmc)
     println("---------------------------------------------------")
@@ -515,9 +461,9 @@ function get_hblocks_mix!(basis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,si
         ssupp=sortslices(ssupp,dims=2)
         ssupp=unique(ssupp,dims=2)
         if method=="block"
-            blocks[i],cl[i],blocksize[i],nub[i],nsizes[i],status=get_hblocks!(nvar,ssupp,basis[i],ub[i],sizes[i])
+            blocks[i],cl[i],blocksize[i],nub[i],nsizes[i],status=get_hblocks(nvar,ssupp,basis[i],ub[i],sizes[i])
         else
-            blocks[i],cl[i],blocksize[i],nub[i],nsizes[i],status=get_hcliques!(nvar,ssupp,basis[i],ub[i],sizes[i])
+            blocks[i],cl[i],blocksize[i],nub[i],nsizes[i],status=get_hcliques(nvar,ssupp,basis[i],ub[i],sizes[i])
         end
     end
     return blocks,cl,blocksize,nub,nsizes
@@ -613,7 +559,7 @@ function get_cblocks_mix(rlorder,m,supp,cliques,cql,cliquesize;ts=20,method="blo
     return mclique,I,ncc,lmc,blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis
 end
 
-function get_chblocks_mix!(I,ssupp,lt,fbasis,gbasis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
+function get_chblocks_mix(I,ssupp,lt,fbasis,gbasis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
     nub=Vector{Vector{UInt16}}(undef,lmc)
     nsizes=Vector{Vector{UInt16}}(undef,lmc)
     println("---------------------------------------------------")
@@ -636,9 +582,9 @@ function get_chblocks_mix!(I,ssupp,lt,fbasis,gbasis,mclique,lmc,cliquesize,block
         fsupp=sortslices(fsupp,dims=2)
         fsupp=unique(fsupp,dims=2)
         if method=="block"
-            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],nub[i],nsizes[i],status=get_chblocks!(nvar,lc,ssupp[i],lt[i],fbasis[i],gbasis[i],fsupp,ub[i],sizes[i])
+            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],nub[i],nsizes[i],status=get_chblocks(nvar,lc,ssupp[i],lt[i],fbasis[i],gbasis[i],fsupp,ub[i],sizes[i])
         else
-            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],nub[i],nsizes[i],status=get_chcliques!(nvar,lc,ssupp[i],lt[i],fbasis[i],gbasis[i],fsupp,ub[i],sizes[i])
+            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],nub[i],nsizes[i],status=get_chcliques(nvar,lc,ssupp[i],lt[i],fbasis[i],gbasis[i],fsupp,ub[i],sizes[i])
         end
     end
     return blocks,cl,blocksize,nub,nsizes
