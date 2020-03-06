@@ -1,4 +1,4 @@
-function blockupop_mix(n,d,supp::SparseMatrixCSC,coe,cliques,cql,cliquesize,mclique,lmc,blocks,cl,blocksize;ts=20,QUIET=true)
+function blockupop_mix(n,d,supp::SparseMatrixCSC,coe,cliques,cql,cliquesize,mclique,lmc,blocks,cl,blocksize;ts=10,QUIET=true)
     basis=Array{SparseMatrixCSC}(undef,cql)
     col=Int[1]
     row=Int[]
@@ -122,10 +122,10 @@ function blockupop_mix(n,d,supp::SparseMatrixCSC,coe,cliques,cql,cliquesize,mcli
 #    for i=1:cl
 #        gram[i]=value.(pos[i])
 #    end
-    return objv
+    return objv,supp1
 end
 
-function blockcpop_mix(n,m,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc,lmc,blocks,cl,blocksize;numeq=0,ts=20,QUIET=true)
+function blockcpop_mix(n,m,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc,lmc,blocks,cl,blocksize;numeq=0,ts=10,QUIET=true)
     fbasis=Array{SparseMatrixCSC}(undef,cql)
     col=Int[1]
     row=Int[]
@@ -400,10 +400,10 @@ function blockcpop_mix(n,m,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc
 #    for i=1:cl
 #        gram[i]=value.(pos[i])
 #    end
-    return objv
+    return objv,supp1
 end
 
-function get_blocks_mix(d,supp::SparseMatrixCSC,cliques,cql,cliquesize;ts=20,method="block")
+function get_blocks_mix(d,supp::SparseMatrixCSC,cliques,cql,cliquesize;ts=10,method="block")
     mclique=UInt8[]
     for i=1:cql
         if cliquesize[i]>=ts
@@ -443,7 +443,7 @@ function get_blocks_mix(d,supp::SparseMatrixCSC,cliques,cql,cliquesize;ts=20,met
     return mclique,lmc,blocks,cl,blocksize,ub,sizes,basis
 end
 
-function get_hblocks_mix(basis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
+function get_hblocks_mix(supp,basis,mclique,lmc,cliques,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
     nub=Vector{Vector{UInt16}}(undef,lmc)
     nsizes=Vector{Vector{UInt16}}(undef,lmc)
     println("---------------------------------------------------")
@@ -451,19 +451,30 @@ function get_hblocks_mix(basis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,siz
     for i=1:lmc
         ind=mclique[i]
         nvar=cliquesize[ind]
-        ssupp=zeros(UInt8,nvar,Int(sum(blocksize[i].^2+blocksize[i])/2))
-        k=1
-        for s=1:cl[i]
-            for j=1:blocksize[i][s]
-                for r=j:blocksize[i][s]
-                    @inbounds bi=basis[i][:,blocks[i][s][j]]+basis[i][:,blocks[i][s][r]]
-                    @inbounds ssupp[:,k]=bi
-                    k+=1
+        ssupp=zeros(UInt8,nvar,1)
+        for j=1:supp.n
+            if issubset(supp.rowval[supp.colptr[j]:(supp.colptr[j+1]-1)], cliques[ind])
+                bi=zeros(UInt8,nvar,1)
+                for k=supp.colptr[j]:(supp.colptr[j+1]-1)
+                    @inbounds locb=lbfind(cliques[ind],cliquesize[ind],supp.rowval[k])
+                    @inbounds bi[locb]=supp.nzval[k]
                 end
+                ssupp=[ssupp bi]
             end
         end
-        ssupp=sortslices(ssupp,dims=2)
-        ssupp=unique(ssupp,dims=2)
+        #ssupp=zeros(UInt8,nvar,Int(sum(blocksize[i].^2+blocksize[i])/2))
+        #k=1
+        #for s=1:cl[i]
+        #    for j=1:blocksize[i][s]
+        #        for r=j:blocksize[i][s]
+        #            @inbounds bi=basis[i][:,blocks[i][s][j]]+basis[i][:,blocks[i][s][r]]
+        #            @inbounds ssupp[:,k]=bi
+        #            k+=1
+        #        end
+        #    end
+        #end
+        #ssupp=sortslices(ssupp,dims=2)
+        #ssupp=unique(ssupp,dims=2)
         if method=="block"
             blocks[i],cl[i],blocksize[i],nub[i],nsizes[i],status=get_hblocks(nvar,ssupp,basis[i],ub[i],sizes[i])
         else
@@ -473,7 +484,7 @@ function get_hblocks_mix(basis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,siz
     return blocks,cl,blocksize,nub,nsizes
 end
 
-function get_cblocks_mix(rlorder,m,supp,cliques,cql,cliquesize;ts=20,method="block")
+function get_cblocks_mix(rlorder,m,supp,cliques,cql,cliquesize;ts=10,method="block")
     mclique=UInt8[]
     for i=1:cql
         if cliquesize[i]>=ts
@@ -563,7 +574,7 @@ function get_cblocks_mix(rlorder,m,supp,cliques,cql,cliquesize;ts=20,method="blo
     return mclique,I,ncc,lmc,blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis
 end
 
-function get_chblocks_mix(I,ssupp,lt,fbasis,gbasis,mclique,lmc,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
+function get_chblocks_mix(I,supp,ssupp,lt,fbasis,gbasis,mclique,lmc,cliques,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
     nub=Vector{Vector{UInt16}}(undef,lmc)
     nsizes=Vector{Vector{UInt16}}(undef,lmc)
     println("---------------------------------------------------")
@@ -572,19 +583,30 @@ function get_chblocks_mix(I,ssupp,lt,fbasis,gbasis,mclique,lmc,cliquesize,blocks
         lc=length(I[mclique[i]])
         ind=mclique[i]
         nvar=cliquesize[ind]
-        fsupp=zeros(UInt8,nvar,Int(sum(blocksize[i][1].^2+blocksize[i][1])/2))
-        k=1
-        for s=1:cl[i][1]
-            for j=1:blocksize[i][1][s]
-                for r=j:blocksize[i][1][s]
-                    @inbounds bi=fbasis[i][:,blocks[i][1][s][j]]+fbasis[i][:,blocks[i][1][s][r]]
-                    @inbounds fsupp[:,k]=bi
-                    k+=1
+        fsupp=zeros(UInt8,nvar,1)
+        for j=1:supp.n
+            if issubset(supp.rowval[supp.colptr[j]:(supp.colptr[j+1]-1)], cliques[ind])
+                bi=zeros(UInt8,nvar,1)
+                for k=supp.colptr[j]:(supp.colptr[j+1]-1)
+                    @inbounds locb=lbfind(cliques[ind],cliquesize[ind],supp.rowval[k])
+                    @inbounds bi[locb]=supp.nzval[k]
                 end
+                fsupp=[fsupp bi]
             end
         end
-        fsupp=sortslices(fsupp,dims=2)
-        fsupp=unique(fsupp,dims=2)
+        #fsupp=zeros(UInt8,nvar,Int(sum(blocksize[i][1].^2+blocksize[i][1])/2))
+        #k=1
+        #for s=1:cl[i][1]
+        #    for j=1:blocksize[i][1][s]
+        #        for r=j:blocksize[i][1][s]
+        #            @inbounds bi=fbasis[i][:,blocks[i][1][s][j]]+fbasis[i][:,blocks[i][1][s][r]]
+        #            @inbounds fsupp[:,k]=bi
+        #            k+=1
+        #        end
+        #    end
+        #end
+        #fsupp=sortslices(fsupp,dims=2)
+        #fsupp=unique(fsupp,dims=2)
         if method=="block"
             blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],nub[i],nsizes[i],status=get_chblocks(nvar,lc,ssupp[i],lt[i],fbasis[i],gbasis[i],fsupp,ub[i],sizes[i])
         else
