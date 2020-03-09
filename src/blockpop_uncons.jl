@@ -567,7 +567,7 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
            @inbounds pos[i]=@variable(model, lower_bound=0)
            @inbounds bi=2*basis[:,blocks[i]]
            Locb=bfind(supp1,lsupp1,bi,n)
-           @inbounds add_to_expression!(cons[Locb],pos[i])
+           @inbounds cons[Locb]+=pos[i]
         else
            @inbounds pos[i]=@variable(model, [1:bs, 1:bs], PSD)
            for j=1:blocksize[i]
@@ -575,9 +575,9 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
                    @inbounds bi=basis[:,blocks[i][j]]+basis[:,blocks[i][r]]
                    Locb=bfind(supp1,lsupp1,bi,n)
                    if j==r
-                       @inbounds add_to_expression!(cons[Locb],pos[i][j,r])
+                       @inbounds cons[Locb]+=pos[i][j,r]
                    else
-                       @inbounds add_to_expression!(cons[Locb],2,pos[i][j,r])
+                       @inbounds cons[Locb]+=2*pos[i][j,r]
                    end
                end
            end

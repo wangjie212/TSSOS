@@ -914,7 +914,7 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
            @inbounds pos[i]=@variable(model, lower_bound=0)
            @inbounds bi=2*fbasis[:,fblocks[i]]
            Locb=bfind(supp1,lsupp1,bi,n)
-           @inbounds add_to_expression!(cons[Locb],pos[i])
+           @inbounds cons[Locb]+=pos[i]
         else
            @inbounds pos[i]=@variable(model, [1:bs, 1:bs], PSD)
            for j=1:bs
@@ -922,9 +922,9 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
                    @inbounds bi=fbasis[:,fblocks[i][j]]+fbasis[:,fblocks[i][r]]
                    Locb=bfind(supp1,lsupp1,bi,n)
                    if j==r
-                      @inbounds add_to_expression!(cons[Locb],pos[i][j,r])
+                      @inbounds cons[Locb]+=pos[i][j,r]
                    else
-                      @inbounds add_to_expression!(cons[Locb],2,pos[i][j,r])
+                      @inbounds cons[Locb]+=2*pos[i][j,r]
                    end
                end
            end
@@ -944,7 +944,7 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
                 for s=1:lt[k+1]
                     @inbounds bi=ssupp[k+1][:,[s]]+2*gbasis[k][:,gblocks[k][i]]
                     Locb=bfind(supp1,lsupp1,bi,n)
-                    @inbounds add_to_expression!(cons[Locb],coe[k+1][s],gpos[k][i])
+                    @inbounds cons[Locb]+=coe[k+1][s]*gpos[k][i]
                 end
             else
                 if k<=m-numeq
@@ -958,9 +958,9 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
                             @inbounds bi=ssupp[k+1][:,s]+gbasis[k][:,gblocks[k][i][j]]+gbasis[k][:,gblocks[k][i][r]]
                             Locb=bfind(supp1,lsupp1,bi,n)
                             if j==r
-                               @inbounds add_to_expression!(cons[Locb],coe[k+1][s],gpos[k][i][j,r])
+                               @inbounds cons[Locb]+=coe[k+1][s]*gpos[k][i][j,r]
                             else
-                               @inbounds add_to_expression!(cons[Locb],2*coe[k+1][s],gpos[k][i][j,r])
+                               @inbounds cons[Locb]+=2*coe[k+1][s],gpos[k][i][j,r]
                             end
                         end
                     end
