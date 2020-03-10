@@ -77,4 +77,4 @@ julia> opt,sol,data=blockcpop_higher!(data,numeq=1)
 ```
 
 ## Reference
-For more details about TSSOS, please refer to [TSSOS: A Moment-SOS hierarchy that exploits term sparsity](https://arxiv.org/abs/1912.08899) and [Chordal-TSSOS: a moment-SOS hierarchy that exploits term sparsity with chordal extension](https://arxiv.org/abs/2003.03210). If there are any problems, you can contact Jie Wang: wangjie212@mails.ucas.ac.cn.
+For more details about TSSOS, please refer to [TSSOS: A Moment-SOS hierarchy that exploits term sparsity](https://arxiv.org/abs/1912.08899) and [Chordal-TSSOS: a moment-SOS hierarchy that exploits term sparsity with chordal extension](https://arxiv.org/abs/2003.03210). If there are any problems, you can contact Jie Wang: jwang@laas.fr.
