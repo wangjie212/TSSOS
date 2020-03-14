@@ -33,7 +33,10 @@ function blockupop_mix(n,d,supp::SparseMatrixCSC,coe,cliques,cql,cliquesize,mcli
         end
     end
     supp1=SparseMatrixCSC(n,length(col),[1;col],row,nz)
-    supp1=copy(sort_sparse(supp1))
+    supp1=Array(supp1)
+    supp1=unique(supp1,dims=2)
+    supp1=sortslices(supp1,dims=2)
+    supp1=sparse(supp1)
     lsupp1=supp1.n
     model=Model(with_optimizer(Mosek.Optimizer, QUIET=QUIET))
     cons=[AffExpr(0) for i=1:lsupp1]
@@ -96,8 +99,7 @@ function blockupop_mix(n,d,supp::SparseMatrixCSC,coe,cliques,cql,cliquesize,mcli
     for i=1:supp.n
         Locb=bfind_sparse(supp1,supp.rowval[supp.colptr[i]:(supp.colptr[i+1]-1)],supp.nzval[supp.colptr[i]:(supp.colptr[i+1]-1)])
         if Locb==0
-           println(i)
-           println("The monomial basis is not enough!")
+           @error "The monomial basis is not enough!"
            return nothing,nothing
         else
            bc[Locb]=coe[i]
@@ -212,7 +214,10 @@ function blockcpop_mix(n,m,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc
         end
     end
     supp1=SparseMatrixCSC(n,length(col),[1;col],row,nz)
-    supp1=copy(sort_sparse(supp1))
+    supp1=Array(supp1)
+    supp1=unique(supp1,dims=2)
+    supp1=sortslices(supp1,dims=2)
+    supp1=sparse(supp1)
     lsupp1=supp1.n
     model=Model(with_optimizer(Mosek.Optimizer, QUIET=QUIET))
     cons=[AffExpr(0) for i=1:lsupp1]
@@ -387,7 +392,7 @@ function blockcpop_mix(n,m,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc
     for i=1:supp[1].n
         Locb=bfind_sparse(supp1,supp[1].rowval[supp[1].colptr[i]:(supp[1].colptr[i+1]-1)],supp[1].nzval[supp[1].colptr[i]:(supp[1].colptr[i+1]-1)])
         if Locb==0
-           println("The monomial basis is not enough!")
+           @error "The monomial basis is not enough!"
            return nothing,nothing
         else
            bc[Locb]=coe[1][i]
@@ -429,8 +434,6 @@ function get_blocks_mix(d,supp::SparseMatrixCSC,cliques,cql,cliquesize;ts=10,met
     sizes=Vector{Vector{UInt16}}(undef,lmc)
     blocksize=Vector{Vector{Int}}(undef,lmc)
     basis=Vector{Array{UInt8,2}}(undef,lmc)
-    println("---------------------------------------------------")
-    println("The block sizes for varible cliques of a large size:")
     for i=1:lmc
         ind=mclique[i]
         nvar=cliquesize[ind]
@@ -447,9 +450,9 @@ function get_blocks_mix(d,supp::SparseMatrixCSC,cliques,cql,cliquesize;ts=10,met
         end
         basis[i]=get_basis(nvar,d)
         if method=="block"
-            blocks[i],cl[i],blocksize[i],ub[i],sizes[i]=get_blocks(nvar,ssupp,basis[i])
+            blocks[i],cl[i],blocksize[i],ub[i],sizes[i]=get_blocks(nvar,ssupp,basis[i],QUIET=true)
         else
-            blocks[i],cl[i],blocksize[i],ub[i],sizes[i]=get_cliques(nvar,ssupp,basis[i])
+            blocks[i],cl[i],blocksize[i],ub[i],sizes[i]=get_cliques(nvar,ssupp,basis[i],QUIET=true)
         end
     end
     return mclique,lmc,blocks,cl,blocksize,ub,sizes,basis
@@ -458,8 +461,6 @@ end
 function get_hblocks_mix(supp,basis,mclique,lmc,cliques,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
     nub=Vector{Vector{UInt16}}(undef,lmc)
     nsizes=Vector{Vector{UInt16}}(undef,lmc)
-    println("---------------------------------------------------")
-    println("The block sizes for varible cliques of a large size:")
     for i=1:lmc
         ind=mclique[i]
         nvar=cliquesize[ind]
@@ -488,9 +489,9 @@ function get_hblocks_mix(supp,basis,mclique,lmc,cliques,cliquesize,blocks,cl,blo
         #ssupp=sortslices(ssupp,dims=2)
         #ssupp=unique(ssupp,dims=2)
         if method=="block"
-            blocks[i],cl[i],blocksize[i],nub[i],nsizes[i],status=get_hblocks(nvar,ssupp,basis[i],ub[i],sizes[i])
+            blocks[i],cl[i],blocksize[i],nub[i],nsizes[i],status=get_hblocks(nvar,ssupp,basis[i],ub[i],sizes[i],QUIET=true)
         else
-            blocks[i],cl[i],blocksize[i],nub[i],nsizes[i],status=get_hcliques(nvar,ssupp,basis[i],ub[i],sizes[i])
+            blocks[i],cl[i],blocksize[i],nub[i],nsizes[i],status=get_hcliques(nvar,ssupp,basis[i],ub[i],sizes[i],QUIET=true)
         end
     end
     return blocks,cl,blocksize,nub,nsizes
@@ -536,8 +537,6 @@ function get_cblocks_mix(rlorder,m,supp,cliques,cql,cliquesize;ts=10,method="blo
         append!(row,supp[i].rowval)
         append!(nz,supp[i].nzval)
     end
-    println("---------------------------------------------------")
-    println("The block sizes for varible cliques of a large size:")
     for i=1:lmc
         lc=length(I[mclique[i]])
         blocks[i]=Vector{Vector{Vector{UInt16}}}(undef, lc+1)
@@ -578,9 +577,9 @@ function get_cblocks_mix(rlorder,m,supp,cliques,cql,cliquesize;ts=10,method="blo
             end
         end
         if method=="block"
-            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i]=get_cblocks(nvar,lc,fsupp,ssupp[i],lt[i],fbasis[i],gbasis[i])
+            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i]=get_cblocks(nvar,lc,fsupp,ssupp[i],lt[i],fbasis[i],gbasis[i],QUIET=true)
         else
-            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i]=get_ccliques(nvar,lc,fsupp,ssupp[i],lt[i],fbasis[i],gbasis[i])
+            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i]=get_ccliques(nvar,lc,fsupp,ssupp[i],lt[i],fbasis[i],gbasis[i],QUIET=true)
         end
     end
     return mclique,I,ncc,lmc,blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis
@@ -589,8 +588,6 @@ end
 function get_chblocks_mix(I,supp,ssupp,lt,fbasis,gbasis,mclique,lmc,cliques,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
     nub=Vector{Vector{UInt16}}(undef,lmc)
     nsizes=Vector{Vector{UInt16}}(undef,lmc)
-    println("---------------------------------------------------")
-    println("The block sizes for varible cliques of a large size:")
     for i=1:lmc
         lc=length(I[mclique[i]])
         ind=mclique[i]
@@ -620,9 +617,9 @@ function get_chblocks_mix(I,supp,ssupp,lt,fbasis,gbasis,mclique,lmc,cliques,cliq
         #fsupp=sortslices(fsupp,dims=2)
         #fsupp=unique(fsupp,dims=2)
         if method=="block"
-            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],nub[i],nsizes[i],status=get_chblocks(nvar,lc,ssupp[i],lt[i],fbasis[i],gbasis[i],fsupp,ub[i],sizes[i])
+            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],nub[i],nsizes[i],status=get_chblocks(nvar,lc,ssupp[i],lt[i],fbasis[i],gbasis[i],fsupp,ub[i],sizes[i],QUIET=true)
         else
-            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],nub[i],nsizes[i],status=get_chcliques(nvar,lc,ssupp[i],lt[i],fbasis[i],gbasis[i],fsupp,ub[i],sizes[i])
+            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],nub[i],nsizes[i],status=get_chcliques(nvar,lc,ssupp[i],lt[i],fbasis[i],gbasis[i],fsupp,ub[i],sizes[i],QUIET=true)
         end
     end
     return blocks,cl,blocksize,nub,nsizes
@@ -780,7 +777,6 @@ function sort_sparse(s::SparseMatrixCSC)
         corr_row=row[col[i]:(col[i+1]-1)]
         corr_nz=nz[col[i]:(col[i+1]-1)]
         j=i-1
-        comp=0
         while j>=1
             pre_row=row[col[j]:(col[j+1]-1)]
             pre_nz=nz[col[j]:(col[j+1]-1)]
@@ -791,29 +787,7 @@ function sort_sparse(s::SparseMatrixCSC)
                 break
             end
         end
-        if j>=1&&comp==0
-            deleteat!(row,col[i]:(col[i+1]-1))
-            deleteat!(nz,col[i]:(col[i+1]-1))
-            deleteat!(col,i)
-            col[i:end].-=length(corr_row)
-            n-=1
-            i-=1
-            while j>=2
-                j-=1
-                pre_row=row[col[j]:(col[j+1]-1)]
-                pre_nz=nz[col[j]:(col[j+1]-1)]
-                if comp_sparse(corr_row,corr_nz,pre_row,pre_nz)==0
-                    deleteat!(row,col[j]:(col[j+1]-1))
-                    deleteat!(nz,col[j]:(col[j+1]-1))
-                    deleteat!(col,j)
-                    col[j:end].-=length(corr_row)
-                    n-=1
-                    i-=1
-                else
-                    break
-                end
-            end
-        elseif j<i-1
+        if j<i-1
             for k=i:-1:j+2
                 lprow=col[k]-col[k-1]
                 row[(col[k+1]-lprow):(col[k+1]-1)]=row[(col[k-1]):(col[k]-1)]
@@ -822,7 +796,6 @@ function sort_sparse(s::SparseMatrixCSC)
             end
             row[(col[j+1]):(col[j+2]-1)]=corr_row
             nz[(col[j+1]):(col[j+2]-1)]=corr_nz
-        else
         end
         i+=1
     end
@@ -830,29 +803,29 @@ function sort_sparse(s::SparseMatrixCSC)
 end
 
 function comp_sparse(corr_row,corr_nz,pre_row,pre_nz)
-    if sum(corr_nz)<sum(pre_nz)
-        return -1
-    elseif sum(corr_nz)>sum(pre_nz)
-        return 1
-    else
-        i=1
-        lc=length(corr_row)
-        lp=length(pre_row)
-        while i<=lc&&i<=lp
-            if corr_row[end+1-i]>pre_row[end+1-i]
-                return 1
-            elseif corr_row[end+1-i]<pre_row[end+1-i]
-                return -1
-            elseif corr_nz[end+1-i]<pre_nz[end+1-i]
-                return -1
-            elseif corr_nz[end+1-i]>pre_nz[end+1-i]
-                return 1
-            else
-                i+=1
-            end
+    i=1
+    lc=length(corr_row)
+    lp=length(pre_row)
+    while i<=lc&&i<=lp
+        if corr_row[i]>pre_row[i]
+            return -1
+        elseif corr_row[i]<pre_row[i]
+            return 1
+        elseif corr_nz[i]<pre_nz[i]
+            return -1
+        elseif corr_nz[i]>pre_nz[i]
+            return 1
+        else
+            i+=1
         end
     end
-    return 0
+    if lc>lp
+        return 1
+    elseif lc<lp
+        return -1
+    else
+        return 0
+    end
 end
 
 function bfind_sparse(s,row,nz)

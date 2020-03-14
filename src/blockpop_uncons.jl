@@ -31,20 +31,20 @@ function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=
        basis=get_basis(n,d)
     end
     if method=="block"&&reducebasis==0
-       blocks,cl,blocksize,ub,sizes=get_blocks(n,supp,basis)
+       blocks,cl,blocksize,ub,sizes=get_blocks(n,supp,basis,QUIET=QUIET)
     elseif method=="block"&&reducebasis==1
         flag=1
         while flag==1
-              blocks,cl,blocksize,ub,sizes=get_blocks(n,supp,basis,reduce=1)
+              blocks,cl,blocksize,ub,sizes=get_blocks(n,supp,basis,reduce=1,QUIET=QUIET)
               tsupp=[supp zeros(UInt8,n,1)]
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
     elseif method=="chordal"&&reducebasis==0
-        blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis,dense=dense)
+        blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis,dense=dense,QUIET=QUIET)
     else
         flag=1
         while flag==1
-              blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis,reduce=1)
+              blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis,reduce=1,QUIET=QUIET)
               tsupp=[supp zeros(UInt8,n,1)]
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
@@ -72,20 +72,20 @@ function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
     opt=nothing
     sol=nothing
     if method=="block"&&reducebasis==0
-        blocks,cl,blocksize,ub,sizes,status=get_hblocks(n,supp1,basis,ub,sizes)
+        blocks,cl,blocksize,ub,sizes,status=get_hblocks(n,supp1,basis,ub,sizes,QUIET=QUIET)
     elseif method=="block"&&reducebasis==1
         flag=1
         while flag==1
-              blocks,cl,blocksize,ub,sizes,status=get_hblocks(n,supp1,basis,ub,sizes,redcue=1)
+              blocks,cl,blocksize,ub,sizes,status=get_hblocks(n,supp1,basis,ub,sizes,redcue=1,QUIET=QUIET)
               tsupp=[supp zeros(UInt8,n,1)]
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
     elseif method=="chordal"&&reducebasis==0
-        blocks,cl,blocksize,ub,sizes,status=get_hcliques(n,supp1,basis,ub,sizes)
+        blocks,cl,blocksize,ub,sizes,status=get_hcliques(n,supp1,basis,ub,sizes,QUIET=QUIET)
     else
         flag=1
         while flag==1
-              blocks,cl,blocksize,ub,sizes,status=get_hcliques(n,supp1,basis,ub,sizes,reduce=1,dense=dense)
+              blocks,cl,blocksize,ub,sizes,status=get_hcliques(n,supp1,basis,ub,sizes,reduce=1,dense=dense,QUIET=QUIET)
               tsupp=[supp zeros(UInt8,n,1)]
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
@@ -366,7 +366,7 @@ function cliquesFromSpMatD(A;dense=10)
     return blocks,cl,blocksize
 end
 
-function get_blocks(n,supp,basis;reduce=0)
+function get_blocks(n,supp,basis;reduce=0,QUIET=QUIET)
     if reduce==1
         supp1=[supp 2*basis]
         supp1=sortslices(supp1,dims=2)
@@ -405,11 +405,13 @@ function get_blocks(n,supp,basis;reduce=0)
     end
     ub=unique(blocksize)
     sizes=[sum(blocksize.== i) for i in ub]
-    println("blocksizes:\n$ub\n$sizes")
+    if QUIET==false
+        println("blocksizes:\n$ub\n$sizes")
+    end
     return blocks,cl,blocksize,ub,sizes
 end
 
-function get_hblocks(n,supp,basis,ub,sizes;reduce=0)
+function get_hblocks(n,supp,basis,ub,sizes;reduce=0,QUIET=QUIET)
     if reduce==1
         supp1=[supp 2*basis]
         supp1=sortslices(supp1,dims=2)
@@ -448,7 +450,9 @@ function get_hblocks(n,supp,basis,ub,sizes;reduce=0)
     nub=unique(blocksize)
     nsizes=[sum(blocksize.== i) for i in nub]
     if nub!=ub||nsizes!=sizes
-       println("blocksizes:\n$nub\n$nsizes")
+        if QUIET==false
+            println("blocksizes:\n$nub\n$nsizes")
+        end
        return blocks,cl,blocksize,nub,nsizes,1
     else
        println("No higher block hierarchy!")
@@ -456,7 +460,7 @@ function get_hblocks(n,supp,basis,ub,sizes;reduce=0)
     end
 end
 
-function get_cliques(n,supp,basis;reduce=0,dense=10)
+function get_cliques(n,supp,basis;reduce=0,dense=10,QUIET=QUIET)
     if reduce==1
         supp1=[supp 2*basis]
         supp1=sortslices(supp1,dims=2)
@@ -492,11 +496,13 @@ function get_cliques(n,supp,basis;reduce=0,dense=10)
     blocks,cl,blocksize=cliquesFromSpMatD(A,dense=dense)
     ub=unique(blocksize)
     sizes=[sum(blocksize.== i) for i in ub]
-    println("blocksizes:\n$ub\n$sizes")
+    if QUIET==false
+        println("blocksizes:\n$ub\n$sizes")
+    end
     return blocks,cl,blocksize,ub,sizes
 end
 
-function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10)
+function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10,QUIET=QUIET)
     if reduce==1
         supp1=[supp 2*basis]
         supp1=sortslices(supp1,dims=2)
@@ -533,8 +539,10 @@ function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10)
     nub=unique(blocksize)
     nsizes=[sum(blocksize.== i) for i in nub]
     if nub!=ub||nsizes!=sizes
-       println("$nub\n$nsizes")
-       return blocks,cl,blocksize,nub,nsizes,1
+        if QUIET==false
+            println("$nub\n$nsizes")
+        end
+        return blocks,cl,blocksize,nub,nsizes,1
     else
        println("No higher chordal hierarchy!")
        return blocks,cl,blocksize,nub,nsizes,0
@@ -554,8 +562,8 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
             end
         end
     end
+    supp1=unique(supp1,dims=2)
     supp1=sortslices(supp1,dims=2)
-    supp1=copy(unique(supp1,dims=2))
     lsupp1=size(supp1,2)
     model=Model(with_optimizer(Mosek.Optimizer, QUIET=QUIET))
     cons=[AffExpr(0) for i=1:lsupp1]
@@ -587,7 +595,7 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     for i=1:lsupp
         Locb=bfind(supp1,lsupp1,supp[:,i],n)
         if Locb==0
-           println("The monomial basis is not enough!")
+           @error "The monomial basis is not enough!"
            return nothing,nothing,nothing
         else
            bc[Locb]=coe[i]
@@ -628,8 +636,8 @@ function blockupopm(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
             end
         end
     end
+    supp1=unique(supp1,dims=2)
     supp1=sortslices(supp1,dims=2)
-    supp1=copy(unique(supp1,dims=2))
     lsupp1=size(supp1,2)
     indexb=[i for i=1:cl]
     oneb=indexb[[blocksize[k]==1 for k=1:cl]]

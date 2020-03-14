@@ -46,11 +46,11 @@ function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0,QUIET=true
         gbasis[k]=get_basis(n,d-Int(ceil(dg[k]/2)))
     end
     if method=="block"&&reducebasis==0
-       fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis)
+       fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis,QUIET=QUIET)
     elseif method=="block"&&reducebasis==1
         flag=1
         while flag==1
-              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis,reduce=1)
+              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis,reduce=1,QUIET=QUIET)
               tsupp=[ssupp[1] zeros(UInt8,n,1)]
               for k=1:m
                   gsupp=zeros(UInt8,n,lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2))
@@ -71,11 +71,11 @@ function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0,QUIET=true
               fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize)
         end
     elseif method=="chordal"&&reducebasis==0
-        fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,dense=dense)
+        fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,dense=dense,QUIET=QUIET)
     else
         flag=1
         while flag==1
-              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,reduce=1,dense=dense)
+              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,reduce=1,dense=dense,QUIET=QUIET)
               tsupp=[ssupp[1] zeros(UInt8,n,1)]
               for k=1:m
                   gsupp=zeros(UInt8,n,lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2))
@@ -120,12 +120,12 @@ function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
     opt=nothing
     if method=="block"&&reducebasis==0
        fbasis=data.fbasis
-       fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes)
+       fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,QUIET=QUIET)
     elseif method=="block"&&reducebasis==1
         fbasis=get_basis(n,d)
         flag=1
         while flag==1
-              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,reduce=1)
+              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,reduce=1,QUIET=QUIET)
               tsupp=[ssupp[1] zeros(UInt8,n,1)]
               for k=1:m
                   gsupp=zeros(UInt8,n,lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2))
@@ -147,12 +147,12 @@ function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
         end
     elseif method=="chordal"&&reducebasis==0
         fbasis=data.fbasis
-        fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,dense=dense)
+        fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,dense=dense,QUIET=QUIET)
     else
         fbasis=get_basis(n,d)
         flag=1
         while flag==1
-              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,reduce=1,dense=dense)
+              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,reduce=1,dense=dense,QUIET=QUIET)
               tsupp=[ssupp[1] zeros(UInt8,n,1)]
               for k=1:m
                   gsupp=zeros(UInt8,n,lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2))
@@ -240,7 +240,7 @@ function reducebasis!(n,supp,basis,blocks,cl,blocksize)
     end
 end
 
-function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0)
+function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,QUIET=QUIET)
     gblocks=Vector{Vector{Vector{UInt16}}}(undef,m)
     gblocksize=Vector{Vector{Int}}(undef, m)
     gcl=Vector{UInt16}(undef,m)
@@ -265,25 +265,26 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0)
         for i=1:fcl
             fblocksize[i]=length(fblocks[i])
         end
-        if fcl==1
+        ub=unique(fblocksize)
+        sizes=[sum(fblocksize.== i) for i in ub]
+        if QUIET==false
             println("fblocksizes:\n$fblocksize\n[1]")
             println("-----------------------------------------------")
             println("gblocksizes:")
+        end
+        if fcl==1
             for k=1:m
                 gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
                 gblocksize[k]=[size(gbasis[k],2)]
                 gcl[k]=1
-                gbk=gblocksize[k]
-                println("$gbk\n[1]")
-                println("-----------------------------------------------")
+                if QUIET==false
+                    gbk=gblocksize[k]
+                    println("$gbk\n[1]")
+                    println("-----------------------------------------------")
+                end
             end
             return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1]
         else
-            ub=unique(fblocksize)
-            sizes=[sum(fblocksize.== i) for i in ub]
-            println("fblocksizes:\n$ub\n$sizes")
-            println("-----------------------------------------------")
-            println("gblocksizes:")
             for k=1:m
                 glb=size(gbasis[k],2)
                 gG=SimpleGraph(glb)
@@ -309,15 +310,11 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0)
                 for i=1:gcl[k]
                     gblocksize[k][i]=length(gblocks[k][i])
                 end
-                if gcl[k]==1
-                   gbk=gblocksize[k]
-                   println("$gbk\n[1]")
-                   println("-----------------------------------------------")
-                else
-                   gub=unique(gblocksize[k])
-                   gsizes=[sum(gblocksize[k].== i) for i in gub]
-                   println("$gub\n$gsizes")
-                   println("-----------------------------------------------")
+                if QUIET==false
+                    gub=unique(gblocksize[k])
+                    gsizes=[sum(gblocksize[k].== i) for i in gub]
+                    println("$gub\n$gsizes")
+                    println("-----------------------------------------------")
                 end
             end
         end
@@ -341,67 +338,64 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0)
         for i=1:fcl
             fblocksize[i]=length(fblocks[i])
         end
-        if fcl==1
+        ub=unique(fblocksize)
+        sizes=[sum(fblocksize.== i) for i in ub]
+        if QUIET==false
             println("fblocksizes:\n$fblocksize\n[1]")
             println("-----------------------------------------------")
             println("gblocksizes:")
+        end
+        if fcl==1
             for k=1:m
                 gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
                 gblocksize[k]=[size(gbasis[k],2)]
                 gcl[k]=1
-                gbk=gblocksize[k]
-                println("$gbk\n[1]")
-                println("-----------------------------------------------")
+                if QUIET==false
+                    gbk=gblocksize[k]
+                    println("$gbk\n[1]")
+                    println("-----------------------------------------------")
+                end
             end
             return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1]
         else
-           ub=unique(fblocksize)
-           sizes=[sum(fblocksize.== i) for i in ub]
-           println("fblocksizes:\n$ub\n$sizes")
-           println("-----------------------------------------------")
-        end
-        println("gblocksizes:")
-        for k=1:m
-            glb=size(gbasis[k],2)
-            gG=SimpleGraph(glb)
-            for i = 1:glb
-                for j = i:glb
-                    r=1
-                    while r<=lt[k+1]
-                          bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
-                          if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
-                             break
-                          else
-                             r=r+1
-                          end
-                    end
-                    if r<=lt[k+1]
-                       add_edge!(gG,i,j)
+            for k=1:m
+                glb=size(gbasis[k],2)
+                gG=SimpleGraph(glb)
+                for i = 1:glb
+                    for j = i:glb
+                        r=1
+                        while r<=lt[k+1]
+                              bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
+                              if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
+                                 break
+                              else
+                                 r=r+1
+                              end
+                        end
+                        if r<=lt[k+1]
+                           add_edge!(gG,i,j)
+                        end
                     end
                 end
-            end
-            gblocks[k]=connected_components(gG)
-            gcl[k]=size(gblocks[k],1)
-            gblocksize[k]=Vector{Int}(undef,gcl[k])
-            for i=1:gcl[k]
-                gblocksize[k][i]=length(gblocks[k][i])
-            end
-            if gcl[k]==1
-               gbk=gblocksize[k]
-               println("$gbk\n[1]")
-               println("-----------------------------------------------")
-            else
-               gub=unique(gblocksize[k])
-               gsizes=[sum(gblocksize[k].== i) for i in gub]
-               println("$gub\n$gsizes")
-               println("-----------------------------------------------")
+                gblocks[k]=connected_components(gG)
+                gcl[k]=size(gblocks[k],1)
+                gblocksize[k]=Vector{Int}(undef,gcl[k])
+                for i=1:gcl[k]
+                    gblocksize[k][i]=length(gblocks[k][i])
+                end
+                gub=unique(gblocksize[k])
+                gsizes=[sum(gblocksize[k].== i) for i in gub]
+                if QUIET==false
+                     println("$gub\n$gsizes")
+                     println("-----------------------------------------------")
+                end
             end
         end
     end
     return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes
 end
 
-function get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0)
+function get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,QUIET=QUIET)
     gblocks=Vector{Vector{Vector{UInt16}}}(undef,m)
     gblocksize=Vector{Vector{Int}}(undef, m)
     gcl=Vector{UInt16}(undef,m)
@@ -427,30 +421,43 @@ function get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0)
             fblocksize[i]=length(fblocks[i])
         end
         if fcl==1
-           println("fblocksizes:\n$fblocksize\n[1]")
-           println("-----------------------------------------------")
-           println("gblocksizes:")
-           for k=1:m
-               gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
-               gblocksize[k]=[size(gbasis[k],2)]
-               gcl[k]=1
-               gbk=gblocksize[k]
-               println("$gbk\n[1]")
-               println("-----------------------------------------------")
-           end
-           return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+            if length(sizes)==1&&sizes[1]==1
+                println("No higher block hierarchy!")
+                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+            else
+                if QUIET==false
+                    println("fblocksizes:\n$fblocksize\n[1]")
+                    println("-----------------------------------------------")
+                    println("gblocksizes:")
+                end
+                for k=1:m
+                    gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
+                    gblocksize[k]=[size(gbasis[k],2)]
+                    gcl[k]=1
+                    if QUIET==false
+                        gbk=gblocksize[k]
+                        println("$gbk\n[1]")
+                        println("-----------------------------------------------")
+                    end
+                end
+                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+            end
         else
            nub=unique(fblocksize)
            nsizes=[sum(fblocksize.== i) for i in nub]
            if nub!=ub||nsizes!=sizes
-              println("fblocksizes:\n$nub\n$nsizes")
-              println("-----------------------------------------------")
+                if QUIET==false
+                    println("fblocksizes:\n$nub\n$nsizes")
+                    println("-----------------------------------------------")
+                end
            else
               println("No higher block hierarchy!")
               return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end
         end
-        println("gblocksizes:")
+        if QUIET==false
+            println("gblocksizes:")
+        end
         for k=1:m
             glb=size(gbasis[k],2)
             gG=SimpleGraph(glb)
@@ -476,15 +483,11 @@ function get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0)
             for i=1:gcl[k]
                 gblocksize[k][i]=length(gblocks[k][i])
             end
-            if gcl[k]==1
-               gbk=gblocksize[k]
-               println("$gbk\n[1]")
-               println("-----------------------------------------------")
-            else
-               gub=unique(gblocksize[k])
-               gsizes=[sum(gblocksize[k].== i) for i in gub]
-               println("$gub\n$gsizes")
-               println("-----------------------------------------------")
+            if QUIET==false
+                gub=unique(gblocksize[k])
+                gsizes=[sum(gblocksize[k].== i) for i in gub]
+                println("$gub\n$gsizes")
+                println("-----------------------------------------------")
             end
         end
     else
@@ -508,30 +511,43 @@ function get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0)
             fblocksize[i]=length(fblocks[i])
         end
         if fcl==1
-           println("fblocksizes:\n$fblocksize\n[1]")
-           println("-----------------------------------------------")
-           println("gblocksizes:")
-           for k=1:m
-               gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
-               gblocksize[k]=[size(gbasis[k],2)]
-               gcl[k]=1
-               gbk=gblocksize[k]
-               println("$gbk\n[1]")
-               println("-----------------------------------------------")
-           end
-           return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+            if length(sizes)==1&&sizes[1]==1
+                println("No higher block hierarchy!")
+                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+            else
+                if QUIET==false
+                    println("fblocksizes:\n$fblocksize\n[1]")
+                    println("-----------------------------------------------")
+                    println("gblocksizes:")
+                end
+                for k=1:m
+                    gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
+                    gblocksize[k]=[size(gbasis[k],2)]
+                    gcl[k]=1
+                    if QUIET==false
+                        gbk=gblocksize[k]
+                        println("$gbk\n[1]")
+                        println("-----------------------------------------------")
+                    end
+                end
+                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+            end
         else
            nub=unique(fblocksize)
            nsizes=[sum(fblocksize.== i) for i in nub]
            if nub!=ub||nsizes!=sizes
-              println("fblocksizes:\n$nub\n$nsizes")
-              println("-----------------------------------------------")
+              if QUIET==false
+                  println("fblocksizes:\n$nub\n$nsizes")
+                  println("-----------------------------------------------")
+              end
            else
               println("No higher block hierarchy!")
               return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end
         end
-        println("gblocksizes:")
+        if QUIET==false
+            println("gblocksizes:")
+        end
         for k=1:m
             glb=size(gbasis[k],2)
             gG=SimpleGraph(glb)
@@ -557,22 +573,18 @@ function get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0)
             for i=1:gcl[k]
                 gblocksize[k][i]=length(gblocks[k][i])
             end
-            if gcl[k]==1
-               gbk=gblocksize[k]
-               println("$gbk\n[1]")
-               println("-----------------------------------------------")
-            else
-               gub=unique(gblocksize[k])
-               gsizes=[sum(gblocksize[k].== i) for i in gub]
-               println("$gub\n$gsizes")
-               println("-----------------------------------------------")
+            gub=unique(gblocksize[k])
+            gsizes=[sum(gblocksize[k].== i) for i in gub]
+            if QUIET==false
+                println("$gub\n$gsizes")
+                println("-----------------------------------------------")
             end
         end
     end
     return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,1
 end
 
-function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10)
+function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10,QUIET=QUIET)
     gblocks=Vector{Vector{Vector{UInt16}}}(undef,m)
     gblocksize=Vector{Vector{Int}}(undef, m)
     gcl=Vector{UInt16}(undef,m)
@@ -593,56 +605,53 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10)
             end
         end
         fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
-        if fcl==1
-            println("fblocksizes:\n$fblocksize\n[1]")
+        ub=unique(fblocksize)
+        sizes=[sum(fblocksize.== i) for i in ub]
+        if QUIET==false
+            println("fblocksizes:\n$ub\n$sizes")
             println("-----------------------------------------------")
             println("gblocksizes:")
+        end
+        if fcl==1
             for k=1:m
                 gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
                 gblocksize[k]=[size(gbasis[k],2)]
                 gcl[k]=1
-                gbk=gblocksize[k]
-                println("$gbk\n[1]")
-                println("-----------------------------------------------")
+                if QUIET==false
+                    gbk=gblocksize[k]
+                    println("$gbk\n[1]")
+                    println("-----------------------------------------------")
+                end
             end
             return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1]
         else
-           ub=unique(fblocksize)
-           sizes=[sum(fblocksize.== i) for i in ub]
-           println("fblocksizes:\n$ub\n$sizes")
-           println("-----------------------------------------------")
-        end
-        println("gblocksizes:")
-        for k=1:m
-            glb=size(gbasis[k],2)
-            A=zeros(UInt8,glb,glb)
-            for i = 1:glb
-                for j = i:glb
-                    r=1
-                    while r<=lt[k+1]
-                          bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
-                          if bfind(supp1,lsupp1,bi,n)!=0
-                             break
-                          else
-                             r=r+1
-                          end
-                    end
-                    if r<=lt[k+1]
-                        A[i,j]=1
-                        A[j,i]=1
+            for k=1:m
+                glb=size(gbasis[k],2)
+                A=zeros(UInt8,glb,glb)
+                for i = 1:glb
+                    for j = i:glb
+                        r=1
+                        while r<=lt[k+1]
+                              bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
+                              if bfind(supp1,lsupp1,bi,n)!=0
+                                 break
+                              else
+                                 r=r+1
+                              end
+                        end
+                        if r<=lt[k+1]
+                            A[i,j]=1
+                            A[j,i]=1
+                        end
                     end
                 end
-            end
-            gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
-            if gcl[k]==1
-               gbk=gblocksize[k]
-               println("$gbk\n[1]")
-               println("-----------------------------------------------")
-            else
-               gub=unique(gblocksize[k])
-               gsizes=[sum(gblocksize[k].== i) for i in gub]
-               println("$gub\n$gsizes")
-               println("-----------------------------------------------")
+                gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
+                if QUIET==false
+                    gub=unique(gblocksize[k])
+                    gsizes=[sum(gblocksize[k].== i) for i in gub]
+                    println("$gub\n$gsizes")
+                    println("-----------------------------------------------")
+                end
             end
         end
     else
@@ -661,63 +670,60 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10)
             end
         end
         fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
-        if fcl==1
+        ub=unique(fblocksize)
+        sizes=[sum(fblocksize.== i) for i in ub]
+        if QUIET==false
             println("fblocksizes:\n$fblocksize\n[1]")
             println("-----------------------------------------------")
             println("gblocksizes:")
+        end
+        if fcl==1
             for k=1:m
                 gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
                 gblocksize[k]=[size(gbasis[k],2)]
                 gcl[k]=1
-                gbk=gblocksize[k]
-                println("$gbk\n[1]")
-                println("-----------------------------------------------")
+                if QUIET==false
+                    gbk=gblocksize[k]
+                    println("$gbk\n[1]")
+                    println("-----------------------------------------------")
+                end
             end
             return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1]
         else
-           ub=unique(fblocksize)
-           sizes=[sum(fblocksize.== i) for i in ub]
-           println("fblocksizes:\n$ub\n$sizes")
-           println("-----------------------------------------------")
-        end
-        println("gblocksizes:")
-        for k=1:m
-            glb=size(gbasis[k],2)
-            A=zeros(UInt8,glb,glb)
-            for i = 1:glb
-                for j = i:glb
-                    r=1
-                    while r<=lt[k+1]
-                          bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
-                          if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
-                             break
-                          else
-                             r=r+1
-                          end
-                    end
-                    if r<=lt[k+1]
-                        A[i,j]=1
-                        A[j,i]=1
+            for k=1:m
+                glb=size(gbasis[k],2)
+                A=zeros(UInt8,glb,glb)
+                for i = 1:glb
+                    for j = i:glb
+                        r=1
+                        while r<=lt[k+1]
+                              bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
+                              if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
+                                 break
+                              else
+                                 r=r+1
+                              end
+                        end
+                        if r<=lt[k+1]
+                            A[i,j]=1
+                            A[j,i]=1
+                        end
                     end
                 end
-            end
-            gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
-            if gcl[k]==1
-               gbk=gblocksize[k]
-               println("$gbk\n[1]")
-               println("-----------------------------------------------")
-            else
-               gub=unique(gblocksize[k])
-               gsizes=[sum(gblocksize[k].== i) for i in gub]
-               println("$gub\n$gsizes")
-               println("-----------------------------------------------")
+                gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
+                if QUIET==false
+                    gub=unique(gblocksize[k])
+                    gsizes=[sum(gblocksize[k].== i) for i in gub]
+                    println("$gub\n$gsizes")
+                    println("-----------------------------------------------")
+                end
             end
         end
     end
     return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes
 end
 
-function get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense=10)
+function get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense=10,QUIET=QUIET)
     gblocks=Vector{Vector{Vector{UInt16}}}(undef,m)
     gblocksize=Vector{Vector{Int}}(undef, m)
     gcl=Vector{UInt16}(undef,m)
@@ -739,30 +745,43 @@ function get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense=
         end
         fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
         if fcl==1
-           println("fblocksizes:\n$fblocksize\n[1]")
-           println("-----------------------------------------------")
-           println("gblocksizes:")
-           for k=1:m
-               gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
-               gblocksize[k]=[size(gbasis[k],2)]
-               gcl[k]=1
-               gbk=gblocksize[k]
-               println("$gbk\n[1]")
-               println("-----------------------------------------------")
-           end
-           return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+            if length(sizes)==1&&sizes[1]==1
+                println("No higher chordal hierarchy!")
+                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+            else
+                if QUIET==false
+                    println("fblocksizes:\n$fblocksize\n[1]")
+                    println("-----------------------------------------------")
+                    println("gblocksizes:")
+                end
+                for k=1:m
+                    gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
+                    gblocksize[k]=[size(gbasis[k],2)]
+                    gcl[k]=1
+                    if QUIET==false
+                        gbk=gblocksize[k]
+                        println("$gbk\n[1]")
+                        println("-----------------------------------------------")
+                    end
+                end
+                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+            end
         else
            nub=unique(fblocksize)
            nsizes=[sum(fblocksize.== i) for i in nub]
            if nub!=ub||nsizes!=sizes
-              println("fblocksizes:\n$nub\n$nsizes")
-              println("-----------------------------------------------")
+               if QUIET==false
+                   println("fblocksizes:\n$nub\n$nsizes")
+                   println("-----------------------------------------------")
+               end
            else
               println("No higher chordal hierarchy!")
               return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end
         end
-        println("gblocksizes:")
+        if QUIET==false
+            println("gblocksizes:")
+        end
         for k=1:m
             glb=size(gbasis[k],2)
             A=zeros(UInt8,glb,glb)
@@ -784,11 +803,7 @@ function get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense=
                 end
             end
             gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
-            if gcl[k]==1
-               gbk=gblocksize[k]
-               println("$gbk\n[1]")
-               println("-----------------------------------------------")
-            else
+            if QUIET==false
                gub=unique(gblocksize[k])
                gsizes=[sum(gblocksize[k].== i) for i in gub]
                println("$gub\n$gsizes")
@@ -812,30 +827,43 @@ function get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense=
         end
         fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
         if fcl==1
-           println("fblocksizes:\n$fblocksize\n[1]")
-           println("-----------------------------------------------")
-           println("gblocksizes:")
-           for k=1:m
-               gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
-               gblocksize[k]=[size(gbasis[k],2)]
-               gcl[k]=1
-               gbk=gblocksize[k]
-               println("$gbk\n[1]")
-               println("-----------------------------------------------")
-           end
-           return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+            if length(sizes)==1&&sizes[1]==1
+                println("No higher chordal hierarchy!")
+                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+            else
+                if QUIET==false
+                    println("fblocksizes:\n$fblocksize\n[1]")
+                    println("-----------------------------------------------")
+                    println("gblocksizes:")
+                end
+                for k=1:m
+                    gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
+                    gblocksize[k]=[size(gbasis[k],2)]
+                    gcl[k]=1
+                    if QUIET==false
+                        gbk=gblocksize[k]
+                        println("$gbk\n[1]")
+                        println("-----------------------------------------------")
+                    end
+                end
+                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+            end
         else
            nub=unique(fblocksize)
            nsizes=[sum(fblocksize.== i) for i in nub]
            if nub!=ub||nsizes!=sizes
-              println("fblocksizes:\n$nub\n$nsizes")
-              println("-----------------------------------------------")
+               if QUIET==false
+                   println("fblocksizes:\n$nub\n$nsizes")
+                   println("-----------------------------------------------")
+               end
            else
               println("No higher chordal hierarchy!")
               return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end
         end
-        println("gblocksizes:")
+        if QUIET==false
+            println("gblocksizes:")
+        end
         for k=1:m
             glb=size(gbasis[k],2)
             A=zeros(UInt8,glb,glb)
@@ -857,11 +885,7 @@ function get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense=
                 end
             end
             gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
-            if gcl[k]==1
-               gbk=gblocksize[k]
-               println("$gbk\n[1]")
-               println("-----------------------------------------------")
-            else
+            if QUIET==false
                gub=unique(gblocksize[k])
                gsizes=[sum(gblocksize[k].== i) for i in gub]
                println("$gub\n$gsizes")
@@ -901,8 +925,8 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
         end
         supp1=[supp1 gsupp]
     end
+    supp1=unique(supp1,dims=2)
     supp1=sortslices(supp1,dims=2)
-    supp1=copy(unique(supp1,dims=2))
     lsupp1=size(supp1,2)
     model=Model(with_optimizer(Mosek.Optimizer, QUIET=QUIET))
     cons=[AffExpr(0) for i=1:lsupp1]
@@ -960,7 +984,7 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
                             if j==r
                                @inbounds cons[Locb]+=coe[k+1][s]*gpos[k][i][j,r]
                             else
-                               @inbounds cons[Locb]+=2*coe[k+1][s],gpos[k][i][j,r]
+                               @inbounds cons[Locb]+=2*coe[k+1][s]*gpos[k][i][j,r]
                             end
                         end
                     end
@@ -972,7 +996,7 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
     for i=1:lt[1]
         Locb=bfind(supp1,lsupp1,ssupp[1][:,i],n)
         if Locb==0
-           println("The monomial basis is not enough!")
+           @error "The monomial basis is not enough!"
            return nothing,nothing,nothing
         else
            bc[Locb]=coe[1][i]
