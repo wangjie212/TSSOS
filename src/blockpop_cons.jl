@@ -14,9 +14,12 @@ mutable struct cdata_type
     ub
     sizes
     numeq
+    gblocks
+    gcl
+    gblocksize
 end
 
-function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0,QUIET=true,dense=10)
+function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0,QUIET=true,dense=10,chor_alg="amd")
     n=length(x)
     m=length(pop)-1
     dg=zeros(UInt8,1,m)
@@ -71,11 +74,11 @@ function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0,QUIET=true
               fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize)
         end
     elseif method=="chordal"&&reducebasis==0
-        fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,dense=dense,QUIET=QUIET)
+        fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,dense=dense,QUIET=QUIET,alg=chor_alg)
     else
         flag=1
         while flag==1
-              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,reduce=1,dense=dense,QUIET=QUIET)
+              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,reduce=1,dense=dense,QUIET=QUIET,alg=chor_alg)
               tsupp=[ssupp[1] zeros(UInt8,n,1)]
               for k=1:m
                   gsupp=zeros(UInt8,n,lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2))
@@ -98,11 +101,11 @@ function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0,QUIET=true
     end
     opt,fsupp,Gram=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET)
     sol=extract_solutions(n,m,x,d,pop,numeq,opt,fbasis,fblocks,fcl,fblocksize,Gram,method=method)
-    data=cdata_type(n,m,x,pop,ssupp,coe,lt,d,dg,fbasis,gbasis,fsupp,ub,sizes,numeq)
+    data=cdata_type(n,m,x,pop,ssupp,coe,lt,d,dg,fbasis,gbasis,fsupp,ub,sizes,numeq,gblocks,gcl,gblocksize)
     return opt,sol,data
 end
 
-function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10)
+function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10,chor_alg="amd")
     n=data.n
     m=data.m
     x=data.x
@@ -117,15 +120,18 @@ function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
     ub=data.ub
     sizes=data.sizes
     numeq=data.numeq
+    gblocks=data.gblocks
+    gcl=data.gcl
+    gblocksize=data.gblocksize
     opt=nothing
     if method=="block"&&reducebasis==0
        fbasis=data.fbasis
-       fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,QUIET=QUIET)
+       fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes,QUIET=QUIET)
     elseif method=="block"&&reducebasis==1
         fbasis=get_basis(n,d)
         flag=1
         while flag==1
-              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,reduce=1,QUIET=QUIET)
+              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes,reduce=1,QUIET=QUIET)
               tsupp=[ssupp[1] zeros(UInt8,n,1)]
               for k=1:m
                   gsupp=zeros(UInt8,n,lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2))
@@ -147,12 +153,12 @@ function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
         end
     elseif method=="chordal"&&reducebasis==0
         fbasis=data.fbasis
-        fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,dense=dense,QUIET=QUIET)
+        fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes,dense=dense,QUIET=QUIET,alg=chor_alg)
     else
         fbasis=get_basis(n,d)
         flag=1
         while flag==1
-              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes,reduce=1,dense=dense,QUIET=QUIET)
+              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes,reduce=1,dense=dense,QUIET=QUIET,alg=chor_alg)
               tsupp=[ssupp[1] zeros(UInt8,n,1)]
               for k=1:m
                   gsupp=zeros(UInt8,n,lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2))
@@ -182,6 +188,9 @@ function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
     data.fbasis=fbasis
     data.ub=ub
     data.sizes=sizes
+    data.gblocks=gblocks
+    data.gcl=gcl
+    data.gblocksize=gblocksize
     return opt,sol,data
 end
 
@@ -395,10 +404,7 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,QUIET=QUIET)
     return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes
 end
 
-function get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,QUIET=QUIET)
-    gblocks=Vector{Vector{Vector{UInt16}}}(undef,m)
-    gblocksize=Vector{Vector{Int}}(undef, m)
-    gcl=Vector{UInt16}(undef,m)
+function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes;reduce=0,QUIET=QUIET)
     if reduce==1
         supp1=[fsupp 2*fbasis]
         supp1=sortslices(supp1,dims=2)
@@ -423,7 +429,7 @@ function get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,QUIET=Q
         if fcl==1
             if length(sizes)==1&&sizes[1]==1
                 println("No higher block hierarchy!")
-                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
                 if QUIET==false
                     println("fblocksizes:\n$fblocksize\n[1]")
@@ -513,7 +519,7 @@ function get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,QUIET=Q
         if fcl==1
             if length(sizes)==1&&sizes[1]==1
                 println("No higher block hierarchy!")
-                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
                 if QUIET==false
                     println("fblocksizes:\n$fblocksize\n[1]")
@@ -584,27 +590,42 @@ function get_chblocks(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,QUIET=Q
     return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,1
 end
 
-function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10,QUIET=QUIET)
+function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10,QUIET=QUIET,alg="amd")
     gblocks=Vector{Vector{Vector{UInt16}}}(undef,m)
     gblocksize=Vector{Vector{Int}}(undef, m)
     gcl=Vector{UInt16}(undef,m)
     if reduce==1
         supp1=[supp 2*fbasis]
-        supp1=sortslices(supp1,dims=2)
         supp1=unique(supp1,dims=2)
+        supp1=sortslices(supp1,dims=2)
         lsupp1=size(supp1,2)
         flb=size(fbasis,2)
-        A=zeros(UInt8,flb,flb)
+        if alg=="greedy"
+            G=CGraph()
+            for i=1:flb
+                cadd_node!(G)
+            end
+        else
+            A=zeros(UInt8,flb,flb)
+        end
         for i = 1:flb
             for j = i:flb
                 bi=fbasis[:,i]+fbasis[:,j]
                 if bfind(supp1,lsupp1,bi,n)!=0
-                    A[i,j]=1
-                    A[j,i]=1
+                    if alg=="greedy"
+                        cadd_edge!(G,i,j)
+                    else
+                        A[i,j]=1
+                        A[j,i]=1
+                    end
                 end
             end
         end
-        fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
+        if alg=="greedy"
+            fblocks,fcl,fblocksize=chordal_extension(G, GreedyFillIn())
+        else
+            fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
+        end
         ub=unique(fblocksize)
         sizes=[sum(fblocksize.== i) for i in ub]
         if QUIET==false
@@ -627,7 +648,14 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10,QUIET=QU
         else
             for k=1:m
                 glb=size(gbasis[k],2)
-                A=zeros(UInt8,glb,glb)
+                if alg=="greedy"
+                    G=CGraph()
+                    for i=1:flb
+                        cadd_node!(G)
+                    end
+                else
+                    A=zeros(UInt8,glb,glb)
+                end
                 for i = 1:glb
                     for j = i:glb
                         r=1
@@ -640,12 +668,20 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10,QUIET=QU
                               end
                         end
                         if r<=lt[k+1]
-                            A[i,j]=1
-                            A[j,i]=1
+                            if alg=="greedy"
+                                cadd_edge!(G,i,j)
+                            else
+                                A[i,j]=1
+                                A[j,i]=1
+                            end
                         end
                     end
                 end
-                gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
+                if alg=="greedy"
+                    gblocks[k],gcl[k],gblocksize[k]=chordal_extension(G, GreedyFillIn())
+                else
+                    gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
+                end
                 if QUIET==false
                     gub=unique(gblocksize[k])
                     gsizes=[sum(gblocksize[k].== i) for i in gub]
@@ -659,17 +695,32 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10,QUIET=QU
         osupp=sortslices(osupp,dims=2)
         lo=size(osupp,2)
         flb=size(fbasis,2)
-        A=zeros(UInt8,flb,flb)
+        if alg=="greedy"
+            G=CGraph()
+            for i=1:flb
+                cadd_node!(G)
+            end
+        else
+            A=zeros(UInt8,flb,flb)
+        end
         for i = 1:flb
             for j = i:flb
                 bi=fbasis[:,i]+fbasis[:,j]
                 if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
-                    A[i,j]=1
-                    A[j,i]=1
+                    if alg=="greedy"
+                        cadd_edge!(G,i,j)
+                    else
+                        A[i,j]=1
+                        A[j,i]=1
+                    end
                 end
             end
         end
-        fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
+        if alg=="greedy"
+            fblocks,fcl,fblocksize=chordal_extension(G, GreedyFillIn())
+        else
+            fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
+        end
         ub=unique(fblocksize)
         sizes=[sum(fblocksize.== i) for i in ub]
         if QUIET==false
@@ -692,7 +743,14 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10,QUIET=QU
         else
             for k=1:m
                 glb=size(gbasis[k],2)
-                A=zeros(UInt8,glb,glb)
+                if alg=="greedy"
+                    G=CGraph()
+                    for i=1:flb
+                        cadd_node!(G)
+                    end
+                else
+                    A=zeros(UInt8,glb,glb)
+                end
                 for i = 1:glb
                     for j = i:glb
                         r=1
@@ -705,12 +763,20 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10,QUIET=QU
                               end
                         end
                         if r<=lt[k+1]
-                            A[i,j]=1
-                            A[j,i]=1
+                            if alg=="greedy"
+                                cadd_edge!(G,i,j)
+                            else
+                                A[i,j]=1
+                                A[j,i]=1
+                            end
                         end
                     end
                 end
-                gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
+                if alg=="greedy"
+                    gblocks[k],gcl[k],gblocksize[k]=chordal_extension(G, GreedyFillIn())
+                else
+                    gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
+                end
                 if QUIET==false
                     gub=unique(gblocksize[k])
                     gsizes=[sum(gblocksize[k].== i) for i in gub]
@@ -723,31 +789,43 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10,QUIET=QU
     return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes
 end
 
-function get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense=10,QUIET=QUIET)
-    gblocks=Vector{Vector{Vector{UInt16}}}(undef,m)
-    gblocksize=Vector{Vector{Int}}(undef, m)
-    gcl=Vector{UInt16}(undef,m)
+function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes;reduce=0,dense=10,QUIET=QUIET,alg="amd")
     if reduce==1
         supp1=[fsupp 2*fbasis]
-        supp1=sortslices(supp1,dims=2)
         supp1=unique(supp1,dims=2)
+        supp1=sortslices(supp1,dims=2)
         lsupp1=size(supp1,2)
         flb=size(fbasis,2)
-        A=zeros(UInt8,flb,flb)
+        if alg=="greedy"
+            G=CGraph()
+            for i=1:flb
+                cadd_node!(G)
+            end
+        else
+            A=zeros(UInt8,flb,flb)
+        end
         for i = 1:flb
             for j = i:flb
                 bi=fbasis[:,i]+fbasis[:,j]
                 if bfind(supp1,lsupp1,bi,n)!=0
-                   A[i,j]=1
-                   A[j,i]=1
+                    if alg=="greedy"
+                        cadd_edge!(G,i,j)
+                    else
+                        A[i,j]=1
+                        A[j,i]=1
+                    end
                 end
             end
         end
-        fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
+        if alg=="greedy"
+            fblocks,fcl,fblocksize=chordal_extension(G, GreedyFillIn())
+        else
+            fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
+        end
         if fcl==1
             if length(sizes)==1&&sizes[1]==1
                 println("No higher chordal hierarchy!")
-                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
                 if QUIET==false
                     println("fblocksizes:\n$fblocksize\n[1]")
@@ -784,7 +862,14 @@ function get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense=
         end
         for k=1:m
             glb=size(gbasis[k],2)
-            A=zeros(UInt8,glb,glb)
+            if alg=="greedy"
+                G=CGraph()
+                for i=1:flb
+                    cadd_node!(G)
+                end
+            else
+                A=zeros(UInt8,glb,glb)
+            end
             for i = 1:glb
                 for j = i:glb
                     r=1
@@ -797,12 +882,20 @@ function get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense=
                           end
                     end
                     if r<=lt[k+1]
-                        A[i,j]=1
-                        A[j,i]=1
+                        if alg=="greedy"
+                            cadd_edge!(G,i,j)
+                        else
+                            A[i,j]=1
+                            A[j,i]=1
+                        end
                     end
                 end
             end
-            gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
+            if alg=="greedy"
+                gblocks[k],gcl[k],gblocksize[k]=chordal_extension(G, GreedyFillIn())
+            else
+                gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
+            end
             if QUIET==false
                gub=unique(gblocksize[k])
                gsizes=[sum(gblocksize[k].== i) for i in gub]
@@ -815,21 +908,36 @@ function get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense=
         ofsupp=sortslices(ofsupp,dims=2)
         lfo=size(ofsupp,2)
         flb=size(fbasis,2)
-        A=zeros(UInt8,flb,flb)
+        if alg=="greedy"
+            G=CGraph()
+            for i=1:flb
+                cadd_node!(G)
+            end
+        else
+            A=zeros(UInt8,flb,flb)
+        end
         for i = 1:flb
             for j = i:flb
                 bi=fbasis[:,i]+fbasis[:,j]
                 if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(ofsupp,lfo,bi,n)!=0
-                   A[i,j]=1
-                   A[j,i]=1
+                    if alg=="greedy"
+                        cadd_edge!(G,i,j)
+                    else
+                        A[i,j]=1
+                        A[j,i]=1
+                    end
                 end
             end
         end
-        fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
+        if alg=="greedy"
+            fblocks,fcl,fblocksize=chordal_extension(G, GreedyFillIn())
+        else
+            fblocks,fcl,fblocksize=cliquesFromSpMatD(A,dense=dense)
+        end
         if fcl==1
             if length(sizes)==1&&sizes[1]==1
                 println("No higher chordal hierarchy!")
-                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],1
+                return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
                 if QUIET==false
                     println("fblocksizes:\n$fblocksize\n[1]")
@@ -866,7 +974,14 @@ function get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense=
         end
         for k=1:m
             glb=size(gbasis[k],2)
-            A=zeros(UInt8,glb,glb)
+            if alg=="greedy"
+                G=CGraph()
+                for i=1:flb
+                    cadd_node!(G)
+                end
+            else
+                A=zeros(UInt8,glb,glb)
+            end
             for i = 1:glb
                 for j = i:glb
                     r=1
@@ -879,12 +994,20 @@ function get_chcliques(n,m,ssupp,lt,fbasis,gbasis,fsupp,ub,sizes;reduce=0,dense=
                           end
                     end
                     if r<=lt[k+1]
-                        A[i,j]=1
-                        A[j,i]=1
+                        if alg=="greedy"
+                            cadd_edge!(G,i,j)
+                        else
+                            A[i,j]=1
+                            A[j,i]=1
+                        end
                     end
                 end
             end
-            gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
+            if alg=="greedy"
+                gblocks[k],gcl[k],gblocksize[k]=chordal_extension(G, GreedyFillIn())
+            else
+                gblocks[k],gcl[k],gblocksize[k]=cliquesFromSpMatD(A,dense=dense)
+            end
             if QUIET==false
                gub=unique(gblocksize[k])
                gsizes=[sum(gblocksize[k].== i) for i in gub]
@@ -928,7 +1051,8 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
     supp1=unique(supp1,dims=2)
     supp1=sortslices(supp1,dims=2)
     lsupp1=size(supp1,2)
-    model=Model(with_optimizer(Mosek.Optimizer, QUIET=QUIET))
+    model=Model(optimizer_with_attributes(Mosek.Optimizer))
+    set_optimizer_attribute(model, MOI.Silent(), QUIET)
     cons=[AffExpr(0) for i=1:lsupp1]
     pos=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, fcl)
     gram=Vector{Union{Float64,Array{Float64,2}}}(undef, fcl)

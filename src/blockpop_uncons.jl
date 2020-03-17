@@ -9,7 +9,7 @@ mutable struct data_type
     sizes
 end
 
-function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=true,dense=10,model="JuMP")
+function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=true,dense=10,model="JuMP",chor_alg="amd")
     n=length(x)
     mon=monomials(f)
     coe=coefficients(f)
@@ -40,11 +40,11 @@ function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
     elseif method=="chordal"&&reducebasis==0
-        blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis,dense=dense,QUIET=QUIET)
+        blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis,dense=dense,QUIET=QUIET,alg=chor_alg)
     else
         flag=1
         while flag==1
-              blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis,reduce=1,QUIET=QUIET)
+              blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis,reduce=1,QUIET=QUIET,alg=chor_alg)
               tsupp=[supp zeros(UInt8,n,1)]
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
@@ -60,7 +60,7 @@ function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=
     return opt,sol,data
 end
 
-function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10,model="JuMP")
+function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10,model="JuMP",chor_alg="amd")
     n=data.n
     d=data.d
     supp=data.supp
@@ -81,11 +81,11 @@ function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
     elseif method=="chordal"&&reducebasis==0
-        blocks,cl,blocksize,ub,sizes,status=get_hcliques(n,supp1,basis,ub,sizes,QUIET=QUIET)
+        blocks,cl,blocksize,ub,sizes,status=get_hcliques(n,supp1,basis,ub,sizes,QUIET=QUIET,alg=chor_alg)
     else
         flag=1
         while flag==1
-              blocks,cl,blocksize,ub,sizes,status=get_hcliques(n,supp1,basis,ub,sizes,reduce=1,dense=dense,QUIET=QUIET)
+              blocks,cl,blocksize,ub,sizes,status=get_hcliques(n,supp1,basis,ub,sizes,reduce=1,dense=dense,QUIET=QUIET,alg=chor_alg)
               tsupp=[supp zeros(UInt8,n,1)]
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
@@ -367,13 +367,13 @@ function cliquesFromSpMatD(A;dense=10)
 end
 
 function get_blocks(n,supp,basis;reduce=0,QUIET=QUIET)
+    lb=size(basis,2)
+    G=SimpleGraph(lb)
     if reduce==1
         supp1=[supp 2*basis]
-        supp1=sortslices(supp1,dims=2)
         supp1=unique(supp1,dims=2)
+        supp1=sortslices(supp1,dims=2)
         lsupp1=size(supp1,2)
-        lb=size(basis,2)
-        G=SimpleGraph(lb)
         for i = 1:lb
             for j = i:lb
                  bi=basis[:,i]+basis[:,j]
@@ -386,8 +386,6 @@ function get_blocks(n,supp,basis;reduce=0,QUIET=QUIET)
         osupp=odd_supp(n,supp)
         osupp=sortslices(osupp,dims=2)
         lo=size(osupp,2)
-        lb=size(basis,2)
-        G=SimpleGraph(lb)
         for i = 1:lb
             for j = i:lb
                 bi=basis[:,i]+basis[:,j]
@@ -412,13 +410,13 @@ function get_blocks(n,supp,basis;reduce=0,QUIET=QUIET)
 end
 
 function get_hblocks(n,supp,basis,ub,sizes;reduce=0,QUIET=QUIET)
+    lb=size(basis,2)
+    G=SimpleGraph(lb)
     if reduce==1
         supp1=[supp 2*basis]
-        supp1=sortslices(supp1,dims=2)
         supp1=unique(supp1,dims=2)
+        supp1=sortslices(supp1,dims=2)
         lsupp1=size(supp1,2)
-        lb=size(basis,2)
-        G=SimpleGraph(lb)
         for i = 1:lb
             for j = i:lb
                 bi=basis[:,i]+basis[:,j]
@@ -430,8 +428,6 @@ function get_hblocks(n,supp,basis,ub,sizes;reduce=0,QUIET=QUIET)
     else
         osupp=odd_supp(n,supp)
         lo=size(osupp,2)
-        lb=size(basis,2)
-        G=SimpleGraph(lb)
         for i = 1:lb
             for j = i:lb
                 bi=basis[:,i]+basis[:,j]
@@ -460,20 +456,31 @@ function get_hblocks(n,supp,basis,ub,sizes;reduce=0,QUIET=QUIET)
     end
 end
 
-function get_cliques(n,supp,basis;reduce=0,dense=10,QUIET=QUIET)
+function get_cliques(n,supp,basis;reduce=0,dense=10,QUIET=QUIET,alg="amd")
+    lb=size(basis,2)
+    if alg=="greedy"
+        G=CGraph()
+        for i=1:lb
+            cadd_node!(G)
+        end
+    else
+        A=zeros(UInt8,lb,lb)
+    end
     if reduce==1
         supp1=[supp 2*basis]
-        supp1=sortslices(supp1,dims=2)
         supp1=unique(supp1,dims=2)
+        supp1=sortslices(supp1,dims=2)
         lsupp1=size(supp1,2)
-        lb=size(basis,2)
-        A=zeros(UInt8,lb,lb)
         for i = 1:lb
             for j = i:lb
                 bi=basis[:,i]+basis[:,j]
                  if bfind(supp1,lsupp1,bi,n)!=0
-                   A[i,j]=1
-                   A[j,i]=1
+                     if alg=="greedy"
+                         cadd_edge!(G,i,j)
+                     else
+                         A[i,j]=1
+                         A[j,i]=1
+                     end
                 end
             end
         end
@@ -481,19 +488,25 @@ function get_cliques(n,supp,basis;reduce=0,dense=10,QUIET=QUIET)
         osupp=odd_supp(n,supp)
         osupp=sortslices(osupp,dims=2)
         lo=size(osupp,2)
-        lb=size(basis,2)
-        A=zeros(UInt8,lb,lb)
         for i = 1:lb
             for j = i:lb
                 bi=basis[:,i]+basis[:,j]
                 if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
-                   A[i,j]=1
-                   A[j,i]=1
+                    if alg=="greedy"
+                        cadd_edge!(G,i,j)
+                    else
+                        A[i,j]=1
+                        A[j,i]=1
+                    end
                 end
             end
         end
     end
-    blocks,cl,blocksize=cliquesFromSpMatD(A,dense=dense)
+    if alg=="greedy"
+        blocks,cl,blocksize=chordal_extension(G, GreedyFillIn())
+    else
+        blocks,cl,blocksize=cliquesFromSpMatD(A,dense=dense)
+    end
     ub=unique(blocksize)
     sizes=[sum(blocksize.== i) for i in ub]
     if QUIET==false
@@ -502,20 +515,31 @@ function get_cliques(n,supp,basis;reduce=0,dense=10,QUIET=QUIET)
     return blocks,cl,blocksize,ub,sizes
 end
 
-function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10,QUIET=QUIET)
+function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10,QUIET=QUIET,alg="amd")
+    lb=size(basis,2)
+    if alg=="greedy"
+        G=CGraph()
+        for i=1:lb
+            cadd_node!(G)
+        end
+    else
+        A=zeros(UInt8,lb,lb)
+    end
     if reduce==1
         supp1=[supp 2*basis]
-        supp1=sortslices(supp1,dims=2)
         supp1=unique(supp1,dims=2)
+        supp1=sortslices(supp1,dims=2)
         lsupp1=size(supp1,2)
-        lb=size(basis,2)
-        A=zeros(UInt8,lb,lb)
         for i = 1:lb
             for j = i:lb
                 bi=basis[:,i]+basis[:,j]
                  if bfind(supp1,lsupp1,bi,n)!=0
-                   A[i,j]=1
-                   A[j,i]=1
+                     if alg=="greedy"
+                         cadd_edge!(G,i,j)
+                     else
+                         A[i,j]=1
+                         A[j,i]=1
+                     end
                 end
             end
         end
@@ -523,19 +547,25 @@ function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10,QUIET=QUIET)
         osupp=odd_supp(n,supp)
         osupp=sortslices(osupp,dims=2)
         lo=size(osupp,2)
-        lb=size(basis,2)
-        A=zeros(UInt8,lb,lb)
         for i = 1:lb
             for j = i:lb
                 bi=basis[:,i]+basis[:,j]
                 if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
-                   A[i,j]=1
-                   A[j,i]=1
+                    if alg=="greedy"
+                        cadd_edge!(G,i,j)
+                    else
+                        A[i,j]=1
+                        A[j,i]=1
+                    end
                 end
             end
         end
     end
-    blocks,cl,blocksize=cliquesFromSpMatD(A,dense=dense)
+    if alg=="greedy"
+        blocks,cl,blocksize=chordal_extension(G, GreedyFillIn())
+    else
+        blocks,cl,blocksize=cliquesFromSpMatD(A,dense=dense)
+    end
     nub=unique(blocksize)
     nsizes=[sum(blocksize.== i) for i in nub]
     if nub!=ub||nsizes!=sizes
@@ -565,7 +595,8 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     supp1=unique(supp1,dims=2)
     supp1=sortslices(supp1,dims=2)
     lsupp1=size(supp1,2)
-    model=Model(with_optimizer(Mosek.Optimizer, QUIET=QUIET))
+    model=Model(optimizer_with_attributes(Mosek.Optimizer))
+    set_optimizer_attribute(model, MOI.Silent(), QUIET)
     cons=[AffExpr(0) for i=1:lsupp1]
     pos=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl)
     gram=Vector{Union{Float64,Array{Float64,2}}}(undef, cl)

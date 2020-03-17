@@ -1,5 +1,5 @@
-function blockupop_mix(n,d,supp::SparseMatrixCSC,coe,cliques,cql,cliquesize,mclique,lmc,blocks,cl,blocksize;ts=10,QUIET=true)
-    basis=Array{SparseMatrixCSC}(undef,cql)
+function blockupop_mix(n,d,supp::SparseMatrixCSC{UInt8,UInt32},coe,cliques,cql,cliquesize,mclique,lmc,blocks,cl,blocksize;ts=10,QUIET=true)
+    basis=Array{SparseMatrixCSC{UInt8,UInt32}}(undef,cql)
     col=Int[1]
     row=Int[]
     nz=UInt8[]
@@ -32,13 +32,14 @@ function blockupop_mix(n,d,supp::SparseMatrixCSC,coe,cliques,cql,cliquesize,mcli
             end
         end
     end
-    supp1=SparseMatrixCSC(n,length(col),[1;col],row,nz)
+    supp1=SparseMatrixCSC(n,UInt32(length(col)),[1;col],row,nz)
     supp1=Array(supp1)
     supp1=unique(supp1,dims=2)
     supp1=sortslices(supp1,dims=2)
     supp1=sparse(supp1)
     lsupp1=supp1.n
-    model=Model(with_optimizer(Mosek.Optimizer, QUIET=QUIET))
+    model=Model(optimizer_with_attributes(Mosek.Optimizer))
+    set_optimizer_attribute(model, MOI.Silent(), QUIET)
     cons=[AffExpr(0) for i=1:lsupp1]
     pos1=Vector{Symmetric{VariableRef}}(undef, cql-lmc)
 #    gram1=Array{Any}(undef, cql-lmc)
@@ -128,7 +129,7 @@ function blockupop_mix(n,d,supp::SparseMatrixCSC,coe,cliques,cql,cliquesize,mcli
 end
 
 function blockcpop_mix(n,m,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc,lmc,blocks,cl,blocksize;numeq=0,ts=10,QUIET=true)
-    fbasis=Array{SparseMatrixCSC}(undef,cql)
+    fbasis=Array{SparseMatrixCSC{UInt8,UInt32}}(undef,cql)
     col=Int[1]
     row=Int[]
     nz=UInt8[]
@@ -161,7 +162,7 @@ function blockcpop_mix(n,m,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc
             end
         end
     end
-    gbasis=Array{SparseMatrixCSC}(undef,m)
+    gbasis=Array{SparseMatrixCSC{UInt8,UInt32}}(undef,m)
     for i ∈ ncc
         append!(col,supp[i+1].colptr[2:end].+(col[end]-1))
         append!(row,supp[i+1].rowval)
@@ -213,13 +214,14 @@ function blockcpop_mix(n,m,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc
             end
         end
     end
-    supp1=SparseMatrixCSC(n,length(col),[1;col],row,nz)
+    supp1=SparseMatrixCSC(n,UInt32(length(col)),[1;col],row,nz)
     supp1=Array(supp1)
     supp1=unique(supp1,dims=2)
     supp1=sortslices(supp1,dims=2)
     supp1=sparse(supp1)
     lsupp1=supp1.n
-    model=Model(with_optimizer(Mosek.Optimizer, QUIET=QUIET))
+    model=Model(optimizer_with_attributes(Mosek.Optimizer))
+    set_optimizer_attribute(model, MOI.Silent(), QUIET)
     cons=[AffExpr(0) for i=1:lsupp1]
     pos1=Vector{Symmetric{VariableRef}}(undef, cql-lmc)
 #    gram1=Array{Any}(undef, cql-lmc)
@@ -420,8 +422,8 @@ function blockcpop_mix(n,m,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc
     return objv,supp1
 end
 
-function get_blocks_mix(d,supp::SparseMatrixCSC,cliques,cql,cliquesize;ts=10,method="block")
-    mclique=UInt8[]
+function get_blocks_mix(d,supp::SparseMatrixCSC{UInt8,UInt32},cliques,cql,cliquesize;ts=10,method="block",chor_alg="amd")
+    mclique=UInt16[]
     for i=1:cql
         if cliquesize[i]>=ts
             push!(mclique,i)
@@ -452,15 +454,16 @@ function get_blocks_mix(d,supp::SparseMatrixCSC,cliques,cql,cliquesize;ts=10,met
         if method=="block"
             blocks[i],cl[i],blocksize[i],ub[i],sizes[i]=get_blocks(nvar,ssupp,basis[i],QUIET=true)
         else
-            blocks[i],cl[i],blocksize[i],ub[i],sizes[i]=get_cliques(nvar,ssupp,basis[i],QUIET=true)
+            blocks[i],cl[i],blocksize[i],ub[i],sizes[i]=get_cliques(nvar,ssupp,basis[i],QUIET=true,alg=chor_alg)
         end
     end
     return mclique,lmc,blocks,cl,blocksize,ub,sizes,basis
 end
 
-function get_hblocks_mix(supp,basis,mclique,lmc,cliques,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
+function get_hblocks_mix!(supp,basis,mclique,lmc,cliques,cliquesize,blocks,cl,blocksize,ub,sizes;method="block",chor_alg="amd")
     nub=Vector{Vector{UInt16}}(undef,lmc)
     nsizes=Vector{Vector{UInt16}}(undef,lmc)
+    status=ones(UInt8,lmc)
     for i=1:lmc
         ind=mclique[i]
         nvar=cliquesize[ind]
@@ -489,16 +492,16 @@ function get_hblocks_mix(supp,basis,mclique,lmc,cliques,cliquesize,blocks,cl,blo
         #ssupp=sortslices(ssupp,dims=2)
         #ssupp=unique(ssupp,dims=2)
         if method=="block"
-            blocks[i],cl[i],blocksize[i],nub[i],nsizes[i],status=get_hblocks(nvar,ssupp,basis[i],ub[i],sizes[i],QUIET=true)
+            blocks[i],cl[i],blocksize[i],nub[i],nsizes[i],status[i]=get_hblocks(nvar,ssupp,basis[i],ub[i],sizes[i],QUIET=true)
         else
-            blocks[i],cl[i],blocksize[i],nub[i],nsizes[i],status=get_hcliques(nvar,ssupp,basis[i],ub[i],sizes[i],QUIET=true)
+            blocks[i],cl[i],blocksize[i],nub[i],nsizes[i],status[i]=get_hcliques(nvar,ssupp,basis[i],ub[i],sizes[i],QUIET=true,alg=chor_alg)
         end
     end
-    return blocks,cl,blocksize,nub,nsizes
+    return blocks,cl,blocksize,nub,nsizes,maximum(status)
 end
 
-function get_cblocks_mix(rlorder,m,supp,cliques,cql,cliquesize;ts=10,method="block")
-    mclique=UInt8[]
+function get_cblocks_mix(rlorder,m,supp,cliques,cql,cliquesize;ts=10,method="block",chor_alg="amd")
+    mclique=UInt16[]
     for i=1:cql
         if cliquesize[i]>=ts
             push!(mclique,i)
@@ -579,15 +582,16 @@ function get_cblocks_mix(rlorder,m,supp,cliques,cql,cliquesize;ts=10,method="blo
         if method=="block"
             blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i]=get_cblocks(nvar,lc,fsupp,ssupp[i],lt[i],fbasis[i],gbasis[i],QUIET=true)
         else
-            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i]=get_ccliques(nvar,lc,fsupp,ssupp[i],lt[i],fbasis[i],gbasis[i],QUIET=true)
+            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i]=get_ccliques(nvar,lc,fsupp,ssupp[i],lt[i],fbasis[i],gbasis[i],QUIET=true,alg=chor_alg)
         end
     end
     return mclique,I,ncc,lmc,blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis
 end
 
-function get_chblocks_mix(I,supp,ssupp,lt,fbasis,gbasis,mclique,lmc,cliques,cliquesize,blocks,cl,blocksize,ub,sizes;method="block")
+function get_chblocks_mix!(I,supp,ssupp,lt,fbasis,gbasis,mclique,lmc,cliques,cliquesize,blocks,cl,blocksize,ub,sizes;method="block",chor_alg="amd")
     nub=Vector{Vector{UInt16}}(undef,lmc)
     nsizes=Vector{Vector{UInt16}}(undef,lmc)
+    status=ones(UInt8,lmc)
     for i=1:lmc
         lc=length(I[mclique[i]])
         ind=mclique[i]
@@ -617,42 +621,78 @@ function get_chblocks_mix(I,supp,ssupp,lt,fbasis,gbasis,mclique,lmc,cliques,cliq
         #fsupp=sortslices(fsupp,dims=2)
         #fsupp=unique(fsupp,dims=2)
         if method=="block"
-            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],nub[i],nsizes[i],status=get_chblocks(nvar,lc,ssupp[i],lt[i],fbasis[i],gbasis[i],fsupp,ub[i],sizes[i],QUIET=true)
+            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],nub[i],nsizes[i],status[i]=get_chblocks!(nvar,lc,ssupp[i],lt[i],fbasis[i],gbasis[i],fsupp,blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i],QUIET=true)
         else
-            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],nub[i],nsizes[i],status=get_chcliques(nvar,lc,ssupp[i],lt[i],fbasis[i],gbasis[i],fsupp,ub[i],sizes[i],QUIET=true)
+            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],nub[i],nsizes[i],status[i]=get_chcliques!(nvar,lc,ssupp[i],lt[i],fbasis[i],gbasis[i],fsupp,blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i],QUIET=true,alg=chor_alg)
         end
     end
-    return blocks,cl,blocksize,nub,nsizes
+    return blocks,cl,blocksize,nub,nsizes,maximum(status)
 end
 
-function clique_decomp(n,supp::SparseMatrixCSC)
-    A=zeros(UInt8,n,n)
-    for i = 1:supp.n
-        lcol=supp.colptr[i+1]-supp.colptr[i]
-        A[supp.rowval[supp.colptr[i]:(supp.colptr[i+1]-1)],supp.rowval[supp.colptr[i]:(supp.colptr[i+1]-1)]]=ones(UInt8,lcol,lcol)
+function clique_decomp(n,supp::SparseMatrixCSC{UInt8,UInt32};alg="amd")
+    if alg=="greedy"
+        G=CGraph()
+        for i=1:n
+            cadd_node!(G)
+        end
+    else
+        A=zeros(UInt8,n,n)
     end
-    cliques,cql,cliquesize=cliquesFromSpMatD(A)
+    for i = 1:supp.n
+        if alg=="greedy"
+            cadd_clique!(G,supp.rowval[supp.colptr[i]:(supp.colptr[i+1]-1)])
+        else
+            lcol=supp.colptr[i+1]-supp.colptr[i]
+            A[supp.rowval[supp.colptr[i]:(supp.colptr[i+1]-1)],supp.rowval[supp.colptr[i]:(supp.colptr[i+1]-1)]]=ones(UInt8,lcol,lcol)
+        end
+    end
+    if alg=="greedy"
+        cliques,cql,cliquesize=chordal_extension(G, GreedyFillIn())
+    else
+        cliques,cql,cliquesize=cliquesFromSpMatD(A)
+    end
     uc=unique(cliquesize)
     sizes=[sum(cliquesize.== i) for i in uc]
     println("The clique sizes of varibles:\n$uc\n$sizes")
     return cliques,cql,cliquesize
 end
 
-function clique_cdecomp(n,m,supp,rlorder)
-    A=zeros(UInt8,n,n)
+function clique_cdecomp(n,m,supp,rlorder;alg="amd")
+    if alg=="greedy"
+        G=CGraph()
+        for i=1:n
+            cadd_node!(G)
+        end
+    else
+        A=zeros(UInt8,n,n)
+    end
     for i=1:m+1
         if i==1||rlorder[i]==0
             for j = 1:supp[i].n
-                lcol=supp[i].colptr[j+1]-supp[i].colptr[j]
-                A[supp[i].rowval[supp[i].colptr[j]:(supp[i].colptr[j+1]-1)],supp[i].rowval[supp[i].colptr[j]:(supp[i].colptr[j+1]-1)]]=ones(UInt8,lcol,lcol)
+                if alg=="greedy"
+                    cadd_clique!(G,supp[i].rowval[supp[i].colptr[j]:(supp[i].colptr[j+1]-1)])
+                else
+                    lcol=supp[i].colptr[j+1]-supp[i].colptr[j]
+                    A[supp[i].rowval[supp[i].colptr[j]:(supp[i].colptr[j+1]-1)],supp[i].rowval[supp[i].colptr[j]:(supp[i].colptr[j+1]-1)]]=ones(UInt8,lcol,lcol)
+                end
             end
         else
-            rind=unique(supp[i].rowval)
-            lcol=length(rind)
-            A[rind,rind]=ones(UInt8,lcol,lcol)
+            if alg=="greedy"
+                cadd_clique!(G,unique(supp[i].rowval))
+            else
+                rind=unique(supp[i].rowval)
+                lcol=length(rind)
+                A[rind,rind]=ones(UInt8,lcol,lcol)
+            end
         end
     end
-    cliques,cql,cliquesize=cliquesFromSpMatD(A)
+    if alg=="greedy"
+        cliques,cql,cliquesize=chordal_extension(G, GreedyFillIn())
+    elseif alg=="amd"
+        cliques,cql,cliquesize=cliquesFromSpMatD(A)
+    else
+        cliques,cql,cliquesize=max_cliques(A)
+    end
     uc=unique(cliquesize)
     sizes=[sum(cliquesize.== i) for i in uc]
     println("The clique sizes of varibles:\n$uc\n$sizes")
@@ -662,7 +702,7 @@ end
 function splus(arow,anz,brow,bnz)
     la=length(arow)
     lb=length(brow)
-    row=UInt16[]
+    row=UInt32[]
     nz=UInt8[]
     i=1
     j=1
@@ -695,8 +735,8 @@ end
 function sparse_basis(var,tvar,d)
     n=length(var)
     lb=binomial(n+d,d)-1
-    col=UInt16[1;2]
-    row=UInt16[var[1]]
+    col=UInt32[1;2]
+    row=UInt32[var[1]]
     nz=UInt8[1]
     i=1
     while i<d+1
@@ -766,7 +806,7 @@ function sparse_basis(var,tvar,d)
     return SparseMatrixCSC(tvar,lb,col,row,nz)
 end
 
-function sort_sparse(s::SparseMatrixCSC)
+function sort_sparse(s::SparseMatrixCSC{UInt8,UInt32})
     m=s.m
     n=s.n
     col=s.colptr
