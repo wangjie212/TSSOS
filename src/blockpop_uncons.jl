@@ -9,7 +9,7 @@ mutable struct data_type
     sizes
 end
 
-function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=true,dense=10,model="JuMP",chor_alg="amd")
+function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=false,dense=10,model="JuMP",chor_alg="amd",solve=true)
     n=length(x)
     mon=monomials(f)
     coe=coefficients(f)
@@ -51,16 +51,16 @@ function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=
     end
     sol=nothing
     if model=="JuMP"
-       opt,supp1,Gram=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
+       opt,supp1,Gram=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve)
        sol=extract_solutions(n,0,[],d,[],0,opt,basis,blocks,cl,blocksize,Gram,method=method)
     else
-       opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
+       opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve)
     end
     data=data_type(n,d,supp,basis,coe,supp1,ub,sizes)
     return opt,sol,data
 end
 
-function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10,model="JuMP",chor_alg="amd")
+function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10,model="JuMP",chor_alg="amd",solve=true)
     n=data.n
     d=data.d
     supp=data.supp
@@ -92,10 +92,10 @@ function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
     end
     if status==1
         if model=="JuMP"
-           opt,supp1,Gram=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
+           opt,supp1,Gram=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve)
            sol=extract_solutions(n,0,[],d,[],0,opt,basis,blocks,cl,blocksize,Gram,method=method)
         else
-           opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET)
+           opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve)
         end
     end
     data.supp1=supp1
@@ -451,7 +451,9 @@ function get_hblocks(n,supp,basis,ub,sizes;reduce=0,QUIET=QUIET)
         end
        return blocks,cl,blocksize,nub,nsizes,1
     else
-       println("No higher block hierarchy!")
+        if QUIET==false
+            println("No higher block hierarchy!")
+        end
        return blocks,cl,blocksize,nub,nsizes,0
     end
 end
@@ -472,7 +474,7 @@ function get_cliques(n,supp,basis;reduce=0,dense=10,QUIET=QUIET,alg="amd")
         supp1=sortslices(supp1,dims=2)
         lsupp1=size(supp1,2)
         for i = 1:lb
-            for j = i:lb
+            for j = i+1:lb
                 bi=basis[:,i]+basis[:,j]
                  if bfind(supp1,lsupp1,bi,n)!=0
                      if alg=="greedy"
@@ -489,7 +491,7 @@ function get_cliques(n,supp,basis;reduce=0,dense=10,QUIET=QUIET,alg="amd")
         osupp=sortslices(osupp,dims=2)
         lo=size(osupp,2)
         for i = 1:lb
-            for j = i:lb
+            for j = i+1:lb
                 bi=basis[:,i]+basis[:,j]
                 if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
                     if alg=="greedy"
@@ -531,7 +533,7 @@ function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10,QUIET=QUIET,alg="a
         supp1=sortslices(supp1,dims=2)
         lsupp1=size(supp1,2)
         for i = 1:lb
-            for j = i:lb
+            for j = i+1:lb
                 bi=basis[:,i]+basis[:,j]
                  if bfind(supp1,lsupp1,bi,n)!=0
                      if alg=="greedy"
@@ -548,7 +550,7 @@ function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10,QUIET=QUIET,alg="a
         osupp=sortslices(osupp,dims=2)
         lo=size(osupp,2)
         for i = 1:lb
-            for j = i:lb
+            for j = i+1:lb
                 bi=basis[:,i]+basis[:,j]
                 if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
                     if alg=="greedy"
@@ -574,12 +576,14 @@ function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10,QUIET=QUIET,alg="a
         end
         return blocks,cl,blocksize,nub,nsizes,1
     else
-       println("No higher chordal hierarchy!")
-       return blocks,cl,blocksize,nub,nsizes,0
+        if QUIET==false
+            println("No higher chordal hierarchy!")
+        end
+        return blocks,cl,blocksize,nub,nsizes,0
     end
 end
 
-function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
+function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true,solve=true)
     lsupp=size(supp,2)
     supp1=zeros(UInt8,n,Int(sum(blocksize.^2+blocksize)/2))
     k=1
@@ -594,62 +598,66 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     end
     supp1=unique(supp1,dims=2)
     supp1=sortslices(supp1,dims=2)
-    lsupp1=size(supp1,2)
-    model=Model(optimizer_with_attributes(Mosek.Optimizer))
-    set_optimizer_attribute(model, MOI.Silent(), QUIET)
-    cons=[AffExpr(0) for i=1:lsupp1]
-    pos=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl)
-    gram=Vector{Union{Float64,Array{Float64,2}}}(undef, cl)
-    for i=1:cl
-        bs=blocksize[i]
-        if bs==1
-           @inbounds pos[i]=@variable(model, lower_bound=0)
-           @inbounds bi=2*basis[:,blocks[i]]
-           Locb=bfind(supp1,lsupp1,bi,n)
-           @inbounds cons[Locb]+=pos[i]
-        else
-           @inbounds pos[i]=@variable(model, [1:bs, 1:bs], PSD)
-           for j=1:blocksize[i]
-               for r=j:blocksize[i]
-                   @inbounds bi=basis[:,blocks[i][j]]+basis[:,blocks[i][r]]
-                   Locb=bfind(supp1,lsupp1,bi,n)
-                   if j==r
-                       @inbounds cons[Locb]+=pos[i][j,r]
-                   else
-                       @inbounds cons[Locb]+=2*pos[i][j,r]
+    objv=nothing
+    gram=nothing
+    if solve==true
+        lsupp1=size(supp1,2)
+        model=Model(optimizer_with_attributes(Mosek.Optimizer))
+        set_optimizer_attribute(model, MOI.Silent(), QUIET)
+        cons=[AffExpr(0) for i=1:lsupp1]
+        pos=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl)
+        gram=Vector{Union{Float64,Array{Float64,2}}}(undef, cl)
+        for i=1:cl
+            bs=blocksize[i]
+            if bs==1
+               @inbounds pos[i]=@variable(model, lower_bound=0)
+               @inbounds bi=2*basis[:,blocks[i]]
+               Locb=bfind(supp1,lsupp1,bi,n)
+               @inbounds cons[Locb]+=pos[i]
+            else
+               @inbounds pos[i]=@variable(model, [1:bs, 1:bs], PSD)
+               for j=1:blocksize[i]
+                   for r=j:blocksize[i]
+                       @inbounds bi=basis[:,blocks[i][j]]+basis[:,blocks[i][r]]
+                       Locb=bfind(supp1,lsupp1,bi,n)
+                       if j==r
+                           @inbounds cons[Locb]+=pos[i][j,r]
+                       else
+                           @inbounds cons[Locb]+=2*pos[i][j,r]
+                       end
                    end
                end
-           end
+            end
         end
-    end
-    bc=zeros(1,lsupp1)
-    for i=1:lsupp
-        Locb=bfind(supp1,lsupp1,supp[:,i],n)
-        if Locb==0
-           @error "The monomial basis is not enough!"
-           return nothing,nothing,nothing
+        bc=zeros(1,lsupp1)
+        for i=1:lsupp
+            Locb=bfind(supp1,lsupp1,supp[:,i],n)
+            if Locb==0
+               @error "The monomial basis is not enough!"
+               return nothing,nothing,nothing
+            else
+               bc[Locb]=coe[i]
+            end
+        end
+        @constraint(model, cons[2:end].==bc[2:end])
+        @variable(model, lower)
+        @constraint(model, cons[1]+lower==bc[1])
+        @objective(model, Max, lower)
+        optimize!(model)
+        status=termination_status(model)
+        if status == MOI.OPTIMAL
+           objv = objective_value(model)
+           println("optimum = $objv")
         else
-           bc[Locb]=coe[i]
+           objv = objective_value(model)
+           println("termination status: $status")
+           sstatus=primal_status(model)
+           println("solution status: $sstatus")
+           println("optimum = $objv")
         end
-    end
-    @constraint(model, cons[2:end].==bc[2:end])
-    @variable(model, lower)
-    @constraint(model, cons[1]+lower==bc[1])
-    @objective(model, Max, lower)
-    optimize!(model)
-    status=termination_status(model)
-    if status == MOI.OPTIMAL
-       objv = objective_value(model)
-       println("optimum = $objv")
-    else
-       objv = objective_value(model)
-       println("termination status: $status")
-       sstatus=primal_status(model)
-       println("solution status: $sstatus")
-       println("optimum = $objv")
-    end
-    for i=1:cl
-        gram[i]=value.(pos[i])
+        for i=1:cl
+            gram[i]=value.(pos[i])
+        end
     end
     return objv,supp1,gram
 end
@@ -669,84 +677,85 @@ function blockupopm(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     end
     supp1=unique(supp1,dims=2)
     supp1=sortslices(supp1,dims=2)
-    lsupp1=size(supp1,2)
-    indexb=[i for i=1:cl]
-    oneb=indexb[[blocksize[k]==1 for k=1:cl]]
-    semb=indexb[[blocksize[k]!=1 for k=1:cl]]
-    sblocksize=blocksize[semb]
-    oblocks=blocks[oneb]
-    sblocks=blocks[semb]
-    lone=length(oneb)
-    scl=cl-lone
-    bkc=[MSK_BK_FX for i=1:lsupp1]
-    bc=zeros(1,lsupp1)[1:end]
-    for i=1:lsupp
-        Locb=bfind(supp1,lsupp1,supp[:,i],n)
-        if Locb==0
-           println("INFEASIBLE")
-           return nothing,nothing
-        else
-           bc[Locb]=coe[i]
+    opt=nothing
+    if solve==true
+        lsupp1=size(supp1,2)
+        indexb=[i for i=1:cl]
+        oneb=indexb[[blocksize[k]==1 for k=1:cl]]
+        semb=indexb[[blocksize[k]!=1 for k=1:cl]]
+        sblocksize=blocksize[semb]
+        oblocks=blocks[oneb]
+        sblocks=blocks[semb]
+        lone=length(oneb)
+        scl=cl-lone
+        bkc=[MSK_BK_FX for i=1:lsupp1]
+        bc=zeros(1,lsupp1)[1:end]
+        for i=1:lsupp
+            Locb=bfind(supp1,lsupp1,supp[:,i],n)
+            if Locb==0
+               println("INFEASIBLE")
+               return nothing,nothing
+            else
+               bc[Locb]=coe[i]
+            end
         end
-    end
-    consi=[UInt16[] for i=1:lsupp1,j=1:scl]
-    consj=[UInt16[] for i=1:lsupp1,j=1:scl]
-    consk=[Float64[] for i=1:lsupp1,j=1:scl]
-    dims=[sblocksize[j] for i=1:lsupp1,j=1:scl]
-    for i=1:scl
-        for j=1:sblocksize[i]
-            for r=j:sblocksize[i]
-                @inbounds bi=basis[:,sblocks[i][j]]+basis[:,sblocks[i][r]]
-                Locb=bfind(supp1,lsupp1,bi,n)
-                @inbounds push!(consi[Locb,i],r)
-                @inbounds push!(consj[Locb,i],j)
-                @inbounds push!(consk[Locb,i],1.0)
+        consi=[UInt16[] for i=1:lsupp1,j=1:scl]
+        consj=[UInt16[] for i=1:lsupp1,j=1:scl]
+        consk=[Float64[] for i=1:lsupp1,j=1:scl]
+        dims=[sblocksize[j] for i=1:lsupp1,j=1:scl]
+        for i=1:scl
+            for j=1:sblocksize[i]
+                for r=j:sblocksize[i]
+                    @inbounds bi=basis[:,sblocks[i][j]]+basis[:,sblocks[i][r]]
+                    Locb=bfind(supp1,lsupp1,bi,n)
+                    @inbounds push!(consi[Locb,i],r)
+                    @inbounds push!(consj[Locb,i],j)
+                    @inbounds push!(consk[Locb,i],1.0)
+                end
+            end
+        end
+        oLocb=zeros(UInt32,lone,1)[1:end]
+        for i=1:lone
+            bi=2*basis[:,oblocks[i][1]]
+            oLocb[i]=bfind(supp1,lsupp1,bi,n)
+        end
+        A=sparse(oLocb,[i for i=1:lone],[1.0 for i=1:lone])
+        maketask() do task
+            if QUIET==false
+                printstream(msg)=print(msg)
+                putstreamfunc(task,MSK_STREAM_LOG,printstream)
+            end
+            appendvars(task,1+lone)
+            appendcons(task,lsupp1)
+            appendbarvars(task,sblocksize[1:end])
+            putcj(task,1,1.0)
+            putvarboundslice(task,1,2,[MSK_BK_FR],[-Inf],[+Inf])
+            putvarboundslice(task,2,2+lone,[MSK_BK_LO for i=1:lone],[0 for i=1:lone],[+Inf for i=1:lone])
+            putconboundslice(task,1,lsupp1+1,bkc,bc,bc)
+            putacolslice(task,1,2,[1],[2],[1],[1.0])
+            putacolslice(task,2,2+lone,A.colptr[1:lone],A.colptr[2:lone+1],A.rowval,A.nzval)
+            for k=1:lsupp1
+                for j=1:scl
+                    cons=appendsparsesymmat(task,dims[k,j],consi[k,j],consj[k,j],consk[k,j])
+                    putbaraij(task,k,j,[cons],[1.0])
+                end
+            end
+            putobjsense(task,MSK_OBJECTIVE_SENSE_MAXIMIZE)
+            optimize(task)
+            solutionsummary(task,MSK_STREAM_MSG)
+            solsta=getsolsta(task,MSK_SOL_ITR)
+            if solsta==MSK_SOL_STA_OPTIMAL
+               opt=getprimalobj(task,MSK_SOL_ITR)
+               #barx=getbarxj(task,MSK_SOL_ITR,1)
+               println("optimum = $opt")
+            elseif solsta==MSK_SOL_STA_DUAL_INFEAS_CER||solsta==MSK_SOL_STA_PRIM_INFEAS_CER
+               println("Primal or dual infeasibility")
+            else
+               println("Unknown solution status")
             end
         end
     end
-    oLocb=zeros(UInt32,lone,1)[1:end]
-    for i=1:lone
-        bi=2*basis[:,oblocks[i][1]]
-        oLocb[i]=bfind(supp1,lsupp1,bi,n)
-    end
-    A=sparse(oLocb,[i for i=1:lone],[1.0 for i=1:lone])
-    maketask() do task
-        if QUIET==false
-            printstream(msg)=print(msg)
-            putstreamfunc(task,MSK_STREAM_LOG,printstream)
-        end
-        appendvars(task,1+lone)
-        appendcons(task,lsupp1)
-        appendbarvars(task,sblocksize[1:end])
-        putcj(task,1,1.0)
-        putvarboundslice(task,1,2,[MSK_BK_FR],[-Inf],[+Inf])
-        putvarboundslice(task,2,2+lone,[MSK_BK_LO for i=1:lone],[0 for i=1:lone],[+Inf for i=1:lone])
-        putconboundslice(task,1,lsupp1+1,bkc,bc,bc)
-        putacolslice(task,1,2,[1],[2],[1],[1.0])
-        putacolslice(task,2,2+lone,A.colptr[1:lone],A.colptr[2:lone+1],A.rowval,A.nzval)
-        for k=1:lsupp1
-            for j=1:scl
-                cons=appendsparsesymmat(task,dims[k,j],consi[k,j],consj[k,j],consk[k,j])
-                putbaraij(task,k,j,[cons],[1.0])
-            end
-        end
-        putobjsense(task,MSK_OBJECTIVE_SENSE_MAXIMIZE)
-        optimize(task)
-        solutionsummary(task,MSK_STREAM_MSG)
-        solsta=getsolsta(task,MSK_SOL_ITR)
-        if solsta==MSK_SOL_STA_OPTIMAL
-           opt=getprimalobj(task,MSK_SOL_ITR)
-           #barx=getbarxj(task,MSK_SOL_ITR,1)
-           println("optimum = $opt")
-           return opt,supp1
-        elseif solsta==MSK_SOL_STA_DUAL_INFEAS_CER||solsta==MSK_SOL_STA_PRIM_INFEAS_CER
-           println("Primal or dual infeasibility")
-           return nothing,nothing
-        else
-           println("Unknown solution status")
-           return nothing,nothing
-        end
-    end
+    return opt,supp1
 end
 
 function extract_solutions(n,m,x,d,pop,numeq,opt,basis,blocks,cl,blocksize,Gram;method="block")

@@ -1,4 +1,4 @@
-function blockupop_mix(n,d,supp::SparseMatrixCSC{UInt8,UInt32},coe,cliques,cql,cliquesize,mclique,lmc,blocks,cl,blocksize;ts=10,QUIET=true)
+function blockupop_mix(n,d,supp::SparseMatrixCSC{UInt8,UInt32},coe,cliques,cql,cliquesize,mclique,lmc,blocks,cl,blocksize;ts=10,QUIET=true,solve=true)
     basis=Array{SparseMatrixCSC{UInt8,UInt32}}(undef,cql)
     col=Int[1]
     row=Int[]
@@ -37,98 +37,101 @@ function blockupop_mix(n,d,supp::SparseMatrixCSC{UInt8,UInt32},coe,cliques,cql,c
     supp1=unique(supp1,dims=2)
     supp1=sortslices(supp1,dims=2)
     supp1=sparse(supp1)
-    lsupp1=supp1.n
-    model=Model(optimizer_with_attributes(Mosek.Optimizer))
-    set_optimizer_attribute(model, MOI.Silent(), QUIET)
-    cons=[AffExpr(0) for i=1:lsupp1]
-    pos1=Vector{Symmetric{VariableRef}}(undef, cql-lmc)
-#    gram1=Array{Any}(undef, cql-lmc)
-    for i=1:cql
-        if cliquesize[i]<ts
-            lb=basis[i].n+1
-            pos1[i]=@variable(model, [1:lb, 1:lb], PSD)
-            tcol=[1;basis[i].colptr]
-            trow=basis[i].rowval
-            tnz=basis[i].nzval
-            for j=1:lb
-                for k=j:lb
-                    bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)])
-                    Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                    if j==k
-                        @inbounds cons[Locb]+=pos1[i][j,k]
-                    else
-                        @inbounds cons[Locb]+=2*pos1[i][j,k]
+    objv=nothing
+    if solve==true
+        lsupp1=supp1.n
+        model=Model(optimizer_with_attributes(Mosek.Optimizer))
+        set_optimizer_attribute(model, MOI.Silent(), QUIET)
+        cons=[AffExpr(0) for i=1:lsupp1]
+        pos1=Vector{Symmetric{VariableRef}}(undef, cql-lmc)
+    #    gram1=Array{Any}(undef, cql-lmc)
+        for i=1:cql
+            if cliquesize[i]<ts
+                lb=basis[i].n+1
+                pos1[i]=@variable(model, [1:lb, 1:lb], PSD)
+                tcol=[1;basis[i].colptr]
+                trow=basis[i].rowval
+                tnz=basis[i].nzval
+                for j=1:lb
+                    for k=j:lb
+                        bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)])
+                        Locb=bfind_sparse(supp1,bi_row,bi_nz)
+                        if j==k
+                            @inbounds cons[Locb]+=pos1[i][j,k]
+                        else
+                            @inbounds cons[Locb]+=2*pos1[i][j,k]
+                        end
                     end
                 end
             end
         end
-    end
-    if lmc>0
-        pos2=Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, lmc)
-        for k=1:lmc
-            pos2[k]=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[k])
-            tcol=[1;basis[mclique[k]].colptr]
-            trow=basis[mclique[k]].rowval
-            tnz=basis[mclique[k]].nzval
-            for i=1:cl[k]
-                if blocksize[k][i]==1
-                   pos2[k][i]=@variable(model, lower_bound=0)
-                   bi_row=trow[tcol[blocks[k][i][1]]:(tcol[blocks[k][i][1]+1]-1)]
-                   bi_nz=2*tnz[tcol[blocks[k][i][1]]:(tcol[blocks[k][i][1]+1]-1)]
-                   Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                   @inbounds cons[Locb]+=pos2[k][i]
-                else
-                   pos2[k][i]=@variable(model, [1:blocksize[k][i], 1:blocksize[k][i]], PSD)
-                   for j=1:blocksize[k][i]
-                       ind1=blocks[k][i][j]
-                       for r=j:blocksize[k][i]
-                           @inbounds ind2=blocks[k][i][r]
-                           @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)])
-                           Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                           if j==r
-                               @inbounds cons[Locb]+=pos2[k][i][j,r]
-                           else
-                               @inbounds cons[Locb]+=2*pos2[k][i][j,r]
+        if lmc>0
+            pos2=Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, lmc)
+            for k=1:lmc
+                pos2[k]=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[k])
+                tcol=[1;basis[mclique[k]].colptr]
+                trow=basis[mclique[k]].rowval
+                tnz=basis[mclique[k]].nzval
+                for i=1:cl[k]
+                    if blocksize[k][i]==1
+                       pos2[k][i]=@variable(model, lower_bound=0)
+                       bi_row=trow[tcol[blocks[k][i][1]]:(tcol[blocks[k][i][1]+1]-1)]
+                       bi_nz=2*tnz[tcol[blocks[k][i][1]]:(tcol[blocks[k][i][1]+1]-1)]
+                       Locb=bfind_sparse(supp1,bi_row,bi_nz)
+                       @inbounds cons[Locb]+=pos2[k][i]
+                    else
+                       pos2[k][i]=@variable(model, [1:blocksize[k][i], 1:blocksize[k][i]], PSD)
+                       for j=1:blocksize[k][i]
+                           ind1=blocks[k][i][j]
+                           for r=j:blocksize[k][i]
+                               @inbounds ind2=blocks[k][i][r]
+                               @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)])
+                               Locb=bfind_sparse(supp1,bi_row,bi_nz)
+                               if j==r
+                                   @inbounds cons[Locb]+=pos2[k][i][j,r]
+                               else
+                                   @inbounds cons[Locb]+=2*pos2[k][i][j,r]
+                               end
                            end
                        end
-                   end
+                    end
                 end
             end
         end
-    end
-    bc=zeros(lsupp1,1)
-    for i=1:supp.n
-        Locb=bfind_sparse(supp1,supp.rowval[supp.colptr[i]:(supp.colptr[i+1]-1)],supp.nzval[supp.colptr[i]:(supp.colptr[i+1]-1)])
-        if Locb==0
-           @error "The monomial basis is not enough!"
-           return nothing,nothing
-        else
-           bc[Locb]=coe[i]
+        bc=zeros(lsupp1,1)
+        for i=1:supp.n
+            Locb=bfind_sparse(supp1,supp.rowval[supp.colptr[i]:(supp.colptr[i+1]-1)],supp.nzval[supp.colptr[i]:(supp.colptr[i+1]-1)])
+            if Locb==0
+               @error "The monomial basis is not enough!"
+               return nothing,nothing
+            else
+               bc[Locb]=coe[i]
+            end
         end
+        @constraint(model, cons[2:end].==bc[2:end])
+        @variable(model, lower)
+        @constraint(model, cons[1]+lower==bc[1])
+        @objective(model, Max, lower)
+        optimize!(model)
+        status=termination_status(model)
+        if status == MOI.OPTIMAL
+           objv = objective_value(model)
+           println("optimum = $objv")
+        else
+           objv = objective_value(model)
+           println("termination status: $status")
+           sstatus=primal_status(model)
+           println("solution status: $sstatus")
+           println("optimum = $objv")
+        end
+    #    for i=1:cl
+    #        gram[i]=value.(pos[i])
+    #    end
     end
-    @constraint(model, cons[2:end].==bc[2:end])
-    @variable(model, lower)
-    @constraint(model, cons[1]+lower==bc[1])
-    @objective(model, Max, lower)
-    optimize!(model)
-    status=termination_status(model)
-    if status == MOI.OPTIMAL
-       objv = objective_value(model)
-       println("optimum = $objv")
-    else
-       objv = objective_value(model)
-       println("termination status: $status")
-       sstatus=primal_status(model)
-       println("solution status: $sstatus")
-       println("optimum = $objv")
-    end
-#    for i=1:cl
-#        gram[i]=value.(pos[i])
-#    end
     return objv,supp1
 end
 
-function blockcpop_mix(n,m,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc,lmc,blocks,cl,blocksize;numeq=0,ts=10,QUIET=true)
+function blockcpop_mix(n,m,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc,lmc,blocks,cl,blocksize;numeq=0,ts=10,QUIET=true,solve=true)
     fbasis=Array{SparseMatrixCSC{UInt8,UInt32}}(undef,cql)
     col=Int[1]
     row=Int[]
@@ -219,206 +222,209 @@ function blockcpop_mix(n,m,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc
     supp1=unique(supp1,dims=2)
     supp1=sortslices(supp1,dims=2)
     supp1=sparse(supp1)
-    lsupp1=supp1.n
-    model=Model(optimizer_with_attributes(Mosek.Optimizer))
-    set_optimizer_attribute(model, MOI.Silent(), QUIET)
-    cons=[AffExpr(0) for i=1:lsupp1]
-    pos1=Vector{Symmetric{VariableRef}}(undef, cql-lmc)
-#    gram1=Array{Any}(undef, cql-lmc)
-    p=1
-    for i=1:cql
-        if cliquesize[i]<ts
-            lb=fbasis[i].n+1
-            pos1[p]=@variable(model, [1:lb, 1:lb], PSD) # sigma_0 corresponding to small cliques
-            tcol=[1;fbasis[i].colptr]
-            trow=fbasis[i].rowval
-            tnz=fbasis[i].nzval
-            for j=1:lb
-                for k=j:lb
-                    @inbounds bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)])
-                    Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                    if j==k
-#                        @inbounds add_to_expression!(cons[Locb],pos1[p][j,k])
-                        @inbounds cons[Locb]+=pos1[p][j,k]
-                    else
-#                        @inbounds add_to_expression!(cons[Locb],2,pos1[p][j,k])
-                        @inbounds cons[Locb]+=2*pos1[p][j,k]
-                    end
-                end
-            end
-            p+=1
-        end
-    end
-    if lmc>0
-        pos2=Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, lmc) # sigma_0 corresponding to large cliques
-        for k=1:lmc
-            pos2[k]=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[k][1])
-            tcol=[1;fbasis[mclique[k]].colptr]
-            trow=fbasis[mclique[k]].rowval
-            tnz=fbasis[mclique[k]].nzval
-            for i=1:cl[k][1]
-                if blocksize[k][1][i]==1
-                   @inbounds pos2[k][i]=@variable(model, lower_bound=0)
-                   @inbounds bi_row=trow[tcol[blocks[k][1][i][1]]:(tcol[blocks[k][1][i][1]+1]-1)]
-                   @inbounds bi_nz=2*tnz[tcol[blocks[k][1][i][1]]:(tcol[blocks[k][1][i][1]+1]-1)]
-                   Locb=bfind_sparse(supp1,bi_row,bi_nz)
-#                   @inbounds add_to_expression!(cons[Locb],pos2[k][i])
-                   @inbounds cons[Locb]+=pos2[k][i]
-                else
-                   @inbounds bs=blocksize[k][1][i]
-                   @inbounds pos2[k][i]=@variable(model, [1:bs, 1:bs], PSD)
-                   for j=1:bs
-                       @inbounds ind1=blocks[k][1][i][j]
-                       for r=j:bs
-                           @inbounds ind2=blocks[k][1][i][r]
-                           @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)])
-                           Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                           if j==r
-#                              @inbounds add_to_expression!(cons[Locb],pos2[k][i][j,r])
-                              @inbounds cons[Locb]+=pos2[k][i][j,r]
-                           else
-#                              @inbounds add_to_expression!(cons[Locb],2,pos2[k][i][j,r])
-                              @inbounds cons[Locb]+=2*pos2[k][i][j,r]
-                           end
-                       end
-                   end
-                end
-            end
-        end
-    end
-    pos3=Vector{VariableRef}(undef, length(ncc)) # multiplier corresponding to scalar-relaxation constraints
-    for k=1:length(ncc)
-        i=ncc[k]
-        if i<=m-numeq
-            pos3[k]=@variable(model, lower_bound=0)
-        else
-            pos3[k]=@variable(model)
-        end
-        for j=1:supp[i+1].n
-            Locb=bfind_sparse(supp1,supp[i+1].rowval[supp[i+1].colptr[j]:(supp[i+1].colptr[j+1]-1)],supp[i+1].nzval[supp[i+1].colptr[j]:(supp[i+1].colptr[j+1]-1)])
-#            add_to_expression!(cons[Locb],coe[i+1][j],pos3[k])
-            cons[Locb]+=coe[i+1][j]*pos3[k]
-        end
-    end
-    bcon=sum([length(I[mclique[i]]) for i=1:lmc])
-    pos4=Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, bcon) # multiplier corresponding to block-relaxation constraints
-    nbcon=m-length(ncc)-bcon
-    pos5=Vector{Symmetric{VariableRef}}(undef, nbcon) # multiplier corresponding to nonblock-relaxation constraints
-    p=1
-    q=1
-    for s=1:cql
-        if cliquesize[s]>=ts
-            t=lbfind(mclique, lmc, s)
-            for i=1:length(I[s])
-                l=I[s][i]
-                tcol=[1;gbasis[l].colptr]
-                trow=gbasis[l].rowval
-                tnz=gbasis[l].nzval
-                pos4[p]=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef,cl[t][i+1])
-                for j=1:cl[t][i+1]
-                    bs=blocksize[t][i+1][j]
-                    if bs==1
-                        if l<=m-numeq
-                           pos4[p][j]=@variable(model, lower_bound=0)
+    objv=nothing
+    if solve==true
+        lsupp1=supp1.n
+        model=Model(optimizer_with_attributes(Mosek.Optimizer))
+        set_optimizer_attribute(model, MOI.Silent(), QUIET)
+        cons=[AffExpr(0) for i=1:lsupp1]
+        pos1=Vector{Symmetric{VariableRef}}(undef, cql-lmc)
+    #    gram1=Array{Any}(undef, cql-lmc)
+        p=1
+        for i=1:cql
+            if cliquesize[i]<ts
+                lb=fbasis[i].n+1
+                pos1[p]=@variable(model, [1:lb, 1:lb], PSD) # sigma_0 corresponding to small cliques
+                tcol=[1;fbasis[i].colptr]
+                trow=fbasis[i].rowval
+                tnz=fbasis[i].nzval
+                for j=1:lb
+                    for k=j:lb
+                        @inbounds bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)])
+                        Locb=bfind_sparse(supp1,bi_row,bi_nz)
+                        if j==k
+    #                        @inbounds add_to_expression!(cons[Locb],pos1[p][j,k])
+                            @inbounds cons[Locb]+=pos1[p][j,k]
                         else
-                           pos4[p][j]=@variable(model)
-                        end
-                        for k=1:supp[l+1].n
-                            @inbounds ind1=blocks[t][i+1][j][1]
-                            @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],2*tnz[tcol[ind1]:(tcol[ind1+1]-1)],supp[l+1].rowval[supp[l+1].colptr[k]:(supp[l+1].colptr[k+1]-1)],supp[l+1].nzval[supp[l+1].colptr[k]:(supp[l+1].colptr[k+1]-1)])
-                            Locb=bfind_sparse(supp1,bi_row,bi_nz)
-#                            @inbounds add_to_expression!(cons[Locb],coe[l+1][k],pos4[p][j])
-                            @inbounds cons[Locb]+=coe[l+1][k]*pos4[p][j]
-                        end
-                    else
-                        if l<=m-numeq
-                           pos4[p][j]=@variable(model, [1:bs, 1:bs], PSD)
-                        else
-                           pos4[p][j]=@variable(model, [1:bs, 1:bs], Symmetric)
-                        end
-                        for k=1:bs
-                            ind1=blocks[t][i+1][j][k]
-                            for r=k:bs
-                                ind2=blocks[t][i+1][j][r]
-                                for u=1:supp[l+1].n
-                                    @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)])
-                                    @inbounds bi_row,bi_nz=splus(bi_row,bi_nz,supp[l+1].rowval[supp[l+1].colptr[u]:(supp[l+1].colptr[u+1]-1)],supp[l+1].nzval[supp[l+1].colptr[u]:(supp[l+1].colptr[u+1]-1)])
-                                    Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                                    if k==r
-#                                        @inbounds add_to_expression!(cons[Locb],coe[l+1][u],pos4[p][j][k,r])
-                                        @inbounds cons[Locb]+=coe[l+1][u]*pos4[p][j][k,r]
-                                    else
-#                                        @inbounds add_to_expression!(cons[Locb],2*coe[l+1][u],pos4[p][j][k,r])
-                                        @inbounds cons[Locb]+=2*coe[l+1][u]*pos4[p][j][k,r]
-                                    end
-                                end
-                            end
+    #                        @inbounds add_to_expression!(cons[Locb],2,pos1[p][j,k])
+                            @inbounds cons[Locb]+=2*pos1[p][j,k]
                         end
                     end
                 end
                 p+=1
             end
-        else
-            for i=1:length(I[s])
-                l=I[s][i]
-                tcol=[1;gbasis[l].colptr]
-                trow=gbasis[l].rowval
-                tnz=gbasis[l].nzval
-                lb=gbasis[l].n+1
-                if l<=m-numeq
-                   pos5[q]=@variable(model, [1:lb, 1:lb], PSD)
-                else
-                   pos5[q]=@variable(model, [1:lb, 1:lb], Symmetric)
+        end
+        if lmc>0
+            pos2=Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, lmc) # sigma_0 corresponding to large cliques
+            for k=1:lmc
+                pos2[k]=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[k][1])
+                tcol=[1;fbasis[mclique[k]].colptr]
+                trow=fbasis[mclique[k]].rowval
+                tnz=fbasis[mclique[k]].nzval
+                for i=1:cl[k][1]
+                    if blocksize[k][1][i]==1
+                       @inbounds pos2[k][i]=@variable(model, lower_bound=0)
+                       @inbounds bi_row=trow[tcol[blocks[k][1][i][1]]:(tcol[blocks[k][1][i][1]+1]-1)]
+                       @inbounds bi_nz=2*tnz[tcol[blocks[k][1][i][1]]:(tcol[blocks[k][1][i][1]+1]-1)]
+                       Locb=bfind_sparse(supp1,bi_row,bi_nz)
+    #                   @inbounds add_to_expression!(cons[Locb],pos2[k][i])
+                       @inbounds cons[Locb]+=pos2[k][i]
+                    else
+                       @inbounds bs=blocksize[k][1][i]
+                       @inbounds pos2[k][i]=@variable(model, [1:bs, 1:bs], PSD)
+                       for j=1:bs
+                           @inbounds ind1=blocks[k][1][i][j]
+                           for r=j:bs
+                               @inbounds ind2=blocks[k][1][i][r]
+                               @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)])
+                               Locb=bfind_sparse(supp1,bi_row,bi_nz)
+                               if j==r
+    #                              @inbounds add_to_expression!(cons[Locb],pos2[k][i][j,r])
+                                  @inbounds cons[Locb]+=pos2[k][i][j,r]
+                               else
+    #                              @inbounds add_to_expression!(cons[Locb],2,pos2[k][i][j,r])
+                                  @inbounds cons[Locb]+=2*pos2[k][i][j,r]
+                               end
+                           end
+                       end
+                    end
                 end
-                for j=1:lb
-                    for k=j:lb
-                        for r=1:supp[l+1].n
-                            @inbounds bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)])
-                            @inbounds bi_row,bi_nz=splus(bi_row,bi_nz,supp[l+1].rowval[supp[l+1].colptr[r]:(supp[l+1].colptr[r+1]-1)],supp[l+1].nzval[supp[l+1].colptr[r]:(supp[l+1].colptr[r+1]-1)])
-                            Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                            if j==k
-#                                @inbounds add_to_expression!(cons[Locb],coe[l+1][r],pos5[q][j,k])
-                                @inbounds cons[Locb]+=coe[l+1][r]*pos5[q][j,k]
+            end
+        end
+        pos3=Vector{VariableRef}(undef, length(ncc)) # multiplier corresponding to scalar-relaxation constraints
+        for k=1:length(ncc)
+            i=ncc[k]
+            if i<=m-numeq
+                pos3[k]=@variable(model, lower_bound=0)
+            else
+                pos3[k]=@variable(model)
+            end
+            for j=1:supp[i+1].n
+                Locb=bfind_sparse(supp1,supp[i+1].rowval[supp[i+1].colptr[j]:(supp[i+1].colptr[j+1]-1)],supp[i+1].nzval[supp[i+1].colptr[j]:(supp[i+1].colptr[j+1]-1)])
+    #            add_to_expression!(cons[Locb],coe[i+1][j],pos3[k])
+                cons[Locb]+=coe[i+1][j]*pos3[k]
+            end
+        end
+        bcon=sum([length(I[mclique[i]]) for i=1:lmc])
+        pos4=Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, bcon) # multiplier corresponding to block-relaxation constraints
+        nbcon=m-length(ncc)-bcon
+        pos5=Vector{Symmetric{VariableRef}}(undef, nbcon) # multiplier corresponding to nonblock-relaxation constraints
+        p=1
+        q=1
+        for s=1:cql
+            if cliquesize[s]>=ts
+                t=lbfind(mclique, lmc, s)
+                for i=1:length(I[s])
+                    l=I[s][i]
+                    tcol=[1;gbasis[l].colptr]
+                    trow=gbasis[l].rowval
+                    tnz=gbasis[l].nzval
+                    pos4[p]=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef,cl[t][i+1])
+                    for j=1:cl[t][i+1]
+                        bs=blocksize[t][i+1][j]
+                        if bs==1
+                            if l<=m-numeq
+                               pos4[p][j]=@variable(model, lower_bound=0)
                             else
-#                                @inbounds add_to_expression!(cons[Locb],2*coe[l+1][r],pos5[q][j,k])
-                                @inbounds cons[Locb],2*coe[l+1][r]*pos5[q][j,k]
+                               pos4[p][j]=@variable(model)
+                            end
+                            for k=1:supp[l+1].n
+                                @inbounds ind1=blocks[t][i+1][j][1]
+                                @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],2*tnz[tcol[ind1]:(tcol[ind1+1]-1)],supp[l+1].rowval[supp[l+1].colptr[k]:(supp[l+1].colptr[k+1]-1)],supp[l+1].nzval[supp[l+1].colptr[k]:(supp[l+1].colptr[k+1]-1)])
+                                Locb=bfind_sparse(supp1,bi_row,bi_nz)
+    #                            @inbounds add_to_expression!(cons[Locb],coe[l+1][k],pos4[p][j])
+                                @inbounds cons[Locb]+=coe[l+1][k]*pos4[p][j]
+                            end
+                        else
+                            if l<=m-numeq
+                               pos4[p][j]=@variable(model, [1:bs, 1:bs], PSD)
+                            else
+                               pos4[p][j]=@variable(model, [1:bs, 1:bs], Symmetric)
+                            end
+                            for k=1:bs
+                                ind1=blocks[t][i+1][j][k]
+                                for r=k:bs
+                                    ind2=blocks[t][i+1][j][r]
+                                    for u=1:supp[l+1].n
+                                        @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)])
+                                        @inbounds bi_row,bi_nz=splus(bi_row,bi_nz,supp[l+1].rowval[supp[l+1].colptr[u]:(supp[l+1].colptr[u+1]-1)],supp[l+1].nzval[supp[l+1].colptr[u]:(supp[l+1].colptr[u+1]-1)])
+                                        Locb=bfind_sparse(supp1,bi_row,bi_nz)
+                                        if k==r
+    #                                        @inbounds add_to_expression!(cons[Locb],coe[l+1][u],pos4[p][j][k,r])
+                                            @inbounds cons[Locb]+=coe[l+1][u]*pos4[p][j][k,r]
+                                        else
+    #                                        @inbounds add_to_expression!(cons[Locb],2*coe[l+1][u],pos4[p][j][k,r])
+                                            @inbounds cons[Locb]+=2*coe[l+1][u]*pos4[p][j][k,r]
+                                        end
+                                    end
+                                end
                             end
                         end
                     end
+                    p+=1
                 end
-                q+=1
+            else
+                for i=1:length(I[s])
+                    l=I[s][i]
+                    tcol=[1;gbasis[l].colptr]
+                    trow=gbasis[l].rowval
+                    tnz=gbasis[l].nzval
+                    lb=gbasis[l].n+1
+                    if l<=m-numeq
+                       pos5[q]=@variable(model, [1:lb, 1:lb], PSD)
+                    else
+                       pos5[q]=@variable(model, [1:lb, 1:lb], Symmetric)
+                    end
+                    for j=1:lb
+                        for k=j:lb
+                            for r=1:supp[l+1].n
+                                @inbounds bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)])
+                                @inbounds bi_row,bi_nz=splus(bi_row,bi_nz,supp[l+1].rowval[supp[l+1].colptr[r]:(supp[l+1].colptr[r+1]-1)],supp[l+1].nzval[supp[l+1].colptr[r]:(supp[l+1].colptr[r+1]-1)])
+                                Locb=bfind_sparse(supp1,bi_row,bi_nz)
+                                if j==k
+    #                                @inbounds add_to_expression!(cons[Locb],coe[l+1][r],pos5[q][j,k])
+                                    @inbounds cons[Locb]+=coe[l+1][r]*pos5[q][j,k]
+                                else
+    #                                @inbounds add_to_expression!(cons[Locb],2*coe[l+1][r],pos5[q][j,k])
+                                    @inbounds cons[Locb],2*coe[l+1][r]*pos5[q][j,k]
+                                end
+                            end
+                        end
+                    end
+                    q+=1
+                end
             end
         end
-    end
-    bc=zeros(lsupp1,1)
-    for i=1:supp[1].n
-        Locb=bfind_sparse(supp1,supp[1].rowval[supp[1].colptr[i]:(supp[1].colptr[i+1]-1)],supp[1].nzval[supp[1].colptr[i]:(supp[1].colptr[i+1]-1)])
-        if Locb==0
-           @error "The monomial basis is not enough!"
-           return nothing,nothing
-        else
-           bc[Locb]=coe[1][i]
+        bc=zeros(lsupp1,1)
+        for i=1:supp[1].n
+            Locb=bfind_sparse(supp1,supp[1].rowval[supp[1].colptr[i]:(supp[1].colptr[i+1]-1)],supp[1].nzval[supp[1].colptr[i]:(supp[1].colptr[i+1]-1)])
+            if Locb==0
+               @error "The monomial basis is not enough!"
+               return nothing,nothing
+            else
+               bc[Locb]=coe[1][i]
+            end
         end
+        @constraint(model, cons[2:end].==bc[2:end])
+        @variable(model, lower)
+        @constraint(model, cons[1]+lower==bc[1])
+        @objective(model, Max, lower)
+        optimize!(model)
+        status=termination_status(model)
+        if status == MOI.OPTIMAL
+           objv = objective_value(model)
+           println("optimum = $objv")
+        else
+           objv = objective_value(model)
+           println("termination status: $status")
+           sstatus=primal_status(model)
+           println("solution status: $sstatus")
+           println("optimum = $objv")
+        end
+    #    for i=1:cl
+    #        gram[i]=value.(pos[i])
+    #    end
     end
-    @constraint(model, cons[2:end].==bc[2:end])
-    @variable(model, lower)
-    @constraint(model, cons[1]+lower==bc[1])
-    @objective(model, Max, lower)
-    optimize!(model)
-    status=termination_status(model)
-    if status == MOI.OPTIMAL
-       objv = objective_value(model)
-       println("optimum = $objv")
-    else
-       objv = objective_value(model)
-       println("termination status: $status")
-       sstatus=primal_status(model)
-       println("solution status: $sstatus")
-       println("optimum = $objv")
-    end
-#    for i=1:cl
-#        gram[i]=value.(pos[i])
-#    end
     return objv,supp1
 end
 

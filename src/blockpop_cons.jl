@@ -19,7 +19,7 @@ mutable struct cdata_type
     gblocksize
 end
 
-function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0,QUIET=true,dense=10,chor_alg="amd")
+function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0,QUIET=false,dense=10,chor_alg="amd",solve=true)
     n=length(x)
     m=length(pop)-1
     dg=zeros(UInt8,1,m)
@@ -99,13 +99,13 @@ function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0,QUIET=true
               fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize)
         end
     end
-    opt,fsupp,Gram=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET)
+    opt,fsupp,Gram=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET,solve=solve)
     sol=extract_solutions(n,m,x,d,pop,numeq,opt,fbasis,fblocks,fcl,fblocksize,Gram,method=method)
     data=cdata_type(n,m,x,pop,ssupp,coe,lt,d,dg,fbasis,gbasis,fsupp,ub,sizes,numeq,gblocks,gcl,gblocksize)
     return opt,sol,data
 end
 
-function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10,chor_alg="amd")
+function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=false,dense=10,chor_alg="amd",solve=true)
     n=data.n
     m=data.m
     x=data.x
@@ -181,7 +181,7 @@ function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
     end
     sol=nothing
     if status==1
-        opt,fsupp,Gram=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET)
+        opt,fsupp,Gram=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET,solve=solve)
         sol=extract_solutions(n,m,x,d,pop,numeq,opt,fbasis,fblocks,fcl,fblocksize,Gram,method=method)
     end
     data.fsupp=fsupp
@@ -277,7 +277,7 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,QUIET=QUIET)
         ub=unique(fblocksize)
         sizes=[sum(fblocksize.== i) for i in ub]
         if QUIET==false
-            println("fblocksizes:\n$fblocksize\n[1]")
+            println("fblocksizes:\n$ub\n$sizes")
             println("-----------------------------------------------")
             println("gblocksizes:")
         end
@@ -350,7 +350,7 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,QUIET=QUIET)
         ub=unique(fblocksize)
         sizes=[sum(fblocksize.== i) for i in ub]
         if QUIET==false
-            println("fblocksizes:\n$fblocksize\n[1]")
+            println("fblocksizes:\n$ub\n$sizes")
             println("-----------------------------------------------")
             println("gblocksizes:")
         end
@@ -428,7 +428,9 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
         end
         if fcl==1
             if length(sizes)==1&&sizes[1]==1
-                println("No higher block hierarchy!")
+                if QUIET==false
+                   println("No higher block hierarchy!")
+                end
                 return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
                 if QUIET==false
@@ -457,7 +459,9 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
                     println("-----------------------------------------------")
                 end
            else
-              println("No higher block hierarchy!")
+               if QUIET==false
+                  println("No higher block hierarchy!")
+               end
               return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end
         end
@@ -518,7 +522,9 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
         end
         if fcl==1
             if length(sizes)==1&&sizes[1]==1
-                println("No higher block hierarchy!")
+                if QUIET==false
+                   println("No higher block hierarchy!")
+                end
                 return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
                 if QUIET==false
@@ -547,7 +553,9 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
                   println("-----------------------------------------------")
               end
            else
-              println("No higher block hierarchy!")
+               if QUIET==false
+                  println("No higher block hierarchy!")
+               end
               return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end
         end
@@ -609,7 +617,7 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10,QUIET=QU
             A=zeros(UInt8,flb,flb)
         end
         for i = 1:flb
-            for j = i:flb
+            for j = i+1:flb
                 bi=fbasis[:,i]+fbasis[:,j]
                 if bfind(supp1,lsupp1,bi,n)!=0
                     if alg=="greedy"
@@ -650,14 +658,14 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10,QUIET=QU
                 glb=size(gbasis[k],2)
                 if alg=="greedy"
                     G=CGraph()
-                    for i=1:flb
+                    for i=1:glb
                         cadd_node!(G)
                     end
                 else
                     A=zeros(UInt8,glb,glb)
                 end
                 for i = 1:glb
-                    for j = i:glb
+                    for j = i+1:glb
                         r=1
                         while r<=lt[k+1]
                               bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
@@ -704,7 +712,7 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10,QUIET=QU
             A=zeros(UInt8,flb,flb)
         end
         for i = 1:flb
-            for j = i:flb
+            for j = i+1:flb
                 bi=fbasis[:,i]+fbasis[:,j]
                 if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(osupp,lo,bi,n)!=0
                     if alg=="greedy"
@@ -724,7 +732,7 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10,QUIET=QU
         ub=unique(fblocksize)
         sizes=[sum(fblocksize.== i) for i in ub]
         if QUIET==false
-            println("fblocksizes:\n$fblocksize\n[1]")
+            println("fblocksizes:\n$ub\n$sizes")
             println("-----------------------------------------------")
             println("gblocksizes:")
         end
@@ -745,14 +753,14 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=0,dense=10,QUIET=QU
                 glb=size(gbasis[k],2)
                 if alg=="greedy"
                     G=CGraph()
-                    for i=1:flb
+                    for i=1:glb
                         cadd_node!(G)
                     end
                 else
                     A=zeros(UInt8,glb,glb)
                 end
                 for i = 1:glb
-                    for j = i:glb
+                    for j = i+1:glb
                         r=1
                         while r<=lt[k+1]
                               bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
@@ -805,7 +813,7 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
             A=zeros(UInt8,flb,flb)
         end
         for i = 1:flb
-            for j = i:flb
+            for j = i+1:flb
                 bi=fbasis[:,i]+fbasis[:,j]
                 if bfind(supp1,lsupp1,bi,n)!=0
                     if alg=="greedy"
@@ -824,7 +832,9 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
         end
         if fcl==1
             if length(sizes)==1&&sizes[1]==1
-                println("No higher chordal hierarchy!")
+                if QUIET==false
+                   println("No higher chordal hierarchy!")
+                end
                 return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
                 if QUIET==false
@@ -853,7 +863,9 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
                    println("-----------------------------------------------")
                end
            else
-              println("No higher chordal hierarchy!")
+               if QUIET==false
+                  println("No higher chordal hierarchy!")
+               end
               return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end
         end
@@ -864,14 +876,14 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
             glb=size(gbasis[k],2)
             if alg=="greedy"
                 G=CGraph()
-                for i=1:flb
+                for i=1:glb
                     cadd_node!(G)
                 end
             else
                 A=zeros(UInt8,glb,glb)
             end
             for i = 1:glb
-                for j = i:glb
+                for j = i+1:glb
                     r=1
                     while r<=lt[k+1]
                           bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
@@ -917,7 +929,7 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
             A=zeros(UInt8,flb,flb)
         end
         for i = 1:flb
-            for j = i:flb
+            for j = i+1:flb
                 bi=fbasis[:,i]+fbasis[:,j]
                 if sum(Int[iseven(bi[k]) for k=1:n])==n||bfind(ofsupp,lfo,bi,n)!=0
                     if alg=="greedy"
@@ -936,7 +948,9 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
         end
         if fcl==1
             if length(sizes)==1&&sizes[1]==1
-                println("No higher chordal hierarchy!")
+                if QUIET==false
+                   println("No higher chordal hierarchy!")
+                end
                 return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
                 if QUIET==false
@@ -965,7 +979,9 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
                    println("-----------------------------------------------")
                end
            else
-              println("No higher chordal hierarchy!")
+              if QUIET==false
+                 println("No higher chordal hierarchy!")
+              end
               return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end
         end
@@ -976,14 +992,14 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
             glb=size(gbasis[k],2)
             if alg=="greedy"
                 G=CGraph()
-                for i=1:flb
+                for i=1:glb
                     cadd_node!(G)
                 end
             else
                 A=zeros(UInt8,glb,glb)
             end
             for i = 1:glb
-                for j = i:glb
+                for j = i+1:glb
                     r=1
                     while r<=lt[k+1]
                           bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
@@ -1019,7 +1035,7 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
     return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,1
 end
 
-function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize;numeq=0,QUIET=true)
+function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize;numeq=0,QUIET=true,solve=true)
     fsupp=zeros(UInt8,n,Int(sum(fblocksize.^2+fblocksize)/2))
     k=1
     for i=1:fcl
@@ -1050,100 +1066,104 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
     end
     supp1=unique(supp1,dims=2)
     supp1=sortslices(supp1,dims=2)
-    lsupp1=size(supp1,2)
-    model=Model(optimizer_with_attributes(Mosek.Optimizer))
-    set_optimizer_attribute(model, MOI.Silent(), QUIET)
-    cons=[AffExpr(0) for i=1:lsupp1]
-    pos=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, fcl)
-    gram=Vector{Union{Float64,Array{Float64,2}}}(undef, fcl)
-    for i=1:fcl
-        bs=fblocksize[i]
-        if bs==1
-           @inbounds pos[i]=@variable(model, lower_bound=0)
-           @inbounds bi=2*fbasis[:,fblocks[i]]
-           Locb=bfind(supp1,lsupp1,bi,n)
-           @inbounds cons[Locb]+=pos[i]
-        else
-           @inbounds pos[i]=@variable(model, [1:bs, 1:bs], PSD)
-           for j=1:bs
-               for r=j:bs
-                   @inbounds bi=fbasis[:,fblocks[i][j]]+fbasis[:,fblocks[i][r]]
-                   Locb=bfind(supp1,lsupp1,bi,n)
-                   if j==r
-                      @inbounds cons[Locb]+=pos[i][j,r]
-                   else
-                      @inbounds cons[Locb]+=2*pos[i][j,r]
+    objv=nothing
+    gram=nothing
+    if solve==true
+        lsupp1=size(supp1,2)
+        model=Model(optimizer_with_attributes(Mosek.Optimizer))
+        set_optimizer_attribute(model, MOI.Silent(), QUIET)
+        cons=[AffExpr(0) for i=1:lsupp1]
+        pos=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, fcl)
+        gram=Vector{Union{Float64,Array{Float64,2}}}(undef, fcl)
+        for i=1:fcl
+            bs=fblocksize[i]
+            if bs==1
+               @inbounds pos[i]=@variable(model, lower_bound=0)
+               @inbounds bi=2*fbasis[:,fblocks[i]]
+               Locb=bfind(supp1,lsupp1,bi,n)
+               @inbounds cons[Locb]+=pos[i]
+            else
+               @inbounds pos[i]=@variable(model, [1:bs, 1:bs], PSD)
+               for j=1:bs
+                   for r=j:bs
+                       @inbounds bi=fbasis[:,fblocks[i][j]]+fbasis[:,fblocks[i][r]]
+                       Locb=bfind(supp1,lsupp1,bi,n)
+                       if j==r
+                          @inbounds cons[Locb]+=pos[i][j,r]
+                       else
+                          @inbounds cons[Locb]+=2*pos[i][j,r]
+                       end
                    end
                end
-           end
+            end
         end
-    end
-    gpos=Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, m)
-    for k=1:m
-        gpos[k]=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, gcl[k])
-        for i=1:gcl[k]
-            bs=gblocksize[k][i]
-            if bs==1
-                if k<=m-numeq
-                    gpos[k][i]=@variable(model, lower_bound=0)
+        gpos=Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, m)
+        for k=1:m
+            gpos[k]=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, gcl[k])
+            for i=1:gcl[k]
+                bs=gblocksize[k][i]
+                if bs==1
+                    if k<=m-numeq
+                        gpos[k][i]=@variable(model, lower_bound=0)
+                    else
+                        gpos[k][i]=@variable(model)
+                    end
+                    for s=1:lt[k+1]
+                        @inbounds bi=ssupp[k+1][:,[s]]+2*gbasis[k][:,gblocks[k][i]]
+                        Locb=bfind(supp1,lsupp1,bi,n)
+                        @inbounds cons[Locb]+=coe[k+1][s]*gpos[k][i]
+                    end
                 else
-                    gpos[k][i]=@variable(model)
-                end
-                for s=1:lt[k+1]
-                    @inbounds bi=ssupp[k+1][:,[s]]+2*gbasis[k][:,gblocks[k][i]]
-                    Locb=bfind(supp1,lsupp1,bi,n)
-                    @inbounds cons[Locb]+=coe[k+1][s]*gpos[k][i]
-                end
-            else
-                if k<=m-numeq
-                   gpos[k][i]=@variable(model, [1:bs, 1:bs], PSD)
-                else
-                   gpos[k][i]=@variable(model, [1:bs, 1:bs], Symmetric)
-                end
-                for j=1:bs
-                    for r=j:bs
-                        for s=1:lt[k+1]
-                            @inbounds bi=ssupp[k+1][:,s]+gbasis[k][:,gblocks[k][i][j]]+gbasis[k][:,gblocks[k][i][r]]
-                            Locb=bfind(supp1,lsupp1,bi,n)
-                            if j==r
-                               @inbounds cons[Locb]+=coe[k+1][s]*gpos[k][i][j,r]
-                            else
-                               @inbounds cons[Locb]+=2*coe[k+1][s]*gpos[k][i][j,r]
+                    if k<=m-numeq
+                       gpos[k][i]=@variable(model, [1:bs, 1:bs], PSD)
+                    else
+                       gpos[k][i]=@variable(model, [1:bs, 1:bs], Symmetric)
+                    end
+                    for j=1:bs
+                        for r=j:bs
+                            for s=1:lt[k+1]
+                                @inbounds bi=ssupp[k+1][:,s]+gbasis[k][:,gblocks[k][i][j]]+gbasis[k][:,gblocks[k][i][r]]
+                                Locb=bfind(supp1,lsupp1,bi,n)
+                                if j==r
+                                   @inbounds cons[Locb]+=coe[k+1][s]*gpos[k][i][j,r]
+                                else
+                                   @inbounds cons[Locb]+=2*coe[k+1][s]*gpos[k][i][j,r]
+                                end
                             end
                         end
                     end
                 end
             end
         end
-    end
-    bc=zeros(1,lsupp1)
-    for i=1:lt[1]
-        Locb=bfind(supp1,lsupp1,ssupp[1][:,i],n)
-        if Locb==0
-           @error "The monomial basis is not enough!"
-           return nothing,nothing,nothing
+        bc=zeros(1,lsupp1)
+        for i=1:lt[1]
+            Locb=bfind(supp1,lsupp1,ssupp[1][:,i],n)
+            if Locb==0
+               @error "The monomial basis is not enough!"
+               return nothing,nothing,nothing
+            else
+               bc[Locb]=coe[1][i]
+           end
+        end
+        @constraint(model, cons[2:end].==bc[2:end])
+        @variable(model, lower)
+        @constraint(model, cons[1]+lower==bc[1])
+        @objective(model, Max, lower)
+        optimize!(model)
+        status=termination_status(model)
+        if  status==MOI.OPTIMAL
+            objv=objective_value(model)
+            println("optimum = $objv")
         else
-           bc[Locb]=coe[1][i]
-       end
-    end
-    @constraint(model, cons[2:end].==bc[2:end])
-    @variable(model, lower)
-    @constraint(model, cons[1]+lower==bc[1])
-    @objective(model, Max, lower)
-    optimize!(model)
-    status=termination_status(model)
-    if  status==MOI.OPTIMAL
-        objv=objective_value(model)
-        println("optimum = $objv")
-    else
-        objv=objective_value(model)
-        println("termination status: $status")
-        sstatus=primal_status(model)
-        println("solution status: $sstatus")
-        println("optimum = $objv")
-    end
-    for i=1:fcl
-        gram[i]=value.(pos[i])
+            objv=objective_value(model)
+            println("termination status: $status")
+            sstatus=primal_status(model)
+            println("solution status: $sstatus")
+            println("optimum = $objv")
+        end
+        for i=1:fcl
+            gram[i]=value.(pos[i])
+        end
     end
     return objv,fsupp,gram
 end

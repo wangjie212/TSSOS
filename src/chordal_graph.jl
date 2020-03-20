@@ -73,14 +73,7 @@ neighbors(G::FillInCache, node) = neighbors(G.graph, node)
 function cadd_edge!(G::FillInCache, i, j)
     ni = neighbors(G, i)
     nj = neighbors(G, j)
-    if i in nj
-        @assert j in ni
-        return
-    end
-    @assert !(j in ni)
     for node in ni
-        @assert node != i
-        @assert node != j
         if node in nj
             G.fill_in[node] -= 1
         end
