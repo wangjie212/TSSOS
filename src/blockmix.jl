@@ -1,4 +1,4 @@
-function blockupop_mix(n,d,supp::SparseMatrixCSC{UInt8,UInt32},coe,cliques,cql,cliquesize,mclique,lmc,blocks,cl,blocksize;ts=10,QUIET=true,solve=true)
+function blockupop_mix(n,d,supp::SparseMatrixCSC{UInt8,UInt32},coe,cliques,cql,cliquesize,mclique,lmc,blocks,cl,blocksize;ts=4,QUIET=true,solve=true)
     basis=Array{SparseMatrixCSC{UInt8,UInt32}}(undef,cql)
     col=Int[1]
     row=Int[]
@@ -131,7 +131,7 @@ function blockupop_mix(n,d,supp::SparseMatrixCSC{UInt8,UInt32},coe,cliques,cql,c
     return objv,supp1
 end
 
-function blockcpop_mix(n,m,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc,lmc,blocks,cl,blocksize;numeq=0,ts=10,QUIET=true,solve=true)
+function blockcpop_mix(n,m,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc,lmc,blocks,cl,blocksize;numeq=0,ts=4,QUIET=true,solve=true)
     fbasis=Array{SparseMatrixCSC{UInt8,UInt32}}(undef,cql)
     col=Int[1]
     row=Int[]
@@ -428,7 +428,7 @@ function blockcpop_mix(n,m,rlorder,supp,coe,cliques,cql,cliquesize,mclique,I,ncc
     return objv,supp1
 end
 
-function get_blocks_mix(d,supp::SparseMatrixCSC{UInt8,UInt32},cliques,cql,cliquesize;ts=10,method="block",chor_alg="amd")
+function get_blocks_mix(d,supp::SparseMatrixCSC{UInt8,UInt32},cliques,cql,cliquesize;ts=4,method="block",chor_alg="amd")
     mclique=UInt16[]
     for i=1:cql
         if cliquesize[i]>=ts
@@ -506,7 +506,7 @@ function get_hblocks_mix!(supp,basis,mclique,lmc,cliques,cliquesize,blocks,cl,bl
     return blocks,cl,blocksize,nub,nsizes,maximum(status)
 end
 
-function get_cblocks_mix(rlorder,m,supp,cliques,cql,cliquesize;ts=10,method="block",chor_alg="amd")
+function get_cblocks_mix(rlorder,m,supp,cliques,cql,cliquesize;ts=4,method="block",chor_alg="amd",assign="minimal")
     mclique=UInt16[]
     for i=1:cql
         if cliquesize[i]>=ts
@@ -521,11 +521,21 @@ function get_cblocks_mix(rlorder,m,supp,cliques,cql,cliquesize;ts=10,method="blo
             push!(ncc, i-1)
         else
             rind=unique(supp[i].rowval)
-            ind=1
-            while !issubset(rind, cliques[ind])
-                ind+=1
+            if assign=="first"
+                ind=1
+                while !issubset(rind, cliques[ind])
+                    ind+=1
+                end
+                push!(I[ind], i-1)
+            else
+                temp=UInt16[]
+                for j=1:cql
+                    if issubset(rind, cliques[j])
+                        push!(temp,j)
+                    end
+                end
+                push!(I[temp[argmin(cliquesize[temp])]], i-1)
             end
-            push!(I[ind], i-1)
         end
     end
     blocks=Vector{Vector{Vector{Vector{UInt16}}}}(undef,lmc)

@@ -9,7 +9,7 @@ mutable struct data_type
     sizes
 end
 
-function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=false,dense=10,model="JuMP",chor_alg="amd",solve=true)
+function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=false,dense=10,model="JuMP",chor_alg="amd",solve=true,solution=false)
     n=length(x)
     mon=monomials(f)
     coe=coefficients(f)
@@ -51,8 +51,10 @@ function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=
     end
     sol=nothing
     if model=="JuMP"
-       opt,supp1,Gram=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve)
-       sol=extract_solutions(n,0,[],d,[],0,opt,basis,blocks,cl,blocksize,Gram,method=method)
+       opt,supp1,Gram=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve,solution=solution)
+       if solution==true
+           sol=extract_solutions(n,0,[],d,[],0,opt,basis,blocks,cl,blocksize,Gram,method=method)
+       end
     else
        opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve)
     end
@@ -60,7 +62,7 @@ function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=
     return opt,sol,data
 end
 
-function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10,model="JuMP",chor_alg="amd",solve=true)
+function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10,model="JuMP",chor_alg="amd",solve=true,solution=false)
     n=data.n
     d=data.d
     supp=data.supp
@@ -92,8 +94,10 @@ function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
     end
     if status==1
         if model=="JuMP"
-           opt,supp1,Gram=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve)
-           sol=extract_solutions(n,0,[],d,[],0,opt,basis,blocks,cl,blocksize,Gram,method=method)
+           opt,supp1,Gram=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve,solution=solution)
+           if solution==true
+               sol=extract_solutions(n,0,[],d,[],0,opt,basis,blocks,cl,blocksize,Gram,method=method)
+           end
         else
            opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve)
         end
@@ -583,7 +587,7 @@ function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10,QUIET=QUIET,alg="a
     end
 end
 
-function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true,solve=true)
+function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true,solve=true,solution=false)
     lsupp=size(supp,2)
     supp1=zeros(UInt8,n,Int(sum(blocksize.^2+blocksize)/2))
     k=1
@@ -606,7 +610,6 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true,solve=true)
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         cons=[AffExpr(0) for i=1:lsupp1]
         pos=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl)
-        gram=Vector{Union{Float64,Array{Float64,2}}}(undef, cl)
         for i=1:cl
             bs=blocksize[i]
             if bs==1
@@ -655,8 +658,11 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true,solve=true)
            println("solution status: $sstatus")
            println("optimum = $objv")
         end
-        for i=1:cl
-            gram[i]=value.(pos[i])
+        if solution=true
+            gram=Vector{Union{Float64,Array{Float64,2}}}(undef, cl)
+            for i=1:cl
+                gram[i]=value.(pos[i])
+            end
         end
     end
     return objv,supp1,gram

@@ -19,7 +19,7 @@ mutable struct cdata_type
     gblocksize
 end
 
-function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0,QUIET=false,dense=10,chor_alg="amd",solve=true)
+function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0,QUIET=false,dense=10,chor_alg="amd",solve=true,solution=false)
     n=length(x)
     m=length(pop)-1
     dg=zeros(UInt8,1,m)
@@ -99,13 +99,16 @@ function blockcpop_first(pop,x,d;method="block",reducebasis=0,numeq=0,QUIET=fals
               fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize)
         end
     end
-    opt,fsupp,Gram=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET,solve=solve)
-    sol=extract_solutions(n,m,x,d,pop,numeq,opt,fbasis,fblocks,fcl,fblocksize,Gram,method=method)
+    opt,fsupp,Gram=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET,solve=solve,solution=solution)
+    sol=nothing
+    if solution==true
+        sol=extract_solutions(n,m,x,d,pop,numeq,opt,fbasis,fblocks,fcl,fblocksize,Gram,method=method)
+    end
     data=cdata_type(n,m,x,pop,ssupp,coe,lt,d,dg,fbasis,gbasis,fsupp,ub,sizes,numeq,gblocks,gcl,gblocksize)
     return opt,sol,data
 end
 
-function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=false,dense=10,chor_alg="amd",solve=true)
+function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=false,dense=10,chor_alg="amd",solve=true,solution=false)
     n=data.n
     m=data.m
     x=data.x
@@ -181,8 +184,10 @@ function blockcpop_higher!(data;method="block",reducebasis=0,QUIET=false,dense=1
     end
     sol=nothing
     if status==1
-        opt,fsupp,Gram=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET,solve=solve)
-        sol=extract_solutions(n,m,x,d,pop,numeq,opt,fbasis,fblocks,fcl,fblocksize,Gram,method=method)
+        opt,fsupp,Gram=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET,solve=solve,solution=solution)
+        if solution==true
+            sol=extract_solutions(n,m,x,d,pop,numeq,opt,fbasis,fblocks,fcl,fblocksize,Gram,method=method)
+        end
     end
     data.fsupp=fsupp
     data.fbasis=fbasis
@@ -1035,7 +1040,7 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
     return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,1
 end
 
-function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize;numeq=0,QUIET=true,solve=true)
+function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize;numeq=0,QUIET=true,solve=true,solution=false)
     fsupp=zeros(UInt8,n,Int(sum(fblocksize.^2+fblocksize)/2))
     k=1
     for i=1:fcl
@@ -1074,7 +1079,6 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         cons=[AffExpr(0) for i=1:lsupp1]
         pos=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, fcl)
-        gram=Vector{Union{Float64,Array{Float64,2}}}(undef, fcl)
         for i=1:fcl
             bs=fblocksize[i]
             if bs==1
@@ -1161,8 +1165,11 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
             println("solution status: $sstatus")
             println("optimum = $objv")
         end
-        for i=1:fcl
-            gram[i]=value.(pos[i])
+        if solution==true
+            gram=Vector{Union{Float64,Array{Float64,2}}}(undef, fcl)
+            for i=1:fcl
+                gram[i]=value.(pos[i])
+            end
         end
     end
     return objv,fsupp,gram
