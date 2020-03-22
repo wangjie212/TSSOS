@@ -658,7 +658,7 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true,solve=true,so
            println("solution status: $sstatus")
            println("optimum = $objv")
         end
-        if solution=true
+        if solution==true
             gram=Vector{Union{Float64,Array{Float64,2}}}(undef, cl)
             for i=1:cl
                 gram[i]=value.(pos[i])
