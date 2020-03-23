@@ -40,7 +40,7 @@ In many cases, the first block hierarchy already obtains the same optimum as the
 To exetute higher block hierarchies, repeatedly run
 
 ```Julia
-julia> opt,data=blockupop_higher!(data)
+julia> opt,sol,data=blockupop_higher!(data)
 ```
 
 ### Constrained polynomial optimization problems
