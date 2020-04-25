@@ -1,4 +1,4 @@
-function blockupop_mix(n,d,supp::SparseMatrixCSC{UInt8,UInt32},coe,cliques,cql,cliquesize,blocks,cl,blocksize;mix=true,QUIET=true,solve=true,solution=true,extra_sos=true)
+function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;mix=true,QUIET=true,solve=true,solution=true,extra_sos=true)
     basis=Array{SparseMatrixCSC{UInt8,UInt32}}(undef,cql)
     col=Int[1]
     row=Int[]
@@ -13,6 +13,7 @@ function blockupop_mix(n,d,supp::SparseMatrixCSC{UInt8,UInt32},coe,cliques,cql,c
         end
     else
         for i=1:cql
+            basis[i]=sparse_basis(cliques[i],n,d)
             tcol=[1;basis[i].colptr]
             trow=basis[i].rowval
             tnz=basis[i].nzval
@@ -42,26 +43,31 @@ function blockupop_mix(n,d,supp::SparseMatrixCSC{UInt8,UInt32},coe,cliques,cql,c
             end
         end
     end
-    supp0=SparseMatrixCSC(n,UInt32(length(col0)),[1;col0],row0,nz0)
-    supp0=Array(supp0)
-    supp0=unique(supp0,dims=2)
-    supp0=sparse(supp0)
+    supp1=SparseMatrixCSC(n,UInt32(length(col)),[1;col],row,nz)
+    supp1=Array(supp1)
+    supp1=unique(supp1,dims=2)
+    supp1=sortslices(supp1,dims=2)
+    supp1=sparse(supp1)
+    if mix==true
+        supp0=SparseMatrixCSC(n,UInt32(length(col0)),[1;col0],row0,nz0)
+        supp0=Array(supp0)
+        supp0=unique(supp0,dims=2)
+        supp0=sparse(supp0)
+    else
+        supp0=supp1
+    end
     moment=nothing
     objv=nothing
     if solve==true
-        supp1=SparseMatrixCSC(n,UInt32(length(col)),[1;col],row,nz)
-        supp1=Array(supp1)
-        supp1=unique(supp1,dims=2)
-        supp1=sortslices(supp1,dims=2)
-        supp1=sparse(supp1)
         lsupp1=supp1.n
         model=Model(optimizer_with_attributes(Mosek.Optimizer))
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         cons=[AffExpr(0) for i=1:lsupp1]
         if mix==false
+            pos0=Vector{Symmetric{VariableRef}}(undef, cql)
             for i=1:cql
                 lb=basis[i].n+1
-                pos1[i]=@variable(model, [1:lb, 1:lb], PSD)
+                pos0[i]=@variable(model, [1:lb, 1:lb], PSD)
                 tcol=[1;basis[i].colptr]
                 trow=basis[i].rowval
                 tnz=basis[i].nzval
@@ -579,7 +585,7 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
     return objv,supp0,supp1,dual_var,moment
 end
 
-function get_blocks_mix(d,supp::SparseMatrixCSC{UInt8,UInt32},cliques,cql,cliquesize;method="block",chor_alg="amd",merge=false)
+function get_blocks_mix(d,supp,cliques,cql,cliquesize;method="block",chor_alg="amd",merge=false)
     blocks=Vector{Vector{Vector{UInt16}}}(undef,cql)
     cl=Vector{UInt16}(undef,cql)
     ub=Vector{Vector{UInt16}}(undef,cql)
@@ -807,7 +813,7 @@ function get_chblocks_mix!(m,I,supp,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesiz
     return blocks,cl,blocksize,nub,nsizes,maximum(status)
 end
 
-function clique_decomp(n,supp::SparseMatrixCSC{UInt8,UInt32};alg="amd")
+function clique_decomp(n,supp;alg="amd")
     if alg=="greedy"
         G=CGraph()
         for i=1:n
@@ -988,7 +994,7 @@ function sparse_basis(var,tvar,d)
     end
 end
 
-function sort_sparse(s::SparseMatrixCSC{UInt8,UInt32})
+function sort_sparse(s)
     m=s.m
     n=s.n
     col=s.colptr
