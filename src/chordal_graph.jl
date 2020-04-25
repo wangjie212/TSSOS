@@ -32,12 +32,12 @@ disable_node!(G::CGraph, node) = push!(G.disabled, node)
 is_enabled(G::CGraph, node) = !(node in G.disabled)
 enable_all_nodes!(G::CGraph) = empty!(G.disabled)
 
-function neighbors(G::CGraph, node)
+function Cneighbors(G::CGraph, node)
     return G.neighbors[node]
 end
 
 function _num_edges_subgraph(G::CGraph, nodes, node)
-    neighs = neighbors(G, node)
+    neighs = Cneighbors(G, node)
     return count(nodes) do node
         is_enabled(G, node) && node in neighs
     end
@@ -54,7 +54,7 @@ function num_missing_edges_subgraph(G::CGraph, nodes)
 end
 
 function fill_in(G::CGraph, node)
-    return num_missing_edges_subgraph(G, neighbors(G, node))
+    return num_missing_edges_subgraph(G, Cneighbors(G, node))
 end
 
 function is_clique(G::CGraph, nodes)
@@ -68,11 +68,11 @@ end
 
 FillInCache(graph::CGraph) = FillInCache(graph, [fill_in(graph, i) for i in 1:num_nodes(graph)])
 num_nodes(G::FillInCache) = num_nodes(G.graph)
-neighbors(G::FillInCache, node) = neighbors(G.graph, node)
+Cneighbors(G::FillInCache, node) = Cneighbors(G.graph, node)
 
 function cadd_edge!(G::FillInCache, i, j)
-    ni = neighbors(G, i)
-    nj = neighbors(G, j)
+    ni = Cneighbors(G, i)
+    nj = Cneighbors(G, j)
     for node in ni
         if node in nj
             G.fill_in[node] -= 1
@@ -86,8 +86,8 @@ end
 fill_in(G::FillInCache, node) = G.fill_in[node]
 
 function disable_node!(G::FillInCache, node)
-    for neighbor in neighbors(G, node)
-        nodes = neighbors(G, neighbor)
+    for neighbor in Cneighbors(G, node)
+        nodes = Cneighbors(G, neighbor)
         G.fill_in[neighbor] -= (length(nodes) - 1) - _num_edges_subgraph(G.graph, nodes, node)
     end
     disable_node!(G.graph, node)
@@ -111,7 +111,7 @@ function _greedy_triangulation!(G, algo::AbstractGreedyAlgorithm)
                 typemax(Int)
             end
         end)
-	neighbor_nodes = [neighbor for neighbor in neighbors(G, node) if is_enabled(G, neighbor)]
+	neighbor_nodes = [neighbor for neighbor in Cneighbors(G, node) if is_enabled(G, neighbor)]
 	push!(candidate_cliques, [node, neighbor_nodes...])
 	for i in eachindex(neighbor_nodes)
 		for j in (i+1):length(neighbor_nodes)

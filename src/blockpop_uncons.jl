@@ -9,7 +9,7 @@ mutable struct data_type
     sizes
 end
 
-function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=false,dense=10,model="JuMP",chor_alg="amd",solve=true,solution=false)
+function blockupop_first(f,x;newton=true,method="block",reducebasis=false,e=1e-5,QUIET=false,dense=10,model="JuMP",chor_alg="amd",solve=true,extra_sos=false,solution=false,tol=1e-5,merge=false)
     n=length(x)
     mon=monomials(f)
     coe=coefficients(f)
@@ -21,7 +21,7 @@ function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=
         end
     end
     d=Int(maxdegree(f)/2)
-    if newton==1
+    if newton==true
        if sum(supp[:,end])!=0
           supp=[supp zeros(UInt8,n,1)]
           coe=[coe;0]
@@ -30,30 +30,30 @@ function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=
     else
        basis=get_basis(n,d)
     end
-    if method=="block"&&reducebasis==0
+    if method=="block"&&reducebasis==false
        blocks,cl,blocksize,ub,sizes=get_blocks(n,supp,basis,QUIET=QUIET)
-    elseif method=="block"&&reducebasis==1
+   elseif method=="block"&&reducebasis==true
         flag=1
         while flag==1
-              blocks,cl,blocksize,ub,sizes=get_blocks(n,supp,basis,reduce=1,QUIET=QUIET)
+              blocks,cl,blocksize,ub,sizes=get_blocks(n,supp,basis,reduce=true,QUIET=QUIET)
               tsupp=[supp zeros(UInt8,n,1)]
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
-    elseif method=="chordal"&&reducebasis==0
-        blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis,dense=dense,QUIET=QUIET,alg=chor_alg)
+    elseif method=="chordal"&&reducebasis==false
+        blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis,dense=dense,QUIET=QUIET,alg=chor_alg,merge=merge)
     else
         flag=1
         while flag==1
-              blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis,reduce=1,QUIET=QUIET,alg=chor_alg)
+              blocks,cl,blocksize,ub,sizes=get_cliques(n,supp,basis,reduce=true,QUIET=QUIET,alg=chor_alg,merge=merge)
               tsupp=[supp zeros(UInt8,n,1)]
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
     end
     sol=nothing
     if model=="JuMP"
-       opt,supp1,Gram=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve,solution=solution)
+       opt,supp1,moment=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
        if solution==true
-           sol=extract_solutions(n,0,[],d,[],0,opt,basis,blocks,cl,blocksize,Gram,method=method)
+           sol=extract_solutions(moment,opt,n,0,[f],x,tol=tol)
        end
     else
        opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve)
@@ -62,7 +62,7 @@ function blockupop_first(f,x;newton=1,method="block",reducebasis=0,e=1e-5,QUIET=
     return opt,sol,data
 end
 
-function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10,model="JuMP",chor_alg="amd",solve=true,solution=false)
+function blockupop_higher!(data;method="block",reducebasis=false,QUIET=false,dense=10,model="JuMP",chor_alg="amd",solve=true,extra_sos=false,solution=false,tol=1e-5,merge=false)
     n=data.n
     d=data.d
     supp=data.supp
@@ -73,30 +73,30 @@ function blockupop_higher!(data;method="block",reducebasis=0,QUIET=true,dense=10
     sizes=data.sizes
     opt=nothing
     sol=nothing
-    if method=="block"&&reducebasis==0
+    if method=="block"&&reducebasis==false
         blocks,cl,blocksize,ub,sizes,status=get_hblocks(n,supp1,basis,ub,sizes,QUIET=QUIET)
-    elseif method=="block"&&reducebasis==1
+    elseif method=="block"&&reducebasis==true
         flag=1
         while flag==1
-              blocks,cl,blocksize,ub,sizes,status=get_hblocks(n,supp1,basis,ub,sizes,redcue=1,QUIET=QUIET)
+              blocks,cl,blocksize,ub,sizes,status=get_hblocks(n,supp1,basis,ub,sizes,reduce=true,QUIET=QUIET)
               tsupp=[supp zeros(UInt8,n,1)]
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
-    elseif method=="chordal"&&reducebasis==0
-        blocks,cl,blocksize,ub,sizes,status=get_hcliques(n,supp1,basis,ub,sizes,QUIET=QUIET,alg=chor_alg)
+    elseif method=="chordal"&&reducebasis==false
+        blocks,cl,blocksize,ub,sizes,status=get_hcliques(n,supp1,basis,ub,sizes,QUIET=QUIET,alg=chor_alg,merge=merge)
     else
         flag=1
         while flag==1
-              blocks,cl,blocksize,ub,sizes,status=get_hcliques(n,supp1,basis,ub,sizes,reduce=1,dense=dense,QUIET=QUIET,alg=chor_alg)
+              blocks,cl,blocksize,ub,sizes,status=get_hcliques(n,supp1,basis,ub,sizes,reduce=true,dense=dense,QUIET=QUIET,alg=chor_alg,merge=merge)
               tsupp=[supp zeros(UInt8,n,1)]
               basis,flag=reducebasis!(n,tsupp,basis,blocks,cl,blocksize)
         end
     end
     if status==1
         if model=="JuMP"
-           opt,supp1,Gram=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve,solution=solution)
+           opt,supp1,moment=blockupop(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
            if solution==true
-               sol=extract_solutions(n,0,[],d,[],0,opt,basis,blocks,cl,blocksize,Gram,method=method)
+               sol=extract_solutions(moment,opt,n,0,[f],x,tol=tol)
            end
         else
            opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve)
@@ -186,8 +186,8 @@ function newton_basis(n,d,supp;e=1e-5)
 end
 
 function generate_basis!(n,supp,basis)
-    supp=sortslices(supp,dims=2)
     supp=unique(supp,dims=2)
+    supp=sortslices(supp,dims=2)
     lsupp=size(supp,2)
     lb=size(basis,2)
     indexb=UInt32[]
@@ -370,10 +370,10 @@ function cliquesFromSpMatD(A;dense=10)
     return blocks,cl,blocksize
 end
 
-function get_blocks(n,supp,basis;reduce=0,QUIET=QUIET)
+function get_blocks(n,supp,basis;reduce=false,QUIET=true)
     lb=size(basis,2)
     G=SimpleGraph(lb)
-    if reduce==1
+    if reduce==true
         supp1=[supp 2*basis]
         supp1=unique(supp1,dims=2)
         supp1=sortslices(supp1,dims=2)
@@ -388,6 +388,7 @@ function get_blocks(n,supp,basis;reduce=0,QUIET=QUIET)
         end
     else
         osupp=odd_supp(n,supp)
+        osupp=unique(osupp,dims=2)
         osupp=sortslices(osupp,dims=2)
         lo=size(osupp,2)
         for i = 1:lb
@@ -408,15 +409,15 @@ function get_blocks(n,supp,basis;reduce=0,QUIET=QUIET)
     ub=unique(blocksize)
     sizes=[sum(blocksize.== i) for i in ub]
     if QUIET==false
-        println("blocksizes:\n$ub\n$sizes")
+        println("The size of blocks:\n$ub\n$sizes")
     end
     return blocks,cl,blocksize,ub,sizes
 end
 
-function get_hblocks(n,supp,basis,ub,sizes;reduce=0,QUIET=QUIET)
+function get_hblocks(n,supp,basis,ub,sizes;reduce=false,QUIET=true)
     lb=size(basis,2)
     G=SimpleGraph(lb)
-    if reduce==1
+    if reduce==true
         supp1=[supp 2*basis]
         supp1=unique(supp1,dims=2)
         supp1=sortslices(supp1,dims=2)
@@ -431,6 +432,8 @@ function get_hblocks(n,supp,basis,ub,sizes;reduce=0,QUIET=QUIET)
         end
     else
         osupp=odd_supp(n,supp)
+        osupp=unique(osupp,dims=2)
+        osupp=sortslices(osupp,dims=2)
         lo=size(osupp,2)
         for i = 1:lb
             for j = i:lb
@@ -451,7 +454,7 @@ function get_hblocks(n,supp,basis,ub,sizes;reduce=0,QUIET=QUIET)
     nsizes=[sum(blocksize.== i) for i in nub]
     if nub!=ub||nsizes!=sizes
         if QUIET==false
-            println("blocksizes:\n$nub\n$nsizes")
+            println("The size of blocks:\n$nub\n$nsizes")
         end
        return blocks,cl,blocksize,nub,nsizes,1
     else
@@ -462,7 +465,7 @@ function get_hblocks(n,supp,basis,ub,sizes;reduce=0,QUIET=QUIET)
     end
 end
 
-function get_cliques(n,supp,basis;reduce=0,dense=10,QUIET=QUIET,alg="amd")
+function get_cliques(n,supp,basis;reduce=false,dense=10,QUIET=true,alg="amd",merge=false)
     lb=size(basis,2)
     if alg=="greedy"
         G=CGraph()
@@ -472,7 +475,7 @@ function get_cliques(n,supp,basis;reduce=0,dense=10,QUIET=QUIET,alg="amd")
     else
         A=zeros(UInt8,lb,lb)
     end
-    if reduce==1
+    if reduce==true
         supp1=[supp 2*basis]
         supp1=unique(supp1,dims=2)
         supp1=sortslices(supp1,dims=2)
@@ -492,6 +495,7 @@ function get_cliques(n,supp,basis;reduce=0,dense=10,QUIET=QUIET,alg="amd")
         end
     else
         osupp=odd_supp(n,supp)
+        osupp=unique(osupp,dims=2)
         osupp=sortslices(osupp,dims=2)
         lo=size(osupp,2)
         for i = 1:lb
@@ -512,16 +516,19 @@ function get_cliques(n,supp,basis;reduce=0,dense=10,QUIET=QUIET,alg="amd")
         blocks,cl,blocksize=chordal_extension(G, GreedyFillIn())
     else
         blocks,cl,blocksize=cliquesFromSpMatD(A,dense=dense)
+    end
+    if merge==true
+        blocks,cl,blocksize=clique_merge!(blocks,cl,QUIET=true)
     end
     ub=unique(blocksize)
     sizes=[sum(blocksize.== i) for i in ub]
     if QUIET==false
-        println("blocksizes:\n$ub\n$sizes")
+        println("The size of blocks:\n$ub\n$sizes")
     end
     return blocks,cl,blocksize,ub,sizes
 end
 
-function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10,QUIET=QUIET,alg="amd")
+function get_hcliques(n,supp,basis,ub,sizes;reduce=false,dense=10,QUIET=true,alg="amd",merge=false)
     lb=size(basis,2)
     if alg=="greedy"
         G=CGraph()
@@ -531,7 +538,7 @@ function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10,QUIET=QUIET,alg="a
     else
         A=zeros(UInt8,lb,lb)
     end
-    if reduce==1
+    if reduce==true
         supp1=[supp 2*basis]
         supp1=unique(supp1,dims=2)
         supp1=sortslices(supp1,dims=2)
@@ -551,6 +558,7 @@ function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10,QUIET=QUIET,alg="a
         end
     else
         osupp=odd_supp(n,supp)
+        osupp=unique(osupp,dims=2)
         osupp=sortslices(osupp,dims=2)
         lo=size(osupp,2)
         for i = 1:lb
@@ -571,12 +579,15 @@ function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10,QUIET=QUIET,alg="a
         blocks,cl,blocksize=chordal_extension(G, GreedyFillIn())
     else
         blocks,cl,blocksize=cliquesFromSpMatD(A,dense=dense)
+    end
+    if merge==true
+        blocks,cl,blocksize=clique_merge!(blocks,cl,QUIET=true)
     end
     nub=unique(blocksize)
     nsizes=[sum(blocksize.== i) for i in nub]
     if nub!=ub||nsizes!=sizes
         if QUIET==false
-            println("$nub\n$nsizes")
+            println("The size of blocks:\n$nub\n$nsizes")
         end
         return blocks,cl,blocksize,nub,nsizes,1
     else
@@ -587,8 +598,7 @@ function get_hcliques(n,supp,basis,ub,sizes;reduce=0,dense=10,QUIET=QUIET,alg="a
     end
 end
 
-function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true,solve=true,solution=false)
-    lsupp=size(supp,2)
+function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true,solve=true,solution=false,extra_sos=false)
     supp1=zeros(UInt8,n,Int(sum(blocksize.^2+blocksize)/2))
     k=1
     for i=1:cl
@@ -600,15 +610,33 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true,solve=true,so
             end
         end
     end
+    supp0=supp1
+    if extra_sos==true||solution==true
+        supp1=[supp1 get_basis(n,2)]
+    end
     supp1=unique(supp1,dims=2)
     supp1=sortslices(supp1,dims=2)
     objv=nothing
-    gram=nothing
+    moment=nothing
     if solve==true
         lsupp1=size(supp1,2)
         model=Model(optimizer_with_attributes(Mosek.Optimizer))
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         cons=[AffExpr(0) for i=1:lsupp1]
+        if extra_sos==true||solution==true
+            pos0=@variable(model, [1:n+1, 1:n+1], PSD)
+            for j=1:n+1
+                for k=j:n+1
+                    @inbounds bi=basis[:,j]+basis[:,k]
+                    Locb=bfind(supp1,lsupp1,bi,n)
+                    if j==k
+                       @inbounds cons[Locb]+=pos0[j,k]
+                    else
+                       @inbounds cons[Locb]+=2*pos0[j,k]
+                    end
+                end
+            end
+        end
         pos=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl)
         for i=1:cl
             bs=blocksize[i]
@@ -633,6 +661,7 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true,solve=true,so
             end
         end
         bc=zeros(1,lsupp1)
+        lsupp=size(supp,2)
         for i=1:lsupp
             Locb=bfind(supp1,lsupp1,supp[:,i],n)
             if Locb==0
@@ -642,9 +671,9 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true,solve=true,so
                bc[Locb]=coe[i]
             end
         end
-        @constraint(model, cons[2:end].==bc[2:end])
         @variable(model, lower)
-        @constraint(model, cons[1]+lower==bc[1])
+        cons[1]+=lower
+        @constraint(model, con[i=1:lsupp1], cons[i]==bc[i])
         @objective(model, Max, lower)
         optimize!(model)
         status=termination_status(model)
@@ -659,17 +688,22 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true,solve=true,so
            println("optimum = $objv")
         end
         if solution==true
-            gram=Vector{Union{Float64,Array{Float64,2}}}(undef, cl)
-            for i=1:cl
-                gram[i]=value.(pos[i])
+            dual_var=-dual.(con)
+            moment=zeros(Float64,n+1,n+1)
+            for j=1:n+1
+                for k=j:n+1
+                    bi=basis[:,j]+basis[:,k]
+                    Locb=bfind(supp1,lsupp1,bi,n)
+                    moment[j,k]=dual_var[Locb]
+                end
             end
+            moment=Symmetric(moment,:U)
         end
     end
-    return objv,supp1,gram
+    return objv,supp0,moment
 end
 
 function blockupopm(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
-    lsupp=size(supp,2)
     supp1=zeros(UInt8,n,Int(sum(blocksize.^2+blocksize)/2))
     k=1
     for i=1:cl
@@ -696,6 +730,7 @@ function blockupopm(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
         scl=cl-lone
         bkc=[MSK_BK_FX for i=1:lsupp1]
         bc=zeros(1,lsupp1)[1:end]
+        lsupp=size(supp,2)
         for i=1:lsupp
             Locb=bfind(supp1,lsupp1,supp[:,i],n)
             if Locb==0
@@ -764,161 +799,185 @@ function blockupopm(n,supp,coe,basis,blocks,cl,blocksize;QUIET=true)
     return opt,supp1
 end
 
-function extract_solutions(n,m,x,d,pop,numeq,opt,basis,blocks,cl,blocksize,Gram;method="block")
-    lb=size(basis,2)
-    V=0
-    remove=UInt16[]
-    if method=="block"
-        for i=1:cl
-            if blocksize[i]>1
-                nspace=nullspace(Gram[i], atol=1e-4)
-                lns=size(nspace,2)
-                if lns>0
-                    for j=1:lns
-                        u=zeros(lb,1)
-                        u[blocks[i]]=nspace[:,j]
-                        if V==0
-                            V=u
-                        else
-                            V=[V u]
-                        end
-                    end
-                end
-            elseif abs(Gram[i])<=1e-6
-                 push!(remove, i)
-                 u=zeros(lb,1)
-                 u[blocks[i][1]]=1
-                 if V==0
-                     V=u
-                 else
-                     V=[V u]
-                 end
-            end
-        end
-    elseif method=="chordal"
-        G=zeros(lb,lb)
-        for i=1:cl
-            if blocksize[i]>1
-                G[blocks[i],blocks[i]]=Gram[i]
-            elseif abs(Gram[i])<=1e-6
-                push!(remove, i)
-                G[blocks[i][1],blocks[i][1]]=Gram[i]
-            else
-                G[blocks[i][1],blocks[i][1]]=Gram[i]
-            end
-        end
-        V=nullspace(G, atol=1e-4)
-    else
-        V=nullspace(Gram, atol=1e-4)
+function extract_solutions(moment,opt,n,m,pop,x;numeq=0,tol=1e-5)
+    F=eigen(moment, n+1:n+1)
+    sol=sqrt(F.values[1])*F.vectors[:,1]
+    sol=sol[2:end]/sol[1]
+    flag=0
+    if abs(opt-polynomial(pop[1])(x => sol))>=tol
+        flag=1
     end
-    sol=nothing
-    if size(V,2)==1
-        sol=V[:,1]
-        println("------------------------------------------------")
+    for i=1:m-numeq
+        if polynomial(pop[i+1])(x => sol)<=-tol
+            flag=1
+        end
+    end
+    for i=m-numeq+1:m
+        if abs(polynomial(pop[i+1])(x => sol))>=tol
+            flag=1
+        end
+    end
+    if flag==0
         println("Global optimality certified!")
-        println("Extract ",1," minimizer.")
-        println("------------------------------------------------")
-    else
-        U,pivots=rref_with_pivots!(Matrix(V'))
-        U=Matrix(U')
-        w=basis[:,pivots]
-        lw=size(w,2)
-        i=d
-        while i>=0
-            j=1
-            flag=1
-            while j<=lw
-                if sum(w[:,j])==i
-                    flag=0
-                    if lbfind(remove,length(remove),j)==0
-                        return sol
-                    else
-                        index=[k for k=1:lw]
-                        deleteat!(index, j)
-                        w=w[:,index]
-                        U=U[:,index]
-                        lw-=1
-                    end
-                else
-                    j+=1
-                end
-            end
-            if flag==1
-                break
-            else
-                i-=1
-            end
-        end
-        println("Rank of the moment matrix = ", lw)
-        N=Vector{Matrix{Float64}}(undef, n)
-        for i=1:n
-            kk=UInt16[]
-            temp=zeros(UInt8,n,1)
-            temp[i]=1
-            for j=1:lw
-                xwj=w[:,j]+temp[:,1]
-                locb=bfind_to(basis,lb,xwj,n)
-                kk=push!(kk, locb)
-            end
-            N[i]=U[kk,:]
-        end
-        rands=rand(n,1)
-        rands=rands/sum(rands)
-        M=zeros(lw,lw)
-        for i in 1:n
-            M+=rands[i]*N[i]
-        end
-        F=schur(M)
-        L=F.Z
-        sol=Vector{Float64}[]
-        for i in 1:lw
-            atom=Float64[]
-            for j = 1:n
-                atom=push!(atom, L[:,i]'*N[j]*L[:,i])
-            end
-            flag=1
-            if lw>1
-                if m>0
-                    println("------------------------------------------------")
-                    println("check atom ",i)
-                    check=opt-polynomial(pop[1])(x => atom)
-                    println("check global optimality  = ",check)
-                    if abs(check)>1e-2
-                        flag=0
-                    end
-                    if m-numeq>0
-                        for j in 2:m+1-numeq
-                            check=polynomial(pop[j])(x => atom)
-                            println("check inequality ",j-1," = ",check)
-                            if check<-1e-3
-                                flag=0
-                            end
-                        end
-                    end
-                    if numeq>0
-                        for j in m-numeq+2:m+1
-                            check=polynomial(pop[j])(x => atom)
-                            println("check equality ",j-m+numeq-1," = ",check)
-                            if abs(check)>1e-3
-                                flag=0
-                            end
-                        end
-                    end
-                end
-            end
-            if flag==1
-                push!(sol,atom)
-            end
-        end
-        nsol=length(sol)
-        if nsol>0
-            println("------------------------------------------------")
-            println("Global optimality certified!")
-            println("Extract ",nsol," minimizer.")
-            println("------------------------------------------------")
-        else
-            sol=nothing
-        end
     end
     return sol
 end
+
+# function extract_solutions(n,m,x,d,pop,numeq,opt,basis,blocks,cl,blocksize,Gram;method="block")
+#     lb=size(basis,2)
+#     V=0
+#     remove=UInt16[]
+#     if method=="block"
+#         for i=1:cl
+#             if blocksize[i]>1
+#                 nspace=nullspace(Gram[i], atol=1e-4)
+#                 lns=size(nspace,2)
+#                 if lns>0
+#                     for j=1:lns
+#                         u=zeros(lb,1)
+#                         u[blocks[i]]=nspace[:,j]
+#                         if V==0
+#                             V=u
+#                         else
+#                             V=[V u]
+#                         end
+#                     end
+#                 end
+#             elseif abs(Gram[i])<=1e-6
+#                  push!(remove, i)
+#                  u=zeros(lb,1)
+#                  u[blocks[i][1]]=1
+#                  if V==0
+#                      V=u
+#                  else
+#                      V=[V u]
+#                  end
+#             end
+#         end
+#     elseif method=="chordal"
+#         G=zeros(lb,lb)
+#         for i=1:cl
+#             if blocksize[i]>1
+#                 G[blocks[i],blocks[i]]=Gram[i]
+#             elseif abs(Gram[i])<=1e-6
+#                 push!(remove, i)
+#                 G[blocks[i][1],blocks[i][1]]=Gram[i]
+#             else
+#                 G[blocks[i][1],blocks[i][1]]=Gram[i]
+#             end
+#         end
+#         V=nullspace(G, atol=1e-4)
+#     else
+#         V=nullspace(Gram, atol=1e-4)
+#     end
+#     sol=nothing
+#     if size(V,2)==1
+#         sol=V[:,1]
+#         println("------------------------------------------------")
+#         println("Global optimality certified!")
+#         println("Extract ",1," minimizer.")
+#         println("------------------------------------------------")
+#     else
+#         U,pivots=rref_with_pivots!(Matrix(V'))
+#         U=Matrix(U')
+#         w=basis[:,pivots]
+#         lw=size(w,2)
+#         i=d
+#         while i>=0
+#             j=1
+#             flag=1
+#             while j<=lw
+#                 if sum(w[:,j])==i
+#                     flag=0
+#                     if lbfind(remove,length(remove),j)==0
+#                         return sol
+#                     else
+#                         index=[k for k=1:lw]
+#                         deleteat!(index, j)
+#                         w=w[:,index]
+#                         U=U[:,index]
+#                         lw-=1
+#                     end
+#                 else
+#                     j+=1
+#                 end
+#             end
+#             if flag==1
+#                 break
+#             else
+#                 i-=1
+#             end
+#         end
+#         println("Rank of the moment matrix = ", lw)
+#         N=Vector{Matrix{Float64}}(undef, n)
+#         for i=1:n
+#             kk=UInt16[]
+#             temp=zeros(UInt8,n,1)
+#             temp[i]=1
+#             for j=1:lw
+#                 xwj=w[:,j]+temp[:,1]
+#                 locb=bfind_to(basis,lb,xwj,n)
+#                 kk=push!(kk, locb)
+#             end
+#             N[i]=U[kk,:]
+#         end
+#         rands=rand(n,1)
+#         rands=rands/sum(rands)
+#         M=zeros(lw,lw)
+#         for i in 1:n
+#             M+=rands[i]*N[i]
+#         end
+#         F=schur(M)
+#         L=F.Z
+#         sol=Vector{Float64}[]
+#         for i in 1:lw
+#             atom=Float64[]
+#             for j = 1:n
+#                 atom=push!(atom, L[:,i]'*N[j]*L[:,i])
+#             end
+#             flag=1
+#             if lw>1
+#                 if m>0
+#                     println("------------------------------------------------")
+#                     println("check atom ",i)
+#                     check=opt-polynomial(pop[1])(x => atom)
+#                     println("check global optimality  = ",check)
+#                     if abs(check)>1e-2
+#                         flag=0
+#                     end
+#                     if m-numeq>0
+#                         for j in 2:m+1-numeq
+#                             check=polynomial(pop[j])(x => atom)
+#                             println("check inequality ",j-1," = ",check)
+#                             if check<-1e-3
+#                                 flag=0
+#                             end
+#                         end
+#                     end
+#                     if numeq>0
+#                         for j in m-numeq+2:m+1
+#                             check=polynomial(pop[j])(x => atom)
+#                             println("check equality ",j-m+numeq-1," = ",check)
+#                             if abs(check)>1e-3
+#                                 flag=0
+#                             end
+#                         end
+#                     end
+#                 end
+#             end
+#             if flag==1
+#                 push!(sol,atom)
+#             end
+#         end
+#         nsol=length(sol)
+#         if nsol>0
+#             println("------------------------------------------------")
+#             println("Global optimality certified!")
+#             println("Extract ",nsol," minimizer.")
+#             println("------------------------------------------------")
+#         else
+#             sol=nothing
+#         end
+#     end
+#     return sol
+# end
