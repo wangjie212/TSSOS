@@ -1,4 +1,108 @@
-function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;mix=true,QUIET=true,solve=true,solution=true,extra_sos=true)
+mutable struct mdata_type
+    n
+    m
+    dg
+    supp
+    coe
+    numeq
+    rlorder
+    supp0
+    ssupp
+    lt
+    fbasis
+    gbasis
+    cql
+    cliques
+    cliquesize
+    I
+    ncc
+    blocks
+    cl
+    blocksize
+    ub
+    sizes
+end
+
+function cs_tssos_first(n,m,dg,supp,coe,order;numeq=0,CS="amd",assign="min",TS="block",QUIET=false,solve=true,solution=false,extra_sos=true)
+    cliques,cql,cliquesize=clique_cdecomp(n,m,dg,supp,order=order,alg=CS)
+    I,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign=assign)
+    rlorder=init_order(dg,I,cql,order=order)
+    if TS==false
+        opt,supp0,supp1,measure,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,nothing,nothing,nothing,numeq=numeq,mix=false,QUIET=QUIET,solve=solve,solution=solution,extra_sos=false)
+        blocks=nothing
+        cl=nothing
+        blocksize=nothing
+        fbasis=nothing
+        gbasis=nothing
+        ssupp=nothing
+        lt=nothing
+        ub=nothing
+        sizes=nothing
+    else
+        if TS=="block"
+            blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis=get_cblocks_mix(dg,I,rlorder,m,supp,cliques,cql,cliquesize,method="block",chor_alg=nothing)
+        else
+            blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis=get_cblocks_mix(dg,I,rlorder,m,supp,cliques,cql,cliquesize,method="chordal",chor_alg=TS)
+        end
+        opt,supp0,supp1,measure,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,numeq=numeq,mix=true,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
+    end
+    if solution==true
+        sol=approx_sol(moment,n,cliques,cql,cliquesize)
+    else
+        sol=nothing
+    end
+    data=mdata_type(n,m,dg,supp,coe,numeq,rlorder,supp0,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,I,ncc,blocks,cl,blocksize,ub,sizes)
+    return opt,sol,data
+end
+
+function cs_tssos_higher!(data;TS="block",QUIET=false,solve=true,solution=false,extra_sos=true)
+    n=data.n
+    m=data.m
+    dg=data.dg
+    supp=data.supp
+    coe=data.coe
+    numeq=data.numeq
+    rlorder=data.rlorder
+    supp0=data.supp0
+    ssupp=data.ssupp
+    lt=data.lt
+    fbasis=data.fbasis
+    gbasis=data.gbasis
+    cql=data.cql
+    cliques=data.cliques
+    cliquesize=data.cliquesize
+    I=data.I
+    ncc=data.ncc
+    blocks=data.blocks
+    cl=data.cl
+    blocksize=data.blocksize
+    ub=data.ub
+    sizes=data.sizes
+    if TS=="block"
+        blocks,cl,blocksize,ub,sizes,status=get_chblocks_mix!(m,I,supp0,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,blocks,cl,blocksize,ub,sizes,method="block",chor_alg=nothing)
+    else
+        blocks,cl,blocksize,ub,sizes,status=get_chblocks_mix!(m,I,supp0,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,blocks,cl,blocksize,ub,sizes,method="chordal",chor_alg=TS)
+    end
+    if status==1
+        opt,supp0,supp1,measure,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,numeq=numeq,mix=true,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
+    else
+        println("No higher CS-TSSOS hierarchy!")
+    end
+    if solution==true
+        sol=approx_sol(moment,n,cliques,cql,cliquesize)
+    else
+        sol=nothing
+    end
+    data.supp0=supp0
+    data.blocks=blocks
+    data.cl=cl
+    data.blocksize=blocksize
+    data.ub=ub
+    data.sizes=sizes
+    return opt,sol,data
+end
+
+function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;mix=true,QUIET=false,solve=true,solution=true,extra_sos=true)
     basis=Array{SparseMatrixCSC{UInt8,UInt32}}(undef,cql)
     col=Int[1]
     row=Int[]
@@ -189,7 +293,7 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;m
     return objv,supp0,moment
 end
 
-function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize;numeq=0,mix=true,QUIET=true,solve=true,solution=true,cons_label=false,extra_sos=true,small=true)
+function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize;numeq=0,mix=true,QUIET=false,solve=true,solution=false,cons_label=false,extra_sos=true,small=true)
     fbasis=Array{SparseMatrixCSC{UInt8,UInt32}}(undef,cql)
     gbasis=Array{SparseMatrixCSC{UInt8,UInt32}}(undef,m)
     col=Int[1]
@@ -615,7 +719,7 @@ function get_blocks_mix(d,supp,cliques,cql,cliquesize;method="block",chor_alg="a
     return blocks,cl,blocksize,ub,sizes,basis
 end
 
-function get_hblocks_mix!(supp,basis,cliques,cliquesize,blocks,cl,blocksize,ub,sizes;method="block",chor_alg="amd",merge=false)
+function get_hblocks_mix!(supp,basis,cliques,cql,cliquesize,blocks,cl,blocksize,ub,sizes;method="block",chor_alg="amd",merge=false)
     nub=Vector{Vector{UInt16}}(undef,cql)
     nsizes=Vector{Vector{UInt16}}(undef,cql)
     status=ones(UInt8,cql)
@@ -994,41 +1098,41 @@ function sparse_basis(var,tvar,d)
     end
 end
 
-function sort_sparse(s)
-    m=s.m
-    n=s.n
-    col=s.colptr
-    row=s.rowval
-    nz=s.nzval
-    i=2
-    while i<=n
-        corr_row=row[col[i]:(col[i+1]-1)]
-        corr_nz=nz[col[i]:(col[i+1]-1)]
-        j=i-1
-        while j>=1
-            pre_row=row[col[j]:(col[j+1]-1)]
-            pre_nz=nz[col[j]:(col[j+1]-1)]
-            comp=comp_sparse(corr_row,corr_nz,pre_row,pre_nz)
-            if comp==-1
-                j-=1
-            else
-                break
-            end
-        end
-        if j<i-1
-            for k=i:-1:j+2
-                lprow=col[k]-col[k-1]
-                row[(col[k+1]-lprow):(col[k+1]-1)]=row[(col[k-1]):(col[k]-1)]
-                nz[(col[k+1]-lprow):(col[k+1]-1)]=nz[(col[k-1]):(col[k]-1)]
-                col[k]=col[k+1]-lprow
-            end
-            row[(col[j+1]):(col[j+2]-1)]=corr_row
-            nz[(col[j+1]):(col[j+2]-1)]=corr_nz
-        end
-        i+=1
-    end
-    return SparseMatrixCSC(m,n,col,row,nz)
-end
+# function sort_sparse(s)
+#     m=s.m
+#     n=s.n
+#     col=s.colptr
+#     row=s.rowval
+#     nz=s.nzval
+#     i=2
+#     while i<=n
+#         corr_row=row[col[i]:(col[i+1]-1)]
+#         corr_nz=nz[col[i]:(col[i+1]-1)]
+#         j=i-1
+#         while j>=1
+#             pre_row=row[col[j]:(col[j+1]-1)]
+#             pre_nz=nz[col[j]:(col[j+1]-1)]
+#             comp=comp_sparse(corr_row,corr_nz,pre_row,pre_nz)
+#             if comp==-1
+#                 j-=1
+#             else
+#                 break
+#             end
+#         end
+#         if j<i-1
+#             for k=i:-1:j+2
+#                 lprow=col[k]-col[k-1]
+#                 row[(col[k+1]-lprow):(col[k+1]-1)]=row[(col[k-1]):(col[k]-1)]
+#                 nz[(col[k+1]-lprow):(col[k+1]-1)]=nz[(col[k-1]):(col[k]-1)]
+#                 col[k]=col[k+1]-lprow
+#             end
+#             row[(col[j+1]):(col[j+2]-1)]=corr_row
+#             nz[(col[j+1]):(col[j+2]-1)]=corr_nz
+#         end
+#         i+=1
+#     end
+#     return SparseMatrixCSC(m,n,col,row,nz)
+# end
 
 function comp_sparse(corr_row,corr_nz,pre_row,pre_nz)
     i=1
@@ -1080,4 +1184,80 @@ function bfind_sparse(s,row,nz)
         end
     end
     return 0
+end
+
+function approx_sol(moment,n,cliques,cql,cliquesize)
+    qsol=Float64[]
+    lcq=sum(cliquesize)
+    A=zeros(lcq,n)
+    q=1
+    for k=1:cql
+        cqs=cliquesize[k]
+        if cqs==1
+            append!(qsol, moment[k])
+        else
+            conn=var_block(moment[k],cqs)
+            for i=1:length(conn)
+                lconn=length(conn[i])
+                if lconn==1&&abs(moment[k][conn[i][1],conn[i][1]])<=1e-5
+                    push!(qsol, 0)
+                else
+                    if lconn==1
+                        temp=[sqrt(abs(moment[k][conn[i][1],conn[i][1]]))]
+                    else
+                        F=eigen(Symmetric(moment[k][conn[i],conn[i]]), lconn:lconn)
+                        temp=sqrt(F.values[1])*F.vectors[:,1]
+                    end
+                    for l=1:k-1
+                        inter=intersect(cliques[l], cliques[k][conn[i]])
+                        if inter!=[]
+                            flag=0
+                            for r in inter
+                                if l==1
+                                    ind1=lbfind(cliques[l],cliquesize[l],r)
+                                else
+                                    ind1=sum(cliquesize[s] for s=1:l-1)+lbfind(cliques[l],cliquesize[l],r)
+                                end
+                                ind2=lbfind(cliques[k][conn[i]],lconn,r)
+                                if (qsol[ind1]>=1e-3&&temp[ind2]<=-1e-3)||(qsol[ind1]<=-1e-3&&temp[ind2]>=1e-3)
+                                    temp=-temp
+                                    flag=1
+                                    break
+                                elseif (qsol[ind1]>=1e-3&&temp[ind2]>=1e-3)||(qsol[ind1]<=-1e-3&&temp[ind2]<=-1e-3)
+                                    flag=1
+                                    break
+                                end
+                            end
+                            if flag==1
+                                break
+                            end
+                        end
+                    end
+                    append!(qsol, temp)
+                end
+            end
+        end
+        for j=1:cqs
+            A[q,cliques[k][j]]=1
+            q+=1
+        end
+    end
+    return (A'*A)\(A'*qsol)
+end
+
+function var_block(A,lb)
+    adj=[abs(A[i,j])<=1e-8 ? 0 : 1 for i=1:lb, j=1:lb]
+    return connected_components(Graph(adj))
+end
+
+function seval(supp,coe,x)
+    val=0
+    col=supp.colptr
+    row=supp.rowval
+    nz=supp.nzval
+    for i=1:supp.n
+        temp=mapreduce(j->x[row[j]]^nz[j],*,col[i]:(col[i+1]-1),init=1)
+        val+=coe[i]*temp
+    end
+    return val
 end

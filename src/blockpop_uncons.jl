@@ -154,7 +154,8 @@ function newton_basis(n,d,supp;e=1e-5)
           if bfind(temp,lsupp,2*basis[:,i],n)!=0
              t=t+1
           else
-             model=Model(with_optimizer(Mosek.Optimizer, QUIET=true))
+             model=Model(optimizer_with_attributes(Mosek.Optimizer))
+             set_optimizer_attribute(model, MOI.Silent(), QUIET)
              @variable(model, x[1:n+1], lower_bound=-10, upper_bound=10)
              @constraint(model, [A0; [basis[:,i]' -1]]*x.<=zeros(lsupp+1,1))
              @objective(model, Min, [basis[:,i]' -1]*x)
@@ -459,7 +460,7 @@ function get_hblocks(n,supp,basis,ub,sizes;reduce=false,QUIET=true)
        return blocks,cl,blocksize,nub,nsizes,1
     else
         if QUIET==false
-            println("No higher block hierarchy!")
+            println("No higher TSSOS hierarchy!")
         end
        return blocks,cl,blocksize,nub,nsizes,0
     end
@@ -592,7 +593,7 @@ function get_hcliques(n,supp,basis,ub,sizes;reduce=false,dense=10,QUIET=true,alg
         return blocks,cl,blocksize,nub,nsizes,1
     else
         if QUIET==false
-            println("No higher chordal hierarchy!")
+            println("No higher TSSOS hierarchy!")
         end
         return blocks,cl,blocksize,nub,nsizes,0
     end

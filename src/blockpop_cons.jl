@@ -410,7 +410,7 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
         if fcl==1
             if length(sizes)==1&&sizes[1]==1
                 if QUIET==false
-                   println("No higher block hierarchy!")
+                   println("No higher TSSOS hierarchy!")
                 end
                 return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
@@ -433,7 +433,7 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
                 end
            else
                if QUIET==false
-                  println("No higher block hierarchy!")
+                  println("No higher TSSOS hierarchy!")
                end
               return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end
@@ -488,7 +488,7 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
         if fcl==1
             if length(sizes)==1&&sizes[1]==1
                 if QUIET==false
-                   println("No higher block hierarchy!")
+                   println("No higher TSSOS hierarchy!")
                 end
                 return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
@@ -511,7 +511,7 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
               end
            else
                if QUIET==false
-                  println("No higher block hierarchy!")
+                  println("No higher TSSOS hierarchy!")
                end
               return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end
@@ -771,7 +771,7 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
         if fcl==1
             if length(sizes)==1&&sizes[1]==1
                 if QUIET==false
-                   println("No higher chordal hierarchy!")
+                   println("No higher TSSOS hierarchy!")
                 end
                 return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
@@ -794,7 +794,7 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
                end
            else
                if QUIET==false
-                  println("No higher chordal hierarchy!")
+                  println("No higher TSSOS hierarchy!")
                end
               return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end
@@ -883,7 +883,7 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
         if fcl==1
             if length(sizes)==1&&sizes[1]==1
                 if QUIET==false
-                   println("No higher chordal hierarchy!")
+                   println("No higher TSSOS hierarchy!")
                 end
                 return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
@@ -907,7 +907,7 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
                end
            else
               if QUIET==false
-                 println("No higher chordal hierarchy!")
+                 println("No higher TSSOS hierarchy!")
               end
               return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,0
            end

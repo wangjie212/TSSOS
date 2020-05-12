@@ -1,5 +1,3 @@
-using MetaGraphs
-
 function fweight(a,b;d=3)
     return length(a)^d+length(b)^d-length(union(a,b))^d
 end
