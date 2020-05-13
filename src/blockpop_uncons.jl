@@ -155,7 +155,7 @@ function newton_basis(n,d,supp;e=1e-5)
              t=t+1
           else
              model=Model(optimizer_with_attributes(Mosek.Optimizer))
-             set_optimizer_attribute(model, MOI.Silent(), QUIET)
+             set_optimizer_attribute(model, MOI.Silent(), true)
              @variable(model, x[1:n+1], lower_bound=-10, upper_bound=10)
              @constraint(model, [A0; [basis[:,i]' -1]]*x.<=zeros(lsupp+1,1))
              @objective(model, Min, [basis[:,i]' -1]*x)
