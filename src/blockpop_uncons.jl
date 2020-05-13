@@ -1,4 +1,4 @@
-sizes ofmutable struct data_type
+mutable struct data_type
     n
     d
     supp
