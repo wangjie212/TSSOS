@@ -4,19 +4,19 @@ using SparseArrays
 using TSSOS
 
 # unconstrained optimization using the TSSOS hierarchy
-@polyvar x[1:2]
-f=x[1]^4+x[2]^4-x[1]*x[2]
-opt,sol,data=blockupop_first(f,x,newton=false,method="block")
+@polyvar x[1:3]
+f=1+x[1]^4+x[2]^4+x[3]^4+x[1]*x[2]*x[3]+x[2]
+opt,sol,data=blockupop_first(f,x,newton=true,method="block")
 opt,sol,data=blockupop_higher!(data,method="chordal")
 
 # constrained optimization using the TSSOS hierarchy
-@polyvar x[1:2]
-f=x[1]^4+x[2]^4-x[1]*x[2]+1
+@polyvar x[1:3]
+f=1+x[1]^4+x[2]^4+x[3]^4+x[1]*x[2]*x[3]+x[2]
 g=1-x[1]^2-2*x[2]^2
-h=x[1]^2+x[2]^2-1
+h=x[2]^2+x[3]^2-1
 pop=[f,g,h]
 opt,sol,data=blockcpop_first(pop,x,2,numeq=1,method="block")
-opt,sol,data=blockcpop_higher!(data,method="chordal")
+opt,sol,data=blockcpop_higher!(data,method="block")
 
 # unconstrained optimization using the CS-TSSOS hierarchy
 # n=6
