@@ -410,7 +410,9 @@ function get_blocks(n,supp,basis;reduce=false,QUIET=true)
     ub=unique(blocksize)
     sizes=[sum(blocksize.== i) for i in ub]
     if QUIET==false
-        println("The size of blocks:\n$ub\n$sizes")
+        println("------------------------------------------------------")
+        println("The size of blocks:\n$nub\n$nsizes")
+        println("------------------------------------------------------")
     end
     return blocks,cl,blocksize,ub,sizes
 end
@@ -455,7 +457,9 @@ function get_hblocks(n,supp,basis,ub,sizes;reduce=false,QUIET=true)
     nsizes=[sum(blocksize.== i) for i in nub]
     if nub!=ub||nsizes!=sizes
         if QUIET==false
+            println("------------------------------------------------------")
             println("The size of blocks:\n$nub\n$nsizes")
+            println("------------------------------------------------------")
         end
        return blocks,cl,blocksize,nub,nsizes,1
     else
@@ -524,7 +528,9 @@ function get_cliques(n,supp,basis;reduce=false,dense=10,QUIET=true,alg="amd",mer
     ub=unique(blocksize)
     sizes=[sum(blocksize.== i) for i in ub]
     if QUIET==false
-        println("The size of blocks:\n$ub\n$sizes")
+        println("------------------------------------------------------")
+        println("The size of blocks:\n$nub\n$nsizes")
+        println("------------------------------------------------------")
     end
     return blocks,cl,blocksize,ub,sizes
 end
@@ -588,7 +594,9 @@ function get_hcliques(n,supp,basis,ub,sizes;reduce=false,dense=10,QUIET=true,alg
     nsizes=[sum(blocksize.== i) for i in nub]
     if nub!=ub||nsizes!=sizes
         if QUIET==false
+            println("------------------------------------------------------")
             println("The size of blocks:\n$nub\n$nsizes")
+            println("------------------------------------------------------")
         end
         return blocks,cl,blocksize,nub,nsizes,1
     else

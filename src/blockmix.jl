@@ -941,7 +941,9 @@ function clique_decomp(n,supp;alg="amd")
     end
     uc=unique(cliquesize)
     sizes=[sum(cliquesize.== i) for i in uc]
+    println("------------------------------------------------------")
     println("The clique sizes of varibles:\n$uc\n$sizes")
+    println("------------------------------------------------------")
     return cliques,cql,cliquesize
 end
 
@@ -983,7 +985,9 @@ function clique_cdecomp(n,m,dg,supp;order="multi",alg="amd")
     end
     uc=unique(cliquesize)
     sizes=[sum(cliquesize.== i) for i in uc]
+    println("------------------------------------------------------")
     println("The clique sizes of varibles:\n$uc\n$sizes")
+    println("------------------------------------------------------")
     return cliques,cql,cliquesize
 end
 

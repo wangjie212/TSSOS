@@ -262,7 +262,9 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=false,QUIET=true)
         ub=unique(fblocksize)
         sizes=[sum(fblocksize.== i) for i in ub]
         if QUIET==false
-            println("The size of blocks:\n$ub\n$sizes")
+            println("------------------------------------------------------")
+            println("The size of blocks:\n$nub\n$nsizes")
+            println("------------------------------------------------------")
         end
         if fcl==1
             for k=1:m
@@ -344,7 +346,9 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=false,QUIET=true)
         ub=unique(fblocksize)
         sizes=[sum(fblocksize.== i) for i in ub]
         if QUIET==false
-            println("The size of blocks:\n$ub\n$sizes")
+            println("------------------------------------------------------")
+            println("The size of blocks:\n$nub\n$nsizes")
+            println("------------------------------------------------------")
         end
         if fcl==1
             for k=1:m
@@ -415,7 +419,9 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
                 return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
                 if QUIET==false
+                    println("------------------------------------------------------")
                     println("The size of blocks:\n$fblocksize\n[1]")
+                    println("------------------------------------------------------")
                 end
                 for k=1:m
                     gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
@@ -429,7 +435,9 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
            nsizes=[sum(fblocksize.== i) for i in nub]
            if nub!=ub||nsizes!=sizes
                 if QUIET==false
+                    println("------------------------------------------------------")
                     println("The size of blocks:\n$nub\n$nsizes")
+                    println("------------------------------------------------------")
                 end
            else
                if QUIET==false
@@ -493,7 +501,9 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
                 return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
                 if QUIET==false
+                    println("------------------------------------------------------")
                     println("The size of blocks:\n$fblocksize\n[1]")
+                    println("------------------------------------------------------")
                 end
                 for k=1:m
                     gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
@@ -507,7 +517,9 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
            nsizes=[sum(fblocksize.== i) for i in nub]
            if nub!=ub||nsizes!=sizes
               if QUIET==false
+                  println("------------------------------------------------------")
                   println("The size of blocks:\n$nub\n$nsizes")
+                  println("------------------------------------------------------")
               end
            else
                if QUIET==false
@@ -588,7 +600,9 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=false,dense=10,QUIE
         ub=unique(fblocksize)
         sizes=[sum(fblocksize.== i) for i in ub]
         if QUIET==false
+            println("------------------------------------------------------")
             println("The size of blocks:\n$ub\n$sizes")
+            println("------------------------------------------------------")
         end
         if fcl==1
             for k=1:m
@@ -677,7 +691,9 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=false,dense=10,QUIE
         ub=unique(fblocksize)
         sizes=[sum(fblocksize.== i) for i in ub]
         if QUIET==false
+            println("------------------------------------------------------")
             println("The size of blocks:\n$ub\n$sizes")
+            println("------------------------------------------------------")
         end
         if fcl==1
             for k=1:m
@@ -776,7 +792,9 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
                 return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
                 if QUIET==false
+                    println("------------------------------------------------------")
                     println("The size of blocks:\n$fblocksize\n[1]")
+                    println("------------------------------------------------------")
                 end
                 for k=1:m
                     gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
@@ -790,7 +808,9 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
            nsizes=[sum(fblocksize.== i) for i in nub]
            if nub!=ub||nsizes!=sizes
                if QUIET==false
+                   println("------------------------------------------------------")
                    println("The size of blocks:\n$nub\n$nsizes")
+                   println("------------------------------------------------------")
                end
            else
                if QUIET==false
@@ -838,12 +858,6 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
             if merge==true
                 gblocks[k],gcl[k],gblocksize[k]=clique_merge!(gblocks[k],gcl[k],QUIET=true)
             end
-            if QUIET==false
-               gub=unique(gblocksize[k])
-               gsizes=[sum(gblocksize[k].== i) for i in gub]
-               println("$gub\n$gsizes")
-               println("-----------------------------------------------")
-            end
         end
     else
         ofsupp=odd_supp(n,fsupp)
@@ -888,7 +902,9 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
                 return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,fblocksize,[1],0
             else
                 if QUIET==false
+                    println("------------------------------------------------------")
                     println("The size of blocks:\n$fblocksize\n[1]")
+                    println("------------------------------------------------------")
                 end
                 for k=1:m
                     gblocks[k]=[[i for i=1:size(gbasis[k],2)]]
@@ -902,8 +918,9 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
            nsizes=[sum(fblocksize.== i) for i in nub]
            if nub!=ub||nsizes!=sizes
                if QUIET==false
+                   println("------------------------------------------------------")
                    println("The size of blocks:\n$nub\n$nsizes")
-                   println("-----------------------------------------------")
+                   println("------------------------------------------------------")
                end
            else
               if QUIET==false
