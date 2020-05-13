@@ -8,6 +8,7 @@ pkg> add https://github.com/wangjie212/TSSOS
 - Julia
 - MOSEK
 - JuMP
+- MATLAB (remember to set the environment variable for MATLAB)
 
 TSSOS has been tested on WINDOW 10, Julia 1.2, JuMP 0.21 and MOSEK 8.1.
 ## Usage
