@@ -19,12 +19,12 @@ Inf{f(x): x∈R^n}
 ```
 where f is a polynomial with variables x1,...,xn and of degree d.
 
-Taking f=x1^4+x2^4-x1\*x2 as an example, to exetute the first block hierarchy, run
+Taking f=1+x1^4+x2^4+x3^4+x1\*x2\*x3+x2 as an example, to exetute the first block hierarchy, run
 ```Julia
 using TSSOS
 using DynamicPolynomials
-@polyvar x[1:2]
-f=x[1]^4+x[2]^4-x[1]*x[2]
+@polyvar x[1:3]
+f=1+x[1]^4+x[2]^4+x[3]^4+x[1]*x[2]*x[3]+x[2]
 opt,sol,data=blockupop_first(f,x)
 ```
 By default, a monomial basis computed by the Newton polytope method is used. If one sets newton=false in the input,
@@ -57,13 +57,13 @@ K={x∈R^n: g_j(x)>=0, j=1,...,m-numeq, g_j(x)=0, j=m-numeq+1,...,m},
 ```
 for some polynomials g_j, j=1,...,m.
 
-Taking f=x1^4+x2^4-x1\*x2 and K={x∈R^2: g_1=2-x1^2-2\*x2^2>=0, g_2=x1^2-x2^2-1=0} as an example, to exetute the first TSSOS hierarchy, run
+Taking f=1+x1^4+x2^4+x3^4+x1\*x2\*x3+x2 and K={x∈R^2: g_1=1-x1^2-2\*x2^2>=0, g_2=x2^2+x3^2-1=0} as an example, to exetute the first TSSOS hierarchy, run
 
 ```Julia
-x[1:2]
-f=x[1]^4+x[2]^4-x[1]*x[2]
-g_1=2-x[1]^2-2*x[2]^2
-g_2=x[1]^2-x[2]^2-1
+@polyvar x[1:3]
+f=1+x[1]^4+x[2]^4+x[3]^4+x[1]*x[2]*x[3]+x[2]
+g_1=1-x[1]^2-2*x[2]^2
+g_2=x[2]^2+x[3]^2-1
 pop=[f,g_1,g_2]
 d=2 # the relaxation order of Lasserre hierarchy
 opt,sol,data=blockcpop_first(pop,x,d,numeq=1)
@@ -86,7 +86,7 @@ One can also exploit correlative sparsity and term sparsity simultaneously, whic
 using SparseArrays
 using MultivariatePolynomials
 n=6
-x[1:n]
+@polyvar x[1:n]
 f=1+sum(x.^4)+x[1]*x[2]*x[3]+x[3]*x[4]*x[5]+x[3]*x[4]*x[6]+x[3]*x[5]*x[6]+x[4]*x[5]*x[6]
 pop=[f,1-sum(x[1:3].^2),1-sum(x[1:4].^2)]
 m=length(pop)-1
