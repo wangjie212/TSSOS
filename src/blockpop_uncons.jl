@@ -411,7 +411,7 @@ function get_blocks(n,supp,basis;reduce=false,QUIET=true)
     sizes=[sum(blocksize.== i) for i in ub]
     if QUIET==false
         println("------------------------------------------------------")
-        println("The size of blocks:\n$nub\n$nsizes")
+        println("The size of blocks:\n$ub\n$sizes")
         println("------------------------------------------------------")
     end
     return blocks,cl,blocksize,ub,sizes
@@ -529,7 +529,7 @@ function get_cliques(n,supp,basis;reduce=false,dense=10,QUIET=true,alg="amd",mer
     sizes=[sum(blocksize.== i) for i in ub]
     if QUIET==false
         println("------------------------------------------------------")
-        println("The size of blocks:\n$nub\n$nsizes")
+        println("The size of blocks:\n$ub\n$sizes")
         println("------------------------------------------------------")
     end
     return blocks,cl,blocksize,ub,sizes

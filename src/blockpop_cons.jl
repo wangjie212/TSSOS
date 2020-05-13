@@ -263,7 +263,7 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=false,QUIET=true)
         sizes=[sum(fblocksize.== i) for i in ub]
         if QUIET==false
             println("------------------------------------------------------")
-            println("The size of blocks:\n$nub\n$nsizes")
+            println("The size of blocks:\n$ub\n$sizes")
             println("------------------------------------------------------")
         end
         if fcl==1
@@ -347,7 +347,7 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=false,QUIET=true)
         sizes=[sum(fblocksize.== i) for i in ub]
         if QUIET==false
             println("------------------------------------------------------")
-            println("The size of blocks:\n$nub\n$nsizes")
+            println("The size of blocks:\n$ub\n$sizes")
             println("------------------------------------------------------")
         end
         if fcl==1
