@@ -43,8 +43,11 @@ opt,sol,data=blockupop_higher!(data)
 
 Options:  
 method: "block" (using the TSSOS hierarchy), "chordal" (using the chordal-TSSOS hierarchy)  
-chor_alg: "greedy" (an approximately chordal extension), "amd" (an approximately chordal extension)
+chor_alg: "greedy" (an approximately chordal extension), "amd" (generate an approximately chordal extension)  
 solution: true (extract a solution), false (don't extract a solution)
+
+Note
+The "greedy" option generates an approximately chordal extension which doesn't rely on MATLAB while the "amd" option generates an approximately chordal extension which relies on MATLAB. Usually the "amd" option provides smaller cliques than the "greedy" option (especially when the graph has a lot of nodes).
 
 ### Constrained polynomial optimization problems
 The constrained polynomial optimization problem formulizes as
@@ -77,7 +80,7 @@ julia> opt,sol,data=blockcpop_higher!(data)
 
 Options:  
 method: "block" (using the TSSOS hierarchy), "chordal" (using the chordal-TSSOS hierarchy)  
-chor_alg: "greedy" (an approximately chordal extension), "amd" (an approximately chordal extension)
+chor_alg: "greedy" (an approximately chordal extension), "amd" (an approximately chordal extension)  
 solution: true (extract a solution), false (don't extract a solution)
 
 One can also exploit correlative sparsity and term sparsity simultaneously, which is called the CS-TSSOS hierarchy.
@@ -110,7 +113,10 @@ opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,order,numeq=0,TS="block")
 opt,sol,data=cs_tssos_higher!(data,TS="block")
 ```
 Options:  
-TS: "block" (the maximal chordal extension), "greedy" (an approximately chordal extension), "amd"(an approximately chordal extension), false (no term sparsity)  
+CS (correlative sparsity): "greedy" (an approximately chordal extension), "amd" (an approximately chordal extension), "no" (no chordal extension)  
+TS (term sparsity): "block" (the maximal chordal extension), "greedy" (an approximately chordal extension), "amd"(an approximately chordal extension), false (no term sparsity)  
+order: d (the relaxation order of Lasserre hierarchy), "multi" (applying the lowest relaxation orders for each variable clique)  
+extra_sos: true (adding a first-order moment matrix for each variable clique), false  
 solution: true (extract a solution), false (don't extract a solution)
 
 
