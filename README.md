@@ -46,7 +46,7 @@ method: "block" (using the TSSOS hierarchy), "chordal" (using the chordal-TSSOS 
 chor_alg: "greedy" (an approximately chordal extension), "amd" (generate an approximately chordal extension)  
 solution: true (extract a solution), false (don't extract a solution)
 
-Note
+Note  
 The "greedy" option generates an approximately chordal extension which doesn't rely on MATLAB while the "amd" option generates an approximately chordal extension which relies on MATLAB. Usually the "amd" option provides smaller cliques than the "greedy" option (especially when the graph has a lot of nodes).
 
 ### Constrained polynomial optimization problems
