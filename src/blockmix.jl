@@ -102,7 +102,7 @@ function cs_tssos_higher!(data;TS="block",QUIET=false,solve=true,solution=false,
     return opt,sol,data
 end
 
-function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;mix=true,QUIET=false,solve=true,solution=true,extra_sos=true)
+function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;mix=true,QUIET=false,solve=true,solution=false,extra_sos=false)
     basis=Array{SparseMatrixCSC{UInt8,UInt32}}(undef,cql)
     col=Int[1]
     row=Int[]
@@ -266,28 +266,7 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;m
            println("optimum = $objv")
         end
         if solution==true
-            moment=Vector{Union{Float64, Symmetric{Float64}, Array{Float64,2}}}(undef, cql)
-            dual_var=-dual.(con)
-            for i=1:cql
-                lb=cliquesize[i]
-                if lb==1
-                    Locb=bfind_sparse(supp1,cliques[i],[1])
-                    moment[i]=dual_var[Locb]
-                else
-                    tcol=UInt32[l for l=1:lb+1]
-                    trow=cliques[i]
-                    tnz=ones(UInt8, lb)
-                    moment[i]=zeros(Float64,lb,lb)
-                    for j=1:lb
-                        for k=j:lb
-                            @inbounds bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)])
-                            Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                            moment[i][j,k]=dual_var[Locb]
-                        end
-                    end
-                    moment[i]=Symmetric(moment[i],:U)
-                end
-            end
+            moment=get_moment(-dual.(con),supp1,cliques,cql,cliquesize)
         end
     end
     return objv,supp0,moment
@@ -420,7 +399,7 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
         supp0=supp1
     end
     objv=nothing
-    dual_var=nothing
+    measure=nothing
     moment=nothing
     if solve==true
         lsupp1=supp1.n
@@ -662,34 +641,14 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
            println("optimum = $objv")
         end
         if solution==true
-            moment=Vector{Union{Float64, Symmetric{Float64}, Array{Float64,2}}}(undef, cql)
-            dual_var=-dual.(con)
-            for i=1:cql
-                lb=cliquesize[i]
-                if lb==1
-                    Locb=bfind_sparse(supp1,cliques[i],[1])
-                    moment[i]=dual_var[Locb]
-                else
-                    tcol=UInt32[l for l=1:lb+1]
-                    trow=cliques[i]
-                    tnz=ones(UInt8, lb)
-                    moment[i]=zeros(Float64,lb,lb)
-                    for j=1:lb
-                        for k=j:lb
-                            @inbounds bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)])
-                            Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                            moment[i][j,k]=dual_var[Locb]
-                        end
-                    end
-                    moment[i]=Symmetric(moment[i],:U)
-                end
-            end
+            measure=-dual.(con)
+            moment=get_moment(measure,supp1,cliques,cql,cliquesize)
         end
     end
-    return objv,supp0,supp1,dual_var,moment
+    return objv,supp0,supp1,measure,moment
 end
 
-function get_blocks_mix(d,supp,cliques,cql,cliquesize;method="block",chor_alg="amd",merge=false)
+function get_blocks_mix(d,supp,cliques,cql,cliquesize;method="block",chor_alg="greedy",merge=false)
     blocks=Vector{Vector{Vector{UInt16}}}(undef,cql)
     cl=Vector{UInt16}(undef,cql)
     ub=Vector{Vector{UInt16}}(undef,cql)
@@ -719,7 +678,7 @@ function get_blocks_mix(d,supp,cliques,cql,cliquesize;method="block",chor_alg="a
     return blocks,cl,blocksize,ub,sizes,basis
 end
 
-function get_hblocks_mix!(supp,basis,cliques,cql,cliquesize,blocks,cl,blocksize,ub,sizes;method="block",chor_alg="amd",merge=false)
+function get_hblocks_mix!(supp,basis,cliques,cql,cliquesize,blocks,cl,blocksize,ub,sizes;method="block",chor_alg="greedy",merge=false)
     nub=Vector{Vector{UInt16}}(undef,cql)
     nsizes=Vector{Vector{UInt16}}(undef,cql)
     status=ones(UInt8,cql)
@@ -807,7 +766,7 @@ function init_order(dg,I,cql;order="multi")
     return rlorder
 end
 
-function get_cblocks_mix(dg,I,rlorder,m,supp,cliques,cql,cliquesize;method="block",chor_alg="amd",merge=false)
+function get_cblocks_mix(dg,I,rlorder,m,supp,cliques,cql,cliquesize;method="block",chor_alg="greedy",merge=false)
     blocks=Vector{Vector{Vector{Vector{UInt16}}}}(undef,cql)
     cl=Vector{Vector{UInt16}}(undef,cql)
     ub=Vector{Vector{UInt16}}(undef,cql)
@@ -877,7 +836,7 @@ function get_cblocks_mix(dg,I,rlorder,m,supp,cliques,cql,cliquesize;method="bloc
     return blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis
 end
 
-function get_chblocks_mix!(m,I,supp,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,blocks,cl,blocksize,ub,sizes;method="block",chor_alg="amd",merge=false)
+function get_chblocks_mix!(m,I,supp,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,blocks,cl,blocksize,ub,sizes;method="block",chor_alg="greedy",merge=false)
     nub=Vector{Vector{UInt16}}(undef,cql)
     nsizes=Vector{Vector{UInt16}}(undef,cql)
     status=ones(UInt8,cql)
@@ -1197,50 +1156,10 @@ function approx_sol(moment,n,cliques,cql,cliquesize)
     q=1
     for k=1:cql
         cqs=cliquesize[k]
-        if cqs==1
-            append!(qsol, moment[k])
-        else
-            conn=var_block(moment[k],cqs)
-            for i=1:length(conn)
-                lconn=length(conn[i])
-                if lconn==1&&abs(moment[k][conn[i][1],conn[i][1]])<=1e-5
-                    push!(qsol, 0)
-                else
-                    if lconn==1
-                        temp=[sqrt(abs(moment[k][conn[i][1],conn[i][1]]))]
-                    else
-                        F=eigen(Symmetric(moment[k][conn[i],conn[i]]), lconn:lconn)
-                        temp=sqrt(F.values[1])*F.vectors[:,1]
-                    end
-                    for l=1:k-1
-                        inter=intersect(cliques[l], cliques[k][conn[i]])
-                        if inter!=[]
-                            flag=0
-                            for r in inter
-                                if l==1
-                                    ind1=lbfind(cliques[l],cliquesize[l],r)
-                                else
-                                    ind1=sum(cliquesize[s] for s=1:l-1)+lbfind(cliques[l],cliquesize[l],r)
-                                end
-                                ind2=lbfind(cliques[k][conn[i]],lconn,r)
-                                if (qsol[ind1]>=1e-3&&temp[ind2]<=-1e-3)||(qsol[ind1]<=-1e-3&&temp[ind2]>=1e-3)
-                                    temp=-temp
-                                    flag=1
-                                    break
-                                elseif (qsol[ind1]>=1e-3&&temp[ind2]>=1e-3)||(qsol[ind1]<=-1e-3&&temp[ind2]<=-1e-3)
-                                    flag=1
-                                    break
-                                end
-                            end
-                            if flag==1
-                                break
-                            end
-                        end
-                    end
-                    append!(qsol, temp)
-                end
-            end
-        end
+        F=eigen(moment[k], cqs+1:cqs+1)
+        temp=sqrt(F.values[1])*F.vectors[:,1]
+        temp=temp[2:cqs+1]./temp[1]
+        append!(qsol, temp)
         for j=1:cqs
             A[q,cliques[k][j]]=1
             q+=1
@@ -1249,9 +1168,25 @@ function approx_sol(moment,n,cliques,cql,cliquesize)
     return (A'*A)\(A'*qsol)
 end
 
-function var_block(A,lb)
-    adj=[abs(A[i,j])<=1e-8 ? 0 : 1 for i=1:lb, j=1:lb]
-    return connected_components(Graph(adj))
+function get_moment(measure,supp1,cliques,cql,cliquesize)
+    moment=Vector{Union{Float64, Symmetric{Float64}, Array{Float64,2}}}(undef, cql)
+    for i=1:cql
+        lb=cliquesize[i]+1
+        tcol=UInt32[l for l=1:lb]
+        tcol=[1;tcol]
+        trow=cliques[i]
+        tnz=ones(UInt8, lb)
+        moment[i]=zeros(Float64,lb,lb)
+        for j=1:lb
+            for k=j:lb
+                @inbounds bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)])
+                Locb=bfind_sparse(supp1,bi_row,bi_nz)
+                moment[i][j,k]=measure[Locb]
+            end
+        end
+        moment[i]=Symmetric(moment[i],:U)
+    end
+    return moment
 end
 
 function seval(supp,coe,x)

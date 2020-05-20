@@ -22,7 +22,7 @@ end
 function blockcpop_first(pop,x,d;method="block",reducebasis=false,numeq=0,QUIET=false,dense=10,chor_alg="amd",solve=true,extra_sos=false,solution=false,tol=1e-5,merge=false)
     n=length(x)
     m=length(pop)-1
-    dg=zeros(Int,1,m)
+    dg=zeros(Int,m)
     coe=Vector{Vector{Float64}}(undef, m+1)
     ssupp=Vector{Array{UInt8,2}}(undef, m+1)
     lt=Vector{UInt32}(undef,m+1)
