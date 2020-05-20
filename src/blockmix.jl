@@ -527,7 +527,7 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
                                         if t==r
                                             @inbounds cons[Locb]+=coe[j+1][s]*pos3[p][t,r]
                                         else
-                                            @inbounds cons[Locb],2*coe[j+1][s]*pos3[p][t,r]
+                                            @inbounds cons[Locb]+=2*coe[j+1][s]*pos3[p][t,r]
                                         end
                                     end
                                 end
