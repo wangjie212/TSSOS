@@ -1,5 +1,5 @@
 ---------------------------------------------
-# Rosenbrock-Lerner polynomial
+# the Rosenbrock-Lerner polynomial
 N=60
 b=15
 @polyvar x[1:N]
@@ -9,7 +9,7 @@ f=f_R+f_Q
 ---------------------------------------------
 
 ---------------------------------------------
-# Broyden tridiagonal polynomial
+# the Broyden tridiagonal polynomial
 l=5
 p=20
 n=l*p
@@ -26,7 +26,7 @@ end
 ---------------------------------------------
 
 ---------------------------------------------
-# Chained singular polynomial
+# the Chained singular polynomial
 l=2
 p=15
 n=l*p
@@ -42,7 +42,7 @@ end
 ---------------------------------------------
 
 ---------------------------------------------
-# Broyden_banded polynomial
+# the Broyden banded polynomial
 n=400
 @polyvar x[1:n]
 jset=Array{Any}(undef, n)
@@ -61,7 +61,7 @@ f-=x[1]
 ---------------------------------------------
 
 ---------------------------------------------
-# chained Wood polynomial
+# the chained Wood polynomial
 l=50
 p=20
 n=l*p
@@ -78,7 +78,7 @@ end
 ---------------------------------------------
 
 ---------------------------------------------
-# Rosenbrock polynomial
+# the generalized Rosenbrock polynomial
 l=50
 p=20
 n=l*p

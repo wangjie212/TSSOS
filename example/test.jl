@@ -16,7 +16,7 @@ g=1-x[1]^2-2*x[2]^2
 h=x[2]^2+x[3]^2-1
 pop=[f,g,h]
 opt,sol,data=blockcpop_first(pop,x,2,numeq=1,method="block")
-opt,sol,data=blockcpop_higher!(data,method="block")
+opt,sol,data=blockcpop_higher!(data,method="chordal")
 
 # unconstrained optimization using the CS-TSSOS hierarchy
 # n=6
@@ -58,7 +58,10 @@ for k=1:m+1
     end
     supp[k]=sparse(ssupp)
 end
-dg=2*ones(Int,m)
+dg=zeros(Int,m)
+for i=1:m
+    dg[i]=maxdegree(pop[i+1])
+end
 order=2
 opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,order,numeq=0,TS="block")
 opt,sol,data=cs_tssos_higher!(data,TS="greedy")
