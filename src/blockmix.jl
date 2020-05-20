@@ -88,7 +88,7 @@ function cs_tssos_higher!(data;TS="block",QUIET=false,solve=true,solution=false,
     else
         println("No higher CS-TSSOS hierarchy!")
     end
-    if solution==true
+    if solution==true&&status==1
         sol=approx_sol(moment,n,cliques,cql,cliquesize)
     else
         sol=nothing
