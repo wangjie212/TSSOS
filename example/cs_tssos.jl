@@ -198,9 +198,9 @@ using PowerModels
 include("E:\\Programs\\blockpop\\OPF\\modelopf.jl")
 cd("E:\\Programs\\blockpop\\OPF\\pglib")
 
-data = parse_file("pglib_opf_case5_pjm.m")
+opf_data = parse_file("pglib_opf_case5_pjm.m")
 
-model=pop_opf_two(data,normal=true)
+model=pop_opf_two(opf_data,normal=true)
 n=model.n
 m=model.m
 numeq=model.numeq
@@ -218,7 +218,7 @@ dg=model.dg
 opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,1,numeq=numeq,TS=false)
 end
 
-model=pop_opf(data,vmc="quadratic",gen_model="two",normal=true)
+model=pop_opf(opf_data,vmc="quadratic",gen_model="two",normal=true)
 n=model.n
 m=model.m
 numeq=model.numeq
