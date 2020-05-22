@@ -1,7 +1,7 @@
 using DynamicPolynomials
 using MultivariatePolynomials
 using SparseArrays
-using TSSOS
+# using TSSOS
 
 # unconstrained optimization using the TSSOS hierarchy
 @polyvar x[1:3]
@@ -42,7 +42,7 @@ opt,sol,data=blockcpop_higher!(data,method="chordal")
 n=6
 @polyvar x[1:n]
 f=1+sum(x.^4)+x[1]*x[2]*x[3]+x[3]*x[4]*x[5]+x[3]*x[4]*x[6]+x[3]*x[5]*x[6]+x[4]*x[5]*x[6]
-pop=[f,1-sum(x[1:3].^2),1-sum(x[1:4].^2)]
+pop=[f,1-sum(x[1:3].^2),1-sum(x[3:6].^2)]
 m=length(pop)-1
 coe=Array{Vector{Float64}}(undef, m+1)
 supp=Array{SparseMatrixCSC}(undef, m+1)
