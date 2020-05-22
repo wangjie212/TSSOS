@@ -238,7 +238,7 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=false,QUIET=true)
     gblocks=Vector{Vector{Vector{UInt16}}}(undef,m)
     gblocksize=Vector{Vector{Int}}(undef, m)
     gcl=Vector{UInt16}(undef,m)
-    if reduce==false
+    if reduce==true
         supp1=[supp 2*fbasis]
         supp1=unique(supp1,dims=2)
         supp1=sortslices(supp1,dims=2)
