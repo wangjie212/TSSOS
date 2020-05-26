@@ -1,6 +1,5 @@
 mutable struct cdata_type
     n
-    nb
     m
     x
     pop
@@ -20,7 +19,7 @@ mutable struct cdata_type
     gblocksize
 end
 
-function blockcpop_first(pop,x,d;nb=0,method="block",reducebasis=false,numeq=0,QUIET=false,dense=10,chor_alg="amd",solve=true,extra_sos=false,solution=false,tol=1e-5,merge=false)
+function blockcpop_first(pop,x,d;method="block",reducebasis=false,numeq=0,QUIET=false,dense=10,chor_alg="amd",solve=true,extra_sos=false,solution=false,tol=1e-5,merge=false)
     n=length(x)
     m=length(pop)-1
     dg=zeros(Int,m)
@@ -44,46 +43,48 @@ function blockcpop_first(pop,x,d;nb=0,method="block",reducebasis=false,numeq=0,Q
         supp=[supp ssupp[i]]
     end
     supp=unique(supp,dims=2)
-    fbasis=get_basis(n,d,nb=nb)
+    fbasis=get_basis(n,d)
     gbasis=Vector{Array{UInt8,2}}(undef,m)
     for k=1:m
-        gbasis[k]=get_basis(n,d-Int(ceil(dg[k]/2)),nb=nb)
+        gbasis[k]=get_basis(n,d-Int(ceil(dg[k]/2)))
     end
+    # for k=m-numeq+1:m
+    #     gbasis[k]=get_basis(n,2*d-dg[k])
+    # end
     if method=="block"&&reducebasis==false
-       fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis,nb=nb,QUIET=QUIET)
+       fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis,QUIET=QUIET)
     elseif method=="block"&&reducebasis==true
         flag=1
         while flag==1
-              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis,nb=nb,reduce=true,QUIET=QUIET)
-              gsupp=get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize,nb=nb)
+              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis,reduce=true,QUIET=QUIET)
+              gsupp=get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize)
               tsupp=[ssupp[1] zeros(UInt8,n,1)]
               tsupp=[tsupp gsupp]
-              fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize,nb=nb)
+              fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize)
         end
     elseif method=="chordal"&&reducebasis==false
-        fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,nb=nb,dense=dense,QUIET=QUIET,alg=chor_alg,merge=merge)
+        fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,dense=dense,QUIET=QUIET,alg=chor_alg,merge=merge)
     else
         flag=1
         while flag==1
-              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,nb=nb,reduce=true,dense=dense,QUIET=QUIET,alg=chor_alg,merge=merge)
-              gsupp=get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize,nb=nb)
+              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes=get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis,reduce=true,dense=dense,QUIET=QUIET,alg=chor_alg,merge=merge)
+              gsupp=get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize)
               tsupp=[ssupp[1] zeros(UInt8,n,1)]
               tsupp=[tsupp gsupp]
-              fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize,nb=nb)
+              fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize)
         end
     end
-    opt,fsupp,moment=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nb=nb,numeq=numeq,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
+    opt,fsupp,moment=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
     sol=nothing
     if solution==true
         sol=extract_solutions(moment,opt,n,m,pop,x,numeq=numeq,tol=tol)
     end
-    data=cdata_type(n,nb,m,x,pop,ssupp,coe,lt,d,dg,fbasis,gbasis,fsupp,ub,sizes,numeq,gblocks,gcl,gblocksize)
+    data=cdata_type(n,m,x,pop,ssupp,coe,lt,d,dg,fbasis,gbasis,fsupp,ub,sizes,numeq,gblocks,gcl,gblocksize)
     return opt,sol,data
 end
 
-function blockcpop_higher!(data;nb=0,method="block",reducebasis=false,QUIET=false,dense=10,chor_alg="amd",solve=true,extra_sos=false,solution=false,tol=1e-5,merge=false)
+function blockcpop_higher!(data;method="block",reducebasis=false,QUIET=false,dense=10,chor_alg="amd",solve=true,extra_sos=false,solution=false,tol=1e-5,merge=false)
     n=data.n
-    nb=data.nb
     m=data.m
     x=data.x
     pop=data.pop
@@ -103,34 +104,34 @@ function blockcpop_higher!(data;nb=0,method="block",reducebasis=false,QUIET=fals
     opt=nothing
     if method=="block"&&reducebasis==false
        fbasis=data.fbasis
-       fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes,nb=nb,QUIET=QUIET)
+       fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes,QUIET=QUIET)
    elseif method=="block"&&reducebasis==true
-        fbasis=get_basis(n,d,nb=nb)
+        fbasis=get_basis(n,d)
         flag=1
         while flag==1
-              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes,nb=nb,reduce=true,QUIET=QUIET)
-              gsupp=get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize,nb=nb)
+              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes,reduce=true,QUIET=QUIET)
+              gsupp=get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize)
               tsupp=[ssupp[1] zeros(UInt8,n,1)]
               tsupp=[tsupp gsupp]
-              fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize,nb=nb)
+              fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize)
         end
     elseif method=="chordal"&&reducebasis==false
         fbasis=data.fbasis
-        fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes,nb=nb,dense=dense,QUIET=QUIET,alg=chor_alg,merge=merge)
+        fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes,dense=dense,QUIET=QUIET,alg=chor_alg,merge=merge)
     else
-        fbasis=get_basis(n,d,nb=nb)
+        fbasis=get_basis(n,d)
         flag=1
         while flag==1
-              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes,nb=nb,reduce=true,dense=dense,QUIET=QUIET,alg=chor_alg,merge=merge)
-              gsupp=get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize,nb=nb)
+              fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,status=get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes,reduce=true,dense=dense,QUIET=QUIET,alg=chor_alg,merge=merge)
+              gsupp=get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize)
               tsupp=[ssupp[1] zeros(UInt8,n,1)]
               tsupp=[tsupp gsupp]
-              fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize,nb=nb)
+              fbasis,flag=reducebasis!(n,tsupp,fbasis,fblocks,fcl,fblocksize)
         end
     end
     sol=nothing
     if status==1
-        opt,fsupp,moment=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nb=nb,numeq=numeq,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
+        opt,fsupp,moment=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,numeq=numeq,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
         if solution==true
             sol=extract_solutions(moment,opt,n,m,pop,x,numeq=numeq,tol=tol)
         end
@@ -145,17 +146,21 @@ function blockcpop_higher!(data;nb=0,method="block",reducebasis=false,QUIET=fals
     return opt,sol,data
 end
 
-function get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize;nb=0)
-    gsupp=zeros(UInt8,n,sum(lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2) for k=1:m))
+function get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize)
+    # if m-numeq!=0&&numeq!=0
+    #     gsupp=zeros(UInt8,n,sum(lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2) for k=1:m-numeq)+sum(lt[k+1]*gblocksize[k][1] for k=m-numeq+1:m))
+    # elseif numeq==0
+    #     gsupp=zeros(UInt8,n,sum(lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2) for k=1:m))
+    # else
+        gsupp=zeros(UInt8,n,sum(lt[k+1]*Int(sum(gblocksize[k].^2+gblocksize[k])/2) for k=1:m))
+    # end
     l=1
     for k=1:m
         for i=1:gcl[k]
             for j=1:gblocksize[k][i]
                 for r=j:gblocksize[k][i]
                     for s=1:lt[k+1]
-                        # @inbounds bi=ssupp[k+1][:,s]+gbasis[k][:,gblocks[k][i][j]]+gbasis[k][:,gblocks[k][i][r]]
-                        @inbounds bi=bin_add(gbasis[k][:,gblocks[k][i][j]],gbasis[k][:,gblocks[k][i][r]],nb)
-                        @inbounds bi=bin_add(bi,ssupp[k+1][:,s],nb)
+                        @inbounds bi=ssupp[k+1][:,s]+gbasis[k][:,gblocks[k][i][j]]+gbasis[k][:,gblocks[k][i][r]]
                         @inbounds gsupp[:,l]=bi
                         l+=1
                     end
@@ -163,11 +168,19 @@ function get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize;nb=0)
             end
         end
     end
+    # for k=m-numeq+1:m
+    #     for t in gblocks[k][1]
+    #         for s=1:lt[k+1]
+    #             @inbounds gsupp[:,l]=ssupp[k+1][:,s]+gbasis[k][:,t]
+    #             l+=1
+    #         end
+    #     end
+    # end
     return gsupp
 end
 
-function reducebasis!(n,supp,basis,blocks,cl,blocksize;nb=0)
-    esupp=even_supp(supp)
+function reducebasis!(n,supp,basis,blocks,cl,blocksize)
+    esupp=even_supp(n,supp)
     init=0
     flag=0
     check=0
@@ -179,8 +192,7 @@ function reducebasis!(n,supp,basis,blocks,cl,blocksize;nb=0)
             if blocksize[i]>1
                 for j=1:blocksize[i]
                     for r=j+1:blocksize[i]
-                        # @inbounds bi=basis[:,blocks[i][j]]+basis[:,blocks[i][r]]
-                        @inbounds bi=bin_add(basis[:,blocks[i][j]],basis[:,blocks[i][r]],nb)
+                        @inbounds bi=basis[:,blocks[i][j]]+basis[:,blocks[i][r]]
                         supp1=[supp1 bi]
                     end
                 end
@@ -194,8 +206,7 @@ function reducebasis!(n,supp,basis,blocks,cl,blocksize;nb=0)
             indexb=[k for k=1:lo]
             j=1
             while lo>=j
-                # bi=2*basis[:,blocks[i][indexb[j]]]
-                bi=bin_add(basis[:,blocks[i][indexb[j]]],basis[:,blocks[i][indexb[j]]],nb)
+                bi=2*basis[:,blocks[i][indexb[j]]]
                 Locb=bfind(supp1,lsupp1,bi,n)
                 if Locb==0
                    check=1
@@ -223,12 +234,12 @@ function reducebasis!(n,supp,basis,blocks,cl,blocksize;nb=0)
     end
 end
 
-function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;nb=0,reduce=false,QUIET=true)
+function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=false,QUIET=true)
     gblocks=Vector{Vector{Vector{UInt16}}}(undef,m)
     gblocksize=Vector{Vector{Int}}(undef, m)
     gcl=Vector{UInt16}(undef,m)
-    if reduce==true||nb>0
-        supp1=[supp bin_add(fbasis,fbasis,nb)]
+    if reduce==true
+        supp1=[supp 2*fbasis]
         supp1=unique(supp1,dims=2)
         supp1=sortslices(supp1,dims=2)
         lsupp1=size(supp1,2)
@@ -236,7 +247,7 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;nb=0,reduce=false,QUIET=tru
         fG=SimpleGraph(flb)
         for i = 1:flb
             for j = i:flb
-                bi=bin_add(fbasis[:,i],fbasis[:,j],nb)
+                bi=fbasis[:,i]+fbasis[:,j]
                 if bfind(supp1,lsupp1,bi,n)!=0
                    add_edge!(fG,i,j)
                 end
@@ -270,8 +281,7 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;nb=0,reduce=false,QUIET=tru
                     for j = i:glb
                         r=1
                         while r<=lt[k+1]
-                              bi=bin_add(gbasis[k][:,i],gbasis[k][:,j],nb)
-                              bi=bin_add(bi,ssupp[k+1][:,r],nb)
+                              bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
                               if bfind(supp1,lsupp1,bi,n)!=0
                                  break
                               else
@@ -290,9 +300,30 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;nb=0,reduce=false,QUIET=tru
                     gblocksize[k][i]=length(gblocks[k][i])
                 end
             end
+            # for k=m-numeq+1:m
+            #     glb=size(gbasis[k],2)
+            #     temp=UInt16[]
+            #     for i=1:glb
+            #         r=1
+            #         while r<=lt[k+1]
+            #               bi=ssupp[k+1][:,r]+gbasis[k][:,i]
+            #               if bfind(supp1,lsupp1,bi,n)!=0
+            #                  break
+            #               else
+            #                   r+=1
+            #               end
+            #         end
+            #         if r<=lt[k+1]
+            #            push!(temp,i)
+            #         end
+            #     end
+            #     gblocks[k]=[temp]
+            #     gcl[k]=1
+            #     gblocksize[k]=[length(temp)]
+            # end
         end
     else
-        osupp=odd_supp(supp)
+        osupp=odd_supp(n,supp)
         osupp=unique(osupp,dims=2)
         osupp=sortslices(osupp,dims=2)
         lo=size(osupp,2)
@@ -358,9 +389,9 @@ function get_cblocks(n,m,supp,ssupp,lt,fbasis,gbasis;nb=0,reduce=false,QUIET=tru
     return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes
 end
 
-function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes;nb=0,reduce=false,QUIET=true)
-    if reduce==true||nb>0
-        supp1=[fsupp bin_add(fbasis, fbasis, nb)]
+function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes;reduce=false,QUIET=true)
+    if reduce==true
+        supp1=[fsupp 2*fbasis]
         supp1=unique(supp1,dims=2)
         supp1=sortslices(supp1,dims=2)
         lsupp1=size(supp1,2)
@@ -368,8 +399,7 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
         fG=SimpleGraph(flb)
         for i = 1:flb
             for j = i:flb
-                # bi=fbasis[:,i]+fbasis[:,j]
-                bi=bin_add(fbasis[:,i],fbasis[:,j],nb)
+                bi=fbasis[:,i]+fbasis[:,j]
                 if bfind(supp1,lsupp1,bi,n)!=0
                    add_edge!(fG,i,j)
                 end
@@ -423,9 +453,7 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
                 for j = i:glb
                     r=1
                     while r<=lt[k+1]
-                          # bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
-                          bi=bin_add(gbasis[k][:,i],gbasis[k][:,j],nb)
-                          bi=bin_add(bi,ssupp[k+1][:,r],nb)
+                          bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
                           if bfind(supp1,lsupp1,bi,n)!=0
                              break
                           else
@@ -445,7 +473,7 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
             end
         end
     else
-        ofsupp=odd_supp(fsupp)
+        ofsupp=odd_supp(n,fsupp)
         ofsupp=unique(ofsupp,dims=2)
         ofsupp=sortslices(ofsupp,dims=2)
         lfo=size(ofsupp,2)
@@ -530,13 +558,12 @@ function get_chblocks!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,u
     return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,1
 end
 
-function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;nb=0,reduce=false,dense=10,QUIET=true,alg="amd",merge=false)
+function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;reduce=false,dense=10,QUIET=true,alg="amd",merge=false)
     gblocks=Vector{Vector{Vector{UInt16}}}(undef,m)
     gblocksize=Vector{Vector{Int}}(undef, m)
     gcl=Vector{UInt16}(undef,m)
-    if reduce==true||nb>0
-        # supp1=[supp 2*fbasis]
-        supp1=[supp bin_add(fbasis, fbasis, nb)]
+    if reduce==true
+        supp1=[supp 2*fbasis]
         supp1=unique(supp1,dims=2)
         supp1=sortslices(supp1,dims=2)
         lsupp1=size(supp1,2)
@@ -551,8 +578,7 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;nb=0,reduce=false,dense=10
         end
         for i = 1:flb
             for j = i+1:flb
-                # bi=fbasis[:,i]+fbasis[:,j]
-                bi=bin_add(fbasis[:,i],fbasis[:,j],nb)
+                bi=fbasis[:,i]+fbasis[:,j]
                 if bfind(supp1,lsupp1,bi,n)!=0
                     if alg=="greedy"
                         cadd_edge!(G,i,j)
@@ -600,9 +626,7 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;nb=0,reduce=false,dense=10
                     for j = i+1:glb
                         r=1
                         while r<=lt[k+1]
-                              # bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
-                              bi=bin_add(gbasis[k][:,i],gbasis[k][:,j],nb)
-                              bi=bin_add(bi,ssupp[k+1][:,r],nb)
+                              bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
                               if bfind(supp1,lsupp1,bi,n)!=0
                                  break
                               else
@@ -630,7 +654,7 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;nb=0,reduce=false,dense=10
             end
         end
     else
-        osupp=odd_supp(supp)
+        osupp=odd_supp(n,supp)
         osupp=unique(osupp,dims=2)
         osupp=sortslices(osupp,dims=2)
         lo=size(osupp,2)
@@ -724,10 +748,9 @@ function get_ccliques(n,m,supp,ssupp,lt,fbasis,gbasis;nb=0,reduce=false,dense=10
     return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes
 end
 
-function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes;nb=0,reduce=false,dense=10,QUIET=true,alg="amd",merge=false)
-    if reduce==true||nb>0
-        # supp1=[fsupp 2*fbasis]
-        supp1=[fsupp bin_add(fbasis, fbasis, nb)]
+function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,ub,sizes;reduce=false,dense=10,QUIET=true,alg="amd",merge=false)
+    if reduce==true
+        supp1=[fsupp 2*fbasis]
         supp1=unique(supp1,dims=2)
         supp1=sortslices(supp1,dims=2)
         lsupp1=size(supp1,2)
@@ -742,8 +765,7 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
         end
         for i = 1:flb
             for j = i+1:flb
-                # bi=fbasis[:,i]+fbasis[:,j]
-                bi=bin_add(fbasis[:,i],fbasis[:,j],nb)
+                bi=fbasis[:,i]+fbasis[:,j]
                 if bfind(supp1,lsupp1,bi,n)!=0
                     if alg=="greedy"
                         cadd_edge!(G,i,j)
@@ -811,9 +833,7 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
                 for j = i+1:glb
                     r=1
                     while r<=lt[k+1]
-                          # bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
-                          bi=bin_add(gbasis[k][:,i],gbasis[k][:,j],nb)
-                          bi=bin_add(bi,ssupp[k+1][:,r],nb)
+                          bi=ssupp[k+1][:,r]+gbasis[k][:,i]+gbasis[k][:,j]
                           if bfind(supp1,lsupp1,bi,n)!=0
                              break
                           else
@@ -840,7 +860,7 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
             end
         end
     else
-        ofsupp=odd_supp(fsupp)
+        ofsupp=odd_supp(n,fsupp)
         ofsupp=unique(ofsupp,dims=2)
         ofsupp=sortslices(ofsupp,dims=2)
         lfo=size(ofsupp,2)
@@ -953,14 +973,13 @@ function get_chcliques!(n,m,ssupp,lt,fbasis,gbasis,fsupp,gblocks,gcl,gblocksize,
     return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,1
 end
 
-function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize;nb=0,numeq=0,QUIET=true,solve=true,solution=false,extra_sos=false)
+function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize;numeq=0,QUIET=true,solve=true,solution=false,extra_sos=false)
     fsupp=zeros(UInt8,n,Int(sum(fblocksize.^2+fblocksize)/2))
     k=1
     for i=1:fcl
         for j=1:fblocksize[i]
             for r=j:fblocksize[i]
-                # @inbounds bi=fbasis[:,fblocks[i][j]]+fbasis[:,fblocks[i][r]]
-                @inbounds bi=bin_add(fbasis[:,fblocks[i][j]],fbasis[:,fblocks[i][r]],nb)
+                @inbounds bi=fbasis[:,fblocks[i][j]]+fbasis[:,fblocks[i][r]]
                 @inbounds fsupp[:,k]=bi
                 k+=1
             end
@@ -969,10 +988,10 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
     objv=nothing
     moment=nothing
     if solve==true
-        gsupp=get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize,nb=nb)
+        gsupp=get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize)
         supp1=[fsupp gsupp]
         if extra_sos==true||solution==true
-            supp1=[supp1 get_basis(n,2,nb=nb)]
+            supp1=[supp1 get_basis(n,2)]
         end
         supp1=unique(supp1,dims=2)
         supp1=sortslices(supp1,dims=2)
@@ -986,8 +1005,7 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
                 pos0=@variable(model, [1:n+1, 1:n+1], PSD)
                 for j=1:n+1
                     for k=j:n+1
-                        # @inbounds bi=fbasis[:,j]+fbasis[:,k]
-                        @inbounds bi=bin_add(fbasis[:,j],fbasis[:,k],nb)
+                        @inbounds bi=fbasis[:,j]+fbasis[:,k]
                         Locb=bfind(supp1,lsupp1,bi,n)
                         if j==k
                            @inbounds cons[Locb]+=pos0[j,k]
@@ -1000,16 +1018,14 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
             bs=fblocksize[i]
             if bs==1
                @inbounds pos[i]=@variable(model, lower_bound=0)
-               # @inbounds bi=2*fbasis[:,fblocks[i]]
-               @inbounds bi=bin_add(fbasis[:,fblocks[i]],fbasis[:,fblocks[i]],nb)
+               @inbounds bi=2*fbasis[:,fblocks[i]]
                Locb=bfind(supp1,lsupp1,bi,n)
                @inbounds cons[Locb]+=pos[i]
             else
                @inbounds pos[i]=@variable(model, [1:bs, 1:bs], PSD)
                for j=1:bs
                    for r=j:bs
-                       # @inbounds bi=fbasis[:,fblocks[i][j]]+fbasis[:,fblocks[i][r]]
-                       @inbounds bi=bin_add(fbasis[:,fblocks[i][j]],fbasis[:,fblocks[i][r]],nb)
+                       @inbounds bi=fbasis[:,fblocks[i][j]]+fbasis[:,fblocks[i][r]]
                        Locb=bfind(supp1,lsupp1,bi,n)
                        if j==r
                           @inbounds cons[Locb]+=pos[i][j,r]
@@ -1032,9 +1048,7 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
                         gpos[k][i]=@variable(model)
                     end
                     for s=1:lt[k+1]
-                        # @inbounds bi=ssupp[k+1][:,[s]]+2*gbasis[k][:,gblocks[k][i]]
-                        @inbounds bi=bin_add(gbasis[k][:,gblocks[k][i]],gbasis[k][:,gblocks[k][i]],nb)
-                        @inbounds bi=bin_add(bi,ssupp[k+1][:,[s]],nb)
+                        @inbounds bi=ssupp[k+1][:,[s]]+2*gbasis[k][:,gblocks[k][i]]
                         Locb=bfind(supp1,lsupp1,bi,n)
                         @inbounds cons[Locb]+=coe[k+1][s]*gpos[k][i]
                     end
@@ -1047,9 +1061,7 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
                     for j=1:bs
                         for r=j:bs
                             for s=1:lt[k+1]
-                                # @inbounds bi=ssupp[k+1][:,s]+gbasis[k][:,gblocks[k][i][j]]+gbasis[k][:,gblocks[k][i][r]]
-                                @inbounds bi=bin_add(gbasis[k][:,gblocks[k][i][j]],gbasis[k][:,gblocks[k][i][r]],nb)
-                                @inbounds bi=bin_add(bi,ssupp[k+1][:,s],nb)
+                                @inbounds bi=ssupp[k+1][:,s]+gbasis[k][:,gblocks[k][i][j]]+gbasis[k][:,gblocks[k][i][r]]
                                 Locb=bfind(supp1,lsupp1,bi,n)
                                 if j==r
                                    @inbounds cons[Locb]+=coe[k+1][s]*gpos[k][i][j,r]
@@ -1093,8 +1105,7 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
             moment=zeros(Float64,n+1,n+1)
             for j=1:n+1
                 for k=j:n+1
-                    # bi=fbasis[:,j]+fbasis[:,k]
-                    bi=bin_add(fbasis[:,j],fbasis[:,k],nb)
+                    bi=fbasis[:,j]+fbasis[:,k]
                     Locb=bfind(supp1,lsupp1,bi,n)
                     moment[j,k]=dual_var[Locb]
                 end
