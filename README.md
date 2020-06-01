@@ -8,7 +8,6 @@ pkg> add https://github.com/wangjie212/TSSOS
 - Julia
 - MOSEK
 - JuMP
-- MATLAB (remember to set the environment variable for MATLAB)
 
 TSSOS has been tested on WINDOW 10, Julia 1.2, JuMP 0.21 and MOSEK 8.1.
 ## Usage
@@ -19,17 +18,17 @@ Inf{f(x): x∈R^n}
 ```
 where f is a polynomial with variables x1,...,xn and of degree d.
 
-Taking f=1+x1^4+x2^4+x3^4+x1\*x2\*x3+x2 as an example, to exetute the first block hierarchy, run
+Taking f=1+x1^4+x2^4+x3^4+x1\*x2\*x3+x2 as an example, to exetute the first TSSOS hierarchy, run
 ```Julia
 using TSSOS
 using DynamicPolynomials
 @polyvar x[1:3]
 f=1+x[1]^4+x[2]^4+x[3]^4+x[1]*x[2]*x[3]+x[2]
-opt,sol,data=blockupop_first(f,x)
+opt,sol,data=blockupop_first(f,x,TS="block")
 ```
-By default, a monomial basis computed by the Newton polytope method is used. If one sets newton=false in the input,
+By default, the monomial basis computed by the Newton polytope method is used. If one sets newton=false in the input,
 ```Julia
-opt,sol,data=blockupop_first(f,x,newton=false)
+opt,sol,data=blockupop_first(f,x,newton=false,TS="block")
 ```
 then the standard monomial basis will be used.
 
@@ -38,16 +37,14 @@ Two vectors will be outputed. The first vector is the size of blocks and the sec
 To exetute higher TSSOS hierarchies, repeatedly run
 
 ```Julia
-opt,sol,data=blockupop_higher!(data)
+opt,sol,data=blockupop_higher!(data,TS="block")
 ```
 
 Options:  
-method: "block" (using the TSSOS hierarchy), "chordal" (using the chordal-TSSOS hierarchy)  
-chor_alg: "greedy" (an approximately chordal extension), "amd" (generate an approximately chordal extension)  
+nb: specify the first nb variables to be binary variables (satisfying xi^2=xi)  
+newton: true (using the monomial basis computed by the Newton polytope method), false  
+TS (term sparsity): "block" (using the TSSOS hierarchy), "MD" or "MF" (using the chordal-TSSOS hierarchy), false (without term sparsity)  
 solution: true (extract a solution), false (don't extract a solution)
-
-Note  
-The "greedy" option generates an approximately chordal extension which doesn't rely on MATLAB while the "amd" option generates an approximately chordal extension which relies on MATLAB. Usually the "amd" option provides smaller cliques than the "greedy" option (especially when the graph has a lot of nodes).
 
 ### Constrained polynomial optimization problems
 The constrained polynomial optimization problem formulizes as
@@ -69,18 +66,18 @@ g_1=1-x[1]^2-2*x[2]^2
 g_2=x[2]^2+x[3]^2-1
 pop=[f,g_1,g_2]
 d=2 # the relaxation order of Lasserre hierarchy
-opt,sol,data=blockcpop_first(pop,x,d,numeq=1)
+opt,sol,data=blockcpop_first(pop,x,d,numeq=1,TS="block")
 ```
 
 To exetute higher TSSOS hierarchies, repeatedly run
 
 ```Julia
-julia> opt,sol,data=blockcpop_higher!(data)
+julia> opt,sol,data=blockcpop_higher!(data,TS="block")
 ```
 
 Options:  
-method: "block" (using the TSSOS hierarchy), "chordal" (using the chordal-TSSOS hierarchy)  
-chor_alg: "greedy" (an approximately chordal extension), "amd" (an approximately chordal extension)  
+nb: specify the first nb variables to be binary variables (satisfying xi^2=xi)  
+TS: "block" (using the TSSOS hierarchy), "MD" or "MF" (using the chordal-TSSOS hierarchy), false (without term sparsity)  
 solution: true (extract a solution), false (don't extract a solution)
 
 One can also exploit correlative sparsity and term sparsity simultaneously, which is called the CS-TSSOS hierarchy.
@@ -113,8 +110,9 @@ opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,order,numeq=0,TS="block")
 opt,sol,data=cs_tssos_higher!(data,TS="block")
 ```
 Options:  
-CS (correlative sparsity): "greedy" (an approximately chordal extension), "amd" (an approximately chordal extension), "no" (no chordal extension)  
-TS (term sparsity): "block" (the maximal chordal extension), "greedy" (an approximately chordal extension), "amd"(an approximately chordal extension), false (no term sparsity)  
+nb: specify the first nb variables to be binary variables (satisfying xi^2=xi)  
+CS (correlative sparsity): "MD" or "MF" (an approximately minimum chordal extension), "NC" (no chordal extension)  
+TS: "block" (the maximal chordal extension), "MD" or "MF" (an approximately minimum chordal extension), false (without term sparsity)  
 order: d (the relaxation order of Lasserre hierarchy), "multi" (applying the lowest relaxation orders for each variable clique)  
 extra_sos: true (adding a first-order moment matrix for each variable clique), false  
 solution: true (extract a solution), false (don't extract a solution)
