@@ -42,6 +42,7 @@ opt,sol,data=blockupop_higher!(data)
 ```
 
 Options:  
+nb: specify the first nb variables to be binary variables (satisfying xi^2=xi)  
 method: "block" (using the TSSOS hierarchy), "chordal" (using the chordal-TSSOS hierarchy)  
 chor_alg: "greedy" (an approximately minimum chordal extension), "amd" (an approximately minimum chordal extension)  
 solution: true (extract a solution), false (don't extract a solution)
@@ -79,6 +80,7 @@ julia> opt,sol,data=blockcpop_higher!(data)
 ```
 
 Options:  
+nb: specify the first nb variables to be binary variables (satisfying xi^2=xi)  
 method: "block" (using the TSSOS hierarchy), "chordal" (using the chordal-TSSOS hierarchy)  
 chor_alg: "greedy" (an approximately minimum chordal extension), "amd" (an approximately minimum chordal extension)  
 solution: true (extract a solution), false (don't extract a solution)
@@ -113,6 +115,7 @@ opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,order,numeq=0,TS="block")
 opt,sol,data=cs_tssos_higher!(data,TS="block")
 ```
 Options:  
+nb: specify the first nb variables to be binary variables (satisfying xi^2=xi)  
 CS (correlative sparsity): "greedy" (an approximately minimum chordal extension), "amd" (an approximately minimum chordal extension), "NC" (no chordal extension)  
 TS (term sparsity): "block" (the maximal chordal extension), "greedy" (an approximately minimum chordal extension), "amd"(an approximately minimum chordal extension), false (without term sparsity)  
 order: d (the relaxation order of Lasserre hierarchy), "multi" (applying the lowest relaxation orders for each variable clique)  
