@@ -1,6 +1,5 @@
 module TSSOS
 
-using MATLAB
 using Mosek
 using MosekTools
 using JuMP
@@ -8,16 +7,14 @@ using LightGraphs
 using MultivariatePolynomials
 using SparseArrays
 using LinearAlgebra
-using RowEchelon
 using MetaGraphs
 
-export newton_basis, blockupopm, get_basis, reducebasis!, generate_basis!, bfind, odd_supp, even_supp, get_blocks, blockupop, get_cliques, get_hblocks, get_hcliques, blockupop_first, blockupop_higher!, blockcsos, get_cblocks, get_chblocks!, get_ccliques, get_chcliques!, blockcpop, blockcpop_first, blockcpop_higher!, extract_solutions, lbfind, blockupop_mix, blockcpop_mix, get_blocks_mix, get_hblocks_mix!, get_cblocks_mix, get_chblocks_mix!, clique_decomp, clique_cdecomp, splus, sparse_basis, sort_sparse, comp_sparse, bfind_sparse, chordal_extension, clique_merge!, assign_constraint, init_order, cliquesFromSpMatD, CGraph, cadd_node!, cadd_clique!, cadd_edge!, GreedyFillIn, max_cliques, seval, get_moment, approx_sol, clique_cdecomp, clique_decomp, get_cblocks_mix, get_chblocks_mix!, init_order, assign_constraint, get_blocks_mix, get_hblocks_mix!, blockcpop_mix, blockupop_mix, cs_tssos_first, cs_tssos_higher!
+export newton_basis, get_basis, reducebasis!, generate_basis!, bfind, odd_supp, even_supp, get_blocks, blockupop, blockupop_first, blockupop_higher!, get_cblocks!, blockcpop, blockcpop_first, blockcpop_higher!, extract_solutions, blockupop_mix, blockcpop_mix, get_blocks_mix, get_cblocks_mix!, clique_decomp, clique_cdecomp, splus, sparse_basis, comp_sparse, bfind_sparse, chordal_cliques!, clique_merge!, assign_constraint, init_order, add_clique!, max_cliques, seval, get_moment, approx_sol, cs_tssos_first, cs_tssos_higher!
 
-include("chordal_graph.jl")
+include("chordal_extension.jl")
 include("clique_merge.jl")
 include("blockpop_uncons.jl")
 include("blockpop_cons.jl")
 include("blockmix.jl")
-include("blocksos.jl")
 
 end

@@ -24,12 +24,12 @@ mutable struct mdata_type
     sizes
 end
 
-function cs_tssos_first(n,m,dg,supp,coe,order;nb=0,numeq=0,CS="amd",assign="min",TS="block",QUIET=false,solve=true,solution=false,extra_sos=true)
-    cliques,cql,cliquesize=clique_cdecomp(n,m,dg,supp,order=order,alg=CS)
+function cs_tssos_first(n,m,dg,supp,coe,order;nb=0,numeq=0,CS="MD",minimize=false,assign="min",TS="block",QUIET=false,solve=true,solution=false,extra_sos=true)
+    cliques,cql,cliquesize=clique_cdecomp(n,m,dg,supp,order=order,alg=CS,minimize=minimize)
     I,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign=assign)
     rlorder=init_order(dg,I,cql,order=order)
     if TS==false
-        opt,supp0,supp1,measure,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,nothing,nothing,nothing,nb=nb,numeq=numeq,mix=false,QUIET=QUIET,solve=solve,solution=solution,extra_sos=false)
+        opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,nothing,nothing,nothing,nb=nb,numeq=numeq,mix=false,QUIET=QUIET,solve=solve,solution=solution,extra_sos=false)
         blocks=nothing
         cl=nothing
         blocksize=nothing
@@ -40,12 +40,8 @@ function cs_tssos_first(n,m,dg,supp,coe,order;nb=0,numeq=0,CS="amd",assign="min"
         ub=nothing
         sizes=nothing
     else
-        if TS=="block"
-            blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis=get_cblocks_mix(dg,I,rlorder,m,supp,cliques,cql,cliquesize,nb=nb,method="block",chor_alg=nothing)
-        else
-            blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis=get_cblocks_mix(dg,I,rlorder,m,supp,cliques,cql,cliquesize,nb=nb,method="chordal",chor_alg=TS)
-        end
-        opt,supp0,supp1,measure,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,mix=true,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
+        blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,nothing,nothing,nothing,nothing,nothing,cliques,cql,cliquesize,nothing,nothing,nothing,nothing,nothing,nb=nb,TS=TS)
+        opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,mix=true,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
     end
     if solution==true
         sol=approx_sol(moment,n,cliques,cql,cliquesize)
@@ -80,13 +76,9 @@ function cs_tssos_higher!(data;TS="block",QUIET=false,solve=true,solution=false,
     blocksize=data.blocksize
     ub=data.ub
     sizes=data.sizes
-    if TS=="block"
-        blocks,cl,blocksize,ub,sizes,status=get_chblocks_mix!(m,I,supp0,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,blocks,cl,blocksize,ub,sizes,nb=nb,method="block",chor_alg=nothing)
-    else
-        blocks,cl,blocksize,ub,sizes,status=get_chblocks_mix!(m,I,supp0,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,blocks,cl,blocksize,ub,sizes,nb=nb,method="chordal",chor_alg=TS)
-    end
+    blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,supp0,ssupp,lt,fbasis,gbasis,cliques,cql,cliquesize,blocks,cl,blocksize,ub,sizes,nb=nb,TS=TS)
     if status==1
-        opt,supp0,supp1,measure,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,mix=true,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
+        opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,mix=true,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
     else
         println("No higher CS-TSSOS hierarchy!")
     end
@@ -615,7 +607,7 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
     return objv,supp0,supp1,measure,moment
 end
 
-function get_blocks_mix(d,supp,cliques,cql,cliquesize;nb=0,method="block",chor_alg="greedy",merge=false)
+function get_blocks_mix(d,supp,basis,cliques,cql,cliquesize,ub,sizes;nb=0,TS="block",merge=false)
     if nb>0
         cnb=[count(x->x<=nb,cliques[i]) for i=1:cql]
     else
@@ -623,10 +615,16 @@ function get_blocks_mix(d,supp,cliques,cql,cliquesize;nb=0,method="block",chor_a
     end
     blocks=Vector{Vector{Vector{UInt16}}}(undef,cql)
     cl=Vector{UInt16}(undef,cql)
-    ub=Vector{Vector{UInt16}}(undef,cql)
-    sizes=Vector{Vector{UInt16}}(undef,cql)
     blocksize=Vector{Vector{Int}}(undef,cql)
-    basis=Vector{Array{UInt8,2}}(undef,cql)
+    status=ones(UInt8,cql)
+    if basis==nothing
+        ub=Vector{Vector{UInt16}}(undef,cql)
+        sizes=Vector{Vector{UInt16}}(undef,cql)
+        basis=Vector{Array{UInt8,2}}(undef,cql)
+        flag=1
+    else
+        flag=0
+    end
     for i=1:cql
         nvar=cliquesize[i]
         ssupp=zeros(UInt8,nvar,1)
@@ -634,51 +632,104 @@ function get_blocks_mix(d,supp,cliques,cql,cliquesize;nb=0,method="block",chor_a
             if issubset(supp.rowval[supp.colptr[j]:(supp.colptr[j+1]-1)], cliques[i])
                 bi=zeros(UInt8,nvar,1)
                 for k=supp.colptr[j]:(supp.colptr[j+1]-1)
-                    @inbounds locb=lbfind(cliques[i],cliquesize[i],supp.rowval[k])
+                    @inbounds locb=bfind(cliques[i],cliquesize[i],supp.rowval[k])
                     @inbounds bi[locb]=supp.nzval[k]
                 end
                 ssupp=[ssupp bi]
             end
         end
-        basis[i]=get_basis(nvar,d,nb=cnb[i])
-        if method=="block"
-            blocks[i],cl[i],blocksize[i],ub[i],sizes[i]=get_blocks(nvar,ssupp,basis[i],nb=cnb[i],QUIET=true)
+        if flag==1
+            basis[i]=get_basis(nvar,d,nb=cnb[i])
+            blocks[i],cl[i],blocksize[i],ub[i],sizes[i],status[i]=get_blocks(nvar,ssupp,basis[i],nothing,nothing,nb=cnb[i],TS=TS,QUIET=true,merge=merge)
         else
-            blocks[i],cl[i],blocksize[i],ub[i],sizes[i]=get_cliques(nvar,ssupp,basis[i],nb=cnb[i],QUIET=true,alg=chor_alg,merge=merge)
+            blocks[i],cl[i],blocksize[i],ub[i],sizes[i],status[i]=get_blocks(nvar,ssupp,basis[i],ub[i],sizes[i],nb=cnb[i],TS=TS,QUIET=true,merge=merge)
         end
     end
-    return blocks,cl,blocksize,ub,sizes,basis
+    return blocks,cl,blocksize,ub,sizes,basis,maximum(status)
 end
 
-function get_hblocks_mix!(supp,basis,cliques,cql,cliquesize,blocks,cl,blocksize,ub,sizes;nb=0,method="block",chor_alg="greedy",merge=false)
+function get_cblocks_mix!(dg,I,rlorder,m,supp,supp0,ssupp,lt,fbasis,gbasis,cliques,cql,cliquesize,blocks,cl,blocksize,ub,sizes;nb=0,TS="block",merge=false)
     if nb>0
         cnb=[count(x->x<=nb,cliques[i]) for i=1:cql]
     else
         cnb=zeros(UInt8,cql)
     end
-    nub=Vector{Vector{UInt16}}(undef,cql)
-    nsizes=Vector{Vector{UInt16}}(undef,cql)
+    if fbasis==nothing
+        blocks=Vector{Vector{Vector{Vector{UInt16}}}}(undef,cql)
+        cl=Vector{Vector{UInt16}}(undef,cql)
+        ub=Vector{Vector{UInt16}}(undef,cql)
+        sizes=Vector{Vector{UInt16}}(undef,cql)
+        blocksize=Vector{Vector{Vector{Int}}}(undef,cql)
+        ssupp=Vector{Vector{Array{UInt8,2}}}(undef,cql)
+        lt=Vector{Vector{UInt16}}(undef,cql)
+        gbasis=Vector{Vector{Array{UInt8,2}}}(undef,cql)
+        fbasis=Vector{Array{UInt8,2}}(undef,cql)
+        lsupp=sum([supp[i].n for i=1:m+1])
+        col=Int[1]
+        row=Int[]
+        nz=UInt8[]
+        for i=1:m+1
+            append!(col,supp[i].colptr[2:end].+(col[end]-1))
+            append!(row,supp[i].rowval)
+            append!(nz,supp[i].nzval)
+        end
+        flag=1
+    else
+        col=supp0.colptr
+        row=supp0.rowval
+        nz=supp0.nzval
+        lsupp=supp0.n
+        flag=0
+    end
     status=ones(UInt8,cql)
     for i=1:cql
+        if flag==1
+
+        end
+        lc=length(I[i])
         nvar=cliquesize[i]
-        ssupp=zeros(UInt8,nvar,1)
-        for j=1:supp.n
-            if issubset(supp.rowval[supp.colptr[j]:(supp.colptr[j+1]-1)], cliques[i])
+        fsupp=zeros(UInt8,nvar,1)
+        for j=1:lsupp
+            if issubset(row[col[j]:(col[j+1]-1)], cliques[i])
                 bi=zeros(UInt8,nvar,1)
-                for k=supp.colptr[j]:(supp.colptr[j+1]-1)
-                    @inbounds locb=lbfind(cliques[i],cliquesize[i],supp.rowval[k])
-                    @inbounds bi[locb]=supp.nzval[k]
+                for k=col[j]:(col[j+1]-1)
+                    @inbounds locb=bfind(cliques[i],cliquesize[i],row[k])
+                    @inbounds bi[locb]=nz[k]
                 end
-                ssupp=[ssupp bi]
+                fsupp=[fsupp bi]
             end
         end
-        if method=="block"
-            blocks[i],cl[i],blocksize[i],nub[i],nsizes[i],status[i]=get_hblocks(nvar,ssupp,basis[i],ub[i],sizes[i],nb=cnb[i],QUIET=true)
+        if flag==1
+            fsupp=unique(fsupp,dims=2)
+            fbasis[i]=get_basis(cliquesize[i],rlorder[i],nb=cnb[i])
+            gbasis[i]=Vector{Array{UInt8,2}}(undef, lc)
+            ssupp[i]=Vector{Array{UInt8,2}}(undef, lc+1)
+            lt[i]=Vector{UInt16}(undef, lc+1)
+            lt[i][1]=supp[1].n
+            ssupp[i][1]=zeros(UInt8,nvar,supp[1].n)
+            for s=1:lc
+                t=I[i][s]
+                gbasis[i][s]=get_basis(nvar,rlorder[i]-ceil(Int, dg[t]/2),nb=cnb[i])
+                ssupp[i][s+1]=zeros(UInt8,nvar,supp[t+1].n)
+                lt[i][s+1]=supp[t+1].n
+                for j=1:supp[t+1].n
+                    for k=supp[t+1].colptr[j]:(supp[t+1].colptr[j+1]-1)
+                        @inbounds locb=bfind(cliques[i],cliquesize[i],supp[t+1].rowval[k])
+                        @inbounds ssupp[i][s+1][locb,j]=supp[t+1].nzval[k]
+                    end
+                end
+            end
+            blocks[i]=Vector{Vector{Vector{UInt16}}}(undef, lc+1)
+            cl[i]=Vector{UInt16}(undef, lc+1)
+            blocksize[i]=Vector{Vector{Int}}(undef, lc+1)
+            ub[i]=Vector{UInt16}(undef, lc+1)
+            sizes[i]=Vector{UInt16}(undef, lc+1)
+            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i],status[i]=get_cblocks!(nvar,lc,fsupp,ssupp[i],lt[i],fbasis[i],gbasis[i],nothing,nothing,nothing,nothing,nothing,nb=cnb[i],TS=TS,QUIET=true,merge=merge)
         else
-            blocks[i],cl[i],blocksize[i],nub[i],nsizes[i],status[i]=get_hcliques(nvar,ssupp,basis[i],ub[i],sizes[i],nb=cnb[i],QUIET=true,alg=chor_alg,merge=merge)
+            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i],status[i]=get_cblocks!(nvar,lc,fsupp,ssupp[i],lt[i],fbasis[i],gbasis[i],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i],nb=cnb[i],TS=TS,QUIET=true,merge=merge)
         end
     end
-    return blocks,cl,blocksize,nub,nsizes,maximum(status)
+    return blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,maximum(status)
 end
 
 function assign_constraint(m,supp,cliques,cql,cliquesize;assign="first")
@@ -730,130 +781,15 @@ function init_order(dg,I,cql;order="multi")
     return rlorder
 end
 
-function get_cblocks_mix(dg,I,rlorder,m,supp,cliques,cql,cliquesize;nb=0,method="block",chor_alg="greedy",merge=false)
-    if nb>0
-        cnb=[count(x->x<=nb,cliques[i]) for i=1:cql]
+function clique_decomp(n,supp;alg="MD",minimize=false)
+    G=SimpleGraph(n)
+    for j = 1:supp.n
+        add_clique!(G,supp.rowval[supp.colptr[j]:(supp.colptr[j+1]-1)])
+    end
+    if alg=="NC"
+        cliques,cql,cliquesize=max_cliques(G)
     else
-        cnb=zeros(UInt8,cql)
-    end
-    blocks=Vector{Vector{Vector{Vector{UInt16}}}}(undef,cql)
-    cl=Vector{Vector{UInt16}}(undef,cql)
-    ub=Vector{Vector{UInt16}}(undef,cql)
-    sizes=Vector{Vector{UInt16}}(undef,cql)
-    blocksize=Vector{Vector{Vector{Int}}}(undef,cql)
-    ssupp=Vector{Vector{Array{UInt8,2}}}(undef,cql)
-    lt=Vector{Vector{UInt16}}(undef,cql)
-    gbasis=Vector{Vector{Array{UInt8,2}}}(undef,cql)
-    fbasis=Vector{Array{UInt8,2}}(undef,cql)
-    lsupp=sum([supp[i].n for i=1:m+1])
-    col=Int[1]
-    row=Int[]
-    nz=UInt8[]
-    for i=1:m+1
-        append!(col,supp[i].colptr[2:end].+(col[end]-1))
-        append!(row,supp[i].rowval)
-        append!(nz,supp[i].nzval)
-    end
-    for i=1:cql
-        lc=length(I[i])
-        blocks[i]=Vector{Vector{Vector{UInt16}}}(undef, lc+1)
-        cl[i]=Vector{UInt16}(undef, lc+1)
-        ub[i]=Vector{UInt16}(undef, lc+1)
-        sizes[i]=Vector{UInt16}(undef, lc+1)
-        blocksize[i]=Vector{Vector{Int}}(undef, lc+1)
-        nvar=cliquesize[i]
-        fsupp=zeros(UInt8,nvar,1)
-        for j=1:lsupp
-            if issubset(row[col[j]:(col[j+1]-1)], cliques[i])
-                bi=zeros(UInt8,nvar,1)
-                for k=col[j]:(col[j+1]-1)
-                    @inbounds locb=lbfind(cliques[i],cliquesize[i],row[k])
-                    @inbounds bi[locb]=nz[k]
-                end
-                fsupp=[fsupp bi]
-            end
-        end
-        fsupp=unique(fsupp,dims=2)
-        fbasis[i]=get_basis(cliquesize[i],rlorder[i],nb=cnb[i])
-        gbasis[i]=Vector{Array{UInt8,2}}(undef, lc)
-        ssupp[i]=Vector{Array{UInt8,2}}(undef, lc+1)
-        lt[i]=Vector{UInt16}(undef, lc+1)
-        lt[i][1]=supp[1].n
-        ssupp[i][1]=zeros(UInt8,nvar,supp[1].n)
-        for s=1:lc
-            t=I[i][s]
-            gbasis[i][s]=get_basis(nvar,rlorder[i]-ceil(Int, dg[t]/2),nb=cnb[i])
-            ssupp[i][s+1]=zeros(UInt8,nvar,supp[t+1].n)
-            lt[i][s+1]=supp[t+1].n
-            for j=1:supp[t+1].n
-                for k=supp[t+1].colptr[j]:(supp[t+1].colptr[j+1]-1)
-                    @inbounds locb=lbfind(cliques[i],cliquesize[i],supp[t+1].rowval[k])
-                    @inbounds ssupp[i][s+1][locb,j]=supp[t+1].nzval[k]
-                end
-            end
-        end
-        if method=="block"
-            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i]=get_cblocks(nvar,lc,fsupp,ssupp[i],lt[i],fbasis[i],gbasis[i],nb=cnb[i],QUIET=true)
-        else
-            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i]=get_ccliques(nvar,lc,fsupp,ssupp[i],lt[i],fbasis[i],gbasis[i],nb=cnb[i],QUIET=true,alg=chor_alg,merge=merge)
-        end
-    end
-    return blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis
-end
-
-function get_chblocks_mix!(m,I,supp,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,blocks,cl,blocksize,ub,sizes;nb=0,method="block",chor_alg="greedy",merge=false)
-    if nb>0
-        cnb=[count(x->x<=nb,cliques[i]) for i=1:cql]
-    else
-        cnb=zeros(UInt8,cql)
-    end
-    nub=Vector{Vector{UInt16}}(undef,cql)
-    nsizes=Vector{Vector{UInt16}}(undef,cql)
-    status=ones(UInt8,cql)
-    for i=1:cql
-        lc=length(I[i])
-        nvar=cliquesize[i]
-        fsupp=zeros(UInt8,nvar,1)
-        for j=1:supp.n
-            if issubset(supp.rowval[supp.colptr[j]:(supp.colptr[j+1]-1)], cliques[i])
-                bi=zeros(UInt8,nvar,1)
-                for k=supp.colptr[j]:(supp.colptr[j+1]-1)
-                    @inbounds locb=lbfind(cliques[i],cliquesize[i],supp.rowval[k])
-                    @inbounds bi[locb]=supp.nzval[k]
-                end
-                fsupp=[fsupp bi]
-            end
-        end
-        if method=="block"
-            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],nub[i],nsizes[i],status[i]=get_chblocks!(nvar,lc,ssupp[i],lt[i],fbasis[i],gbasis[i],fsupp,blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i],nb=cnb[i],QUIET=true)
-        else
-            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],nub[i],nsizes[i],status[i]=get_chcliques!(nvar,lc,ssupp[i],lt[i],fbasis[i],gbasis[i],fsupp,blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i],nb=cnb[i],QUIET=true,alg=chor_alg,merge=merge)
-        end
-    end
-    return blocks,cl,blocksize,nub,nsizes,maximum(status)
-end
-
-function clique_decomp(n,supp;alg="amd")
-    if alg=="greedy"
-        G=CGraph()
-        for i=1:n
-            cadd_node!(G)
-        end
-    else
-        A=zeros(UInt8,n,n)
-    end
-    for i = 1:supp.n
-        if alg=="greedy"
-            cadd_clique!(G,supp.rowval[supp.colptr[i]:(supp.colptr[i+1]-1)])
-        else
-            lcol=supp.colptr[i+1]-supp.colptr[i]
-            A[supp.rowval[supp.colptr[i]:(supp.colptr[i+1]-1)],supp.rowval[supp.colptr[i]:(supp.colptr[i+1]-1)]]=ones(UInt8,lcol,lcol)
-        end
-    end
-    if alg=="greedy"
-        cliques,cql,cliquesize=chordal_extension(G, GreedyFillIn())
-    else
-        cliques,cql,cliquesize=cliquesFromSpMatD(A)
+        cliques,cql,cliquesize=chordal_cliques!(G, method=alg, minimize=minimize)
     end
     uc=unique(cliquesize)
     sizes=[sum(cliquesize.== i) for i in uc]
@@ -863,41 +799,21 @@ function clique_decomp(n,supp;alg="amd")
     return cliques,cql,cliquesize
 end
 
-function clique_cdecomp(n,m,dg,supp;order="multi",alg="amd")
-    if alg=="greedy"
-        G=CGraph()
-        for i=1:n
-            cadd_node!(G)
-        end
-    else
-        A=zeros(UInt8,n,n)
-    end
+function clique_cdecomp(n,m,dg,supp;order="multi",alg="MD",minimize=false)
+    G=SimpleGraph(n)
     for i=1:m+1
         if order=="multi"||i==1||order==ceil(Int, dg[i-1]/2)
             for j = 1:supp[i].n
-                if alg=="greedy"
-                    cadd_clique!(G,supp[i].rowval[supp[i].colptr[j]:(supp[i].colptr[j+1]-1)])
-                else
-                    lcol=supp[i].colptr[j+1]-supp[i].colptr[j]
-                    A[supp[i].rowval[supp[i].colptr[j]:(supp[i].colptr[j+1]-1)],supp[i].rowval[supp[i].colptr[j]:(supp[i].colptr[j+1]-1)]]=ones(UInt8,lcol,lcol)
-                end
+                add_clique!(G,supp[i].rowval[supp[i].colptr[j]:(supp[i].colptr[j+1]-1)])
             end
         else
-            if alg=="greedy"
-                cadd_clique!(G,unique(supp[i].rowval))
-            else
-                rind=unique(supp[i].rowval)
-                lcol=length(rind)
-                A[rind,rind]=ones(UInt8,lcol,lcol)
-            end
+            add_clique!(G,unique(supp[i].rowval))
         end
     end
-    if alg=="greedy"
-        cliques,cql,cliquesize=chordal_extension(G, GreedyFillIn())
-    elseif alg=="amd"
-        cliques,cql,cliquesize=cliquesFromSpMatD(A)
+    if alg=="NC"
+        cliques,cql,cliquesize=max_cliques(G)
     else
-        cliques,cql,cliquesize=max_cliques(A)
+        cliques,cql,cliquesize=chordal_cliques!(G, method=alg, minimize=minimize)
     end
     uc=unique(cliquesize)
     sizes=[sum(cliquesize.== i) for i in uc]
@@ -1021,42 +937,6 @@ function sparse_basis(var,tvar,d;nb=0)
     end
 end
 
-# function sort_sparse(s)
-#     m=s.m
-#     n=s.n
-#     col=s.colptr
-#     row=s.rowval
-#     nz=s.nzval
-#     i=2
-#     while i<=n
-#         corr_row=row[col[i]:(col[i+1]-1)]
-#         corr_nz=nz[col[i]:(col[i+1]-1)]
-#         j=i-1
-#         while j>=1
-#             pre_row=row[col[j]:(col[j+1]-1)]
-#             pre_nz=nz[col[j]:(col[j+1]-1)]
-#             comp=comp_sparse(corr_row,corr_nz,pre_row,pre_nz)
-#             if comp==-1
-#                 j-=1
-#             else
-#                 break
-#             end
-#         end
-#         if j<i-1
-#             for k=i:-1:j+2
-#                 lprow=col[k]-col[k-1]
-#                 row[(col[k+1]-lprow):(col[k+1]-1)]=row[(col[k-1]):(col[k]-1)]
-#                 nz[(col[k+1]-lprow):(col[k+1]-1)]=nz[(col[k-1]):(col[k]-1)]
-#                 col[k]=col[k+1]-lprow
-#             end
-#             row[(col[j+1]):(col[j+2]-1)]=corr_row
-#             nz[(col[j+1]):(col[j+2]-1)]=corr_nz
-#         end
-#         i+=1
-#     end
-#     return SparseMatrixCSC(m,n,col,row,nz)
-# end
-
 function comp_sparse(corr_row,corr_nz,pre_row,pre_nz)
     i=1
     lc=length(corr_row)
@@ -1160,3 +1040,39 @@ function seval(supp,coe,x)
     end
     return val
 end
+
+# function sort_sparse(s)
+#     m=s.m
+#     n=s.n
+#     col=s.colptr
+#     row=s.rowval
+#     nz=s.nzval
+#     i=2
+#     while i<=n
+#         corr_row=row[col[i]:(col[i+1]-1)]
+#         corr_nz=nz[col[i]:(col[i+1]-1)]
+#         j=i-1
+#         while j>=1
+#             pre_row=row[col[j]:(col[j+1]-1)]
+#             pre_nz=nz[col[j]:(col[j+1]-1)]
+#             comp=comp_sparse(corr_row,corr_nz,pre_row,pre_nz)
+#             if comp==-1
+#                 j-=1
+#             else
+#                 break
+#             end
+#         end
+#         if j<i-1
+#             for k=i:-1:j+2
+#                 lprow=col[k]-col[k-1]
+#                 row[(col[k+1]-lprow):(col[k+1]-1)]=row[(col[k-1]):(col[k]-1)]
+#                 nz[(col[k+1]-lprow):(col[k+1]-1)]=nz[(col[k-1]):(col[k]-1)]
+#                 col[k]=col[k+1]-lprow
+#             end
+#             row[(col[j+1]):(col[j+2]-1)]=corr_row
+#             nz[(col[j+1]):(col[j+2]-1)]=corr_nz
+#         end
+#         i+=1
+#     end
+#     return SparseMatrixCSC(m,n,col,row,nz)
+# end
