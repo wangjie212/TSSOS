@@ -2,6 +2,8 @@ mutable struct data_type
     n
     nb
     d
+    x
+    f
     supp
     basis
     coe
@@ -47,7 +49,7 @@ function blockupop_first(f,x;nb=0,newton=true,e=1e-5,reducebasis=false,TS="block
     else
         sol=nothing
     end
-    data=data_type(n,nb,d,supp,basis,coe,supp1,ub,sizes)
+    data=data_type(n,nb,d,x,f,supp,basis,coe,supp1,ub,sizes)
     return opt,sol,data
 end
 
@@ -55,6 +57,8 @@ function blockupop_higher!(data;reducebasis=false,TS="block",merge=false,QUIET=f
     n=data.n
     nb=data.nb
     d=data.d
+    x=data.x
+    f=data.f
     supp=data.supp
     basis=data.basis
     coe=data.coe
@@ -290,7 +294,7 @@ function get_blocks(n,supp,basis,ub,sizes;nb=0,reduce=false,TS="block",minimize=
             blocksize=length.(blocks)
             cl=length(blocksize)
         else
-            blocks,cl,blocksize=chordal_cliques!(G, TS=TS, minimize=minimize)
+            blocks,cl,blocksize=chordal_cliques!(G, method=TS, minimize=minimize)
             if merge==true
                 blocks,cl,blocksize=clique_merge!(blocks,cl,QUIET=true)
             end

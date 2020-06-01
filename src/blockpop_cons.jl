@@ -291,7 +291,7 @@ function get_cblocks!(n,m,supp,ssupp,lt,fbasis,gbasis,gblocks,gcl,gblocksize,ub,
         end
     else
         G,tsupp=get_graph(n,supp,fbasis,nb=nb,reduce=reduce)
-        fblocks,fcl,fblocksize=chordal_cliques!(G, TS=TS, minimize=minimize)
+        fblocks,fcl,fblocksize=chordal_cliques!(G, method=TS, minimize=minimize)
         if merge==true
             fblocks,fcl,fblocksize=clique_merge!(fblocks,fcl,QUIET=true)
         end
@@ -308,7 +308,7 @@ function get_cblocks!(n,m,supp,ssupp,lt,fbasis,gbasis,gblocks,gcl,gblocksize,ub,
             end
             for k=1:m
                 G=get_cgraph(n,tsupp,ssupp[k+1],lt[k+1],gbasis[k],nb=nb,reduce=reduce)
-                gblocks[k],gcl[k],gblocksize[k]=chordal_cliques!(G, TS=TS, minimize=minimize)
+                gblocks[k],gcl[k],gblocksize[k]=chordal_cliques!(G, method=TS, minimize=minimize)
                 if merge==true
                     gblocks[k],gcl[k],gblocksize[k]=clique_merge!(gblocks[k],gcl[k],QUIET=true)
                 end
