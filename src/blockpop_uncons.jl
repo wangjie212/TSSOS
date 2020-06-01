@@ -1,6 +1,8 @@
 mutable struct data_type
     n
     d
+    x
+    f
     supp
     basis
     coe
@@ -58,13 +60,15 @@ function blockupop_first(f,x;newton=true,method="block",reducebasis=false,e=1e-5
     else
        opt,supp1=blockupopm(n,supp,coe,basis,blocks,cl,blocksize,QUIET=QUIET,solve=solve)
     end
-    data=data_type(n,d,supp,basis,coe,supp1,ub,sizes)
+    data=data_type(n,d,x,f,supp,basis,coe,supp1,ub,sizes)
     return opt,sol,data
 end
 
 function blockupop_higher!(data;method="block",reducebasis=false,QUIET=false,dense=10,model="JuMP",chor_alg="amd",solve=true,extra_sos=false,solution=false,tol=1e-5,merge=false)
     n=data.n
     d=data.d
+    x=data.x
+    f=data.f
     supp=data.supp
     basis=data.basis
     coe=data.coe
