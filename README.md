@@ -19,7 +19,7 @@ Inf{f(x): x∈R^n}
 ```
 where f is a polynomial with variables x1,...,xn and of degree d.
 
-Taking f=1+x1^4+x2^4+x3^4+x1\*x2\*x3+x2 as an example, to exetute the first block hierarchy, run
+Taking f=1+x1^4+x2^4+x3^4+x1\*x2\*x3+x2 as an example, to exetute the first TSSOS hierarchy, run
 ```Julia
 using TSSOS
 using DynamicPolynomials
@@ -43,7 +43,7 @@ opt,sol,data=blockupop_higher!(data)
 
 Options:  
 method: "block" (using the TSSOS hierarchy), "chordal" (using the chordal-TSSOS hierarchy)  
-chor_alg: "greedy" (an approximately chordal extension), "amd" (generate an approximately chordal extension)  
+chor_alg: "greedy" (an approximately minimum chordal extension), "amd" (an approximately minimum chordal extension)  
 solution: true (extract a solution), false (don't extract a solution)
 
 Note  
@@ -80,7 +80,7 @@ julia> opt,sol,data=blockcpop_higher!(data)
 
 Options:  
 method: "block" (using the TSSOS hierarchy), "chordal" (using the chordal-TSSOS hierarchy)  
-chor_alg: "greedy" (an approximately chordal extension), "amd" (an approximately chordal extension)  
+chor_alg: "greedy" (an approximately minimum chordal extension), "amd" (an approximately minimum chordal extension)  
 solution: true (extract a solution), false (don't extract a solution)
 
 One can also exploit correlative sparsity and term sparsity simultaneously, which is called the CS-TSSOS hierarchy.
@@ -113,8 +113,8 @@ opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,order,numeq=0,TS="block")
 opt,sol,data=cs_tssos_higher!(data,TS="block")
 ```
 Options:  
-CS (correlative sparsity): "greedy" (an approximately chordal extension), "amd" (an approximately chordal extension), "no" (no chordal extension)  
-TS (term sparsity): "block" (the maximal chordal extension), "greedy" (an approximately chordal extension), "amd"(an approximately chordal extension), false (no term sparsity)  
+CS (correlative sparsity): "greedy" (an approximately minimum chordal extension), "amd" (an approximately minimum chordal extension), "NC" (no chordal extension)  
+TS (term sparsity): "block" (the maximal chordal extension), "greedy" (an approximately minimum chordal extension), "amd"(an approximately minimum chordal extension), false (without term sparsity)  
 order: d (the relaxation order of Lasserre hierarchy), "multi" (applying the lowest relaxation orders for each variable clique)  
 extra_sos: true (adding a first-order moment matrix for each variable clique), false  
 solution: true (extract a solution), false (don't extract a solution)
