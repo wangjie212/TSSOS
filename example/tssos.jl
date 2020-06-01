@@ -7,10 +7,10 @@ using TSSOS
 x = tuple(x1,x2,x3,x4,x5,x6,x7,x8)
 f=include("E:\\Programs\\blocksos\\poly1\\F1.txt")
 @time begin
-opt,sol,data=blockupop_first(f,x,newton=true,method="block")
+opt,sol,data=blockupop_first(f,x,newton=true,TS="block")
 end
 @time begin
-opt,sol,data=blockupop_higher!(data,method="block")
+opt,sol,data=blockupop_higher!(data,TS="block")
 end
 
 # randomly generated examples of type II
@@ -18,10 +18,10 @@ end
 x = tuple(x1,x2,x3,x4,x5,x6,x7,x8)
 f=include("E:\\Programs\\blocksos\\poly2\\G1.txt")
 @time begin
-opt,sol,data=blockupop_first(f,x,newton=false,method="block")
+opt,sol,data=blockupop_first(f,x,newton=false,TS="block")
 end
 @time begin
-opt,sol,data=blockupop_higher!(data,method="block")
+opt,sol,data=blockupop_higher!(data,TS="block")
 end
 
 # the Broyden banded function
@@ -41,7 +41,7 @@ for i=1:n
 end
 f-=x[1]
 @time begin
-opt,sol,data=blockupop_first(f,x,newton=false,method="block")
+opt,sol,data=blockupop_first(f,x,newton=false,TS="block")
 end
 
 # the network system of type I
@@ -60,7 +60,7 @@ for i=1:n
 end
 f-=x[1]
 @time begin
-opt,sol,data=blockupop_first(f,x,newton=false,method="chordal")
+opt,sol,data=blockupop_first(f,x,newton=false,TS="MD")
 end
 
 # the network system of type II
@@ -84,7 +84,7 @@ for i=1:n
     push!(pop,x[i]^2*(2-x[i]^2))
 end
 @time begin
-opt,sol,data=blockcpop_first(pop,x,2,method="chordal")
+opt,sol,data=blockcpop_first(pop,x,2,TS="MD")
 end
 
 # constrained optimization using the TSSOS hierarchy
@@ -95,10 +95,10 @@ f=include("E:\\Programs\\blocksos\\cpoly\\H1.txt")
 pop=[f,1-sum(x.^2)]
 d=2 # the relaxation order
 @time begin
-opt,sol,data=blockcpop_first(pop,x,d,method="block")
+opt,sol,data=blockcpop_first(pop,x,d,TS="block")
 end
 @time begin
-opt,sol,data=blockcpop_higher!(data,method="block")
+opt,sol,data=blockcpop_higher!(data,TS="block")
 end
 
 # minimization over unit hypercube
@@ -108,8 +108,8 @@ f=include("E:\\Programs\\blocksos\\cpoly\\H1.txt")
 pop=[f,1-x1^2,1-x2^2,1-x3^2,1-x4^2,1-x5^2,1-x6^2]
 d=2 # the relaxation order
 @time begin
-opt,sol,data=blockcpop_first(pop,x,d,method="block")
+opt,sol,data=blockcpop_first(pop,x,d,TS="block")
 end
 @time begin
-opt,sol,data=blockcpop_higher!(data,method="block")
+opt,sol,data=blockcpop_higher!(data,TS="block")
 end

@@ -7,10 +7,10 @@ using TSSOS
 x = tuple(x1,x2,x3,x4,x5,x6,x7,x8)
 f=include("E:\\Programs\\blocksos\\poly1\\F1.txt")
 @time begin
-opt,sol,data=blockupop_first(f,x,newton=true,method="chordal")
+opt,sol,data=blockupop_first(f,x,newton=true,TS="MD")
 end
 @time begin
-opt,sol,data=blockupop_higher!(data,method="chordal")
+opt,sol,data=blockupop_higher!(data,TS="MD")
 end
 
 # randomly generated examples of type II
@@ -18,10 +18,10 @@ end
 x = tuple(x1,x2,x3,x4,x5,x6,x7,x8)
 f=include("E:\\Programs\\blocksos\\poly2\\G1.txt")
 @time begin
-opt,sol,data=blockupop_first(f,x,newton=false,method="chordal")
+opt,sol,data=blockupop_first(f,x,newton=false,TS="MD")
 end
 @time begin
-opt,sol,data=blockupop_higher!(data,method="chordal")
+opt,sol,data=blockupop_higher!(data,TS="MD")
 end
 
 # the Broyden banded function
@@ -41,7 +41,7 @@ for i=1:n
 end
 f-=x[1]
 @time begin
-opt,sol,data=blockupop_first(f,x,newton=false,method="chordal")
+opt,sol,data=blockupop_first(f,x,newton=false,TS="MD")
 end
 
 # the modified generalized Rosenbrock function
@@ -58,7 +58,7 @@ for i=1:n
 end
 f-=x[1]
 @time begin
-opt,sol,data=blockupop_first(f,x,newton=false,method="chordal")
+opt,sol,data=blockupop_first(f,x,newton=false,TS="MD")
 end
 
 # the modified chained singular function
@@ -74,7 +74,7 @@ for i=1:n
     end
 end
 @time begin
-opt,sol,data=blockupop_first(f,x,newton=false,method="chordal")
+opt,sol,data=blockupop_first(f,x,newton=false,TS="MD")
 end
 
 # constrained optimization using the chordal-TSSOS hierarchy
@@ -85,10 +85,10 @@ f=include("E:\\Programs\\blocksos\\cpoly\\H1.txt")
 pop=[f,1-sum(x.^2)]
 d=2 # the relaxation order
 @time begin
-opt,sol,data=blockcpop_first(pop,x,d,method="chordal")
+opt,sol,data=blockcpop_first(pop,x,d,TS="MD")
 end
 @time begin
-opt,sol,data=blockcpop_higher!(data,method="chordal")
+opt,sol,data=blockcpop_higher!(data,TS="MD")
 end
 
 # minimization of randomly generated examples over unit hypercube
@@ -98,10 +98,10 @@ f=include("E:\\Programs\\blocksos\\cpoly\\H1.txt")
 pop=[f,1-x1^2,1-x2^2,1-x3^2,1-x4^2,1-x5^2,1-x6^2]
 d=2 # the relaxation order
 @time begin
-opt,sol,data=blockcpop_first(pop,x,d,method="chordal")
+opt,sol,data=blockcpop_first(pop,x,d,TS="MD")
 end
 @time begin
-opt,sol,data=blockcpop_higher!(data,method="chordal")
+opt,sol,data=blockcpop_higher!(data,TS="MD")
 end
 
 # minimization of the Broyden tridiagonal function over the unit ball
@@ -115,10 +115,10 @@ f+=((3-2*x[n])*x[n]-x[n-1]+1)^2
 pop=[f,1-sum(x.^2)]
 d=2 # the relaxation order
 @time begin
-opt,sol,data=blockcpop_first(pop,x,d,method="chordal")
+opt,sol,data=blockcpop_first(pop,x,d,TS="MD")
 end
 @time begin
-opt,sol,data=blockcpop_higher!(data,method="chordal")
+opt,sol,data=blockcpop_higher!(data,TS="MD")
 end
 
 # minimization of the generalized Rosenbrock function over the unit ball
@@ -132,8 +132,8 @@ f-=x[1]
 pop=[f,1-sum(x.^2)]
 d=2 # the relaxation order
 @time begin
-opt,sol,data=blockcpop_first(pop,x,d,method="chordal")
+opt,sol,data=blockcpop_first(pop,x,d,TS="MD")
 end
 @time begin
-opt,sol,data=blockcpop_higher!(data,method="chordal")
+opt,sol,data=blockcpop_higher!(data,TS="MD")
 end

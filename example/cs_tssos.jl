@@ -33,8 +33,11 @@ end
 supp=sparse(supp)
 cliques,cql,cliquesize=clique_decomp(n,supp)
 d=3
-blocks,cl,blocksize,ub,sizes,basis=get_blocks_mix(d,supp,cliques,cql,cliquesize,method="chordal",chor_alg="greedy")
-objv,supp0,moment=blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize,solution=false,extra_sos=false)
+blocks,cl,blocksize,ub,sizes,basis,status=get_blocks_mix(d,supp,nothing,cliques,cql,cliquesize,nothing,nothing,TS="MD")
+objv,supp0,moment=blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize)
+end
+@time begin
+objv,supp0,moment=blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,nothing,nothing,nothing,mix=false)
 end
 
 # constrained optimization using the chordal-TSSOS hierarchy
@@ -70,7 +73,10 @@ end
 dg=2*ones(Int,m)
 order=2 # the relaxation order
 @time begin
-opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,order,TS="greedy",extra_sos=false)
+opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,order,TS="MD",extra_sos=false)
+end
+@time begin
+opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,order,TS=false)
 end
 
 # the Broyden tridiagonal function
@@ -104,7 +110,10 @@ for k=1:m+1
 end
 dg=2*ones(Int,m)
 @time begin
-opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,2,TS="greedy",extra_sos=false)
+opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,2,TS="MD",extra_sos=false)
+end
+@time begin
+opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,order,TS=false)
 end
 
 # the chained Wood function
@@ -138,7 +147,10 @@ for k=1:m+1
 end
 dg=2*ones(Int,m)
 @time begin
-opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,2,TS="greedy",extra_sos=false)
+opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,2,TS="MD",extra_sos=false)
+end
+@time begin
+opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,order,TS=false)
 end
 
 # Max-Cut problems
@@ -190,7 +202,7 @@ end
 
 # the 2-nd CS-TSSOS hierarchy
 @time begin
-opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,2,numeq=numeq,TS="block",extra_sos=true)
+opt,sol,data=cs_tssos_first(n,m,dg,supp,coe,2,numeq=numeq,TS="block")
 end
 
 # AC-OPF problems
@@ -233,11 +245,11 @@ dg=model.dg
 
 # the 2-nd CS-TSSOS hierarchy with multi order
 @time begin
-cliques,cql,cliquesize=clique_cdecomp(n,m,dg,supp,order="multi",alg="amd")
+cliques,cql,cliquesize=clique_cdecomp(n,m,dg,supp,order="multi",alg="MF",minimize=true)
 I,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign="min")
 rlorder=init_order(dg,I,cql,order="multi")
-blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis=get_cblocks_mix(dg,I,rlorder,m,supp,cliques,cql,cliquesize,method="block",chor_alg=nothing)
-opt,supp0,supp1,measure,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,numeq=numeq,mix=true,QUIET=false,solve=true,solution=false,extra_sos=true)
+blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,nothing,nothing,nothing,nothing,nothing,cliques,cql,cliquesize,nothing,nothing,nothing,nothing,nothing,TS="block")
+opt,supp0,_,_,_=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,numeq=numeq,mix=true,QUIET=false,solve=true,solution=false,extra_sos=true)
 end
 
 # the 2-nd CSSOS hierarchy with multi order
@@ -247,10 +259,10 @@ end
 
 # the 2-nd CS-TSSOS hierarchy with uniform order
 # @time begin
-# cliques,cql,cliquesize=clique_opf_four(m,nbus,nb,supp,vmc="quadratic",alg="amd")
+# cliques,cql,cliquesize=clique_opf_four(m,nbus,nb,supp,vmc="quadratic",alg="MF",minimize=true)
 # I,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign="min")
 # rlorder=init_order(dg,I,cql,order=2)
-# blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis=get_cblocks_mix(dg,I,rlorder,m,supp,cliques,cql,cliquesize,method="chordal",chor_alg="greedy")
+# blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,nothing,nothing,nothing,nothing,nothing,cliques,cql,cliquesize,nothing,nothing,nothing,nothing,nothing,TS="MD")
 # opt,supp0,supp1,measure,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,numeq=numeq,mix=true,QUIET=false,solve=true,solution=false,extra_sos=true)
 # end
 
