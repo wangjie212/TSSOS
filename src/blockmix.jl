@@ -117,7 +117,6 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
     else
         for i=1:cql
             basis[i]=sparse_basis(cliques[i],n,d,nb=cnb[i])
-            ssupp=sparse_basis(cliques[i],n,2*d,nb=cnb[i])
             tcol=[1;basis[i].colptr]
             trow=basis[i].rowval
             tnz=basis[i].nzval
