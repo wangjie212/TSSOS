@@ -682,9 +682,6 @@ function get_cblocks_mix!(dg,I,rlorder,m,supp,supp0,ssupp,lt,fbasis,gbasis,cliqu
     end
     status=ones(UInt8,cql)
     for i=1:cql
-        if flag==1
-
-        end
         lc=length(I[i])
         nvar=cliquesize[i]
         fsupp=zeros(UInt8,nvar,1)
