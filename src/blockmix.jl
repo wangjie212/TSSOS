@@ -24,31 +24,62 @@ mutable struct mdata_type
     sizes
 end
 
-function cs_tssos_first(n,m,dg,supp,coe,order;nb=0,numeq=0,CS="MD",minimize=false,assign="min",TS="block",QUIET=false,solve=true,solution=false,extra_sos=true)
-    cliques,cql,cliquesize=clique_cdecomp(n,m,dg,supp,order=order,alg=CS,minimize=minimize)
+function cs_tssos_first(pop,x,d::Int;nb=0,numeq=0,CS="MD",minimize=false,assign="min",TS="block",QUIET=false,solve=true,solution=false,extra_sos=true)
+    n=length(x)
+    m=length(pop)-1
+    coe=Array{Vector{Float64}}(undef, m+1)
+    supp=Array{SparseMatrixCSC}(undef, m+1)
+    for k=1:m+1
+        mon=monomials(pop[k])
+        coe[k]=coefficients(pop[k])
+        lt=length(mon)
+        temp=zeros(UInt8,n,lt)
+        for i=1:lt, j=1:n
+            temp[j,i]=MultivariatePolynomials.degree(mon[i],x[j])
+        end
+        supp[k]=sparse(temp)
+    end
+    dg=zeros(Int,m)
+    for i=1:m
+        dg[i]=maxdegree(pop[i+1])
+    end
+    cliques,cql,cliquesize=clique_decomp(n,m,dg,supp,order=d,alg=CS,minimize=minimize)
     I,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign=assign)
-    rlorder=init_order(dg,I,cql,order=order)
+    rlorder=init_order(dg,I,cql,order=d)
     if TS==false
         opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,nothing,nothing,nothing,nb=nb,numeq=numeq,mix=false,QUIET=QUIET,solve=solve,solution=solution,extra_sos=false)
-        blocks=nothing
-        cl=nothing
-        blocksize=nothing
-        fbasis=nothing
-        gbasis=nothing
-        ssupp=nothing
-        lt=nothing
-        ub=nothing
-        sizes=nothing
+        data=mdata_type(n,nb,m,dg,supp,coe,numeq,rlorder,supp0,[],[],[],[],cql,cliques,cliquesize,I,ncc,[],[],[],[],[])
     else
-        blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,nothing,nothing,nothing,nothing,nothing,cliques,cql,cliquesize,nothing,nothing,nothing,nothing,nothing,nb=nb,TS=TS)
+        blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,cliques,cql,cliquesize,nb=nb,TS=TS)
         opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,mix=true,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
+        data=mdata_type(n,nb,m,dg,supp,coe,numeq,rlorder,supp0,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,I,ncc,blocks,cl,blocksize,ub,sizes)
     end
     if solution==true
         sol=approx_sol(moment,n,cliques,cql,cliquesize)
     else
         sol=nothing
     end
-    data=mdata_type(n,nb,m,dg,supp,coe,numeq,rlorder,supp0,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,I,ncc,blocks,cl,blocksize,ub,sizes)
+    return opt,sol,data
+end
+
+function cs_tssos_first(supp::Vector{SparseMatrixCSC},coe::Vector{Vector{Float64}},n::Int,d::Int,dg::Vector{Int};nb=0,numeq=0,CS="MD",minimize=false,assign="min",TS="block",QUIET=false,solve=true,solution=false,extra_sos=true)
+    m=length(supp)-1
+    cliques,cql,cliquesize=clique_decomp(n,m,dg,supp,order=d,alg=CS,minimize=minimize)
+    I,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign=assign)
+    rlorder=init_order(dg,I,cql,order=d)
+    if TS==false
+        opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,nothing,nothing,nothing,nb=nb,numeq=numeq,mix=false,QUIET=QUIET,solve=solve,solution=solution,extra_sos=false)
+        data=mdata_type(n,nb,m,dg,supp,coe,numeq,rlorder,supp0,[],[],[],[],cql,cliques,cliquesize,I,ncc,[],[],[],[],[])
+    else
+        blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,cliques,cql,cliquesize,nb=nb,TS=TS)
+        opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,mix=true,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
+        data=mdata_type(n,nb,m,dg,supp,coe,numeq,rlorder,supp0,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,I,ncc,blocks,cl,blocksize,ub,sizes)
+    end
+    if solution==true
+        sol=approx_sol(moment,n,cliques,cql,cliquesize)
+    else
+        sol=nothing
+    end
     return opt,sol,data
 end
 
@@ -76,7 +107,7 @@ function cs_tssos_higher!(data;TS="block",QUIET=false,solve=true,solution=false,
     blocksize=data.blocksize
     ub=data.ub
     sizes=data.sizes
-    blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,supp0,ssupp,lt,fbasis,gbasis,cliques,cql,cliquesize,blocks,cl,blocksize,ub,sizes,nb=nb,TS=TS)
+    blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,cliques,cql,cliquesize,supp0=supp0,ssupp=ssupp,lt=lt,fbasis=fbasis,gbasis=gbasis,blocks=blocks,cl=cl,blocksize=blocksize,ub=ub,sizes=sizes,nb=nb,TS=TS)
     if status==1
         opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,mix=true,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
     else
@@ -103,8 +134,8 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
         cnb=zeros(UInt8,cql)
     end
     basis=Array{SparseMatrixCSC{UInt8,UInt32}}(undef,cql)
-    col=Int[1]
-    row=Int[]
+    col=UInt32[1]
+    row=UInt32[]
     nz=UInt8[]
     if mix==false
         for i=1:cql
@@ -120,17 +151,15 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
             tcol=[1;basis[i].colptr]
             trow=basis[i].rowval
             tnz=basis[i].nzval
-            for j=1:cl[i]
-                for k=1:blocksize[i][j]
-                    ind1=blocks[i][j][k]
-                    t=ind1==1 ? 2 : k
-                    for r=t:blocksize[i][j]
-                        @inbounds ind2=blocks[i][j][r]
-                        @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)],nb=nb)
-                        append!(col,col[end]+length(bi_row))
-                        append!(row,bi_row)
-                        append!(nz,bi_nz)
-                    end
+            for j=1:cl[i], k=1:blocksize[i][j]
+                ind1=blocks[i][j][k]
+                t=ind1==1 ? 2 : k
+                for r=t:blocksize[i][j]
+                    @inbounds ind2=blocks[i][j][r]
+                    @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)],nb=nb)
+                    append!(col,col[end]+length(bi_row))
+                    append!(row,bi_row)
+                    append!(nz,bi_nz)
                 end
             end
         end
@@ -146,26 +175,24 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
             end
         end
     end
-    supp1=SparseMatrixCSC(n,UInt32(length(col)),[1;col],row,nz)
-    supp1=Array(supp1)
-    supp1=unique(supp1,dims=2)
-    supp1=sortslices(supp1,dims=2)
-    supp1=sparse(supp1)
+    tsupp=SparseMatrixCSC(UInt32(n),UInt32(length(col)),UInt32[1;col],row,nz)
+    tsupp=Array(tsupp)
+    tsupp=unique(tsupp,dims=2)
+    tsupp=sortslices(tsupp,dims=2)
+    tsupp=sparse(tsupp)
     if mix==true
-        supp0=SparseMatrixCSC(n,UInt32(length(col0)),[1;col0],row0,nz0)
-        supp0=Array(supp0)
+        supp0=SparseMatrixCSC(UInt32(n),UInt32(length(col0)),UInt32[1;col0],row0,nz0)
         supp0=unique(supp0,dims=2)
-        supp0=sparse(supp0)
     else
-        supp0=supp1
+        supp0=tsupp
     end
     moment=nothing
     objv=nothing
     if solve==true
-        lsupp1=supp1.n
+        ltsupp=tsupp.n
         model=Model(optimizer_with_attributes(Mosek.Optimizer))
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
-        cons=[AffExpr(0) for i=1:lsupp1]
+        cons=[AffExpr(0) for i=1:ltsupp]
         if mix==false
             pos0=Vector{Symmetric{VariableRef}}(undef, cql)
             for i=1:cql
@@ -174,15 +201,13 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
                 tcol=[1;basis[i].colptr]
                 trow=basis[i].rowval
                 tnz=basis[i].nzval
-                for j=1:lb
-                    for k=j:lb
-                        bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)],nb=nb)
-                        Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                        if j==k
-                            @inbounds cons[Locb]+=pos0[i][j,k]
-                        else
-                            @inbounds cons[Locb]+=2*pos0[i][j,k]
-                        end
+                for j=1:lb, k=j:lb
+                    bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)],nb=nb)
+                    Locb=bfind_sparse(tsupp,bi_row,bi_nz)
+                    if j==k
+                        @inbounds cons[Locb]+=pos0[i][j,k]
+                    else
+                        @inbounds cons[Locb]+=2*pos0[i][j,k]
                     end
                 end
             end
@@ -196,15 +221,13 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
                     tcol=[1;basis[i].colptr[1:lb]]
                     trow=basis[i].rowval[1:lb-1]
                     tnz=basis[i].nzval[1:lb-1]
-                    for j=1:lb
-                        for k=j:lb
-                            bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)],nb=nb)
-                            Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                            if j==k
-                                @inbounds cons[Locb]+=pos0[i][j,k]
-                            else
-                                @inbounds cons[Locb]+=2*pos0[i][j,k]
-                            end
+                    for j=1:lb, k=j:lb
+                        bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)],nb=nb)
+                        Locb=bfind_sparse(tsupp,bi_row,bi_nz)
+                        if j==k
+                            @inbounds cons[Locb]+=pos0[i][j,k]
+                        else
+                            @inbounds cons[Locb]+=2*pos0[i][j,k]
                         end
                     end
                 end
@@ -216,7 +239,7 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
                     if blocksize[i][k]==1
                        pos1[i][k]=@variable(model, lower_bound=0)
                        bi_row,bi_nz=splus(trow[tcol[blocks[i][k][1]]:(tcol[blocks[i][k][1]+1]-1)],tnz[tcol[blocks[i][k][1]]:(tcol[blocks[i][k][1]+1]-1)],trow[tcol[blocks[i][k][1]]:(tcol[blocks[i][k][1]+1]-1)],tnz[tcol[blocks[i][k][1]]:(tcol[blocks[i][k][1]+1]-1)],nb=nb)
-                       Locb=bfind_sparse(supp1,bi_row,bi_nz)
+                       Locb=bfind_sparse(tsupp,bi_row,bi_nz)
                        @inbounds cons[Locb]+=pos1[i][k]
                     else
                        pos1[i][k]=@variable(model, [1:blocksize[i][k], 1:blocksize[i][k]], PSD)
@@ -225,7 +248,7 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
                            for r=j:blocksize[i][k]
                                @inbounds ind2=blocks[i][k][r]
                                @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)],nb=nb)
-                               Locb=bfind_sparse(supp1,bi_row,bi_nz)
+                               Locb=bfind_sparse(tsupp,bi_row,bi_nz)
                                if j==r
                                    @inbounds cons[Locb]+=pos1[i][k][j,r]
                                else
@@ -237,9 +260,9 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
                 end
             end
         end
-        bc=zeros(lsupp1,1)
+        bc=zeros(ltsupp)
         for i=1:supp.n
-            Locb=bfind_sparse(supp1,supp.rowval[supp.colptr[i]:(supp.colptr[i+1]-1)],supp.nzval[supp.colptr[i]:(supp.colptr[i+1]-1)])
+            Locb=bfind_sparse(tsupp,supp.rowval[supp.colptr[i]:(supp.colptr[i+1]-1)],supp.nzval[supp.colptr[i]:(supp.colptr[i+1]-1)])
             if Locb==0
                @error "The monomial basis is not enough!"
                return nothing,nothing,nothing
@@ -249,7 +272,7 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
         end
         @variable(model, lower)
         cons[1]+=lower
-        @constraint(model, con[i=1:lsupp1], cons[i]==bc[i])
+        @constraint(model, con[i=1:ltsupp], cons[i]==bc[i])
         @objective(model, Max, lower)
         optimize!(model)
         status=termination_status(model)
@@ -264,7 +287,7 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
            println("optimum = $objv")
         end
         if solution==true
-            moment=get_moment(-dual.(con),supp1,cliques,cql,cliquesize,nb=nb)
+            moment=get_moment(-dual.(con),tsupp,cliques,cql,cliquesize,nb=nb)
         end
     end
     return objv,supp0,moment
@@ -278,8 +301,8 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
     end
     fbasis=Array{SparseMatrixCSC{UInt8,UInt32}}(undef,cql)
     gbasis=Array{SparseMatrixCSC{UInt8,UInt32}}(undef,m)
-    col=Int[1]
-    row=Int[]
+    col=UInt32[1]
+    row=UInt32[]
     nz=UInt8[]
     if mix==false
         for i=1:cql
@@ -294,13 +317,11 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
                 tcol=[1;ssupp.colptr]
                 trow=ssupp.rowval
                 tnz=ssupp.nzval
-                for t=1:ssupp.n+1
-                    for s=1:supp[j+1].n
-                        @inbounds bi_row,bi_nz=splus(trow[tcol[t]:(tcol[t+1]-1)],tnz[tcol[t]:(tcol[t+1]-1)],supp[j+1].rowval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],supp[j+1].nzval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],nb=nb)
-                        append!(col,col[end]+length(bi_row))
-                        append!(row,bi_row)
-                        append!(nz,bi_nz)
-                    end
+                for t=1:ssupp.n+1, s=1:supp[j+1].n
+                    @inbounds bi_row,bi_nz=splus(trow[tcol[t]:(tcol[t+1]-1)],tnz[tcol[t]:(tcol[t+1]-1)],supp[j+1].rowval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],supp[j+1].nzval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],nb=nb)
+                    append!(col,col[end]+length(bi_row))
+                    append!(row,bi_row)
+                    append!(nz,bi_nz)
                 end
             end
         end
@@ -310,17 +331,15 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
             tcol=[1;fbasis[i].colptr]
             trow=fbasis[i].rowval
             tnz=fbasis[i].nzval
-            for j=1:cl[i][1]
-                for k=1:blocksize[i][1][j]
-                    ind1=blocks[i][1][j][k]
-                    t=ind1==1 ? 2 : k
-                    for r=t:blocksize[i][1][j]
-                        @inbounds ind2=blocks[i][1][j][r]
-                        @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)],nb=nb)
-                        append!(col,col[end]+length(bi_row))
-                        append!(row,bi_row)
-                        append!(nz,bi_nz)
-                    end
+            for j=1:cl[i][1], k=1:blocksize[i][1][j]
+                ind1=blocks[i][1][j][k]
+                t=ind1==1 ? 2 : k
+                for r=t:blocksize[i][1][j]
+                    @inbounds ind2=blocks[i][1][j][r]
+                    @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)],nb=nb)
+                    append!(col,col[end]+length(bi_row))
+                    append!(row,bi_row)
+                    append!(nz,bi_nz)
                 end
             end
         end
@@ -342,19 +361,17 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
                 tcol=[1;gbasis[j].colptr]
                 trow=gbasis[j].rowval
                 tnz=gbasis[j].nzval
-                for l=1:cl[i][k+1]
-                    for t=1:blocksize[i][k+1][l]
-                        ind1=blocks[i][k+1][l][t]
-                        for r=t:blocksize[i][k+1][l]
-                            ind2=blocks[i][k+1][l][r]
-                            for s=1:supp[j+1].n
-                                @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)],nb=nb)
-                                @inbounds bi_row,bi_nz=splus(bi_row,bi_nz,supp[j+1].rowval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],supp[j+1].nzval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],nb=nb)
-                                if length(bi_row)!=0
-                                   append!(col,col[end]+length(bi_row))
-                                   append!(row,bi_row)
-                                   append!(nz,bi_nz)
-                                end
+                for l=1:cl[i][k+1], t=1:blocksize[i][k+1][l]
+                    ind1=blocks[i][k+1][l][t]
+                    for r=t:blocksize[i][k+1][l]
+                        ind2=blocks[i][k+1][l][r]
+                        for s=1:supp[j+1].n
+                            @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)],nb=nb)
+                            @inbounds bi_row,bi_nz=splus(bi_row,bi_nz,supp[j+1].rowval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],supp[j+1].nzval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],nb=nb)
+                            if length(bi_row)!=0
+                               append!(col,col[end]+length(bi_row))
+                               append!(row,bi_row)
+                               append!(nz,bi_nz)
                             end
                         end
                     end
@@ -367,27 +384,27 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
         append!(row,supp[i+1].rowval)
         append!(nz,supp[i+1].nzval)
     end
-    supp1=SparseMatrixCSC(n,UInt32(length(col)),[1;col],row,nz)
-    supp1=Array(supp1)
-    supp1=unique(supp1,dims=2)
-    supp1=sortslices(supp1,dims=2)
-    supp1=sparse(supp1)
+    tsupp=SparseMatrixCSC(UInt32(n),UInt32(length(col)),UInt32[1;col],row,nz)
+    tsupp=Array(tsupp)
+    tsupp=unique(tsupp,dims=2)
+    tsupp=sortslices(tsupp,dims=2)
+    tsupp=sparse(tsupp)
     if (small==true||extra_sos==true)&&mix==true
-        supp0=SparseMatrixCSC(n,UInt32(length(col0)),[1;col0],row0,nz0)
+        supp0=SparseMatrixCSC(UInt32(n),UInt32(length(col0)),UInt32[1;col0],row0,nz0)
         supp0=Array(supp0)
         supp0=unique(supp0,dims=2)
         supp0=sparse(supp0)
     else
-        supp0=supp1
+        supp0=tsupp
     end
     objv=nothing
     measure=nothing
     moment=nothing
     if solve==true
-        lsupp1=supp1.n
+        ltsupp=tsupp.n
         model=Model(optimizer_with_attributes(Mosek.Optimizer))
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
-        cons=[AffExpr(0) for i=1:lsupp1]
+        cons=[AffExpr(0) for i=1:ltsupp]
         if mix==false
             pos0=Vector{Symmetric{VariableRef}}(undef, cql)
             for i=1:cql
@@ -396,15 +413,13 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
                 tcol=[1;fbasis[i].colptr]
                 trow=fbasis[i].rowval
                 tnz=fbasis[i].nzval
-                for j=1:lb
-                    for k=j:lb
-                        @inbounds bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)],nb=nb)
-                        Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                        if j==k
-                            @inbounds cons[Locb]+=pos0[i][j,k]
-                        else
-                            @inbounds cons[Locb]+=2*pos0[i][j,k]
-                        end
+                for j=1:lb, k=j:lb
+                    @inbounds bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)],nb=nb)
+                    Locb=bfind_sparse(tsupp,bi_row,bi_nz)
+                    if j==k
+                        @inbounds cons[Locb]+=pos0[i][j,k]
+                    else
+                        @inbounds cons[Locb]+=2*pos0[i][j,k]
                     end
                 end
             end
@@ -418,15 +433,13 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
                     tcol=[1;fbasis[i].colptr[1:lb]]
                     trow=fbasis[i].rowval[1:lb-1]
                     tnz=fbasis[i].nzval[1:lb-1]
-                    for t=1:lb
-                        for r=t:lb
-                            bi_row,bi_nz=splus(trow[tcol[t]:(tcol[t+1]-1)],tnz[tcol[t]:(tcol[t+1]-1)],trow[tcol[r]:(tcol[r+1]-1)],tnz[tcol[r]:(tcol[r+1]-1)],nb=nb)
-                            Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                            if t==r
-                                @inbounds cons[Locb]+=pos0[i][t,r]
-                            else
-                                @inbounds cons[Locb]+=2*pos0[i][t,r]
-                            end
+                    for t=1:lb, r=t:lb
+                        bi_row,bi_nz=splus(trow[tcol[t]:(tcol[t+1]-1)],tnz[tcol[t]:(tcol[t+1]-1)],trow[tcol[r]:(tcol[r+1]-1)],tnz[tcol[r]:(tcol[r+1]-1)],nb=nb)
+                        Locb=bfind_sparse(tsupp,bi_row,bi_nz)
+                        if t==r
+                            @inbounds cons[Locb]+=pos0[i][t,r]
+                        else
+                            @inbounds cons[Locb]+=2*pos0[i][t,r]
                         end
                     end
                 end
@@ -438,7 +451,7 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
                     if blocksize[i][1][l]==1
                        @inbounds pos1[i][l]=@variable(model, lower_bound=0)
                        @inbounds bi_row,bi_nz=splus(trow[tcol[blocks[i][1][l][1]]:(tcol[blocks[i][1][l][1]+1]-1)],tnz[tcol[blocks[i][1][l][1]]:(tcol[blocks[i][1][l][1]+1]-1)],trow[tcol[blocks[i][1][l][1]]:(tcol[blocks[i][1][l][1]+1]-1)],tnz[tcol[blocks[i][1][l][1]]:(tcol[blocks[i][1][l][1]+1]-1)],nb=nb)
-                       Locb=bfind_sparse(supp1,bi_row,bi_nz)
+                       Locb=bfind_sparse(tsupp,bi_row,bi_nz)
                        @inbounds cons[Locb]+=pos1[i][l]
                     else
                        @inbounds bs=blocksize[i][1][l]
@@ -448,7 +461,7 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
                            for r=t:bs
                                @inbounds ind2=blocks[i][1][l][r]
                                @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)],nb=nb)
-                               Locb=bfind_sparse(supp1,bi_row,bi_nz)
+                               Locb=bfind_sparse(tsupp,bi_row,bi_nz)
                                if t==r
                                   @inbounds cons[Locb]+=pos1[i][l][t,r]
                                else
@@ -469,107 +482,99 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
                 pos2[k]=@variable(model)
             end
             for j=1:supp[i+1].n
-                Locb=bfind_sparse(supp1,supp[i+1].rowval[supp[i+1].colptr[j]:(supp[i+1].colptr[j+1]-1)],supp[i+1].nzval[supp[i+1].colptr[j]:(supp[i+1].colptr[j+1]-1)])
+                Locb=bfind_sparse(tsupp,supp[i+1].rowval[supp[i+1].colptr[j]:(supp[i+1].colptr[j+1]-1)],supp[i+1].nzval[supp[i+1].colptr[j]:(supp[i+1].colptr[j+1]-1)])
                 cons[Locb]+=coe[i+1][j]*pos2[k]
             end
         end
         p=1
         if mix==false
             pos3=Vector{Union{VariableRef,Symmetric{VariableRef},Vector{VariableRef}}}(undef, m-length(ncc))
-            for i=1:cql
-                for j in I[i]
-                    tcol=[1;gbasis[j].colptr]
-                    trow=gbasis[j].rowval
-                    tnz=gbasis[j].nzval
-                    lb=gbasis[j].n+1
-                    if lb==1
-                        if j<=m-numeq
-                            pos3[p]=@variable(model, lower_bound=0)
-                        else
-                            pos3[p]=@variable(model)
-                        end
-                        for s=1:supp[j+1].n
-                            Locb=bfind_sparse(supp1,supp[j+1].rowval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],supp[j+1].nzval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)])
-                            @inbounds cons[Locb]+=coe[j+1][s]*pos3[p]
-                        end
+            for i=1:cql, j in I[i]
+                tcol=[1;gbasis[j].colptr]
+                trow=gbasis[j].rowval
+                tnz=gbasis[j].nzval
+                lb=gbasis[j].n+1
+                if lb==1
+                    if j<=m-numeq
+                        pos3[p]=@variable(model, lower_bound=0)
                     else
-                        if j<=m-numeq
-                            pos3[p]=@variable(model, [1:lb, 1:lb], PSD)
+                        pos3[p]=@variable(model)
+                    end
+                    for s=1:supp[j+1].n
+                        Locb=bfind_sparse(tsupp,supp[j+1].rowval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],supp[j+1].nzval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)])
+                        @inbounds cons[Locb]+=coe[j+1][s]*pos3[p]
+                    end
+                else
+                    if j<=m-numeq
+                        pos3[p]=@variable(model, [1:lb, 1:lb], PSD)
+                    else
+                        pos3[p]=@variable(model, [1:lb, 1:lb], Symmetric)
+                    end
+                    for t=1:lb, r=t:lb, s=1:supp[j+1].n
+                        @inbounds bi_row,bi_nz=splus(trow[tcol[t]:(tcol[t+1]-1)],tnz[tcol[t]:(tcol[t+1]-1)],trow[tcol[r]:(tcol[r+1]-1)],tnz[tcol[r]:(tcol[r+1]-1)],nb=nb)
+                        @inbounds bi_row,bi_nz=splus(bi_row,bi_nz,supp[j+1].rowval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],supp[j+1].nzval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],nb=nb)
+                        Locb=bfind_sparse(tsupp,bi_row,bi_nz)
+                        if t==r
+                            @inbounds cons[Locb]+=coe[j+1][s]*pos3[p][t,r]
                         else
-                            pos3[p]=@variable(model, [1:lb, 1:lb], Symmetric)
-                        end
-                        for t=1:lb
-                            for r=t:lb
-                                for s=1:supp[j+1].n
-                                    @inbounds bi_row,bi_nz=splus(trow[tcol[t]:(tcol[t+1]-1)],tnz[tcol[t]:(tcol[t+1]-1)],trow[tcol[r]:(tcol[r+1]-1)],tnz[tcol[r]:(tcol[r+1]-1)],nb=nb)
-                                    @inbounds bi_row,bi_nz=splus(bi_row,bi_nz,supp[j+1].rowval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],supp[j+1].nzval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],nb=nb)
-                                    Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                                    if t==r
-                                        @inbounds cons[Locb]+=coe[j+1][s]*pos3[p][t,r]
-                                    else
-                                        @inbounds cons[Locb]+=2*coe[j+1][s]*pos3[p][t,r]
-                                    end
-                                end
-                            end
+                            @inbounds cons[Locb]+=2*coe[j+1][s]*pos3[p][t,r]
                         end
                     end
-                    p+=1
                 end
+                p+=1
             end
         else
             pos3=Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, m-length(ncc))
-            for i=1:cql
-                for k=1:length(I[i])
-                    j=I[i][k]
-                    tcol=[1;gbasis[j].colptr]
-                    trow=gbasis[j].rowval
-                    tnz=gbasis[j].nzval
-                    pos3[p]=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef,cl[i][k+1])
-                    for l=1:cl[i][k+1]
-                        bs=blocksize[i][k+1][l]
-                        if bs==1
-                            if j<=m-numeq
-                                pos3[p][l]=@variable(model, lower_bound=0)
-                            else
-                                pos3[p][l]=@variable(model)
-                            end
-                           for s=1:supp[j+1].n
-                               @inbounds ind1=blocks[i][k+1][l][1]
-                               @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],2*tnz[tcol[ind1]:(tcol[ind1+1]-1)],supp[j+1].rowval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],supp[j+1].nzval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],nb=nb)
-                               Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                               @inbounds cons[Locb]+=coe[j+1][s]*pos3[p][l]
-                           end
+            for i=1:cql, k=1:length(I[i])
+                j=I[i][k]
+                tcol=[1;gbasis[j].colptr]
+                trow=gbasis[j].rowval
+                tnz=gbasis[j].nzval
+                pos3[p]=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef,cl[i][k+1])
+                for l=1:cl[i][k+1]
+                    bs=blocksize[i][k+1][l]
+                    if bs==1
+                        if j<=m-numeq
+                            pos3[p][l]=@variable(model, lower_bound=0)
                         else
-                            if j<=m-numeq
-                                pos3[p][l]=@variable(model, [1:bs, 1:bs], PSD)
-                            else
-                                pos3[p][l]=@variable(model, [1:bs, 1:bs], Symmetric)
-                            end
-                            for t=1:bs
-                               ind1=blocks[i][k+1][l][t]
-                               for r=t:bs
-                                   ind2=blocks[i][k+1][l][r]
-                                   for s=1:supp[j+1].n
-                                       @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)],nb=nb)
-                                       @inbounds bi_row,bi_nz=splus(bi_row,bi_nz,supp[j+1].rowval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],supp[j+1].nzval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],nb=nb)
-                                       Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                                       if t==r
-                                           @inbounds cons[Locb]+=coe[j+1][s]*pos3[p][l][t,r]
-                                       else
-                                           @inbounds cons[Locb]+=2*coe[j+1][s]*pos3[p][l][t,r]
-                                       end
+                            pos3[p][l]=@variable(model)
+                        end
+                       for s=1:supp[j+1].n
+                           @inbounds ind1=blocks[i][k+1][l][1]
+                           @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],2*tnz[tcol[ind1]:(tcol[ind1+1]-1)],supp[j+1].rowval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],supp[j+1].nzval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],nb=nb)
+                           Locb=bfind_sparse(tsupp,bi_row,bi_nz)
+                           @inbounds cons[Locb]+=coe[j+1][s]*pos3[p][l]
+                       end
+                    else
+                        if j<=m-numeq
+                            pos3[p][l]=@variable(model, [1:bs, 1:bs], PSD)
+                        else
+                            pos3[p][l]=@variable(model, [1:bs, 1:bs], Symmetric)
+                        end
+                        for t=1:bs
+                           ind1=blocks[i][k+1][l][t]
+                           for r=t:bs
+                               ind2=blocks[i][k+1][l][r]
+                               for s=1:supp[j+1].n
+                                   @inbounds bi_row,bi_nz=splus(trow[tcol[ind1]:(tcol[ind1+1]-1)],tnz[tcol[ind1]:(tcol[ind1+1]-1)],trow[tcol[ind2]:(tcol[ind2+1]-1)],tnz[tcol[ind2]:(tcol[ind2+1]-1)],nb=nb)
+                                   @inbounds bi_row,bi_nz=splus(bi_row,bi_nz,supp[j+1].rowval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],supp[j+1].nzval[supp[j+1].colptr[s]:(supp[j+1].colptr[s+1]-1)],nb=nb)
+                                   Locb=bfind_sparse(tsupp,bi_row,bi_nz)
+                                   if t==r
+                                       @inbounds cons[Locb]+=coe[j+1][s]*pos3[p][l][t,r]
+                                   else
+                                       @inbounds cons[Locb]+=2*coe[j+1][s]*pos3[p][l][t,r]
                                    end
                                end
                            end
-                        end
+                       end
                     end
-                    p+=1
                 end
+                p+=1
             end
         end
-        bc=zeros(lsupp1,1)
+        bc=zeros(ltsupp)
         for i=1:supp[1].n
-            Locb=bfind_sparse(supp1,supp[1].rowval[supp[1].colptr[i]:(supp[1].colptr[i+1]-1)],supp[1].nzval[supp[1].colptr[i]:(supp[1].colptr[i+1]-1)])
+            Locb=bfind_sparse(tsupp,supp[1].rowval[supp[1].colptr[i]:(supp[1].colptr[i+1]-1)],supp[1].nzval[supp[1].colptr[i]:(supp[1].colptr[i+1]-1)])
             if Locb==0
                @error "The monomial basis is not enough!"
                return nothing,nothing,nothing,nothing,nothing
@@ -580,7 +585,7 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
         @variable(model, lower)
         if cons_label==true||solution==true
             cons[1]+=lower
-            @constraint(model, con[i=1:lsupp1], cons[i]==bc[i])
+            @constraint(model, con[i=1:ltsupp], cons[i]==bc[i])
         else
             @constraint(model, cons[2:end].==bc[2:end])
             @constraint(model, cons[1]+lower==bc[1])
@@ -600,13 +605,13 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
         end
         if solution==true
             measure=-dual.(con)
-            moment=get_moment(measure,supp1,cliques,cql,cliquesize,nb=nb)
+            moment=get_moment(measure,tsupp,cliques,cql,cliquesize,nb=nb)
         end
     end
-    return objv,supp0,supp1,measure,moment
+    return objv,supp0,tsupp,measure,moment
 end
 
-function get_blocks_mix(d,supp,basis,cliques,cql,cliquesize,ub,sizes;nb=0,TS="block",merge=false)
+function get_blocks_mix(d,supp,cliques,cql,cliquesize;basis=[],ub=[],sizes=[],nb=0,TS="block",merge=false)
     if nb>0
         cnb=[count(x->x<=nb,cliques[i]) for i=1:cql]
     else
@@ -616,7 +621,7 @@ function get_blocks_mix(d,supp,basis,cliques,cql,cliquesize,ub,sizes;nb=0,TS="bl
     cl=Vector{UInt16}(undef,cql)
     blocksize=Vector{Vector{Int}}(undef,cql)
     status=ones(UInt8,cql)
-    if basis==nothing
+    if isempty(basis)
         ub=Vector{Vector{UInt16}}(undef,cql)
         sizes=Vector{Vector{UInt16}}(undef,cql)
         basis=Vector{Array{UInt8,2}}(undef,cql)
@@ -626,7 +631,7 @@ function get_blocks_mix(d,supp,basis,cliques,cql,cliquesize,ub,sizes;nb=0,TS="bl
     end
     for i=1:cql
         nvar=cliquesize[i]
-        ssupp=zeros(UInt8,nvar,1)
+        tsupp=zeros(UInt8,nvar)
         for j=1:supp.n
             if issubset(supp.rowval[supp.colptr[j]:(supp.colptr[j+1]-1)], cliques[i])
                 bi=zeros(UInt8,nvar,1)
@@ -634,26 +639,31 @@ function get_blocks_mix(d,supp,basis,cliques,cql,cliquesize,ub,sizes;nb=0,TS="bl
                     @inbounds locb=bfind(cliques[i],cliquesize[i],supp.rowval[k])
                     @inbounds bi[locb]=supp.nzval[k]
                 end
-                ssupp=[ssupp bi]
+                tsupp=[tsupp bi]
             end
         end
         if flag==1
             basis[i]=get_basis(nvar,d,nb=cnb[i])
-            blocks[i],cl[i],blocksize[i],ub[i],sizes[i],status[i]=get_blocks(nvar,ssupp,basis[i],nothing,nothing,nb=cnb[i],TS=TS,QUIET=true,merge=merge)
+            tsupp=[tsupp bin_add(basis[i],basis[i],cnb[i])]
+            tsupp=sortslices(tsupp,dims=2)
+            tsupp=unique(tsupp,dims=2)
+            blocks[i],cl[i],blocksize[i],ub[i],sizes[i],status[i]=get_blocks(tsupp,basis[i],nb=cnb[i],TS=TS,QUIET=true,merge=merge)
         else
-            blocks[i],cl[i],blocksize[i],ub[i],sizes[i],status[i]=get_blocks(nvar,ssupp,basis[i],ub[i],sizes[i],nb=cnb[i],TS=TS,QUIET=true,merge=merge)
+            tsupp=sortslices(tsupp,dims=2)
+            tsupp=unique(tsupp,dims=2)
+            blocks[i],cl[i],blocksize[i],ub[i],sizes[i],status[i]=get_blocks(tsupp,basis[i],ub=ub[i],sizes=sizes[i],nb=cnb[i],TS=TS,QUIET=true,merge=merge)
         end
     end
     return blocks,cl,blocksize,ub,sizes,basis,maximum(status)
 end
 
-function get_cblocks_mix!(dg,I,rlorder,m,supp,supp0,ssupp,lt,fbasis,gbasis,cliques,cql,cliquesize,blocks,cl,blocksize,ub,sizes;nb=0,TS="block",merge=false)
+function get_cblocks_mix!(dg,I,rlorder,m,supp,cliques,cql,cliquesize;supp0=[],ssupp=[],lt=[],fbasis=[],gbasis=[],blocks=[],cl=[],blocksize=[],ub=[],sizes=[],nb=0,TS="block",merge=false)
     if nb>0
         cnb=[count(x->x<=nb,cliques[i]) for i=1:cql]
     else
         cnb=zeros(UInt8,cql)
     end
-    if fbasis==nothing
+    if isempty(fbasis)
         blocks=Vector{Vector{Vector{Vector{UInt16}}}}(undef,cql)
         cl=Vector{Vector{UInt16}}(undef,cql)
         ub=Vector{Vector{UInt16}}(undef,cql)
@@ -664,8 +674,8 @@ function get_cblocks_mix!(dg,I,rlorder,m,supp,supp0,ssupp,lt,fbasis,gbasis,cliqu
         gbasis=Vector{Vector{Array{UInt8,2}}}(undef,cql)
         fbasis=Vector{Array{UInt8,2}}(undef,cql)
         lsupp=sum([supp[i].n for i=1:m+1])
-        col=Int[1]
-        row=Int[]
+        col=UInt32[1]
+        row=UInt32[]
         nz=UInt8[]
         for i=1:m+1
             append!(col,supp[i].colptr[2:end].+(col[end]-1))
@@ -684,7 +694,7 @@ function get_cblocks_mix!(dg,I,rlorder,m,supp,supp0,ssupp,lt,fbasis,gbasis,cliqu
     for i=1:cql
         lc=length(I[i])
         nvar=cliquesize[i]
-        fsupp=zeros(UInt8,nvar,1)
+        fsupp=zeros(UInt8,nvar)
         for j=1:lsupp
             if issubset(row[col[j]:(col[j+1]-1)], cliques[i])
                 bi=zeros(UInt8,nvar,1)
@@ -720,9 +730,14 @@ function get_cblocks_mix!(dg,I,rlorder,m,supp,supp0,ssupp,lt,fbasis,gbasis,cliqu
             blocksize[i]=Vector{Vector{Int}}(undef, lc+1)
             ub[i]=Vector{UInt16}(undef, lc+1)
             sizes[i]=Vector{UInt16}(undef, lc+1)
-            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i],status[i]=get_cblocks!(nvar,lc,fsupp,ssupp[i],lt[i],fbasis[i],gbasis[i],nothing,nothing,nothing,nothing,nothing,nb=cnb[i],TS=TS,QUIET=true,merge=merge)
+            fsupp=[fsupp bin_add(fbasis[i],fbasis[i],cnb[i])]
+            fsupp=sortslices(fsupp,dims=2)
+            fsupp=unique(fsupp,dims=2)
+            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i],status[i]=get_cblocks!(lc,fsupp,ssupp[i],lt[i],fbasis[i],gbasis[i],nb=cnb[i],TS=TS,QUIET=true,merge=merge)
         else
-            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i],status[i]=get_cblocks!(nvar,lc,fsupp,ssupp[i],lt[i],fbasis[i],gbasis[i],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i],nb=cnb[i],TS=TS,QUIET=true,merge=merge)
+            fsupp=sortslices(fsupp,dims=2)
+            fsupp=unique(fsupp,dims=2)
+            blocks[i][1],cl[i][1],blocksize[i][1],blocks[i][2:end],cl[i][2:end],blocksize[i][2:end],ub[i],sizes[i],status[i]=get_cblocks!(lc,fsupp,ssupp[i],lt[i],fbasis[i],gbasis[i],gblocks=blocks[i][2:end],gcl=cl[i][2:end],gblocksize=blocksize[i][2:end],ub=ub[i],sizes=sizes[i],nb=cnb[i],TS=TS,QUIET=true,merge=merge)
         end
     end
     return blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,maximum(status)
@@ -777,7 +792,7 @@ function init_order(dg,I,cql;order="multi")
     return rlorder
 end
 
-function clique_decomp(n,supp;alg="MD",minimize=false)
+function clique_decomp(n::Int,supp;alg="MD",minimize=false)
     G=SimpleGraph(n)
     for j = 1:supp.n
         add_clique!(G,supp.rowval[supp.colptr[j]:(supp.colptr[j+1]-1)])
@@ -795,7 +810,7 @@ function clique_decomp(n,supp;alg="MD",minimize=false)
     return cliques,cql,cliquesize
 end
 
-function clique_cdecomp(n,m,dg,supp;order="multi",alg="MD",minimize=false)
+function clique_decomp(n::Int,m::Int,dg::Vector{Int},supp;order="multi",alg="MD",minimize=false)
     G=SimpleGraph(n)
     for i=1:m+1
         if order=="multi"||i==1||order==ceil(Int, dg[i-1]/2)
@@ -829,36 +844,41 @@ function splus(arow,anz,brow,bnz;nb=0)
     while i<=la&&j<=lb
         if arow[i]==brow[j]
             push!(row,arow[i])
-            push!(nz,arow[i]>nb ? anz[i]+bnz[j] : 1)
+            push!(nz,arow[i]>nb ? anz[i]+bnz[j] : isodd(anz[i]+bnz[j]))
             i+=1
             j+=1
         elseif arow[i]<brow[j]
             push!(row,arow[i])
-            push!(nz,arow[i]>nb ? anz[i] : 1)
+            push!(nz,arow[i]>nb ? anz[i] : isodd(anz[i]))
             i+=1
         else
             push!(row,brow[j])
-            push!(nz,brow[j]>nb ? bnz[j] : 1)
+            push!(nz,brow[j]>nb ? bnz[j] : isodd(bnz[j]))
             j+=1
         end
     end
     if i<=la&&j>lb
         for k=i:la
             push!(row,arow[k])
-            push!(nz,arow[k]>nb ? anz[k] : 1)
+            push!(nz,arow[k]>nb ? anz[k] : isodd(anz[k]))
         end
     elseif i>la&&j<=lb
         for k=j:lb
             push!(row,brow[k])
-            push!(nz,brow[k]>nb ? bnz[k] : 1)
+            push!(nz,brow[k]>nb ? bnz[k] : isodd(bnz[k]))
         end
+    end
+    if nb>0
+        ind=[nz[i]!=0 for i=1:length(nz)]
+        row=row[ind]
+        nz=nz[ind]
     end
     return row,nz
 end
 
 function sparse_basis(var,tvar,d;nb=0)
     if d==0
-        return SparseMatrixCSC(tvar,0,UInt32[1],UInt32[],UInt8[])
+        return SparseMatrixCSC(UInt32(tvar),UInt32(0),UInt32[1],UInt32[],UInt8[])
     elseif nb==0
         n=length(var)
         col=UInt32[1;2]
@@ -923,7 +943,7 @@ function sparse_basis(var,tvar,d;nb=0)
                end
             end
         end
-        return SparseMatrixCSC(tvar,UInt32(length(col)-1),col,row,nz)
+        return SparseMatrixCSC(UInt32(tvar),UInt32(length(col)-1),col,row,nz)
     else
         ibasis=get_basis(length(var),d,nb=nb)
         lb=size(ibasis,2)
@@ -1004,21 +1024,19 @@ function approx_sol(moment,n,cliques,cql,cliquesize)
     return (A'*A)\(A'*qsol)
 end
 
-function get_moment(measure,supp1,cliques,cql,cliquesize;nb=0)
+function get_moment(measure,tsupp,cliques,cql,cliquesize;nb=0)
     moment=Vector{Union{Float64, Symmetric{Float64}, Array{Float64,2}}}(undef, cql)
     for i=1:cql
         lb=cliquesize[i]+1
         tcol=UInt32[l for l=1:lb]
-        tcol=[1;tcol]
+        tcol=UInt32[1;tcol]
         trow=cliques[i]
         tnz=ones(UInt8, lb)
         moment[i]=zeros(Float64,lb,lb)
-        for j=1:lb
-            for k=j:lb
-                @inbounds bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)],nb=nb)
-                Locb=bfind_sparse(supp1,bi_row,bi_nz)
-                moment[i][j,k]=measure[Locb]
-            end
+        for j=1:lb, k=j:lb
+            @inbounds bi_row,bi_nz=splus(trow[tcol[j]:(tcol[j+1]-1)],tnz[tcol[j]:(tcol[j+1]-1)],trow[tcol[k]:(tcol[k+1]-1)],tnz[tcol[k]:(tcol[k+1]-1)],nb=nb)
+            Locb=bfind_sparse(tsupp,bi_row,bi_nz)
+            moment[i][j,k]=measure[Locb]
         end
         moment[i]=Symmetric(moment[i],:U)
     end
@@ -1036,39 +1054,3 @@ function seval(supp,coe,x)
     end
     return val
 end
-
-# function sort_sparse(s)
-#     m=s.m
-#     n=s.n
-#     col=s.colptr
-#     row=s.rowval
-#     nz=s.nzval
-#     i=2
-#     while i<=n
-#         corr_row=row[col[i]:(col[i+1]-1)]
-#         corr_nz=nz[col[i]:(col[i+1]-1)]
-#         j=i-1
-#         while j>=1
-#             pre_row=row[col[j]:(col[j+1]-1)]
-#             pre_nz=nz[col[j]:(col[j+1]-1)]
-#             comp=comp_sparse(corr_row,corr_nz,pre_row,pre_nz)
-#             if comp==-1
-#                 j-=1
-#             else
-#                 break
-#             end
-#         end
-#         if j<i-1
-#             for k=i:-1:j+2
-#                 lprow=col[k]-col[k-1]
-#                 row[(col[k+1]-lprow):(col[k+1]-1)]=row[(col[k-1]):(col[k]-1)]
-#                 nz[(col[k+1]-lprow):(col[k+1]-1)]=nz[(col[k-1]):(col[k]-1)]
-#                 col[k]=col[k+1]-lprow
-#             end
-#             row[(col[j+1]):(col[j+2]-1)]=corr_row
-#             nz[(col[j+1]):(col[j+2]-1)]=corr_nz
-#         end
-#         i+=1
-#     end
-#     return SparseMatrixCSC(m,n,col,row,nz)
-# end
