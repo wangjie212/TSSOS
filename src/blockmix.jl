@@ -24,7 +24,7 @@ mutable struct mdata_type
     sizes
 end
 
-function cs_tssos_first(pop,x,d::Int;nb=0,numeq=0,CS="MD",minimize=false,assign="min",TS="block",QUIET=false,solve=true,solution=false,extra_sos=true)
+function cs_tssos_first(pop,x,d;nb=0,numeq=0,CS="MD",minimize=false,assign="min",TS="block",QUIET=false,solve=true,solution=false,extra_sos=true)
     n=length(x)
     m=length(pop)-1
     coe=Array{Vector{Float64}}(undef, m+1)
@@ -62,7 +62,7 @@ function cs_tssos_first(pop,x,d::Int;nb=0,numeq=0,CS="MD",minimize=false,assign=
     return opt,sol,data
 end
 
-function cs_tssos_first(supp::Vector{SparseMatrixCSC},coe::Vector{Vector{Float64}},n::Int,d::Int,dg::Vector{Int};nb=0,numeq=0,CS="MD",minimize=false,assign="min",TS="block",QUIET=false,solve=true,solution=false,extra_sos=true)
+function cs_tssos_first(supp::Vector{SparseMatrixCSC},coe::Vector{Vector{Float64}},n::Int,d,dg::Vector{Int};nb=0,numeq=0,CS="MD",minimize=false,assign="min",TS="block",QUIET=false,solve=true,solution=false,extra_sos=true)
     m=length(supp)-1
     cliques,cql,cliquesize=clique_decomp(n,m,dg,supp,order=d,alg=CS,minimize=minimize)
     I,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign=assign)
