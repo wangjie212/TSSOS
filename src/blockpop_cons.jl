@@ -36,12 +36,12 @@ function tssos_first(pop,x,d;nb=0,numeq=0,quotient=true,basis=nothing,reducebasi
         for i=1:llead, j=1:n
             @inbounds leadsupp[j,i]=MultivariatePolynomials.degree(lead[i],x[j])
         end
-        m=length(cpop)-1
     else
-        m=length(pop)-1
+        cpop=pop
         gb=[]
         leadsupp=[]
     end
+    m=length(cpop)-1
     dg=zeros(Int,m)
     coe=Vector{Vector{Float64}}(undef, m+1)
     ssupp=Vector{Array{UInt8,2}}(undef, m+1)
