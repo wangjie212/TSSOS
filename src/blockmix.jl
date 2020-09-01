@@ -47,7 +47,7 @@ function cs_tssos_first(pop,x,d;nb=0,numeq=0,CS="MD",minimize=false,assign="min"
     I,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign=assign)
     rlorder=init_order(dg,I,cql,order=d)
     blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,cliques,cql,cliquesize,nb=nb,TS=TS)
-    opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
+    opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,TS=TS,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
     data=mdata_type(n,nb,m,dg,supp,coe,numeq,rlorder,supp0,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,I,ncc,blocks,cl,blocksize,ub,sizes)
     if solution==true
         sol=approx_sol(moment,n,cliques,cql,cliquesize)
@@ -63,7 +63,7 @@ function cs_tssos_first(supp::Vector{SparseMatrixCSC},coe::Vector{Vector{Float64
     I,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign=assign)
     rlorder=init_order(dg,I,cql,order=d)
     blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,cliques,cql,cliquesize,nb=nb,TS=TS)
-    opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
+    opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,TS=TS,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
     data=mdata_type(n,nb,m,dg,supp,coe,numeq,rlorder,supp0,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,I,ncc,blocks,cl,blocksize,ub,sizes)
     if solution==true
         sol=approx_sol(moment,n,cliques,cql,cliquesize)
@@ -117,7 +117,7 @@ function cs_tssos_higher!(data;TS="block",QUIET=false,solve=true,solution=false,
     return opt,sol,data
 end
 
-function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;nb=0,QUIET=false,solve=true,solution=false,extra_sos=false)
+function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;nb=0,TS="block",QUIET=false,solve=true,solution=false,extra_sos=false)
     if nb>0
         cnb=[count(x->x<=nb,cliques[i]) for i=1:cql]
     else
@@ -147,7 +147,7 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
     col0=copy(col)
     row0=copy(row)
     nz0=copy(nz)
-    if extra_sos==true||solution==true
+    if (extra_sos==true||solution==true)&&TS!=false
         for i=1:cql
             ssupp=sparse_basis(cliques[i],n,2,nb=cnb[i])
             append!(col,ssupp.colptr[2:end].+(col[end]-1))
@@ -171,7 +171,7 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
         cons=[AffExpr(0) for i=1:ltsupp]
         pos1=Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, cql)
         for i=1:cql
-            if extra_sos==true||solution==true
+            if (extra_sos==true||solution==true)&&TS!=false
                 pos0=Vector{Symmetric{VariableRef}}(undef, cql)
                 lb=cliquesize[i]+1
                 pos0[i]=@variable(model, [1:lb, 1:lb], PSD)
@@ -249,7 +249,7 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
     return objv,supp0,moment
 end
 
-function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize;nb=0,numeq=0,QUIET=false,solve=true,solution=false,cons_label=false,extra_sos=true,small=true)
+function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize;nb=0,numeq=0,TS="block",QUIET=false,solve=true,solution=false,cons_label=false,extra_sos=true,small=true)
     if nb>0
         cnb=[count(x->x<=nb,cliques[i]) for i=1:cql]
     else
@@ -283,7 +283,7 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
         nz0=copy(nz)
     end
     for i=1:cql
-        if extra_sos==true||solution==true
+        if (extra_sos==true||solution==true)&&TS!=false
             ssupp=sparse_basis(cliques[i],n,2,nb=cnb[i])
             append!(col,ssupp.colptr[2:end].+(col[end]-1))
             append!(row,ssupp.rowval)
@@ -340,7 +340,7 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
         cons=[AffExpr(0) for i=1:ltsupp]
         pos1=Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, cql)
         for i=1:cql
-            if extra_sos==true||solution==true
+            if (extra_sos==true||solution==true)&&TS!=false
                 pos0=Vector{Symmetric{VariableRef}}(undef, cql)
                 lb=cliquesize[i]+1
                 pos0[i]=@variable(model, [1:lb, 1:lb], PSD)
@@ -651,9 +651,9 @@ function assign_constraint(m,supp,cliques,cql,cliquesize;assign="first")
     return I,ncc
 end
 
-function init_order(dg,I,cql;order="multi")
+function init_order(dg,I,cql;order="min")
     rlorder=ones(Int,cql)
-    if order=="multi"
+    if order=="min"
         for i=1:cql
             if I[i]==[]
                 rlorder[i]=1
@@ -691,7 +691,7 @@ function clique_decomp(n::Int,supp;alg="MD",minimize=false)
     return cliques,cql,cliquesize
 end
 
-function clique_decomp(n::Int,m::Int,dg::Vector{Int},supp;order="multi",alg="MD",minimize=false)
+function clique_decomp(n::Int,m::Int,dg::Vector{Int},supp;order="min",alg="MD",minimize=false)
     if alg==false
         cliques=[UInt16[i for i=1:n]]
         cql=1
@@ -699,7 +699,7 @@ function clique_decomp(n::Int,m::Int,dg::Vector{Int},supp;order="multi",alg="MD"
     else
         G=SimpleGraph(n)
         for i=1:m+1
-            if order=="multi"||i==1||order==ceil(Int, dg[i-1]/2)
+            if order=="min"||i==1||order==ceil(Int, dg[i-1]/2)
                 for j = 1:supp[i].n
                     add_clique!(G,supp[i].rowval[supp[i].colptr[j]:(supp[i].colptr[j+1]-1)])
                 end
