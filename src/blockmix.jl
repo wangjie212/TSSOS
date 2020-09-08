@@ -249,7 +249,7 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
     return objv,supp0,moment
 end
 
-function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize;nb=0,numeq=0,TS="block",QUIET=false,solve=true,solution=false,cons_label=false,extra_sos=true,small=true)
+function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize;nb=0,numeq=0,TS="block",QUIET=false,solve=true,solution=false,cons_label=false,extra_sos=true,small=false)
     if nb>0
         cnb=[count(x->x<=nb,cliques[i]) for i=1:cql]
     else
@@ -277,7 +277,7 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
             end
         end
     end
-    if small==true||extra_sos==true
+    if (small==true||extra_sos==true)&&TS!=false
         col0=copy(col)
         row0=copy(row)
         nz0=copy(nz)
@@ -322,7 +322,7 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
     tsupp=unique(tsupp,dims=2)
     tsupp=sortslices(tsupp,dims=2)
     tsupp=sparse(tsupp)
-    if (small==true||extra_sos==true)
+    if (small==true||extra_sos==true)&&TS!=false
         supp0=SparseMatrixCSC(UInt32(n),UInt32(length(col0)),UInt32[1;col0],row0,nz0)
         supp0=Array(supp0)
         supp0=unique(supp0,dims=2)
