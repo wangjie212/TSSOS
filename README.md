@@ -18,7 +18,7 @@ Inf{f(x): x∈R^n}
 ```
 where f is a polynomial with variables x1,...,xn and of degree d.
 
-Taking f=1+x1^4+x2^4+x3^4+x1\*x2\*x3+x2 as an example, to exetute the first level of the TSSOS hierarchy, run
+Taking f=1+x1^4+x2^4+x3^4+x1\*x2\*x3+x2 as an example, to execute the first level of the TSSOS hierarchy, run
 ```Julia
 using TSSOS
 using DynamicPolynomials
@@ -32,9 +32,9 @@ opt,sol,data=tssos_first(f,x,newton=false,TS="MD")
 ```
 then the standard monomial basis will be used.
 
-Two vectors will be outputed. The first vector is the sizes of blocks and the second vector is the number of blocks with sizes corresponding to the first vector.
+Two vectors will be output. The first vector includes the sizes of blocks and the second vector includes the number of blocks with sizes corresponding to the first vector.
 
-To exetute higher levels of the TSSOS hierarchy, repeatedly run
+To execute higher levels of the TSSOS hierarchy, repeatedly run
 
 ```Julia
 opt,sol,data=tssos_higher!(data,TS="MD")
@@ -57,7 +57,7 @@ K={x∈R^n: g_j(x)>=0, j=1,...,m-numeq, g_j(x)=0, j=m-numeq+1,...,m},
 ```
 for some polynomials g_j, j=1,...,m.
 
-Taking f=1+x1^4+x2^4+x3^4+x1\*x2\*x3+x2 and K={x∈R^2: g_1=1-x1^2-2\*x2^2>=0, g_2=x2^2+x3^2-1=0} as an example, to exetute the first level of the TSSOS hierarchy, run
+Taking f=1+x1^4+x2^4+x3^4+x1\*x2\*x3+x2 and K={x∈R^2: g_1=1-x1^2-2\*x2^2>=0, g_2=x2^2+x3^2-1=0} as an example, to execute the first level of the TSSOS hierarchy, run
 
 ```Julia
 @polyvar x[1:3]
@@ -69,7 +69,7 @@ d=2 # the relaxation order
 opt,sol,data=tssos_first(pop,x,d,numeq=1,TS="MD")
 ```
 
-To exetute higher levels of the TSSOS hierarchy, repeatedly run
+To execute higher levels of the TSSOS hierarchy, repeatedly run
 
 ```Julia
 opt,sol,data=tssos_higher!(data,TS="MD")
