@@ -1,5 +1,5 @@
 # TSSOS
-TSSOS is a sparse polynomial optimization tool based on block moment-SOS hierarchies. To use TSSOS in Julia, run
+TSSOS is a sparse polynomial optimization tool based on the sparsity adapted moment-SOS hierarchies. To use TSSOS in Julia, run
 ```Julia
 pkg> add https://github.com/wangjie212/TSSOS
  ```
