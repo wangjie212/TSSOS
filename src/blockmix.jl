@@ -629,10 +629,10 @@ function assign_constraint(m,numeq,supp,cliques,cql,cliquesize;assign="first")
         l_indvec=length(indvec)
         if l_indvec!=0
             for j in 1:l_indvec
-                push!(I[indvec[j]], i)
+                push!(I[indvec[j]], i-1)
             end
         else
-            push!(ncc, i)
+            push!(ncc, i-1)
         end
     end
     for i=m+2-numeq:m+1
