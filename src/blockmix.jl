@@ -24,7 +24,7 @@ mutable struct mdata_type
     sizes
 end
 
-function cs_tssos_first(pop,x,d;nb=0,numeq=0,CS="MD",minimize=false,assign="min",TS="block",QUIET=false,solve=true,solution=false,extra_sos=true)
+function cs_tssos_first(pop,x,d;nb=0,numeq=0,CTP=false,CS="MD",minimize=false,assign="min",TS="block",QUIET=false,solve=true,solution=false,extra_sos=true)
     n=length(x)
     m=length(pop)-1
     coe=Array{Vector{Float64}}(undef, m+1)
@@ -44,7 +44,11 @@ function cs_tssos_first(pop,x,d;nb=0,numeq=0,CS="MD",minimize=false,assign="min"
         dg[i]=maxdegree(pop[i+1])
     end
     cliques,cql,cliquesize=clique_decomp(n,m,dg,supp,order=d,alg=CS,minimize=minimize)
-    I,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign=assign)
+    if CTP==false
+        I,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign=assign)
+    else
+        I,ncc=assign_constraint(m,numeq,supp,cliques,cql,cliquesize,assign=assign)
+    end
     rlorder=init_order(dg,I,cql,order=d)
     blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,cliques,cql,cliquesize,nb=nb,TS=TS)
     opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,TS=TS,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
@@ -57,10 +61,14 @@ function cs_tssos_first(pop,x,d;nb=0,numeq=0,CS="MD",minimize=false,assign="min"
     return opt,sol,data
 end
 
-function cs_tssos_first(supp::Vector{SparseMatrixCSC{UInt8,UInt32}},coe::Vector{Vector{Float64}},n::Int,d,dg::Vector{Int};nb=0,numeq=0,CS="MD",minimize=false,assign="min",TS="block",QUIET=false,solve=true,solution=false,extra_sos=true)
+function cs_tssos_first(supp::Vector{SparseMatrixCSC{UInt8,UInt32}},coe::Vector{Vector{Float64}},n::Int,d,dg::Vector{Int};nb=0,numeq=0,CTP=false,CS="MD",minimize=false,assign="min",TS="block",QUIET=false,solve=true,solution=false,extra_sos=true)
     m=length(supp)-1
     cliques,cql,cliquesize=clique_decomp(n,m,dg,supp,order=d,alg=CS,minimize=minimize)
-    I,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign=assign)
+    if CTP==false
+        I,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign=assign)
+    else
+        I,ncc=assign_constraint(m,numeq,supp,cliques,cql,cliquesize,assign=assign)
+    end
     rlorder=init_order(dg,I,cql,order=d)
     blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,cliques,cql,cliquesize,nb=nb,TS=TS)
     opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,TS=TS,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
@@ -232,16 +240,13 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
         @objective(model, Max, lower)
         optimize!(model)
         status=termination_status(model)
-        if status == MOI.OPTIMAL
-           objv = objective_value(model)
-           println("optimum = $objv")
-        else
-           objv = objective_value(model)
+        objv = objective_value(model)
+        if status!=MOI.OPTIMAL
            println("termination status: $status")
-           sstatus=primal_status(model)
-           println("solution status: $sstatus")
-           println("optimum = $objv")
+           status=primal_status(model)
+           println("solution status: $status")
         end
+        println("optimum = $objv")
         if solution==true
             moment=get_moment(-dual.(con),tsupp,cliques,cql,cliquesize,nb=nb)
         end
@@ -468,16 +473,13 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
         @objective(model, Max, lower)
         optimize!(model)
         status=termination_status(model)
-        if status == MOI.OPTIMAL
-           objv = objective_value(model)
-           println("optimum = $objv")
-        else
-           objv = objective_value(model)
+        objv = objective_value(model)
+        if status!=MOI.OPTIMAL
            println("termination status: $status")
-           sstatus=primal_status(model)
-           println("solution status: $sstatus")
-           println("optimum = $objv")
+           status=primal_status(model)
+           println("solution status: $status")
         end
+        println("optimum = $objv")
         if solution==true
             measure=-dual.(con)
             moment=get_moment(measure,tsupp,cliques,cql,cliquesize,nb=nb)
@@ -616,6 +618,51 @@ function get_cblocks_mix!(dg,I,rlorder,m,supp,cliques,cql,cliquesize;supp0=[],ss
         end
     end
     return blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,maximum(status)
+end
+
+function assign_constraint(m,numeq,supp,cliques,cql,cliquesize;assign="first")
+    I=[UInt16[] for i=1:cql]
+    ncc=UInt16[]
+    for i=2:m+1-numeq
+        rind=unique(supp[i].rowval)
+        indvec=findall(k->issubset(rind, cliques[k]), 1:cql)
+        l_indvec=length(indvec)
+        if l_indvec!=0
+            for j in 1:l_indvec
+                push!(I[indvec[j]], i)
+            end
+        else
+            push!(ncc, i)
+        end
+    end
+    for i=m+2-numeq:m+1
+        rind=unique(supp[i].rowval)
+        if assign=="first"
+            ind=findfirst(k->issubset(rind, cliques[k]), 1:cql)
+            if ind!=nothing
+                push!(I[ind], i-1)
+            else
+                push!(ncc, i-1)
+            end
+        else
+            temp=UInt16[]
+            for j=1:cql
+                if issubset(rind, cliques[j])
+                    push!(temp,j)
+                end
+            end
+            if temp!=[]
+                if assign=="min"
+                    push!(I[temp[argmin(cliquesize[temp])]], i-1)
+                else
+                    push!(I[temp[argmax(cliquesize[temp])]], i-1)
+                end
+            else
+                push!(ncc, i-1)
+            end
+        end
+    end
+    return I,ncc
 end
 
 function assign_constraint(m,supp,cliques,cql,cliquesize;assign="first")

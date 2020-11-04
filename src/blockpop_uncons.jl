@@ -380,16 +380,13 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;nb=0,QUIET=true,solve=tr
         @objective(model, Max, lower)
         optimize!(model)
         status=termination_status(model)
-        if status == MOI.OPTIMAL
-           objv = objective_value(model)
-           println("optimum = $objv")
-        else
-           objv = objective_value(model)
+        objv = objective_value(model)
+        if status!=MOI.OPTIMAL
            println("termination status: $status")
-           sstatus=primal_status(model)
-           println("solution status: $sstatus")
-           println("optimum = $objv")
+           status=primal_status(model)
+           println("solution status: $status")
         end
+        println("optimum = $objv")
         if solution==true
             dual_var=-dual.(con)
             moment=zeros(Float64,n+1,n+1)

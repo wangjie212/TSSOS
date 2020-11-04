@@ -276,8 +276,6 @@ function get_cblocks!(m,tsupp,ssupp,lt,fbasis,gbasis;gblocks=[],gcl=[],gblocksiz
         if merge==true
             fblocks,fcl,fblocksize=clique_merge!(fblocks,fcl,QUIET=true)
         end
-        fblocksize=length.(fblocks)
-        fcl=length(fblocksize)
         nub=unique(fblocksize)
         nsizes=[sum(fblocksize.== i) for i in nub]
         if isempty(ub)||nub!=ub||nsizes!=sizes
@@ -477,16 +475,13 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
         @objective(model, Max, lower)
         optimize!(model)
         status=termination_status(model)
-        if  status==MOI.OPTIMAL
-            objv=objective_value(model)
-            println("optimum = $objv")
-        else
-            objv=objective_value(model)
-            println("termination status: $status")
-            sstatus=primal_status(model)
-            println("solution status: $sstatus")
-            println("optimum = $objv")
+        objv = objective_value(model)
+        if status!=MOI.OPTIMAL
+           println("termination status: $status")
+           status=primal_status(model)
+           println("solution status: $status")
         end
+        println("optimum = $objv")
         if solution==true
             dual_var=-dual.(con)
             moment=zeros(Float64,n+1,n+1)
