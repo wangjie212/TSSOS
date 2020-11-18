@@ -22,7 +22,7 @@ mutable struct cdata_type
     gblocksize
 end
 
-function tssos_first(pop,x,d;nb=0,numeq=0,quotient=true,basis=nothing,reducebasis=false,TS="block",minimize=false,merge=false,QUIET=false,solve=true,extra_sos=false,solution=false,tol=1e-5)
+function tssos_first(pop,x,d;nb=0,numeq=0,quotient=true,basis=nothing,reducebasis=false,TS="block",minimize=false,merge=false,QUIET=false,solve=true,MomentOne=false,solution=false,tol=1e-5)
     n=length(x)
     if quotient==true
         cpop=copy(pop)
@@ -86,7 +86,7 @@ function tssos_first(pop,x,d;nb=0,numeq=0,quotient=true,basis=nothing,reducebasi
             fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,ub,sizes,_=get_cblocks!(m,tsupp,ssupp,lt,fbasis,gbasis,nb=nb,TS=TS,minimize=minimize,QUIET=QUIET,merge=merge)
         end
     end
-    opt,fsupp,moment=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nb=nb,numeq=numeq,gb=gb,x=x,lead=leadsupp,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
+    opt,fsupp,moment=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nb=nb,numeq=numeq,gb=gb,x=x,lead=leadsupp,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
     if solution==true
         sol=extract_solutions(moment,opt,pop,x,numeq=numeq,tol=tol)
     else
@@ -96,7 +96,7 @@ function tssos_first(pop,x,d;nb=0,numeq=0,quotient=true,basis=nothing,reducebasi
     return opt,sol,data
 end
 
-function tssos_higher!(data::cdata_type;TS="block",minimize=false,merge=false,QUIET=false,solve=true,extra_sos=false,solution=false,tol=1e-5)
+function tssos_higher!(data::cdata_type;TS="block",minimize=false,merge=false,QUIET=false,solve=true,MomentOne=false,solution=false,tol=1e-5)
     n=data.n
     nb=data.nb
     m=data.m
@@ -124,7 +124,7 @@ function tssos_higher!(data::cdata_type;TS="block",minimize=false,merge=false,QU
     opt=nothing
     sol=nothing
     if status==1
-        opt,fsupp,moment=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nb=nb,numeq=numeq,gb=gb,x=x,lead=leadsupp,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
+        opt,fsupp,moment=blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nb=nb,numeq=numeq,gb=gb,x=x,lead=leadsupp,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
         if solution==true
             sol=extract_solutions(moment,opt,pop,x,numeq=numeq,tol=tol)
         end
@@ -302,7 +302,7 @@ function get_cblocks!(m,tsupp,ssupp,lt,fbasis,gbasis;gblocks=[],gcl=[],gblocksiz
     return fblocks,fcl,fblocksize,gblocks,gcl,gblocksize,nub,nsizes,status
 end
 
-function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize;nb=0,numeq=0,gb=[],x=[],lead=[],QUIET=true,solve=true,solution=false,extra_sos=false)
+function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks,gcl,gblocksize;nb=0,numeq=0,gb=[],x=[],lead=[],QUIET=true,solve=true,solution=false,MomentOne=false)
     fsupp=zeros(UInt8,n,Int(sum(fblocksize.^2+fblocksize)/2))
     k=1
     for i=1:fcl, j=1:fblocksize[i], r=j:fblocksize[i]
@@ -315,7 +315,7 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
     if solve==true
         gsupp=get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize,nb=nb)
         tsupp=[fsupp gsupp]
-        if extra_sos==true||solution==true
+        if MomentOne==true||solution==true
             tsupp=[tsupp get_basis(n,2,nb=nb)]
         end
         tsupp=unique(tsupp,dims=2)
@@ -340,7 +340,7 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
         cons=[AffExpr(0) for i=1:ltsupp]
         pos=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, fcl)
         for i=1:fcl
-            if extra_sos==true||solution==true
+            if MomentOne==true||solution==true
                 pos0=@variable(model, [1:n+1, 1:n+1], PSD)
                 for j=1:n+1, k=j:n+1
                     @inbounds bi=bin_add(fbasis[:,j],fbasis[:,k],nb)
