@@ -83,8 +83,7 @@ solution: true (extract a solution), false (don't extract a solution)
 One can also exploit correlative sparsity and term sparsity simultaneously, which is called the CS-TSSOS hierarchy.
 
 ```Julia
-using SparseArrays
-using MultivariatePolynomials
+using DynamicPolynomials
 n=6
 @polyvar x[1:n]
 f=1+sum(x.^4)+x[1]*x[2]*x[3]+x[3]*x[4]*x[5]+x[3]*x[4]*x[6]+x[3]*x[5]*x[6]+x[4]*x[5]*x[6]
