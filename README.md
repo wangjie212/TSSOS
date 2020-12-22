@@ -94,7 +94,7 @@ opt,sol,data=cs_tssos_higher!(data,TS="MD")
 ```
 Options:  
 nb: specify the first nb variables to be binary variables (satisfying xi^2=1)  
-CS (correlative sparsity): "MD" or "MF" (generating an approximately minimum chordal extension), "NC" (without chordal extension), false (without correlative sparsity)   
+CS (correlative sparsity): "MF" or "MD" (generating an approximately minimum chordal extension), "NC" (without chordal extension), false (without correlative sparsity)   
 TS: "block" (using the maximal chordal extension), "MD" or "MF" (using approximately minimum chordal extensions), false (without term sparsity)  
 order: d (the relaxation order), "min" (using the lowest relaxation orders for each variable clique)  
 MomentOne: true (adding a first-order moment matrix for each variable clique), false  
