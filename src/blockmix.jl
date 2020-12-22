@@ -22,9 +22,10 @@ mutable struct mdata_type
     blocksize # the sizes of blocks
     ub # the unique sizes of blocks
     sizes # the number of different blocks
+    solver
 end
 
-function cs_tssos_first(pop,x,d;nb=0,numeq=0,CS="MF",minimize=true,assign="min",TS="block",QUIET=false,solve=true,solution=false,MomentOne=true)
+function cs_tssos_first(pop,x,d;nb=0,numeq=0,CS="MF",minimize=true,assign="first",TS="block",solver="Mosek",QUIET=false,solve=true,solution=false,MomentOne=true)
     n=length(x)
     m=length(pop)-1
     coe=Array{Vector{Float64}}(undef, m+1)
@@ -47,8 +48,8 @@ function cs_tssos_first(pop,x,d;nb=0,numeq=0,CS="MF",minimize=true,assign="min",
     I,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign=assign)
     rlorder=init_order(dg,I,cql,order=d)
     blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,cliques,cql,cliquesize,nb=nb,TS=TS)
-    opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,TS=TS,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
-    data=mdata_type(n,nb,m,dg,supp,coe,numeq,rlorder,supp0,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,I,ncc,blocks,cl,blocksize,ub,sizes)
+    opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,TS=TS,solver=solver,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
+    data=mdata_type(n,nb,m,dg,supp,coe,numeq,rlorder,supp0,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,I,ncc,blocks,cl,blocksize,ub,sizes,solver)
     if solution==true
         sol=approx_sol(moment,n,cliques,cql,cliquesize)
     else
@@ -57,14 +58,14 @@ function cs_tssos_first(pop,x,d;nb=0,numeq=0,CS="MF",minimize=true,assign="min",
     return opt,sol,data
 end
 
-function cs_tssos_first(supp::Vector{SparseMatrixCSC{UInt8,UInt32}},coe::Vector{Vector{Float64}},n::Int,d,dg::Vector{Int};nb=0,numeq=0,CS="MF",minimize=true,assign="min",TS="block",QUIET=false,solve=true,solution=false,MomentOne=true)
+function cs_tssos_first(supp::Vector{SparseMatrixCSC{UInt8,UInt32}},coe::Vector{Vector{Float64}},n::Int,d,dg::Vector{Int};nb=0,numeq=0,CS="MF",minimize=true,assign="first",TS="block",solver="Mosek",QUIET=false,solve=true,solution=false,MomentOne=true)
     m=length(supp)-1
     cliques,cql,cliquesize=clique_decomp(n,m,dg,supp,order=d,alg=CS,minimize=minimize)
     I,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign=assign)
     rlorder=init_order(dg,I,cql,order=d)
     blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,cliques,cql,cliquesize,nb=nb,TS=TS)
-    opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,TS=TS,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
-    data=mdata_type(n,nb,m,dg,supp,coe,numeq,rlorder,supp0,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,I,ncc,blocks,cl,blocksize,ub,sizes)
+    opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,TS=TS,solver=solver,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
+    data=mdata_type(n,nb,m,dg,supp,coe,numeq,rlorder,supp0,ssupp,lt,fbasis,gbasis,cql,cliques,cliquesize,I,ncc,blocks,cl,blocksize,ub,sizes,solver)
     if solution==true
         sol=approx_sol(moment,n,cliques,cql,cliquesize)
     else
@@ -97,9 +98,10 @@ function cs_tssos_higher!(data;TS="block",QUIET=false,solve=true,solution=false,
     blocksize=data.blocksize
     ub=data.ub
     sizes=data.sizes
+    solver=data.solver
     blocks,cl,blocksize,ub,sizes,ssupp,lt,fbasis,gbasis,status=get_cblocks_mix!(dg,I,rlorder,m,supp,cliques,cql,cliquesize,supp0=supp0,ssupp=ssupp,lt=lt,fbasis=fbasis,gbasis=gbasis,blocks=blocks,cl=cl,blocksize=blocksize,ub=ub,sizes=sizes,nb=nb,TS=TS)
     if status==1
-        opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
+        opt,supp0,_,_,moment=blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize,nb=nb,numeq=numeq,solver=solver,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
     else
         opt=nothing
         println("No higher CS-TSSOS hierarchy!")
@@ -247,7 +249,7 @@ function blockupop_mix(n,d,supp,coe,cliques,cql,cliquesize,blocks,cl,blocksize;n
     return objv,supp0,moment
 end
 
-function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize;nb=0,numeq=0,TS="block",QUIET=false,solve=true,solution=false,cons_label=false,MomentOne=true,small=false)
+function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,blocks,cl,blocksize;nb=0,numeq=0,TS="block",solver="Mosek",QUIET=false,solve=true,solution=false,MomentOne=true)
     if nb>0
         cnb=[count(x->x<=nb,cliques[i]) for i=1:cql]
     else
@@ -275,7 +277,7 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
             end
         end
     end
-    if (small==true||MomentOne==true)&&TS!=false
+    if (MomentOne==true||solution==true)&&TS!=false
         col0=copy(col)
         row0=copy(row)
         nz0=copy(nz)
@@ -320,7 +322,7 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
     tsupp=unique(tsupp,dims=2)
     tsupp=sortslices(tsupp,dims=2)
     tsupp=sparse(tsupp)
-    if (small==true||MomentOne==true)&&TS!=false
+    if (MomentOne==true||solution==true)&&TS!=false
         supp0=SparseMatrixCSC(UInt32(n),UInt32(length(col0)),UInt32[1;col0],row0,nz0)
         supp0=Array(supp0)
         supp0=unique(supp0,dims=2)
@@ -333,7 +335,14 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
     moment=nothing
     if solve==true
         ltsupp=tsupp.n
-        model=Model(optimizer_with_attributes(Mosek.Optimizer))
+        if solver=="Mosek"
+            model=Model(optimizer_with_attributes(Mosek.Optimizer))
+        elseif solver=="SDPT3"
+            model=Model(optimizer_with_attributes(SDPT3.Optimizer))
+        else
+            @error "The solver is currently not supported!"
+            return nothing,nothing,nothing,nothing,nothing
+        end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         cons=[AffExpr(0) for i=1:ltsupp]
         pos1=Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, cql)
@@ -456,7 +465,7 @@ function blockcpop_mix(n,m,dg,rlorder,supp,coe,cliques,cql,cliquesize,I,ncc,bloc
             end
         end
         @variable(model, lower)
-        if cons_label==true||solution==true
+        if solution==true
             cons[1]+=lower
             @constraint(model, con[i=1:ltsupp], cons[i]==bc[i])
         else
@@ -614,8 +623,8 @@ function get_cblocks_mix!(dg,I,rlorder,m,supp,cliques,cql,cliquesize;supp0=[],ss
 end
 
 function assign_constraint(m,supp,cliques,cql,cliquesize;assign="first")
-    I=[UInt16[] for i=1:cql]
-    ncc=UInt16[]
+    I=[UInt32[] for i=1:cql]
+    ncc=UInt32[]
     for i=2:m+1
         rind=unique(supp[i].rowval)
         if assign=="first"
@@ -626,7 +635,7 @@ function assign_constraint(m,supp,cliques,cql,cliquesize;assign="first")
                 push!(ncc, i-1)
             end
         else
-            temp=UInt16[]
+            temp=UInt32[]
             for j=1:cql
                 if issubset(rind, cliques[j])
                     push!(temp,j)
@@ -650,9 +659,7 @@ function init_order(dg,I,cql;order="min")
     rlorder=ones(Int,cql)
     if order=="min"
         for i=1:cql
-            if I[i]==[]
-                rlorder[i]=1
-            else
+            if !isempty(I[i])
                 rlorder[i]=ceil(Int, maximum(dg[I[i]])/2)
             end
         end
@@ -662,7 +669,7 @@ function init_order(dg,I,cql;order="min")
     return rlorder
 end
 
-function clique_decomp(n::Int,supp;alg="MD",minimize=false)
+function clique_decomp(n::Int,supp;alg="MF",minimize=true)
     if alg==false
         cliques=[UInt16[i for i=1:n]]
         cql=1
@@ -686,7 +693,7 @@ function clique_decomp(n::Int,supp;alg="MD",minimize=false)
     return cliques,cql,cliquesize
 end
 
-function clique_decomp(n::Int,m::Int,dg::Vector{Int},supp;order="min",alg="MD",minimize=false)
+function clique_decomp(n::Int,m::Int,dg::Vector{Int},supp;order="min",alg="MF",minimize=true)
     if alg==false
         cliques=[UInt16[i for i=1:n]]
         cql=1

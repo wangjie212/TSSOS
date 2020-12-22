@@ -9,9 +9,10 @@ mutable struct data_type
     supp0
     ub
     sizes
+    solver
 end
 
-function tssos_first(f,x;nb=0,newton=true,reducebasis=false,TS="block",merge=false,QUIET=false,solve=true,extra_sos=false,solution=false,tol=1e-5)
+function tssos_first(f,x;nb=0,newton=true,reducebasis=false,TS="block",merge=false,solver="Mosek",QUIET=false,solve=true,MomentOne=false,solution=false,tol=1e-5)
     n=length(x)
     mon=monomials(f)
     coe=coefficients(f)
@@ -44,17 +45,17 @@ function tssos_first(f,x;nb=0,newton=true,reducebasis=false,TS="block",merge=fal
             blocks,cl,blocksize,ub,sizes,_=get_blocks(tsupp,basis,nb=nb,TS=TS,QUIET=QUIET,merge=merge)
         end
     end
-    opt,supp0,moment=blockupop(n,supp,coe,basis,blocks,cl,blocksize,nb=nb,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
+    opt,supp0,moment=blockupop(n,supp,coe,basis,blocks,cl,blocksize,nb=nb,solver=solver,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
     if solution==true
         sol=extract_solutions(moment,opt,[f],x,tol=tol)
     else
         sol=nothing
     end
-    data=data_type(n,nb,x,f,supp,basis,coe,supp0,ub,sizes)
+    data=data_type(n,nb,x,f,supp,basis,coe,supp0,ub,sizes,solver)
     return opt,sol,data
 end
 
-function tssos_higher!(data::data_type;TS="block",merge=false,QUIET=false,solve=true,extra_sos=false,solution=false,tol=1e-5)
+function tssos_higher!(data::data_type;TS="block",merge=false,QUIET=false,solve=true,MomentOne=false,solution=false,tol=1e-5)
     n=data.n
     nb=data.nb
     x=data.x
@@ -65,13 +66,14 @@ function tssos_higher!(data::data_type;TS="block",merge=false,QUIET=false,solve=
     supp0=data.supp0
     ub=data.ub
     sizes=data.sizes
+    solver=data.solver
     supp0=sortslices(supp0,dims=2)
     supp0=unique(supp0,dims=2)
     blocks,cl,blocksize,ub,sizes,status=get_blocks(supp0,basis,ub=ub,sizes=sizes,nb=nb,TS=TS,QUIET=QUIET,merge=merge)
     opt=nothing
     sol=nothing
     if status==1
-        opt,supp0,moment=blockupop(n,supp,coe,basis,blocks,cl,blocksize,nb=nb,QUIET=QUIET,solve=solve,solution=solution,extra_sos=extra_sos)
+        opt,supp0,moment=blockupop(n,supp,coe,basis,blocks,cl,blocksize,nb=nb,solver=solver,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
         if solution==true
             sol=extract_solutions(moment,opt,[f],x,tol=tol)
         else
@@ -207,21 +209,7 @@ function generate_basis!(supp,basis)
     return basis[:,indexb]
 end
 
-function comp(a, b)
-    i=1
-    while i<=length(a)
-          if a[i]<b[i]
-             return -1
-          elseif a[i]>b[i]
-             return 1
-          else
-             i+=1
-          end
-    end
-    return 0
-end
-
-function bfind(A::Array{T, 2}, l::Int, a::Array{T, 1}) where {T<:Number}
+function bfind(A, l, a)
     if l==0
         return 0
     end
@@ -229,10 +217,14 @@ function bfind(A::Array{T, 2}, l::Int, a::Array{T, 1}) where {T<:Number}
     high=l
     while low<=high
         mid=Int(ceil(1/2*(low+high)))
-        order=comp(A[:, mid], a)
-        if order==0
+        if ndims(A)==2
+            temp=A[:, mid]
+        else
+            temp=A[mid]
+        end
+        if temp==a
            return mid
-        elseif order<0
+        elseif temp<a
            low=mid+1
         else
            high=mid-1
@@ -241,27 +233,7 @@ function bfind(A::Array{T, 2}, l::Int, a::Array{T, 1}) where {T<:Number}
     return 0
 end
 
-function bfind(A::Vector{T}, l::Int, a) where {T<:Number}
-    if l==0
-        return 0
-    end
-    low=1
-    high=l
-    while low<=high
-        mid=Int(ceil(1/2*(low+high)))
-        order=comp(A[mid], a)
-        if order==0
-           return mid
-        elseif order<0
-           low=mid+1
-        else
-           high=mid-1
-        end
-    end
-    return 0
-end
-
-function get_graph(tsupp,basis;nb=0)
+function get_graph(tsupp::Array{UInt8, 2},basis::Array{UInt8, 2};nb=0)
     lb=size(basis,2)
     G=SimpleGraph(lb)
     ltsupp=size(tsupp,2)
@@ -310,7 +282,7 @@ function get_blocks(tsupp,basis;ub=[],sizes=[],nb=0,TS="block",minimize=false,QU
     return blocks,cl,blocksize,nub,nsizes,status
 end
 
-function blockupop(n,supp,coe,basis,blocks,cl,blocksize;nb=0,QUIET=true,solve=true,solution=false,extra_sos=false)
+function blockupop(n,supp,coe,basis,blocks,cl,blocksize;nb=0,solver="Mosek",QUIET=true,solve=true,solution=false,MomentOne=false)
     tsupp=zeros(UInt8,n,Int(sum(blocksize.^2+blocksize)/2))
     k=1
     for i=1:cl, j=1:blocksize[i], r=j:blocksize[i]
@@ -318,8 +290,8 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;nb=0,QUIET=true,solve=tr
         @inbounds tsupp[:,k]=bi
         k+=1
     end
-    supp0=tsupp
-    if extra_sos==true||solution==true
+    supp0=copy(tsupp)
+    if MomentOne==true||solution==true
         tsupp=[tsupp get_basis(n,2,nb=nb)]
     end
     tsupp=unique(tsupp,dims=2)
@@ -328,10 +300,17 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;nb=0,QUIET=true,solve=tr
     moment=nothing
     if solve==true
         ltsupp=size(tsupp,2)
-        model=Model(optimizer_with_attributes(Mosek.Optimizer))
+        if solver=="Mosek"
+            model=Model(optimizer_with_attributes(Mosek.Optimizer))
+        elseif solver=="SDPT3"
+            model=Model(optimizer_with_attributes(SDPT3.Optimizer))
+        else
+            @error "The solver is currently not supported!"
+            return nothing,nothing,nothing
+        end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         cons=[AffExpr(0) for i=1:ltsupp]
-        if extra_sos==true||solution==true
+        if MomentOne==true||solution==true
             pos0=@variable(model, [1:n+1, 1:n+1], PSD)
             for j=1:n+1, k=j:n+1
                 @inbounds bi=bin_add(basis[:,j],basis[:,k],nb)
