@@ -315,8 +315,11 @@ function blockcpop(n,m,ssupp,coe,lt,fbasis,gbasis,fblocks,fcl,fblocksize,gblocks
     objv=nothing
     moment=nothing
     if solve==true
-        gsupp=get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize,nb=nb)
-        tsupp=[fsupp gsupp]
+        tsupp=fsupp
+        if m>0
+            gsupp=get_gsupp(n,m,lt,ssupp,gbasis,gblocks,gcl,gblocksize,nb=nb)
+            tsupp=[tsupp gsupp]
+        end
         if MomentOne==true||solution==true
             tsupp=[tsupp get_basis(n,2,nb=nb)]
         end
