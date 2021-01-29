@@ -6,7 +6,6 @@ using JuMP
 using LightGraphs
 using MultivariatePolynomials
 using Ipopt
-using SDPT3
 using LinearAlgebra
 using MetaGraphs
 using SemialgebraicSets
