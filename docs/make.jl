@@ -13,5 +13,5 @@ format = Documenter.HTML(
 )
 
 deploydocs(
-    repo = "github.com/wangjie212/TSSOS.git"
+    repo = "github.com/wangjie212/TSSOS"
 )
