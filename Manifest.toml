@@ -166,12 +166,6 @@ uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 [[Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
-[[MATLAB]]
-deps = ["Libdl", "SparseArrays", "Test"]
-git-tree-sha1 = "89ab46e322f9216728961119f7131038f5e4d22b"
-uuid = "10e44e05-a98a-55b3-a45b-ba969058deb6"
-version = "0.7.3"
-
 [[MacroTools]]
 deps = ["Markdown", "Random"]
 git-tree-sha1 = "f7d2e3f654af75f01ec49be82c231c382214223a"
@@ -264,12 +258,6 @@ uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 [[Random]]
 deps = ["Serialization"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
-
-[[SDPT3]]
-deps = ["LinearAlgebra", "MATLAB", "MathOptInterface", "SparseArrays"]
-git-tree-sha1 = "2c410fe322a3175bb293539d0cb8bb7f6df0c0a7"
-uuid = "e33b2407-87ff-50a0-8b27-f0fe7855237d"
-version = "0.0.2"
 
 [[SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"

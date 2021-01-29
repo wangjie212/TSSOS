@@ -12,7 +12,6 @@ MetaGraphs = "626554b9-1ddb-594c-aa3c-2596fe9399a5"
 Mosek = "6405355b-0ac2-5fba-af84-adbd65488c0e"
 MosekTools = "1ec41992-ff65-5c91-ac43-2df89e9693a4"
 MultivariatePolynomials = "102ac46a-7ee4-5c85-9060-abc95bfdeaa3"
-SDPT3 = "e33b2407-87ff-50a0-8b27-f0fe7855237d"
 SemialgebraicSets = "8e049039-38e8-557d-ae3a-bc521ccf6204"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
