@@ -1,18 +1,39 @@
-mutable struct data_type
-    n
-    nb
-    x
-    f
-    supp
-    basis
-    coe
-    supp0
-    ub
-    sizes
-    solver
+mutable struct upop_data
+    n # the number of variables
+    nb # the number of binary variables
+    x # the set of variables
+    f # the objective function
+    supp # the support data
+    coe # the coefficient data
+    basis # the basis
+    ksupp # the extending support at the k-th step
+    sb # the sizes of different blocks
+    numb # the numbers of different blocks
+    solver # the SDP solver
+    tol # the tolerance to certify global optimality
+    flag # 0 if global optimality is certified; 1 otherwise
 end
 
-function tssos_first(f,x;nb=0,newton=true,reducebasis=false,TS="block",merge=false,solver="Mosek",QUIET=false,solve=true,MomentOne=false,solution=false,tol=1e-5)
+"""
+    opt,sol,data = tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", merge=false,
+    solver="Mosek", QUIET=false, solve=true, MomentOne=false, solution=false, tol=1e-4)
+
+Compute the first step of the TSSOS hierarchy for unconstrained polynomial optimization.
+If `newton=true`, then compute a monomial basis by the Newton polytope method.
+If `reducebasis=true`, then remove monomials from the monomial basis by diagonal inconsistency.
+If `TS="block"`, use maximal chordal extensions; if `TS="MD"`, use approximately smallest chordal
+extensions. If `merge=true`, perform the PSD block merging. If `MomentOne=true`, add an extra first
+order moment matrix to the moment relaxation.
+Return the optimum, the (near) optimal solution (if `solution=true`) and other data.
+
+# Arguments
+- `f`: the objective function for unconstrained polynomial optimization.
+- `x`: the set of variables.
+- `nb`: the number of binary variables in `x`.
+- `tol`: the relative tolerance to certify global optimality.
+"""
+function tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", merge=false,
+    solver="Mosek", QUIET=false, solve=true, MomentOne=false, solution=false, tol=1e-4)
     n=length(x)
     mon=monomials(f)
     coe=coefficients(f)
@@ -34,7 +55,7 @@ function tssos_first(f,x;nb=0,newton=true,reducebasis=false,TS="block",merge=fal
     tsupp=[supp bin_add(basis,basis,nb)]
     tsupp=sortslices(tsupp,dims=2)
     tsupp=unique(tsupp,dims=2)
-    blocks,cl,blocksize,ub,sizes,_=get_blocks(tsupp,basis,nb=nb,TS=TS,QUIET=QUIET,merge=merge)
+    blocks,cl,blocksize,sb,numb,_=get_blocks(tsupp,basis,nb=nb,TS=TS,QUIET=QUIET,merge=merge)
     if reducebasis==true
         psupp=[supp zeros(UInt8,n)]
         basis,flag=reducebasis!(psupp,basis,blocks,cl,blocksize,nb=nb)
@@ -42,51 +63,58 @@ function tssos_first(f,x;nb=0,newton=true,reducebasis=false,TS="block",merge=fal
             tsupp=[supp bin_add(basis,basis,nb)]
             tsupp=sortslices(tsupp,dims=2)
             tsupp=unique(tsupp,dims=2)
-            blocks,cl,blocksize,ub,sizes,_=get_blocks(tsupp,basis,nb=nb,TS=TS,QUIET=QUIET,merge=merge)
+            blocks,cl,blocksize,sb,numb,_=get_blocks(tsupp,basis,nb=nb,TS=TS,QUIET=QUIET,merge=merge)
         end
     end
-    opt,supp0,moment=blockupop(n,supp,coe,basis,blocks,cl,blocksize,nb=nb,solver=solver,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
+    opt,ksupp,moment=blockupop(n,supp,coe,basis,blocks,cl,blocksize,nb=nb,solver=solver,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
     if solution==true
-        sol=extract_solutions(moment,opt,[f],x,tol=tol)
+        sol,flag=extract_solutions(moment,opt,[f],x,tol=tol)
     else
         sol=nothing
+        flag=1
     end
-    data=data_type(n,nb,x,f,supp,basis,coe,supp0,ub,sizes,solver)
+    data=upop_data(n,nb,x,f,supp,coe,basis,ksupp,sb,numb,solver,tol,flag)
     return opt,sol,data
 end
 
-function tssos_higher!(data::data_type;TS="block",merge=false,QUIET=false,solve=true,MomentOne=false,solution=false,tol=1e-5)
+"""
+    opt,sol,data = tssos_higher!(data; TS="block", merge=false, QUIET=false, solve=true,
+    MomentOne=false, solution=false, tol=1e-4)
+
+Compute higher steps of the TSSOS hierarchy.
+Return the optimum, the (near) optimal solution (if `solution=true`) and other data.
+"""
+function tssos_higher!(data::upop_data; TS="block", merge=false, QUIET=false, solve=true,
+    MomentOne=false, solution=false)
     n=data.n
     nb=data.nb
     x=data.x
     f=data.f
     supp=data.supp
-    basis=data.basis
     coe=data.coe
-    supp0=data.supp0
-    ub=data.ub
-    sizes=data.sizes
+    basis=data.basis
+    ksupp=data.ksupp
+    sb=data.sb
+    numb=data.numb
     solver=data.solver
-    supp0=sortslices(supp0,dims=2)
-    supp0=unique(supp0,dims=2)
-    blocks,cl,blocksize,ub,sizes,status=get_blocks(supp0,basis,ub=ub,sizes=sizes,nb=nb,TS=TS,QUIET=QUIET,merge=merge)
+    tol=data.tol
+    blocks,cl,blocksize,sb,numb,status=get_blocks(ksupp,basis,sb=sb,numb=numb,nb=nb,TS=TS,QUIET=QUIET,merge=merge)
     opt=nothing
     sol=nothing
     if status==1
-        opt,supp0,moment=blockupop(n,supp,coe,basis,blocks,cl,blocksize,nb=nb,solver=solver,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
+        opt,ksupp,moment=blockupop(n,supp,coe,basis,blocks,cl,blocksize,nb=nb,solver=solver,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
         if solution==true
-            sol=extract_solutions(moment,opt,[f],x,tol=tol)
-        else
-            sol=nothing
+            sol,flag=extract_solutions(moment,opt,[f],x,tol=tol)
+            data.flag=flag
         end
     end
-    data.supp0=supp0
-    data.ub=ub
-    data.sizes=sizes
+    data.ksupp=ksupp
+    data.sb=sb
+    data.numb=numb
     return opt,sol,data
 end
 
-function bin_add(bi,bj,nb)
+function bin_add(bi, bj, nb)
     bs=bi+bj
     if nb>0
         bs[1:nb,:]=isodd.(bs[1:nb,:])
@@ -94,7 +122,7 @@ function bin_add(bi,bj,nb)
     return bs
 end
 
-function get_basis(n,d;nb=0,lead=[])
+function get_basis(n, d; nb=0, lead=[])
     lb=binomial(n+d,d)
     basis=zeros(UInt8,n,lb)
     i=0
@@ -135,7 +163,7 @@ function divide(a, lead, n, llead)
     return any(j->all(i->lead[i,j]<=a[i], 1:n), 1:llead)
 end
 
-function reminder(a,x,gb,n)
+function reminder(a, x, gb, n)
     remind=rem(prod(x.^a), gb)
     mon=monomials(remind)
     coe=coefficients(remind)
@@ -147,7 +175,7 @@ function reminder(a,x,gb,n)
     return lm,supp,coe
 end
 
-function newton_basis(n,d,supp;e=1e-5)
+function newton_basis(n, d, supp; e=1e-5)
     lsupp=size(supp,2)
     basis=get_basis(n,d)
     lb=size(basis,2)
@@ -192,7 +220,7 @@ function newton_basis(n,d,supp;e=1e-5)
     return basis[:,indexb]
 end
 
-function generate_basis!(supp,basis)
+function generate_basis!(supp, basis)
     supp=sortslices(supp,dims=2)
     supp=unique(supp,dims=2)
     lsupp=size(supp,2)
@@ -233,12 +261,12 @@ function bfind(A, l, a)
     return 0
 end
 
-function get_graph(tsupp::Array{UInt8, 2},basis::Array{UInt8, 2};nb=0)
+function get_graph(tsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0)
     lb=size(basis,2)
     G=SimpleGraph(lb)
     ltsupp=size(tsupp,2)
     for i = 1:lb, j = i+1:lb
-        bi=bin_add(basis[:,i],basis[:,j],nb)
+        bi=bin_add(basis[:,i], basis[:,j], nb)
         if bfind(tsupp,ltsupp,bi)!=0
            add_edge!(G,i,j)
         end
@@ -246,7 +274,8 @@ function get_graph(tsupp::Array{UInt8, 2},basis::Array{UInt8, 2};nb=0)
     return G
 end
 
-function get_blocks(tsupp,basis;ub=[],sizes=[],nb=0,TS="block",minimize=false,QUIET=true,merge=false)
+function get_blocks(tsupp, basis; sb=[], numb=[], nb=0, TS="block", minimize=false,
+    QUIET=true, merge=false)
     if TS==false
         blocksize=[size(basis,2)]
         blocks=[[i for i=1:size(basis,2)]]
@@ -264,13 +293,13 @@ function get_blocks(tsupp,basis;ub=[],sizes=[],nb=0,TS="block",minimize=false,QU
             end
         end
     end
-    nub=unique(blocksize)
-    nsizes=[sum(blocksize.== i) for i in nub]
-    if isempty(ub)||nub!=ub||nsizes!=sizes
+    nsb=unique(blocksize)
+    nnumb=[sum(blocksize.== i) for i in nsb]
+    if isempty(sb)||nsb!=sb||nnumb!=numb
         status=1
         if QUIET==false
             println("------------------------------------------------------")
-            println("The sizes of blocks:\n$nub\n$nsizes")
+            println("The sizes of PSD blocks:\n$nsb\n$nnumb")
             println("------------------------------------------------------")
         end
     else
@@ -279,23 +308,30 @@ function get_blocks(tsupp,basis;ub=[],sizes=[],nb=0,TS="block",minimize=false,QU
             println("No higher TSSOS hierarchy!")
         end
     end
-    return blocks,cl,blocksize,nub,nsizes,status
+    return blocks,cl,blocksize,nsb,nnumb,status
 end
 
-function blockupop(n,supp,coe,basis,blocks,cl,blocksize;nb=0,solver="Mosek",QUIET=true,solve=true,solution=false,MomentOne=false)
-    tsupp=zeros(UInt8,n,Int(sum(blocksize.^2+blocksize)/2))
+function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mosek",
+    QUIET=true, solve=true, solution=false, MomentOne=false)
+    tsupp=zeros(UInt8,n,Int(sum(Int.(blocksize).^2+blocksize)/2))
     k=1
     for i=1:cl, j=1:blocksize[i], r=j:blocksize[i]
         @inbounds bi=bin_add(basis[:,blocks[i][j]],basis[:,blocks[i][r]],nb)
         @inbounds tsupp[:,k]=bi
         k+=1
     end
-    supp0=copy(tsupp)
     if MomentOne==true||solution==true
+        ksupp=copy(tsupp)
+        ksupp=unique(ksupp,dims=2)
+        ksupp=sortslices(ksupp,dims=2)
         tsupp=[tsupp get_basis(n,2,nb=nb)]
+        tsupp=unique(tsupp,dims=2)
+        tsupp=sortslices(tsupp,dims=2)
+    else
+        tsupp=unique(tsupp,dims=2)
+        tsupp=sortslices(tsupp,dims=2)
+        ksupp=tsupp
     end
-    tsupp=unique(tsupp,dims=2)
-    tsupp=sortslices(tsupp,dims=2)
     objv=nothing
     moment=nothing
     if solve==true
@@ -316,9 +352,9 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;nb=0,solver="Mosek",QUIE
                 @inbounds bi=bin_add(basis[:,j],basis[:,k],nb)
                 Locb=bfind(tsupp,ltsupp,bi)
                 if j==k
-                   @inbounds cons[Locb]+=pos0[j,k]
+                   @inbounds add_to_expression!(cons[Locb], pos0[j,k])
                 else
-                   @inbounds cons[Locb]+=2*pos0[j,k]
+                   @inbounds add_to_expression!(cons[Locb], 2, pos0[j,k])
                 end
             end
         end
@@ -336,9 +372,9 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;nb=0,solver="Mosek",QUIE
                    @inbounds bi=bin_add(basis[:,blocks[i][j]],basis[:,blocks[i][r]],nb)
                    Locb=bfind(tsupp,ltsupp,bi)
                    if j==r
-                       @inbounds cons[Locb]+=pos[i][j,r]
+                       @inbounds add_to_expression!(cons[Locb], pos[i][j,r])
                    else
-                       @inbounds cons[Locb]+=2*pos[i][j,r]
+                       @inbounds add_to_expression!(cons[Locb], 2, pos[i][j,r])
                    end
                end
             end
@@ -377,17 +413,19 @@ function blockupop(n,supp,coe,basis,blocks,cl,blocksize;nb=0,solver="Mosek",QUIE
             moment=Symmetric(moment,:U)
         end
     end
-    return objv,supp0,moment
+    return objv,ksupp,moment
 end
 
-function extract_solutions(moment,opt,pop,x;numeq=0,tol=1e-5)
+function extract_solutions(moment, opt, pop, x; numeq=0, tol=1e-4)
     n=length(x)
     m=length(pop)-1
     F=eigen(moment, n+1:n+1)
     sol=sqrt(F.values[1])*F.vectors[:,1]
     sol=sol[2:end]/sol[1]
     flag=0
-    if abs(opt-polynomial(pop[1])(x => sol))>=tol
+    upper_bound=polynomial(pop[1])(x => sol)
+    gap=abs(upper_bound)>1 ? abs((opt-upper_bound)/upper_bound) : abs(opt-upper_bound)
+    if gap >= tol
         flag=1
     end
     for i=1:m-numeq
@@ -403,5 +441,5 @@ function extract_solutions(moment,opt,pop,x;numeq=0,tol=1e-5)
     if flag==0
         println("Global optimality certified!")
     end
-    return sol
+    return sol,flag
 end
