@@ -6,7 +6,7 @@ pkg> add https://github.com/wangjie212/TSSOS
 
  | **Documentation** |
  |:-----------------:|
- | [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://github.com/wangjie212/TSSOS/latest) |
+ | [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://wangjie212.github.io/TSSOS/dev) |
 
 ## Dependencies
 - Julia
