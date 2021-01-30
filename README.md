@@ -4,7 +4,9 @@ TSSOS is a sparse polynomial optimization tool based on the sparsity adapted mom
 pkg> add https://github.com/wangjie212/TSSOS
  ```
 
-[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://github.com/wangjie212/TSSOS/latest)
+ | **Documentation** |
+ |:-----------------:|
+ | [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://github.com/wangjie212/TSSOS/latest) |
 
 ## Dependencies
 - Julia
