@@ -62,7 +62,7 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=nothing, red
         leadsupp=[]
     end
     m=length(cpop)-1
-    dg=zeros(Int,m)
+    dg=zeros(Int, m)
     coe=Vector{Vector{Float64}}(undef, m+1)
     supp=Vector{Array{UInt8,2}}(undef, m+1)
     lt=Vector{UInt32}(undef, m+1)
@@ -248,13 +248,11 @@ function get_cblocks!(m, tsupp, supp, lt, basis; blocks=[], cl=[], blocksize=[],
         cl=Vector{UInt16}(undef, m+1)
     end
     if TS==false
-        blocksize[1]=[size(basis[1],2)]
-        blocks[1]=[[i for i=1:size(basis[1],2)]]
-        cl[1]=1
-        for k=1:m
-            blocks[k+1]=[[i for i=1:size(basis[k+1],2)]]
-            blocksize[k+1]=[size(basis[k+1],2)]
-            cl[k+1]=1
+        for k=1:m+1
+            lb = ndims(basis[k])==1 ? length(basis[k]) : size(basis[k],2)
+            blocks[k]=[[i for i=1:lb]]
+            blocksize[k]=[lb]
+            cl[k]=1
         end
         status=1
         nsb=Int.(blocksize[1])
