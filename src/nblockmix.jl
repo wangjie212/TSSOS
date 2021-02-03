@@ -204,9 +204,9 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
     if solve==true
         ltsupp=length(tsupp)
         if solver=="Mosek"
-            model=Model(optimizer_with_attributes(Mosek.Optimizer))
+            model = Model(optimizer_with_attributes(Mosek.Optimizer))
         elseif solver=="SDPT3"
-            model=Model(optimizer_with_attributes(SDPT3.Optimizer))
+            model = Model(optimizer_with_attributes(SDPT3.Optimizer))
         else
             @error "The solver is currently not supported!"
             return nothing,nothing,nothing

@@ -422,7 +422,7 @@ function blockcpop(n, m, supp, coe, lt, basis, blocks, cl, blocksize; nb=0, nume
         end
         gpos=Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, m)
         for k=1:m
-            gpos[k]=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[k])
+            gpos[k]=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[k+1])
             for i=1:cl[k+1]
                 bs=blocksize[k+1][i]
                 if bs==1
