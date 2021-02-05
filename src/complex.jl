@@ -1,5 +1,5 @@
 function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d, dg; numeq=0, foc=100,
-    CS="MF", minimize=true, assign="first", TS="block", QUIET=false, solve=true, solution=false,
+    CS="MF", minimize=false, assign="first", TS="block", QUIET=false, solve=true, solution=false,
     MomentOne=false)
     m=length(supp)-1
     ind=[supp[1][i][1]<=supp[1][i][2] for i=1:length(supp[1])]
@@ -394,8 +394,7 @@ function get_cgraph(tsupp::Vector{Vector{Vector{UInt16}}}, supp, lt, basis; nb=0
     return G
 end
 
-function clique_decomp(n, m, dg, supp::Vector{Vector{Vector{Vector{UInt16}}}}; order="min", alg="MF",
-    minimize=true)
+function clique_decomp(n, m, dg, supp::Vector{Vector{Vector{Vector{UInt16}}}}; order="min", alg="MF", minimize=false)
     if alg==false
         cliques=[UInt16[i for i=1:n]]
         cql=1

@@ -25,7 +25,7 @@ mutable struct mcpop_data
 end
 
 """
-    opt,sol,data = cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", minimize=true,
+    opt,sol,data = cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", minimize=false,
     assign="first", TS="block", solver="Mosek", QUIET=false, solve=true, solution=false,
     MomentOne=true, tol=1e-4)
 
@@ -39,7 +39,7 @@ relaxation order `d`.
 - `nb`: the number of binary variables in `x`.
 - `numeq`: the number of equality constraints.
 """
-function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", minimize=true, assign="first",
+function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", minimize=false, assign="first",
     TS="block", solver="Mosek", QUIET=false, solve=true, solution=false, MomentOne=true, tol=1e-4)
     n=length(x)
     m=length(pop)-1
@@ -78,7 +78,7 @@ end
 
 """
     opt,sol,data = cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe::Vector{Vector{Float64}},
-    n, d; numeq=0, nb=0, foc=100, CS="MF", minimize=true, assign="first", TS="block", QUIET=false,
+    n, d; numeq=0, nb=0, foc=100, CS="MF", minimize=false, assign="first", TS="block", QUIET=false,
     solver="Mosek", solve=true, solution=false, MomentOne=true, tol=1e-4)
 
 Compute the first step of the CS-TSSOS hierarchy for constrained polynomial optimization with
@@ -93,7 +93,7 @@ corresponding to the supports and coeffients of `pop` respectively.
 - `numeq`: the number of equality constraints.
 """
 function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe::Vector{Vector{Float64}}, n, d;
-    numeq=0, nb=0, foc=100, CS="MF", minimize=true, assign="first", TS="block", QUIET=false,
+    numeq=0, nb=0, foc=100, CS="MF", minimize=false, assign="first", TS="block", QUIET=false,
     solver="Mosek", solve=true, solution=false, MomentOne=true, tol=1e-4)
     m=length(supp)-1
     dg=[maximum(length.(supp[i])) for i=2:m+1]
@@ -201,6 +201,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
         ksupp=tsupp
     end
     objv=nothing
+    moment=nothing
     if solve==true
         ltsupp=length(tsupp)
         if solver=="Mosek"
@@ -333,8 +334,6 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
         if solution==true
             measure=-dual.(con)
             moment=get_moment(measure,tsupp,cliques,cql,cliquesize,nb=nb)
-        else
-            moment=nothing
         end
     end
     return objv,ksupp,moment

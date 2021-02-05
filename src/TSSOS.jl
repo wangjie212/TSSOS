@@ -10,8 +10,7 @@ using LinearAlgebra
 using MetaGraphs
 using SemialgebraicSets
 
-export get_basis, generate_basis!, tssos_first, tssos_higher!, cs_tssos_first,
-cs_tssos_higher!, local_solution, refine_sol, seval
+export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, local_solution, refine_sol
 
 include("chordal_extension.jl")
 include("clique_merge.jl")
