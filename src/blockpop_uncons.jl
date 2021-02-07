@@ -34,6 +34,8 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other d
 """
 function tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", merge=false,
     solver="Mosek", QUIET=false, solve=true, MomentOne=false, solution=false, tol=1e-4)
+    println("************************TSSOS************************")
+    println("TSSOS is launching...")
     n=length(x)
     mon=monomials(f)
     coe=coefficients(f)
@@ -55,6 +57,9 @@ function tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", mer
     tsupp=[supp bin_add(basis,basis,nb)]
     tsupp=sortslices(tsupp,dims=2)
     tsupp=unique(tsupp,dims=2)
+    if TS!=false&&QUIET==false
+        println("Starting to compute the block structure...")
+    end
     blocks,cl,blocksize,sb,numb,_=get_blocks(tsupp,basis,nb=nb,TS=TS,QUIET=QUIET,merge=merge)
     if reducebasis==true
         psupp=[supp zeros(UInt8,n)]
@@ -65,6 +70,10 @@ function tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", mer
             tsupp=unique(tsupp,dims=2)
             blocks,cl,blocksize,sb,numb,_=get_blocks(tsupp,basis,nb=nb,TS=TS,QUIET=QUIET,merge=merge)
         end
+    end
+    if TS!=false&&QUIET==false
+        mb=maximum(maximum.(sb))
+        println("Obtained the block structure. The maximal size of blocks is $mb.")
     end
     opt,ksupp,moment=blockupop(n,supp,coe,basis,blocks,cl,blocksize,nb=nb,solver=solver,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
     if solution==true
@@ -98,7 +107,14 @@ function tssos_higher!(data::upop_data; TS="block", merge=false, QUIET=false, so
     numb=data.numb
     solver=data.solver
     tol=data.tol
+    if TS!=false&&QUIET==false
+        println("Starting to compute the block structure...")
+    end
     blocks,cl,blocksize,sb,numb,status=get_blocks(ksupp,basis,sb=sb,numb=numb,nb=nb,TS=TS,QUIET=QUIET,merge=merge)
+    if TS!=false&&QUIET==false
+        mb=maximum(maximum.(sb))
+        println("Obtained the block structure. The maximal size of blocks is $mb.")
+    end
     opt=nothing
     sol=nothing
     if status==1
@@ -336,6 +352,9 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
     moment=nothing
     if solve==true
         ltsupp=size(tsupp,2)
+        if QUIET==false
+            println("Assembling the SDP...")
+        end
         if solver=="Mosek"
             model=Model(optimizer_with_attributes(Mosek.Optimizer))
         elseif solver=="SDPT3"
@@ -393,7 +412,15 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
         cons[1]+=lower
         @constraint(model, con[i=1:ltsupp], cons[i]==bc[i])
         @objective(model, Max, lower)
+        if QUIET==false
+            println("Solving the SDP...")
+        end
+        time=@elapsed begin
         optimize!(model)
+        end
+        if QUIET==false
+            println("SDP solving time: $time seconds.")
+        end
         status=termination_status(model)
         objv = objective_value(model)
         if status!=MOI.OPTIMAL

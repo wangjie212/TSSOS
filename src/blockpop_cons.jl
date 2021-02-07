@@ -43,6 +43,8 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other d
 function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=nothing, reducebasis=false,
     TS="block", merge=false, solver="Mosek", QUIET=false, solve=true, MomentOne=false,
     solution=false, tol=1e-4)
+    println("***************************TSSOS***************************")
+    println("TSSOS is launching...")
     n=length(x)
     if quotient==true
         cpop=copy(pop)
@@ -90,6 +92,10 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=nothing, red
     tsupp=[isupp bin_add(basis[1],basis[1],nb)]
     tsupp=sortslices(tsupp,dims=2)
     tsupp=unique(tsupp,dims=2)
+    if TS!=false&&QUIET==false
+        println("Starting to compute the block structure...")
+    end
+    time=@elapsed begin
     blocks,cl,blocksize,sb,numb,_=get_cblocks!(m,tsupp,supp[2:end],lt[2:end],basis,nb=nb,TS=TS,QUIET=QUIET,merge=merge)
     if reducebasis==true
         gsupp=get_gsupp(n,m,lt,supp,basis[2:end],blocks[2:end],cl[2:end],blocksize[2:end],nb=nb)
@@ -102,6 +108,11 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=nothing, red
             tsupp=unique(tsupp,dims=2)
             blocks,cl,blocksize,sb,numb,_=get_cblocks!(m,tsupp,supp[2:end],lt[2:end],basis,nb=nb,TS=TS,QUIET=QUIET,merge=merge)
         end
+    end
+    end
+    if TS!=false&&QUIET==false
+        mb=maximum(maximum.(sb))
+        println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
     end
     opt,ksupp,moment=blockcpop(n,m,supp,coe,lt,basis,blocks,cl,blocksize,nb=nb,numeq=numeq,gb=gb,x=x,lead=leadsupp,solver=solver,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
     if solution==true
@@ -139,7 +150,16 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, QUIET=false, so
     tol=data.tol
     ksupp=sortslices(ksupp,dims=2)
     ksupp=unique(ksupp,dims=2)
+    if TS!=false&&QUIET==false
+        println("Starting to compute the block structure...")
+    end
+    time=@elapsed begin
     blocks,cl,blocksize,sb,numb,status=get_cblocks!(m,ksupp,supp[2:end],lt[2:end],basis,blocks=blocks,cl=cl,blocksize=blocksize,sb=sb,numb=numb,nb=nb,TS=TS,QUIET=QUIET,merge=merge)
+    end
+    if TS!=false&&QUIET==false
+        mb=maximum(maximum.(sb))
+        println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
+    end
     opt=nothing
     sol=nothing
     if status==1
@@ -343,6 +363,9 @@ function blockcpop(n, m, supp, coe, lt, basis, blocks, cl, blocksize; nb=0, nume
         tsupp=sortslices(tsupp,dims=2)
         tsupp=unique(tsupp,dims=2)
         ltsupp=size(tsupp,2)
+        if QUIET==false
+            println("Assembling the SDP...")
+        end
         if solver=="Mosek"
             model=Model(optimizer_with_attributes(Mosek.Optimizer))
         elseif solver=="SDPT3"
@@ -352,6 +375,7 @@ function blockcpop(n, m, supp, coe, lt, basis, blocks, cl, blocksize; nb=0, nume
             return nothing,nothing,nothing
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
+        time=@elapsed begin
         cons=[AffExpr(0) for i=1:ltsupp]
         pos=Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[1])
         for i=1:cl[1]
@@ -488,7 +512,17 @@ function blockcpop(n, m, supp, coe, lt, basis, blocks, cl, blocksize; nb=0, nume
         cons[1]+=lower
         @constraint(model, con[i=1:ltsupp], cons[i]==bc[i])
         @objective(model, Max, lower)
+        end
+        if QUIET==false
+            println("SDP assembling time: $time seconds.")
+            println("Solving the SDP...")
+        end
+        time=@elapsed begin
         optimize!(model)
+        end
+        if QUIET==false
+            println("SDP solving time: $time seconds.")
+        end
         status=termination_status(model)
         objv = objective_value(model)
         if status!=MOI.OPTIMAL

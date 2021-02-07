@@ -1,14 +1,31 @@
 function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d, dg; numeq=0, foc=100,
     CS="MF", minimize=false, assign="first", TS="block", QUIET=false, solve=true, solution=false,
     MomentOne=false)
+    println("***************************TSSOS***************************")
+    println("TSSOS is launching...")
     m=length(supp)-1
     ind=[supp[1][i][1]<=supp[1][i][2] for i=1:length(supp[1])]
     supp[1]=supp[1][ind]
     coe[1]=coe[1][ind]
+    time=@elapsed begin
     cliques,cql,cliquesize=clique_decomp(n,m,dg,supp,order=d,alg=CS,minimize=minimize)
+    end
+    if CS!=false&&QUIET==false
+        mc=maximum(cliquesize)
+        println("Obtained the variable cliques in $time seconds. The maximal size of cliques is $mc.")
+    end
     J,ncc=assign_constraint(m,supp,cliques,cql,cliquesize,assign=assign)
     rlorder=init_order(dg,J,cliquesize,cql,foc=foc,order=d)
+    if TS!=false&&QUIET==false
+        println("Starting to compute the block structure...")
+    end
+    time=@elapsed begin
     blocks,cl,blocksize,sb,numb,basis,status=get_cblocks_mix!(dg,J,rlorder,m,supp,cliques,cql,cliquesize,TS=TS)
+    end
+    if TS!=false&&QUIET==false
+        mb=maximum(maximum.(sb))
+        println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
+    end
     opt,ksupp=blockcpop_mix(n,m,supp,coe,basis,cliques,cql,cliquesize,J,ncc,blocks,cl,blocksize,numeq=numeq,QUIET=QUIET,TS=TS,solve=solve,solution=solution,MomentOne=MomentOne)
     data=mcpop_data(n,0,m,numeq,supp,coe,dg,basis,rlorder,ksupp,cql,cliques,cliquesize,J,ncc,sb,numb,blocks,cl,blocksize,"Mosek",1e-4,1)
     return opt,data
@@ -101,8 +118,12 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
     objv=nothing
     if solve==true
         ltsupp=length(tsupp)
+        if QUIET==false
+            println("Assembling the SDP...")
+        end
         model=Model(optimizer_with_attributes(Mosek.Optimizer))
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
+        time=@elapsed begin
         rcons=[AffExpr(0) for i=1:ltsupp]
         icons=[AffExpr(0) for i=1:ltsupp]
         for i=1:cql
@@ -225,7 +246,17 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
         @constraint(model, rcons[1]+lower==rbc[1])
         @constraint(model, icons.==ibc)
         @objective(model, Max, lower)
+        end
+        if QUIET==false
+            println("SDP assembling time: $time seconds.")
+            println("Solving the SDP...")
+        end
+        time=@elapsed begin
         optimize!(model)
+        end
+        if QUIET==false
+            println("SDP solving time: $time seconds.")
+        end
         status=termination_status(model)
         objv = objective_value(model)
         if status!=MOI.OPTIMAL
