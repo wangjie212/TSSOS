@@ -9,6 +9,7 @@ using Ipopt
 using LinearAlgebra
 using MetaGraphs
 using SemialgebraicSets
+using COSMO
 
 export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, local_solution, refine_sol
 

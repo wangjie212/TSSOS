@@ -103,10 +103,9 @@ relaxation order `d`. Here the polynomial optimization problem is defined by `su
 corresponding to the supports and coeffients of `pop` respectively.
 
 # Arguments
-- `pop`: the vector of the objective function, inequality constraints, and equality constraints.
-- `x`: the set of variables.
+- `supp`: the supports of the polynomial optimization problem.
+- `coe`: the coeffients of the polynomial optimization problem.
 - `d`: the relaxation order of the moment-SOS hierarchy.
-- `nb`: the number of binary variables in `x`.
 - `numeq`: the number of equality constraints.
 """
 function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe::Vector{Vector{Float64}}, n, d;
@@ -153,7 +152,7 @@ end
 Compute higher steps of the CS-TSSOS hierarchy.
 Return the optimum, the (near) optimal solution (if `solution=true`) and other data.
 """
-function cs_tssos_higher!(data; TS="block", QUIET=false, solve=true, solution=false, MomentOne=false)
+function cs_tssos_higher!(data; TS="block", QUIET=false, solve=true, tune=false, solution=false, MomentOne=false)
     n=data.n
     nb=data.nb
     m=data.m
@@ -189,7 +188,7 @@ function cs_tssos_higher!(data; TS="block", QUIET=false, solve=true, solution=fa
     opt=nothing
     sol=nothing
     if status==1
-        opt,ksupp,moment=blockcpop_mix(n,m,supp,coe,basis,cliques,cql,cliquesize,J,ncc,blocks,cl,blocksize,numeq=numeq,nb=nb,QUIET=QUIET,solver=solver,solve=solve,solution=solution,MomentOne=MomentOne)
+        opt,ksupp,moment=blockcpop_mix(n,m,supp,coe,basis,cliques,cql,cliquesize,J,ncc,blocks,cl,blocksize,numeq=numeq,nb=nb,QUIET=QUIET,solver=solver,solve=solve,tune=tune,solution=solution,MomentOne=MomentOne)
         if solution==true
             sol,data.flag=approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
         end

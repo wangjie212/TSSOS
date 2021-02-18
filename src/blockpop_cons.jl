@@ -261,7 +261,7 @@ function get_cgraph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, lt, basis::Ar
 end
 
 function get_cblocks!(m, tsupp, supp, lt, basis; blocks=[], cl=[], blocksize=[], sb=[], numb=[], nb=0,
-    TS="block", QUIET=true, merge=false)
+    TS="block", QUIET=true, merge=false, md=3)
     if isempty(blocks)
         blocks=Vector{Vector{Vector{UInt16}}}(undef, m+1)
         blocksize=Vector{Vector{UInt16}}(undef, m+1)
@@ -291,7 +291,7 @@ function get_cblocks!(m, tsupp, supp, lt, basis; blocks=[], cl=[], blocksize=[],
         else
             blocks[1],cl[1],blocksize[1]=chordal_cliques!(G, method=TS, minimize=false)
             if merge==true
-                blocks[1],cl[1],blocksize[1]=clique_merge!(blocks[1], cl[1], QUIET=true)
+                blocks[1],cl[1],blocksize[1]=clique_merge!(blocks[1], d=md, QUIET=true)
             end
         end
         nsb=Int.(unique(blocksize[1]))
@@ -312,7 +312,7 @@ function get_cblocks!(m, tsupp, supp, lt, basis; blocks=[], cl=[], blocksize=[],
                 else
                     blocks[k+1],cl[k+1],blocksize[k+1]=chordal_cliques!(G, method=TS, minimize=false)
                     if merge==true
-                        blocks[k+1],cl[k+1],blocksize[k+1]=clique_merge!(blocks[k+1], cl[k+1], QUIET=true)
+                        blocks[k+1],cl[k+1],blocksize[k+1]=clique_merge!(blocks[k+1], d=md, QUIET=true)
                     end
                 end
             end
@@ -368,6 +368,8 @@ function blockcpop(n, m, supp, coe, lt, basis, blocks, cl, blocksize; nb=0, nume
         end
         if solver=="Mosek"
             model=Model(optimizer_with_attributes(Mosek.Optimizer))
+        elseif solver=="COSMO"
+            model=Model(optimizer_with_attributes(COSMO.Optimizer, "max_iter" => 10000))
         elseif solver=="SDPT3"
             model=Model(optimizer_with_attributes(SDPT3.Optimizer))
         else

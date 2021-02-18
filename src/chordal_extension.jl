@@ -186,7 +186,7 @@ function add_clique!(G, nodes)
 end
 
 function max_cliques(G)
-    cliques=maximal_cliques(G)
+    cliques=convert(Vector{Vector{UInt16}}, maximal_cliques(G))
     sort!.(cliques)
     cliquesize=length.(cliques)
     cql=length(cliquesize)

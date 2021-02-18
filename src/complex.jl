@@ -1,5 +1,20 @@
+"""
+    opt,sol,data = cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vector{Vector{ComplexF64}},
+    n, d, dg; numeq=0, foc=100, CS="MF", minimize=false, assign="first", TS="block", QUIET=false, solve=true,
+    MomentOne=true)
+
+Compute the first step of the CS-TSSOS hierarchy for constrained complex polynomial optimization with
+relaxation order `d`. Here the complex polynomial optimization problem is defined by `supp` and `coe`,
+corresponding to the supports and coeffients of `pop` respectively.
+
+# Arguments
+- `supp`: the supports of the complex polynomial optimization problem.
+- `coe`: the coeffients of the complex polynomial optimization problem.
+- `d`: the relaxation order of the moment-SOHS hierarchy.
+- `numeq`: the number of equality constraints.
+"""
 function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d, dg; numeq=0, foc=100,
-    CS="MF", minimize=false, assign="first", TS="block", QUIET=false, solve=true, solution=false,
+    CS="MF", minimize=false, assign="first", TS="block", QUIET=false, solve=true, tune=false, solution=false,
     MomentOne=false)
     println("***************************TSSOS***************************")
     println("TSSOS is launching...")
@@ -26,50 +41,14 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d,
         mb=maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
     end
-    opt,ksupp=blockcpop_mix(n,m,supp,coe,basis,cliques,cql,cliquesize,J,ncc,blocks,cl,blocksize,numeq=numeq,QUIET=QUIET,TS=TS,solve=solve,solution=solution,MomentOne=MomentOne)
+    opt,ksupp,_=blockcpop_mix(n,m,supp,coe,basis,cliques,cql,cliquesize,J,ncc,blocks,cl,blocksize,numeq=numeq,QUIET=QUIET,TS=TS,solve=solve,tune=tune,solution=solution,MomentOne=MomentOne)
     data=mcpop_data(n,0,m,numeq,supp,coe,dg,basis,rlorder,ksupp,cql,cliques,cliquesize,J,ncc,sb,numb,blocks,cl,blocksize,"Mosek",1e-4,1)
-    return opt,data
+    return opt,nothing,data
 end
 
-# function cs_tssos_higher!(data;TS="block",QUIET=false,solve=true,solution=false,MomentOne=true)
-#     n=data.n
-#     m=data.m
-#     numeq=data.numeq
-#     dg=data.dg
-#     supp=data.supp
-#     coe=data.coe
-#     basis=data.basis
-#     rlorder=data.rlorder
-#     ksupp=data.ksupp
-#     cql=data.cql
-#     cliques=data.cliques
-#     cliquesize=data.cliquesize
-#     J=data.J
-#     ncc=data.ncc
-#     blocks=data.blocks
-#     cl=data.cl
-#     blocksize=data.blocksize
-#     sb=data.sb
-#     numb=data.numb
-#     blocks,cl,blocksize,sb,numb,basis,status=get_cblocks_mix!(dg,J,rlorder,m,supp,cliques,cql,cliquesize,tsupp=ksupp,basis=basis,blocks=blocks,cl=cl,blocksize=blocksize,sb=sb,numb=numb,TS=TS)
-#     if status==1
-#         opt,ksupp=blockcpop_mix(n,m,supp,coe,basis,cliques,cql,cliquesize,J,ncc,blocks,cl,blocksize,numeq=numeq,QUIET=QUIET,solve=solve,solution=solution,MomentOne=MomentOne)
-#         data.ksupp=ksupp
-#         data.blocks=blocks
-#         data.cl=cl
-#         data.blocksize=blocksize
-#         data.sb=sb
-#         data.numb=numb
-#     else
-#         opt=nothing
-#         println("No higher CS-TSSOS hierarchy!")
-#     end
-#     return opt,data
-# end
-
 function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, basis, cliques,
-    cql, cliquesize, J, ncc, blocks, cl, blocksize; numeq=0, QUIET=false, TS="block", solve=true,
-    solution=false, MomentOne=false)
+    cql, cliquesize, J, ncc, blocks, cl, blocksize; numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek",
+    tune=false, solve=true, solution=false, MomentOne=false)
     tsupp=Vector{Vector{UInt16}}[]
     for i=1:cql
         for j=1:cl[i][1], k=1:blocksize[i][1][j], r=k:blocksize[i][1][j]
@@ -122,6 +101,19 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
             println("Assembling the SDP...")
         end
         model=Model(optimizer_with_attributes(Mosek.Optimizer))
+        if tune==true
+            set_optimizer_attributes(model,
+            "MSK_DPAR_INTPNT_CO_TOL_MU_RED" => 1e-7,
+            "MSK_DPAR_INTPNT_CO_TOL_INFEAS" => 1e-7,
+            "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => 1e-7,
+            "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => 1e-7,
+            "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => 1e-7,
+            "MSK_DPAR_INTPNT_CO_TOL_NEAR_REL" => 1e6,
+            "MSK_IPAR_BI_IGNORE_NUM_ERROR" => 1,
+            "MSK_DPAR_BASIS_TOL_X" => 1e-3,
+            "MSK_DPAR_BASIS_TOL_S" => 1e-3,
+            "MSK_DPAR_BASIS_REL_TOL_S" => 1e-5)
+        end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time=@elapsed begin
         rcons=[AffExpr(0) for i=1:ltsupp]
@@ -235,7 +227,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
             Locb=bfind(tsupp,ltsupp,supp[1][i])
             if Locb==0
                @error "The monomial basis is not enough!"
-               return nothing,nothing
+               return nothing,nothing,nothing
             else
                rbc[Locb]=real(coe[1][i])
                ibc[Locb]=imag(coe[1][i])
@@ -266,12 +258,11 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
         end
         println("optimum = $objv")
     end
-    return objv,ksupp
+    return objv,ksupp,nothing
 end
 
 function get_cblocks_mix!(dg, J, rlorder, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques, cql,
-    cliquesize; tsupp=[], basis=[], blocks=[], cl=[], blocksize=[], sb=[], numb=[],
-    TS="block", merge=false)
+    cliquesize; tsupp=[], basis=[], blocks=[], cl=[], blocksize=[], sb=[], numb=[], TS="block", nb=0, merge=false)
     if isempty(tsupp)
         blocks=Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
         cl=Vector{Vector{UInt16}}(undef, cql)
