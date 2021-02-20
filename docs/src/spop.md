@@ -1,4 +1,4 @@
-# Sparse polynomial optimization
+# Polynomial optimization
 
 ```@docs
 tssos_first
