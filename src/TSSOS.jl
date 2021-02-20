@@ -10,8 +10,11 @@ using LinearAlgebra
 using MetaGraphs
 using SemialgebraicSets
 using COSMO
+using SDPT3
+using NCTSSOS
 
-export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, local_solution, refine_sol
+export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, local_solution, refine_sol,
+nctssos_first, nctssos_higher!, cs_nctssos_first, cs_nctssos_higher!
 
 include("chordal_extension.jl")
 include("clique_merge.jl")
