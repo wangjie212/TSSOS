@@ -101,12 +101,6 @@ version = "1.0.1"
 deps = ["Random", "Serialization", "Sockets"]
 uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
-[[DynamicPolynomials]]
-deps = ["DataStructures", "Future", "LinearAlgebra", "MultivariatePolynomials", "MutableArithmetics", "Pkg", "Reexport", "Test"]
-git-tree-sha1 = "19aad7f60097b24dae5d080482429ab7f8c8c893"
-uuid = "7c1d4256-1411-5781-91ec-d7bc3513ac07"
-version = "0.3.12"
-
 [[FileIO]]
 deps = ["Pkg"]
 git-tree-sha1 = "f354b2087a3b01c1d7152c19f45886c8a036fa5e"
@@ -118,10 +112,6 @@ deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "NaNMath", "Random",
 git-tree-sha1 = "1d090099fb82223abc48f7ce176d3f7696ede36d"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
 version = "0.10.12"
-
-[[Future]]
-deps = ["Random"]
-uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 
 [[HTTP]]
 deps = ["Base64", "Dates", "Distributed", "IniFile", "JSON", "MbedTLS", "Sockets", "Test"]
@@ -255,14 +245,6 @@ git-tree-sha1 = "6cf09794783b9de2e662c4e8b60d743021e338d0"
 uuid = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
 version = "0.2.10"
 
-[[NCTSSOS]]
-deps = ["DynamicPolynomials", "JuMP", "LightGraphs", "LinearAlgebra", "MetaGraphs", "Mosek", "MosekTools", "MultivariatePolynomials", "SparseArrays"]
-git-tree-sha1 = "7b9cd3a12e5d58a90c10570d53dcb91c27f600ed"
-repo-rev = "master"
-repo-url = "https://github.com/wangjie212/NCTSSOS"
-uuid = "74af9cd0-d9b7-11ea-3577-f378dad115d4"
-version = "0.1.0"
-
 [[NaNMath]]
 git-tree-sha1 = "c84c576296d0e2fbb3fc134d3e09086b3ea617cd"
 uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
@@ -300,12 +282,6 @@ uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 [[Random]]
 deps = ["Serialization"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
-
-[[Reexport]]
-deps = ["Pkg"]
-git-tree-sha1 = "7b1d07f411bc8ddb7977ec7f377b97b158514fe0"
-uuid = "189a3867-3050-52da-a836-e630ba90ab69"
-version = "0.2.0"
 
 [[Requires]]
 deps = ["UUIDs"]
