@@ -6,7 +6,8 @@ makedocs(
 # root = "E:\\Programs\\blockpop\\TSSOS\\docs",
 sitename = "TSSOS",
 pages = ["Home" => "index.md",
-         "Sparse Polynomial Optimization" => "spop.md"],
+         "Polynomial Optimization" => "spop.md",
+         "Noncommutative Polynomial Optimization" => "ncpop.md"],
 modules = [TSSOS],
 format = Documenter.HTML(
         prettyurls = get(ENV, "CI", nothing) == "true")
