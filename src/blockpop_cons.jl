@@ -22,7 +22,7 @@ mutable struct cpop_data
 end
 
 """
-    opt,sol,data = tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=nothing,
+    opt,sol,data = tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[],
     reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", QUIET=false, solve=true,
     MomentOne=false, solution=false, tol=1e-4)
 
@@ -39,7 +39,7 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 - `md`: the tunable parameter for merging blocks.
 - `numeq`: the number of equality constraints.
 """
-function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=nothing, reducebasis=false,
+function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reducebasis=false,
     TS="block", merge=false, md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false,
     solution=false, tol=1e-4)
     println("***************************TSSOS***************************")
@@ -79,7 +79,7 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=nothing, red
         dg[i-1] = maxdegree(pop[i])
         isupp = [isupp supp[i]]
     end
-    if basis == nothing
+    if basis == []
         basis = Vector{Array{UInt8,2}}(undef, m+1)
         basis[1] = get_basis(n, d, nb=nb, lead=leadsupp)
         for k = 1:m
@@ -439,7 +439,7 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
             for i = 1:cl[k+1]
                 bs = blocksize[k+1][i]
                 if bs == 1
-                    if k <= m-numeq
+                    if !isempty(gb) || k <= m-numeq
                         gpos[k][i] = @variable(model, lower_bound=0)
                     else
                         gpos[k][i] = @variable(model)
@@ -459,7 +459,7 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
                         end
                     end
                 else
-                    if k <= m-numeq
+                    if !isempty(gb) || k <= m-numeq
                        gpos[k][i] = @variable(model, [1:bs, 1:bs], PSD)
                     else
                        gpos[k][i] = @variable(model, [1:bs, 1:bs], Symmetric)
