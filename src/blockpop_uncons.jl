@@ -112,13 +112,13 @@ function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=fal
         println("Starting to compute the block structure...")
     end
     blocks,cl,blocksize,sb,numb,status = get_blocks(ksupp, basis, sb=sb, numb=numb, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
-    if QUIET == false
-        mb = maximum(maximum.(sb))
-        println("Obtained the block structure. The maximal size of blocks is $mb.")
-    end
     opt = nothing
     sol = nothing
     if status == 1
+        if QUIET == false
+            mb = maximum(maximum.(sb))
+            println("Obtained the block structure. The maximal size of blocks is $mb.")
+        end
         opt,ksupp,moment = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne)
         if solution == true
             sol,flag = extract_solutions(moment, opt, [f], x, tol=tol)

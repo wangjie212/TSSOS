@@ -150,13 +150,13 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
     time = @elapsed begin
     blocks,cl,blocksize,sb,numb,status = get_cblocks(m, ksupp, supp[2:end], basis, blocks=blocks, cl=cl, blocksize=blocksize, sb=sb, numb=numb, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
     end
-    if QUIET == false
-        mb = maximum(maximum.(sb))
-        println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
-    end
     opt = nothing
     sol = nothing
     if status == 1
+        if QUIET == false
+            mb = maximum(maximum.(sb))
+            println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
+        end
         opt,ksupp,moment = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne)
         if solution == true
             sol,data.flag = extract_solutions(moment, opt, pop, x, numeq=numeq, tol=tol)
@@ -308,7 +308,7 @@ function get_cblocks(m, tsupp, supp, basis; blocks=[], cl=[], blocksize=[], sb=[
         else
             status = 0
             if QUIET == false
-               println("No higher TSSOS hierarchy!")
+                println("No higher TSSOS hierarchy!")
             end
         end
     end

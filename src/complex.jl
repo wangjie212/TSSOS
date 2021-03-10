@@ -1,6 +1,6 @@
 """
     opt,sol,data = cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vector{Vector{ComplexF64}},
-    n, d, dg; numeq=0, foc=100, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3,
+    n, d; numeq=0, foc=100, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3,
     QUIET=false, solve=true, MomentOne=true)
 
 Compute the first step of the CS-TSSOS hierarchy for constrained complex polynomial optimization with
@@ -13,7 +13,7 @@ corresponding to the supports and coeffients of `pop` respectively.
 - `d`: the relaxation order of the moment-SOHS hierarchy.
 - `numeq`: the number of equality constraints.
 """
-function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d, dg; numeq=0, foc=100,
+function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d; numeq=0, foc=100,
     CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false, solution=false,
     MomentOne=false)
     println("***************************TSSOS***************************")
@@ -22,6 +22,10 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d,
     ind = [supp[1][i][1]<=supp[1][i][2] for i=1:length(supp[1])]
     supp[1] = supp[1][ind]
     coe[1] = coe[1][ind]
+    dg = zeros(Int, m)
+    for i = 1:m
+        dg[i] = maximum([length(supp[i+1][j][1]) + length(supp[i+1][j][2]) for j=1:length(supp[i+1])])
+    end
     time = @elapsed begin
     cliques,cql,cliquesize = clique_decomp(n, m, dg, supp, order=d, alg=CS, minimize=minimize)
     end
@@ -227,7 +231,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
             Locb = bfind(tsupp, ltsupp, supp[1][i])
             if Locb == 0
                @error "The monomial basis is not enough!"
-               return nothing,nothing,nothing
+               return nothing,ksupp,nothing
             else
                rbc[Locb] = real(coe[1][i])
                ibc[Locb] = imag(coe[1][i])
@@ -446,4 +450,27 @@ function clique_decomp(n, m, dg, supp::Vector{Vector{Vector{Vector{UInt16}}}}; o
     println("The clique sizes of varibles:\n$uc\n$sizes")
     println("------------------------------------------------------")
     return cliques,cql,cliquesize
+end
+
+function sign_type(a::Vector{UInt16})
+    st = UInt8[]
+    if length(a) == 1
+        push!(st, a[1])
+    elseif length(a) > 1
+        r = 1
+        for i = 2:length(a)
+            if a[i] == a[i-1]
+                r += 1
+            else
+                if isodd(r)
+                    push!(st, a[i-1])
+                end
+                r = 1
+            end
+        end
+        if isodd(r)
+            push!(st, a[end])
+        end
+    end
+    return st
 end

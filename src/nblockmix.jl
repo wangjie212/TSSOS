@@ -159,13 +159,13 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
     time = @elapsed begin
     blocks,cl,blocksize,sb,numb,basis,status = get_cblocks_mix([], J, rlorder, m, supp, cliques, cql, cliquesize, tsupp=ksupp, basis=basis, blocks=blocks, cl=cl, blocksize=blocksize, sb=sb, numb=numb, nb=nb, TS=TS, merge=merge, md=md)
     end
-    if TS != false && QUIET == false
-        mb = maximum(maximum.(sb))
-        println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
-    end
     opt = nothing
     sol = nothing
     if status == 1
+        if TS != false && QUIET == false
+            mb = maximum(maximum.(sb))
+            println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
+        end
         opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution, MomentOne=MomentOne)
         if solution == true
             sol,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
