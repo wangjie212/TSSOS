@@ -452,25 +452,25 @@ function clique_decomp(n, m, dg, supp::Vector{Vector{Vector{Vector{UInt16}}}}; o
     return cliques,cql,cliquesize
 end
 
-function sign_type(a::Vector{UInt16})
-    st = UInt8[]
-    if length(a) == 1
-        push!(st, a[1])
-    elseif length(a) > 1
-        r = 1
-        for i = 2:length(a)
-            if a[i] == a[i-1]
-                r += 1
-            else
-                if isodd(r)
-                    push!(st, a[i-1])
-                end
-                r = 1
-            end
-        end
-        if isodd(r)
-            push!(st, a[end])
-        end
-    end
-    return st
-end
+# function sign_type(a::Vector{UInt16})
+#     st = UInt8[]
+#     if length(a) == 1
+#         push!(st, a[1])
+#     elseif length(a) > 1
+#         r = 1
+#         for i = 2:length(a)
+#             if a[i] == a[i-1]
+#                 r += 1
+#             else
+#                 if isodd(r)
+#                     push!(st, a[i-1])
+#                 end
+#                 r = 1
+#             end
+#         end
+#         if isodd(r)
+#             push!(st, a[end])
+#         end
+#     end
+#     return st
+# end
