@@ -119,9 +119,9 @@ Visit [SparseJSR](https://github.com/wangjie212/SparseJSR)
 ## References
 [1] [TSSOS: A Moment-SOS hierarchy that exploits term sparsity](https://arxiv.org/abs/1912.08899)  
 [2] [Chordal-TSSOS: a moment-SOS hierarchy that exploits term sparsity with chordal extension](https://arxiv.org/abs/2003.03210)  
-[3] [CS-TSSOS: Correlative and term sparsity for large-scale polynomial optimization](https://arXiv:2005.02828)
-[4] [TSSOS: a Julia library to exploit sparsity for large-scale polynomial optimization] (https://arxiv.org/abs/2103.00915)
+[3] [CS-TSSOS: Correlative and term sparsity for large-scale polynomial optimization](https://arXiv:2005.02828)  
+[4] [TSSOS: a Julia library to exploit sparsity for large-scale polynomial optimization](https://arxiv.org/abs/2103.00915)
 
 ## Contact
-[Jie Wang](https://wangjie212.github.io/jiewang/): jwang@laas.fr
+[Jie Wang](https://wangjie212.github.io/jiewang/): jwang@laas.fr  
 [Victor Magron](https://homepages.laas.fr/vmagron/): vmagron@laas.fr
