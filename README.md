@@ -13,7 +13,7 @@ pkg> add https://github.com/wangjie212/TSSOS
 - MOSEK
 - JuMP
 
-TSSOS has been tested on WINDOW 10, Julia 1.2, JuMP 0.21 and MOSEK 8.1.
+TSSOS has been tested on Ubuntu and Windows 10, Julia 1.2, JuMP 0.21 and MOSEK 8.1.
 ## Usage
 ### Unconstrained polynomial optimization problems
 The unconstrained polynomial optimization problem formulizes as
@@ -104,10 +104,24 @@ order: d (the relaxation order), "min" (using the lowest relaxation order for ea
 MomentOne: true (adding a first-order moment matrix for each variable clique), false  
 solution: true (extract a solution), false (don't extract a solution)
 
+## Complex polynomial optimization problems
+Visit [](https://github.com/wangjie212/)
+
+## Non-commutative polynomial optimization problems
+Visit [NCTSSOS](https://github.com/wangjie212/NCTSSOS)
+
+## Analysis of sparse dynamical systems
+Visit [SparseDynamicSystem](https://github.com/wangjie212/SparseDynamicSystem)
+
+## Joint spetral radii
+Visit [SparseJSR](https://github.com/wangjie212/SparseJSR)
+
 ## References
 [1] [TSSOS: A Moment-SOS hierarchy that exploits term sparsity](https://arxiv.org/abs/1912.08899)  
 [2] [Chordal-TSSOS: a moment-SOS hierarchy that exploits term sparsity with chordal extension](https://arxiv.org/abs/2003.03210)  
 [3] [CS-TSSOS: Correlative and term sparsity for large-scale polynomial optimization](https://arXiv:2005.02828)
+[4] [TSSOS: a Julia library to exploit sparsity for large-scale polynomial optimization] (https://arxiv.org/abs/2103.00915)
 
 ## Contact
 [Jie Wang](https://wangjie212.github.io/jiewang/): jwang@laas.fr
+[Victor Magron](https://homepages.laas.fr/vmagron/): vmagron@laas.fr
