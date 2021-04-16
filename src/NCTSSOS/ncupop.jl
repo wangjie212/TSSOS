@@ -10,7 +10,7 @@ end
 
 """
     opt,data = nctssos_first(f::Polynomial{false, T} where T<:Number, x::Vector{PolyVar{false}};
-        newton=true, reducebasis=true, TS="block", obj="eigen", merge=false, md=3, QUIET=false)
+        newton=true, reducebasis=true, TS="block", obj="eigen", merge=false, md=3, solve=true, QUIET=false)
 
 Compute the first step of the NCTSSOS hierarchy for unconstrained noncommutative polynomial optimization.
 If `newton=true`, then compute a monomial basis by the Newton chip method.
@@ -25,14 +25,14 @@ If `merge=true`, perform the PSD block merging. Return the optimum and other aux
 - `md`: the tunable parameter for merging blocks.
 """
 function nctssos_first(f::Polynomial{false, T} where T<:Number, x::Vector{PolyVar{false}};
-    newton=true, reducebasis=true, TS="block", obj="eigen", merge=false, md=3, QUIET=false)
+    newton=true, reducebasis=true, TS="block", obj="eigen", merge=false, md=3, solve=true, QUIET=false)
     n,supp,coe = poly_info(f, x)
-    opt,data = nctssos_first(supp, coe, n, newton=newton, reducebasis=reducebasis, TS=TS, obj=obj, merge=merge, md=md, QUIET=QUIET)
+    opt,data = nctssos_first(supp, coe, n, newton=newton, reducebasis=reducebasis, TS=TS, obj=obj, merge=merge, md=md, solve=solve, QUIET=QUIET)
     return opt,data
 end
 
 function nctssos_first(supp::Vector{Vector{UInt16}}, coe, n::Int; newton=true, reducebasis=true,
-    TS="block", obj="eigen", merge=false, md=3, QUIET=false)
+    TS="block", obj="eigen", merge=false, md=3, solve=true, QUIET=false)
     println("************************NCTSSOS************************")
     println("NCTSSOS is launching...")
     d = Int(maximum(length.(supp))/2)
@@ -83,7 +83,7 @@ function nctssos_first(supp::Vector{Vector{UInt16}}, coe, n::Int; newton=true, r
         mb = maximum(maximum.(sb))
         println("Obtained the block structure. The maximal size of blocks is $mb.")
     end
-    opt,ksupp = ncblockupop(supp, coe, basis, blocks, cl, blocksize, QUIET=QUIET, obj=obj)
+    opt,ksupp = ncblockupop(supp, coe, basis, blocks, cl, blocksize, QUIET=QUIET, obj=obj, solve=solve)
     data = ncupop_type(supp, coe, basis, obj, ksupp, sb, numb)
     return opt,data
 end
@@ -112,7 +112,7 @@ end
 Compute higher steps of the NCTSSOS hierarchy.
 Return the optimum and other auxiliary data.
 """
-function nctssos_higher!(data::ncupop_type; TS="block", merge=false, md=3, QUIET=false)
+function nctssos_higher!(data::ncupop_type; TS="block", merge=false, md=3, solve=true, QUIET=false)
     supp = data.supp
     basis = data.basis
     coe = data.coe
@@ -124,13 +124,13 @@ function nctssos_higher!(data::ncupop_type; TS="block", merge=false, md=3, QUIET
         println("Starting to compute the block structure...")
     end
     blocks,cl,blocksize,sb,numb,status = get_ncblocks(ksupp, basis, sb=sb, numb=numb, TS=TS, QUIET=QUIET, merge=merge, md=md, obj=obj)
-    if QUIET == false
-        mb = maximum(maximum.(sb))
-        println("Obtained the block structure. The maximal size of blocks is $mb.")
-    end
     opt = nothing
     if status == 1
-        opt,ksupp = ncblockupop(supp, coe, basis, blocks, cl, blocksize, QUIET=QUIET, obj=obj)
+        if QUIET == false
+            mb = maximum(maximum.(sb))
+            println("Obtained the block structure. The maximal size of blocks is $mb.")
+        end
+        opt,ksupp = ncblockupop(supp, coe, basis, blocks, cl, blocksize, QUIET=QUIET, obj=obj, solve=solve)
     end
     data.ksupp = ksupp
     data.sb = sb
@@ -410,7 +410,7 @@ function get_ncblocks(ksupp, basis; sb=[], numb=[], TS="block", obj="eigen", QUI
     return blocks,cl,blocksize,nsb,nnumb,status
 end
 
-function ncblockupop(supp, coe, basis, blocks, cl, blocksize; QUIET=true, obj="eigen")
+function ncblockupop(supp, coe, basis, blocks, cl, blocksize; QUIET=true, obj="eigen", solve=true)
     ksupp = Vector{Vector{UInt16}}(undef, Int(sum(Int.(blocksize).^2+blocksize)/2))
     k = 1
     for i = 1:cl, j = 1:blocksize[i], r = j:blocksize[i]
@@ -423,71 +423,74 @@ function ncblockupop(supp, coe, basis, blocks, cl, blocksize; QUIET=true, obj="e
     end
     sort!(ksupp)
     unique!(ksupp)
-    lksupp = length(ksupp)
-    if QUIET == false
-        println("Assembling the SDP...")
-    end
-    model = Model(optimizer_with_attributes(Mosek.Optimizer))
-    set_optimizer_attribute(model, MOI.Silent(), QUIET)
-    cons = [AffExpr(0) for i=1:lksupp]
-    for i = 1:cl
-        bs = blocksize[i]
-        if bs == 1
-           @inbounds pos = @variable(model, lower_bound=0)
-           @inbounds bi = [basis[blocks[i][1]][end:-1:1]; basis[blocks[i][1]]]
-           if obj == "trace"
-               bi = _cyclic_canon(bi)
-           end
-           Locb = ncbfind(ksupp,lksupp,bi)
-           @inbounds add_to_expression!(cons[Locb], pos)
-        else
-           @inbounds pos = @variable(model, [1:bs, 1:bs], PSD)
-           for j = 1:blocksize[i], r = j:blocksize[i]
-               @inbounds bi = [basis[blocks[i][j]][end:-1:1]; basis[blocks[i][r]]]
-               bi = _sym_canon(bi)
+    objv = nothing
+    if solve == true
+        lksupp = length(ksupp)
+        if QUIET == false
+            println("Assembling the SDP...")
+        end
+        model = Model(optimizer_with_attributes(Mosek.Optimizer))
+        set_optimizer_attribute(model, MOI.Silent(), QUIET)
+        cons = [AffExpr(0) for i=1:lksupp]
+        for i = 1:cl
+            bs = blocksize[i]
+            if bs == 1
+               @inbounds pos = @variable(model, lower_bound=0)
+               @inbounds bi = [basis[blocks[i][1]][end:-1:1]; basis[blocks[i][1]]]
                if obj == "trace"
                    bi = _cyclic_canon(bi)
                end
-               Locb = ncbfind(ksupp, lksupp, bi)
-               if j == r
-                   @inbounds add_to_expression!(cons[Locb], pos[j,r])
-               else
-                   @inbounds add_to_expression!(cons[Locb], 2, pos[j,r])
+               Locb = ncbfind(ksupp,lksupp,bi)
+               @inbounds add_to_expression!(cons[Locb], pos)
+            else
+               @inbounds pos = @variable(model, [1:bs, 1:bs], PSD)
+               for j = 1:blocksize[i], r = j:blocksize[i]
+                   @inbounds bi = [basis[blocks[i][j]][end:-1:1]; basis[blocks[i][r]]]
+                   bi = _sym_canon(bi)
+                   if obj == "trace"
+                       bi = _cyclic_canon(bi)
+                   end
+                   Locb = ncbfind(ksupp, lksupp, bi)
+                   if j == r
+                       @inbounds add_to_expression!(cons[Locb], pos[j,r])
+                   else
+                       @inbounds add_to_expression!(cons[Locb], 2, pos[j,r])
+                   end
                end
-           end
+            end
         end
-    end
-    bc = zeros(lksupp)
-    for i = 1:length(supp)
-        Locb = ncbfind(ksupp, lksupp, supp[i])
-        if Locb == 0
-           @error "The monomial basis is not enough!"
-           return nothing,nothing
-        else
-           bc[Locb] = coe[i]
+        bc = zeros(lksupp)
+        for i = 1:length(supp)
+            Locb = ncbfind(ksupp, lksupp, supp[i])
+            if Locb == 0
+               @error "The monomial basis is not enough!"
+               return nothing,nothing
+            else
+               bc[Locb] = coe[i]
+            end
         end
+        @variable(model, lower)
+        cons[1] += lower
+        @constraint(model, cons.==bc)
+        @objective(model, Max, lower)
+        if QUIET == false
+            println("Solving the SDP...")
+        end
+        time = @elapsed begin
+        optimize!(model)
+        end
+        if QUIET == false
+            println("SDP solving time: $time seconds.")
+        end
+        status = termination_status(model)
+        objv = objective_value(model)
+        if status != MOI.OPTIMAL
+           println("termination status: $status")
+           status = primal_status(model)
+           println("solution status: $status")
+        end
+        println("optimum = $objv")
     end
-    @variable(model, lower)
-    cons[1] += lower
-    @constraint(model, cons.==bc)
-    @objective(model, Max, lower)
-    if QUIET == false
-        println("Solving the SDP...")
-    end
-    time = @elapsed begin
-    optimize!(model)
-    end
-    if QUIET == false
-        println("SDP solving time: $time seconds.")
-    end
-    status = termination_status(model)
-    objv = objective_value(model)
-    if status != MOI.OPTIMAL
-       println("termination status: $status")
-       status = primal_status(model)
-       println("solution status: $status")
-    end
-    println("optimum = $objv")
     return objv,ksupp
 end
 

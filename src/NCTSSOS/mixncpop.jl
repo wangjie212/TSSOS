@@ -94,7 +94,8 @@ corresponding to the supports and coeffients of `pop` respectively. Return the o
 - `d`: the relaxation order of the moment-SOHS hierarchy.
 - `numeq`: the number of equality constraints.
 """
-function cs_nctssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n::Int, d::Int; numeq=0, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, QUIET=false, obj="eigen", solve=true)
+function cs_nctssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n::Int, d::Int; numeq=0, CS="MF",
+    minimize=false, assign="first", TS="block", merge=false, md=3, QUIET=false, obj="eigen", solve=true)
     println("***************************NCTSSOS***************************")
     println("NCTSSOS is launching...")
     m = length(supp)-1
@@ -157,22 +158,22 @@ function cs_nctssos_higher!(data::ncmpop_data; TS="block", QUIET=false, merge=fa
         time = @elapsed begin
         blocks,cl,blocksize,sb,numb,basis,status = get_blocks_mix(d, supp, cliques, cql, cliquesize, basis=basis, sb=sb, numb=numb, TS=TS, merge=merge, md=md, obj=obj)
         end
-        if QUIET == false
-            mb = maximum(maximum.(sb))
-            println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
-        end
         if status == 1
+            if QUIET == false
+                mb = maximum(maximum.(sb))
+                println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
+            end
             opt,ksupp = blockupop_mix(n, supp, coe, basis, cliques, cql, cliquesize, blocks, cl, blocksize, obj=obj, solve=solve, QUIET=QUIET)
         end
     else
         time = @elapsed begin
         blocks,cl,blocksize,sb,numb,basis,status = get_cblocks_mix(d, [], J, m, supp, cliques, cql, cliquesize, ksupp=ksupp, basis=basis, blocks=blocks, cl=cl, blocksize=blocksize, sb=sb, numb=numb, TS=TS, merge=merge, md=md, obj=obj)
         end
-        if QUIET == false
-            mb = maximum(maximum.(sb))
-            println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
-        end
         if status==1
+            if QUIET == false
+                mb = maximum(maximum.(sb))
+                println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
+            end
             opt,ksupp = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, QUIET=QUIET, obj=obj, solve=solve)
         end
     end
