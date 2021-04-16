@@ -77,13 +77,21 @@ function tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", mer
         println("Obtained the block structure. The maximal size of blocks is $mb.")
     end
     opt,ksupp,moment = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne)
+    data = upop_data(n, nb, x, f, supp, coe, basis, ksupp, sb, numb, solver, tol, 1)
+    sol = nothing
     if solution == true
-        sol,flag = extract_solutions(moment, opt, [f], x, tol=tol)
-    else
-        sol = nothing
-        flag = 1
+        sol,data.flag = extract_solutions(moment, opt, [f], x, tol=tol)
+        if data.flag == 1
+            sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
+            if gap != nothing
+                if gap < tol
+                    data.flag = 0
+                else
+                    println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                end
+            end
+        end
     end
-    data = upop_data(n, nb, x, f, supp, coe, basis, ksupp, sb, numb, solver, tol, flag)
     return opt,sol,data
 end
 
@@ -121,8 +129,17 @@ function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=fal
         end
         opt,ksupp,moment = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne)
         if solution == true
-            sol,flag = extract_solutions(moment, opt, [f], x, tol=tol)
-            data.flag = flag
+            sol,data.flag = extract_solutions(moment, opt, [f], x, tol=tol)
+            if data.flag == 1
+                sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
+                if gap != nothing
+                    if gap < tol
+                        data.flag = 0
+                    else
+                        println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                    end
+                end
+            end
         end
     end
     data.ksupp = ksupp
@@ -353,6 +370,8 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
         end
         if solver == "Mosek"
             model = Model(optimizer_with_attributes(Mosek.Optimizer))
+        elseif solver == "COSMO"
+            model = Model(optimizer_with_attributes(COSMO.Optimizer, "max_iter" => 10000))
         elseif solver == "SDPT3"
             model = Model(optimizer_with_attributes(SDPT3.Optimizer))
         else
@@ -444,21 +463,26 @@ function extract_solutions(moment, opt, pop, x; numeq=0, tol=1e-4)
     m = length(pop) - 1
     F = eigen(moment, n+1:n+1)
     sol = sqrt(F.values[1])*F.vectors[:,1]
-    sol = sol[2:end]/sol[1]
-    flag = 0
-    upper_bound = polynomial(pop[1])(x => sol)
-    gap = abs(upper_bound)>1 ? abs((opt-upper_bound)/upper_bound) : abs(opt-upper_bound)
-    if gap >= tol
+    if abs(sol[1]) < 1e-8
+        sol = zeros(n)
         flag = 1
-    end
-    for i = 1:m-numeq
-        if polynomial(pop[i+1])(x => sol) <= -tol
+    else
+        sol = sol[2:end]/sol[1]
+        flag = 0
+        upper_bound = polynomial(pop[1])(x => sol)
+        gap = abs(upper_bound)>1 ? abs((opt-upper_bound)/upper_bound) : abs(opt-upper_bound)
+        if gap >= tol
             flag = 1
         end
-    end
-    for i = m-numeq+1:m
-        if abs(polynomial(pop[i+1])(x => sol)) >= tol
-            flag = 1
+        for i = 1:m-numeq
+            if polynomial(pop[i+1])(x => sol) <= -tol
+                flag = 1
+            end
+        end
+        for i = m-numeq+1:m
+            if abs(polynomial(pop[i+1])(x => sol)) >= tol
+                flag = 1
+            end
         end
     end
     if flag == 0

@@ -114,13 +114,21 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
         println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
     end
     opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, TS=TS, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne)
+    data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, solver, tol, 1)
+    sol = nothing
     if solution == true
-        sol,flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
-    else
-        sol = nothing
-        flag = 1
+        sol,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
+        if data.flag == 1
+            sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
+            if gap != nothing
+                if gap < tol
+                    data.flag = 0
+                else
+                    println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                end
+            end
+        end
     end
-    data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, solver, tol, flag)
     return opt,sol,data
 end
 
@@ -169,6 +177,16 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
         opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution, MomentOne=MomentOne)
         if solution == true
             sol,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
+            if data.flag == 1
+                sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
+                if gap != nothing
+                    if gap < tol
+                        data.flag = 0
+                    else
+                        println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                    end
+                end
+            end
         end
         data.ksupp = ksupp
         data.blocks = blocks
@@ -242,6 +260,8 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
                 "MSK_DPAR_BASIS_TOL_S" => 1e-3,
                 "MSK_DPAR_BASIS_REL_TOL_S" => 1e-5)
             end
+        elseif solver == "COSMO"
+            model = Model(optimizer_with_attributes(COSMO.Optimizer, "max_iter" => 10000))
         elseif solver == "SDPT3"
             model = Model(optimizer_with_attributes(SDPT3.Optimizer))
         else
@@ -622,7 +642,11 @@ function approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe; numeq=0
         cqs = cliquesize[k]
         F = eigen(moment[k], cqs+1:cqs+1)
         temp = sqrt(F.values[1])*F.vectors[:,1]
-        temp = temp[2:cqs+1]./temp[1]
+        if temp[1] == 0
+            temp = zeros(cqs)
+        else
+            temp = temp[2:cqs+1]./temp[1]
+        end
         append!(qsol, temp)
         for j = 1:cqs
             A[q,cliques[k][j]] = 1

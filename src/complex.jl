@@ -1,6 +1,6 @@
 """
     opt,sol,data = cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vector{Vector{ComplexF64}},
-    n, d; numeq=0, foc=100, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3,
+    n, d; numeq=0, foc=100, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, solver="Mosek",
     QUIET=false, solve=true, MomentOne=true)
 
 Compute the first step of the CS-TSSOS hierarchy for constrained complex polynomial optimization with
@@ -14,8 +14,8 @@ corresponding to the supports and coeffients of `pop` respectively.
 - `numeq`: the number of equality constraints.
 """
 function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d; numeq=0, foc=100,
-    CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false, solution=false,
-    MomentOne=false)
+    CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, solver="Mosek",
+    QUIET=false, solve=true, tune=false, solution=false, MomentOne=false)
     println("***************************TSSOS***************************")
     println("TSSOS is launching...")
     m = length(supp)-1
@@ -45,8 +45,8 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
     end
-    opt,ksupp,_ = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, QUIET=QUIET, TS=TS, solve=solve, tune=tune, solution=solution, MomentOne=MomentOne)
-    data = mcpop_data(n, 0, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, "Mosek", 1e-4, 1)
+    opt,ksupp,_ = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, QUIET=QUIET, TS=TS, solver=solver, solve=solve, tune=tune, solution=solution, MomentOne=MomentOne)
+    data = mcpop_data(n, 0, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, solver, 1e-4, 1)
     return opt,nothing,data
 end
 
@@ -104,19 +104,28 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
         if QUIET == false
             println("Assembling the SDP...")
         end
-        model = Model(optimizer_with_attributes(Mosek.Optimizer))
-        if tune == true
-            set_optimizer_attributes(model,
-            "MSK_DPAR_INTPNT_CO_TOL_MU_RED" => 1e-7,
-            "MSK_DPAR_INTPNT_CO_TOL_INFEAS" => 1e-7,
-            "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => 1e-7,
-            "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => 1e-7,
-            "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => 1e-7,
-            "MSK_DPAR_INTPNT_CO_TOL_NEAR_REL" => 1e6,
-            "MSK_IPAR_BI_IGNORE_NUM_ERROR" => 1,
-            "MSK_DPAR_BASIS_TOL_X" => 1e-3,
-            "MSK_DPAR_BASIS_TOL_S" => 1e-3,
-            "MSK_DPAR_BASIS_REL_TOL_S" => 1e-5)
+        if solver == "Mosek"
+            model = Model(optimizer_with_attributes(Mosek.Optimizer))
+            if tune == true
+                set_optimizer_attributes(model,
+                "MSK_DPAR_INTPNT_CO_TOL_MU_RED" => 1e-7,
+                "MSK_DPAR_INTPNT_CO_TOL_INFEAS" => 1e-7,
+                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => 1e-7,
+                "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => 1e-7,
+                "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => 1e-7,
+                "MSK_DPAR_INTPNT_CO_TOL_NEAR_REL" => 1e6,
+                "MSK_IPAR_BI_IGNORE_NUM_ERROR" => 1,
+                "MSK_DPAR_BASIS_TOL_X" => 1e-3,
+                "MSK_DPAR_BASIS_TOL_S" => 1e-3,
+                "MSK_DPAR_BASIS_REL_TOL_S" => 1e-5)
+            end
+        elseif solver == "COSMO"
+            model = Model(optimizer_with_attributes(COSMO.Optimizer, "max_iter" => 10000))
+        elseif solver == "SDPT3"
+            model = Model(optimizer_with_attributes(SDPT3.Optimizer))
+        else
+            @error "The solver is currently not supported!"
+            return nothing,nothing,nothing
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
@@ -450,6 +459,23 @@ function clique_decomp(n, m, dg, supp::Vector{Vector{Vector{Vector{UInt16}}}}; o
     println("The clique sizes of varibles:\n$uc\n$sizes")
     println("------------------------------------------------------")
     return cliques,cql,cliquesize
+end
+
+function resort(supp, coe; field="real")
+    nsupp = copy(supp)
+    sort!(nsupp)
+    unique!(nsupp)
+    l = length(nsupp)
+    if field == "real"
+        ncoe = zeros(l)
+    else
+        ncoe = zeros(ComplexF64, l)
+    end
+    for i = 1:length(supp)
+        locb = bfind(nsupp, l, supp[i])
+        ncoe[locb] += coe[i]
+    end
+    return nsupp,ncoe
 end
 
 # function sign_type(a::Vector{UInt16})

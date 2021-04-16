@@ -94,7 +94,7 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reduceba
     end
     time = @elapsed begin
     blocks,cl,blocksize,sb,numb,_ = get_cblocks(m, tsupp, supp[2:end], basis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
-    if reducebasis == true
+    if reducebasis == true && quotient == false
         gsupp = get_gsupp(n, m, supp, basis[2:end], blocks[2:end], cl[2:end], blocksize[2:end], nb=nb)
         psupp = [supp[1] zeros(UInt8,n)]
         psupp = [psupp gsupp]
@@ -112,13 +112,21 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reduceba
         println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
     end
     opt,ksupp,moment = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne)
+    data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, ksupp, sb, numb, blocks, cl, blocksize, solver, tol, 1)
+    sol = nothing
     if solution == true
-        sol,flag = extract_solutions(moment, opt, pop, x, numeq=numeq, tol=tol)
-    else
-        sol = nothing
-        flag = 1
+        sol,data.flag = extract_solutions(moment, opt, pop, x, numeq=numeq, tol=tol)
+        if data.flag == 1
+            sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
+            if gap != nothing
+                if gap < tol
+                    data.flag = 0
+                else
+                    println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                end
+            end
+        end
     end
-    data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, ksupp, sb, numb, blocks, cl, blocksize, solver, tol, flag)
     return opt,sol,data
 end
 
@@ -160,6 +168,16 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
         opt,ksupp,moment = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne)
         if solution == true
             sol,data.flag = extract_solutions(moment, opt, pop, x, numeq=numeq, tol=tol)
+            if data.flag == 1
+                sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
+                if gap != nothing
+                    if gap < tol
+                        data.flag = 0
+                    else
+                        println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                    end
+                end
+            end
         end
     end
     data.ksupp = ksupp
