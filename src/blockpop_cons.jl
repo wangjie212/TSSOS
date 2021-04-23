@@ -1,23 +1,23 @@
 mutable struct cpop_data
-    n # the number of variables
-    nb # the number of binary variables
-    m # the number of constraints
-    numeq # the number of equality constraints
-    x # the set of variables
-    pop # the polynomial optimization problem
-    gb # the Grobner basis
-    leadsupp # the leader terms of the Grobner basis
-    supp # the support data
-    coe # the coefficient data
+    n # number of variables
+    nb # number of binary variables
+    m # number of constraints
+    numeq # number of equality constraints
+    x # set of variables
+    pop # polynomial optimization problem
+    gb # Grobner basis
+    leadsupp # leader terms of the Grobner basis
+    supp # support data
+    coe # coefficient data
     basis # monomial bases
-    ksupp # the extending support at the k-th step
-    sb # the sizes of different blocks
-    numb # the numbers of different blocks
-    blocks # the block structure
-    cl # the numbers of blocks
-    blocksize # the sizes of blocks
-    solver # the SDP solver
-    tol # the tolerance to certify global optimality
+    ksupp # extending support at the k-th step
+    sb # sizes of different blocks
+    numb # numbers of different blocks
+    blocks # block structure
+    cl # numbers of blocks
+    blocksize # sizes of blocks
+    solver # SDP solver
+    tol # tolerance to certify global optimality
     flag # 0 if global optimality is certified; 1 otherwise
 end
 
@@ -557,6 +557,7 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
                     moment[j,k] = dual_var[Locb]
                 end
             end
+            # moment = (moment + moment')/2
             moment = Symmetric(moment,:U)
         end
     end

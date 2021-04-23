@@ -15,7 +15,7 @@ corresponding to the supports and coeffients of `pop` respectively.
 """
 function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d; numeq=0, foc=100,
     CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, solver="Mosek",
-    QUIET=false, solve=true, tune=false, solution=false, MomentOne=false)
+    QUIET=false, solve=true, tune=false, solution=false, ipart=true, MomentOne=false, Mommat=false)
     println("***************************TSSOS***************************")
     println("TSSOS is launching...")
     m = length(supp)-1
@@ -45,14 +45,14 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
     end
-    opt,ksupp,_ = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, QUIET=QUIET, TS=TS, solver=solver, solve=solve, tune=tune, solution=solution, MomentOne=MomentOne)
-    data = mcpop_data(n, 0, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, solver, 1e-4, 1)
+    opt,ksupp,Mmatrix = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, QUIET=QUIET, TS=TS, solver=solver, solve=solve, tune=tune, solution=solution, ipart=ipart, MomentOne=MomentOne, Mommat=Mommat)
+    data = mcpop_data(n, 0, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, Mmatrix, solver, 1e-4, 1)
     return opt,nothing,data
 end
 
 function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, basis, cliques,
     cql, cliquesize, J, ncc, blocks, cl, blocksize; numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek",
-    tune=false, solve=true, solution=false, MomentOne=false)
+    tune=false, solve=true, solution=false, MomentOne=false, ipart=true, Mommat=false)
     tsupp = Vector{Vector{UInt16}}[]
     for i = 1:cql
         for j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
@@ -99,6 +99,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
         ksupp = tsupp
     end
     objv = nothing
+    Mmatrix = nothing
     if solve == true
         ltsupp = length(tsupp)
         if QUIET == false
@@ -130,7 +131,9 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
         rcons = [AffExpr(0) for i=1:ltsupp]
-        icons = [AffExpr(0) for i=1:ltsupp]
+        if ipart == true
+            icons = [AffExpr(0) for i=1:ltsupp]
+        end
         for i = 1:cql
             if (MomentOne == true || solution == true) && TS != false
                 bs = cliquesize[i]+1
@@ -146,7 +149,9 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
                         bi = [UInt16[cliques[i][t-1]], UInt16[cliques[i][r-1]]]
                     end
                     Locb = bfind(tsupp, ltsupp, bi)
-                    @inbounds add_to_expression!(icons[Locb], pos[t+bs,r])
+                    if ipart == true
+                        @inbounds add_to_expression!(icons[Locb], pos[t+bs,r])
+                    end
                     @inbounds add_to_expression!(rcons[Locb], pos[t,r])
                 end
             end
@@ -158,19 +163,29 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
                     Locb = bfind(tsupp, ltsupp, bi)
                     @inbounds add_to_expression!(rcons[Locb], pos)
                 else
-                    pos = @variable(model, [1:2*bs, 1:2*bs], PSD)
+                    if ipart == true
+                        pos = @variable(model, [1:2bs, 1:2bs], PSD)
+                    else
+                        pos = @variable(model, [1:bs, 1:bs], PSD)
+                    end
                     for t = 1:bs, r = t:bs
-                        @constraint(model, pos[t,r]==pos[t+bs,r+bs])
-                        @constraint(model, pos[r,t+bs]+pos[t,r+bs]==0)
+                        if ipart == true
+                            @constraint(model, pos[t,r]==pos[t+bs,r+bs])
+                            @constraint(model, pos[r,t+bs]+pos[t,r+bs]==0)
+                        end
                         @inbounds ind1 = blocks[i][1][l][t]
                         @inbounds ind2 = blocks[i][1][l][r]
                         @inbounds bi = [basis[i][1][ind1], basis[i][1][ind2]]
                         if bi[1] <= bi[2]
                             Locb = bfind(tsupp, ltsupp, bi)
-                            @inbounds add_to_expression!(icons[Locb], pos[t+bs,r])
+                            if ipart == true
+                                @inbounds add_to_expression!(icons[Locb], pos[t+bs,r])
+                            end
                         else
                             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
-                            @inbounds add_to_expression!(icons[Locb], -1, pos[t+bs,r])
+                            if ipart == true
+                                @inbounds add_to_expression!(icons[Locb], -1, pos[t+bs,r])
+                            end
                         end
                         @inbounds add_to_expression!(rcons[Locb], pos[t,r])
                     end
@@ -186,7 +201,9 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
             for j = 1:length(supp[i+1])
                 if supp[i+1][j][1] <= supp[i+1][j][2]
                     Locb = bfind(tsupp, ltsupp, supp[i+1][j])
-                    @inbounds add_to_expression!(icons[Locb], imag(coe[i+1][j]), pos)
+                    if ipart == true
+                        @inbounds add_to_expression!(icons[Locb], imag(coe[i+1][j]), pos)
+                    end
                     @inbounds add_to_expression!(rcons[Locb], real(coe[i+1][j]), pos)
                 end
             end
@@ -204,19 +221,31 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
                     @inbounds bi = [sadd(basis[i][j+1][ind], supp[w+1][s][1]), sadd(basis[i][j+1][ind], supp[w+1][s][2])]
                     if bi[1] <= bi[2]
                         Locb = bfind(tsupp,ltsupp,bi)
-                        @inbounds add_to_expression!(icons[Locb], imag(coe[w+1][s]), pos)
+                        if ipart == true
+                            @inbounds add_to_expression!(icons[Locb], imag(coe[w+1][s]), pos)
+                        end
                         @inbounds add_to_expression!(rcons[Locb], real(coe[w+1][s]), pos)
                     end
                 end
             else
                 if w <= m-numeq
-                    pos = @variable(model, [1:2*bs, 1:2*bs], PSD)
+                    if ipart == true
+                        pos = @variable(model, [1:2bs, 1:2bs], PSD)
+                    else
+                        pos = @variable(model, [1:bs, 1:bs], PSD)
+                    end
                 else
-                    pos = @variable(model, [1:2*bs, 1:2*bs], Symmetric)
+                    if ipart == true
+                        pos = @variable(model, [1:2bs, 1:2bs], Symmetric)
+                    else
+                        pos = @variable(model, [1:bs, 1:bs], Symmetric)
+                    end
                 end
-                for t = 1:bs, r = t:bs
-                    @constraint(model, pos[t,r]==pos[t+bs,r+bs])
-                    @constraint(model, pos[r,t+bs]+pos[t,r+bs]==0)
+                if ipart == true
+                    for t = 1:bs, r = t:bs
+                        @constraint(model, pos[t,r]==pos[t+bs,r+bs])
+                        @constraint(model, pos[r,t+bs]+pos[t,r+bs]==0)
+                    end
                 end
                 for t = 1:bs, r = 1:bs
                     ind1 = blocks[i][j+1][l][t]
@@ -225,17 +254,21 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
                         @inbounds bi = [sadd(basis[i][j+1][ind1], supp[w+1][s][1]), sadd(basis[i][j+1][ind2], supp[w+1][s][2])]
                         if bi[1] <= bi[2]
                             Locb = bfind(tsupp,ltsupp,bi)
-                            @inbounds add_to_expression!(icons[Locb], imag(coe[w+1][s]), pos[t,r])
-                            @inbounds add_to_expression!(icons[Locb], real(coe[w+1][s]), pos[t+bs,r])
                             @inbounds add_to_expression!(rcons[Locb], real(coe[w+1][s]), pos[t,r])
-                            @inbounds add_to_expression!(rcons[Locb], -imag(coe[w+1][s]), pos[t+bs,r])
+                            if ipart == true
+                                @inbounds add_to_expression!(icons[Locb], imag(coe[w+1][s]), pos[t,r])
+                                @inbounds add_to_expression!(icons[Locb], real(coe[w+1][s]), pos[t+bs,r])
+                                @inbounds add_to_expression!(rcons[Locb], -imag(coe[w+1][s]), pos[t+bs,r])
+                            end
                         end
                     end
                 end
             end
         end
         rbc = zeros(ltsupp)
-        ibc = zeros(ltsupp)
+        if ipart == true
+            ibc = zeros(ltsupp)
+        end
         for i = 1:length(supp[1])
             Locb = bfind(tsupp, ltsupp, supp[1][i])
             if Locb == 0
@@ -243,13 +276,25 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
                return nothing,ksupp,nothing
             else
                rbc[Locb] = real(coe[1][i])
-               ibc[Locb] = imag(coe[1][i])
+               if ipart == true
+                   ibc[Locb] = imag(coe[1][i])
+               end
             end
         end
         @variable(model, lower)
-        @constraint(model, rcons[2:end].==rbc[2:end])
-        @constraint(model, rcons[1]+lower==rbc[1])
-        @constraint(model, icons.==ibc)
+        if Mommat == true
+            rcons[1] += lower
+            @constraint(model, rcon[i=1:ltsupp], rcons[i]==rbc[i])
+            if ipart == true
+                @constraint(model, icon[i=1:ltsupp], icons[i]==ibc[i])
+            end
+        else
+            @constraint(model, rcons[2:end].==rbc[2:end])
+            @constraint(model, rcons[1]+lower==rbc[1])
+            if ipart == true
+                @constraint(model, icons.==ibc)
+            end
+        end
         @objective(model, Max, lower)
         end
         if QUIET == false
@@ -270,8 +315,16 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
            println("solution status: $status")
         end
         println("optimum = $objv")
+        if Mommat == true
+            rmeasure = -dual.(rcon)
+            imeasure = nothing
+            if ipart == true
+                imeasure = -dual.(icon)
+            end
+            Mmatrix = get_cmoment(rmeasure, imeasure, tsupp, cliques, cql, cliquesize, blocks, cl, blocksize, basis, ipart=ipart)
+        end
     end
-    return objv,ksupp,nothing
+    return objv,ksupp,Mmatrix
 end
 
 function get_cblocks_mix(dg, J, rlorder, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques, cql,
@@ -459,6 +512,46 @@ function clique_decomp(n, m, dg, supp::Vector{Vector{Vector{Vector{UInt16}}}}; o
     println("The clique sizes of varibles:\n$uc\n$sizes")
     println("------------------------------------------------------")
     return cliques,cql,cliquesize
+end
+
+function get_cmoment(rmeasure, imeasure, tsupp, cliques, cql, cliquesize, blocks, cl, blocksize, basis; ipart=true)
+    moment = Vector{Vector{Matrix{Union{Float64,ComplexF64}}}}(undef, cql)
+    ltsupp = length(tsupp)
+    for i = 1:cql
+        moment[i] = Vector{Matrix{Union{Float64,ComplexF64}}}(undef, cl[i][1])
+        for l = 1:cl[i][1]
+            bs = blocksize[i][1][l]
+            rtemp = zeros(Float64, bs, bs)
+            if ipart == true
+                itemp = zeros(Float64, bs, bs)
+            end
+            for t = 1:bs, r = t:bs
+                ind1 = blocks[i][1][l][t]
+                ind2 = blocks[i][1][l][r]
+                bi = [basis[i][1][ind1], basis[i][1][ind2]]
+                if bi[1] <= bi[2]
+                    Locb = bfind(tsupp, ltsupp, bi)
+                    if ipart == true
+                        itemp[t,r] = imeasure[Locb]
+                    end
+                else
+                    Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
+                    if ipart == true
+                        itemp[t,r] = -imeasure[Locb]
+                    end
+                end
+                rtemp[t,r] = rmeasure[Locb]
+            end
+            rtemp = (rtemp + rtemp')/2
+            if ipart == true
+                itemp = (itemp - itemp')/2
+                moment[i][l] = rtemp + itemp*im
+            else
+                moment[i][l] = rtemp
+            end
+        end
+    end
+    return moment
 end
 
 function resort(supp, coe; field="real")

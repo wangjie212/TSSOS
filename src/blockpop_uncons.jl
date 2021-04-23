@@ -1,16 +1,16 @@
 mutable struct upop_data
-    n # the number of variables
-    nb # the number of binary variables
-    x # the set of variables
-    f # the objective function
-    supp # the support data
-    coe # the coefficient data
-    basis # the monomial basis
-    ksupp # the extending support at the k-th step
-    sb # the sizes of different blocks
-    numb # the numbers of different blocks
-    solver # the SDP solver
-    tol # the tolerance to certify global optimality
+    n # number of variables
+    nb # number of binary variables
+    x # set of variables
+    f # objective function
+    supp # support data
+    coe # coefficient data
+    basis # monomial basis
+    ksupp # extending support at the k-th step
+    sb # sizes of different blocks
+    numb # numbers of different blocks
+    solver # SDP solver
+    tol # tolerance to certify global optimality
     flag # 0 if global optimality is certified; 1 otherwise
 end
 
@@ -452,6 +452,7 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
                 Locb = bfind(tsupp, ltsupp, bi)
                 moment[j,k] = dual_var[Locb]
             end
+            # moment = (moment + moment')/2
             moment = Symmetric(moment,:U)
         end
     end

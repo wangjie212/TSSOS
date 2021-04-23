@@ -1,25 +1,26 @@
 mutable struct mcpop_data
-    n # the number of all variables
-    nb # the number of binary variables
-    m # the number of all constraints
-    numeq # the number of equality constraints
-    supp # the support data
-    coe # the coefficient data
-    basis # the bases
-    rlorder # the relaxation order
-    ksupp # the extending support at the k-th step
-    cql # the number of cliques
-    cliques # the cliques of variables
-    cliquesize # the numbers of cliques
+    n # number of all variables
+    nb # number of binary variables
+    m # number of all constraints
+    numeq # number of equality constraints
+    supp # support data
+    coe # coefficient data
+    basis # monomial bases
+    rlorder # relaxation order
+    ksupp # extending support at the k-th step
+    cql # number of cliques
+    cliques # cliques of variables
+    cliquesize # numbers of cliques
     J # constraints associated to each clique
     ncc # constraints associated to no clique
-    sb # the sizes of different blocks
-    numb # the numbers of different blocks
-    blocks # the block structure
-    cl # the numbers of blocks
-    blocksize # the sizes of blocks
-    solver # the SDP solver
-    tol # the tolerance to certify global optimality
+    sb # sizes of different blocks
+    numb # numbers of different blocks
+    blocks # block structure
+    cl # numbers of blocks
+    blocksize # sizes of blocks
+    Mmatrix # Moment matrix
+    solver # SDP solver
+    tol # tolerance to certify global optimality
     flag # 0 if global optimality is certified; 1 otherwise
 end
 
@@ -114,7 +115,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
         println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
     end
     opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, TS=TS, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne)
-    data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, solver, tol, 1)
+    data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, moment, solver, tol, 1)
     sol = nothing
     if solution == true
         sol,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
@@ -139,7 +140,7 @@ end
 Compute higher steps of the CS-TSSOS hierarchy.
 Return the optimum, the (near) optimal solution (if `solution=true`) and other auxiliary data.
 """
-function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false, solution=false, MomentOne=false)
+function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false, solution=false, ipart=true, MomentOne=false, Mommat=false)
     n = data.n
     nb = data.nb
     m = data.m
@@ -174,7 +175,7 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
             mb = maximum(maximum.(sb))
             println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution, MomentOne=MomentOne)
+        opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution, ipart=ipart, MomentOne=MomentOne, Mommat=Mommat)
         if solution == true
             sol,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
             if data.flag == 1
@@ -192,6 +193,7 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
         data.blocks = blocks
         data.cl = cl
         data.blocksize = blocksize
+        data.Mmatrix = moment
         data.sb = sb
         data.numb = numb
     else
@@ -202,7 +204,7 @@ end
 
 function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, cliques, cql, cliquesize,
     J, ncc, blocks, cl, blocksize; numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", tune=false,
-    solve=true, solution=false, MomentOne=false)
+    solve=true, solution=false, ipart=false, MomentOne=false, Mommat=false)
     tsupp = Vector{UInt16}[]
     for i = 1:cql, j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
         @inbounds bi = sadd(basis[i][1][blocks[i][1][j][k]], basis[i][1][blocks[i][1][j][r]], nb=nb)
@@ -677,25 +679,40 @@ function approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe; numeq=0
     return sol,flag
 end
 
-function get_moment(measure, tsupp, cliques, cql, cliquesize; nb=0)
+function get_moment(measure, tsupp, cliques, cql, cliquesize; basis=[], nb=0)
     moment = Vector{Union{Float64, Symmetric{Float64}, Array{Float64,2}}}(undef, cql)
     ltsupp = length(tsupp)
     for i = 1:cql
-        lb = cliquesize[i]+1
-        moment[i] = zeros(Float64, lb, lb)
-        for j = 1:lb, k = j:lb
-            if j == 1
-                if k == 1
-                    bi = UInt16[]
-                else
-                    bi = [cliques[i][k-1]]
-                end
-            else
-                bi = sadd(cliques[i][j-1], cliques[i][k-1], nb=nb)
-            end
-            Locb = bfind(tsupp, ltsupp, bi)
-            moment[i][j,k] = measure[Locb]
+        if basis == []
+            lb = cliquesize[i]+1
+        else
+            lb = length(basis[i][1])
         end
+        moment[i] = zeros(Float64, lb, lb)
+        if basis == []
+            for j = 1:lb, k = j:lb
+                if j == 1
+                    if k == 1
+                        bi = UInt16[]
+                    else
+                        bi = [cliques[i][k-1]]
+                    end
+                else
+                    bi = sadd(cliques[i][j-1], cliques[i][k-1], nb=nb)
+                end
+                Locb = bfind(tsupp, ltsupp, bi)
+                moment[i][j,k] = measure[Locb]
+            end
+        else
+            for j = 1:lb, k = j:lb
+                bi = sadd(basis[i][1][j], basis[i][1][k], nb=nb)
+                Locb = bfind(tsupp, ltsupp, bi)
+                if Locb != 0
+                    moment[i][j,k] = measure[Locb]
+                end
+            end
+        end
+        # moment[i] = (moment[i] + moment[i]')/2
         moment[i] = Symmetric(moment[i],:U)
     end
     return moment
