@@ -42,10 +42,10 @@ other auxiliary data.
 - `numeq`: the number of equality constraints.
 """
 function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", minimize=false, assign="first", TS="block",
-    merge=false, md=3, solver="Mosek", tune=false, QUIET=false, solve=true, solution=false, MomentOne=true, tol=1e-4)
+    merge=false, md=3, solver="Mosek", tune=false, QUIET=false, solve=true, solution=false, MomentOne=true, Mommat=false, tol=1e-4)
     n,supp,coe = polys_info(pop, x)
     opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, foc=foc, CS=CS, minimize=minimize, assign=assign, TS=TS,
-    merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne, tol=tol)
+    merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne, Mommat=Mommat, tol=tol)
     return opt,sol,data
 end
 
@@ -90,10 +90,11 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 """
 function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0,
     foc=100, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, QUIET=false,
-    solver="Mosek", tune=false, solve=true, solution=false, MomentOne=true, tol=1e-4)
+    solver="Mosek", tune=false, solve=true, solution=false, MomentOne=true, Mommat=false, tol=1e-4)
     println("************************TSSOS************************")
     println("TSSOS is launching...")
     m = length(supp)-1
+    supp[1],coe[1] = resort(supp[1], coe[1])
     dg = [maximum(length.(supp[i])) for i=2:m+1]
     time = @elapsed begin
     cliques,cql,cliquesize = clique_decomp(n, m, dg, supp, order=d, alg=CS, minimize=minimize)
@@ -114,7 +115,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, TS=TS, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne)
+    opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, TS=TS, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne, Mommat=Mommat)
     data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, moment, solver, tol, 1)
     sol = nothing
     if solution == true
@@ -246,6 +247,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
         ltsupp = length(tsupp)
         if QUIET == false
             println("Assembling the SDP...")
+            println("There are $ltsupp affine constraints.")
         end
         if solver == "Mosek"
             model = Model(optimizer_with_attributes(Mosek.Optimizer))
@@ -373,7 +375,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
             end
         end
         @variable(model, lower)
-        if solution == true
+        if solution == true || Mommat == true
             cons[1] += lower
             @constraint(model, con[i=1:ltsupp], cons[i]==bc[i])
         else
@@ -403,6 +405,10 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
         if solution == true
             measure = -dual.(con)
             moment = get_moment(measure, tsupp, cliques, cql, cliquesize, nb=nb)
+        end
+        if Mommat == true
+            measure = -dual.(con)
+            moment = get_moment(measure, tsupp, cliques, cql, cliquesize, basis=basis, nb=nb)
         end
     end
     return objv,ksupp,moment
@@ -712,7 +718,6 @@ function get_moment(measure, tsupp, cliques, cql, cliquesize; basis=[], nb=0)
                 end
             end
         end
-        # moment[i] = (moment[i] + moment[i]')/2
         moment[i] = Symmetric(moment[i],:U)
     end
     return moment

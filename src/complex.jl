@@ -22,6 +22,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
     ind = [supp[1][i][1]<=supp[1][i][2] for i=1:length(supp[1])]
     supp[1] = supp[1][ind]
     coe[1] = coe[1][ind]
+    supp[1],coe[1] = resort(supp[1], coe[1])
     dg = zeros(Int, m)
     for i = 1:m
         dg[i] = maximum([length(supp[i+1][j][1]) + length(supp[i+1][j][2]) for j=1:length(supp[i+1])])
@@ -104,6 +105,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
         ltsupp = length(tsupp)
         if QUIET == false
             println("Assembling the SDP...")
+            println("There are $ltsupp affine constraints.")
         end
         if solver == "Mosek"
             model = Model(optimizer_with_attributes(Mosek.Optimizer))

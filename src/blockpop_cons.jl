@@ -372,6 +372,7 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
         ltsupp = size(tsupp, 2)
         if QUIET == false
             println("Assembling the SDP...")
+            println("There are $ltsupp affine constraints.")
         end
         if solver == "Mosek"
             model = Model(optimizer_with_attributes(Mosek.Optimizer))
@@ -557,7 +558,6 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
                     moment[j,k] = dual_var[Locb]
                 end
             end
-            # moment = (moment + moment')/2
             moment = Symmetric(moment,:U)
         end
     end
