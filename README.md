@@ -104,6 +104,9 @@ order: d (the relaxation order), "min" (using the lowest relaxation order for ea
 MomentOne: true (adding a first-order moment matrix for each variable clique), false  
 solution: true (extract an (approximate optimal) solution), false (don't extract an (approximate optimal) solution)
 
+## The AC-OPF problem
+See the file runopf.jl in examples.
+
 ## Complex polynomial optimization problems
 TSSOS also supports solving complex polynomial optimization via sparsity adapted complex moment-SOHS hierarchy. See [Exploiting Sparsity in Complex Polynomial Optimization](https://arxiv.org/abs/2103.12444) for more details.
 
