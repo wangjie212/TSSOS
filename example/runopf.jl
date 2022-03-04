@@ -1,13 +1,13 @@
-# include("E:\\Programs\\blockpop\\TSSOS\\src\\TSSOS.jl")
+# include("D:\\Programs\\TSSOS\\src\\TSSOS.jl")
 using TSSOS
-include("D:\\Programs\\blockpop\\TSSOS\\examples\\modelopf.jl") # include the file modelopf.jl
+include("D:\\Programs\\TSSOS\\example\\modelopf.jl") # include the file modelopf.jl
 
-cd("D:\\Programs\\PolyOPF\\pglib") # You need to download the problem data from PGLiB first.
+cd("D:\\Programs\\PolyOPF\\pglib") # You need to download the problem data from PGLiB (https://github.com/power-grid-lib/pglib-opf) first.
 
 silence()
 
 case = "pglib_opf_case3_lmbd"
-# AC = 260200
+AC = 5812.6
 opfdata = parse_file(case * ".m")
 
 # the first order relaxation
