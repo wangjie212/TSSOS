@@ -1,8 +1,10 @@
 # include("D:\\Programs\\TSSOS\\src\\TSSOS.jl")
 using TSSOS
-include("D:\\Programs\\TSSOS\\example\\modelopf.jl") # include the file modelopf.jl
+# You need to add the package PowerModels.
+include("D:\\Programs\\TSSOS\\example\\modelopf.jl")
 
-cd("D:\\Programs\\PolyOPF\\pglib") # You need to download the problem data from PGLiB (https://github.com/power-grid-lib/pglib-opf) first.
+# You need to download the problem data from PGLiB (https://github.com/power-grid-lib/pglib-opf) first.
+cd("D:\\Programs\\PolyOPF\\pglib")
 
 silence()
 
@@ -11,14 +13,14 @@ AC = 5812.6
 opfdata = parse_file(case * ".m")
 
 # the first order relaxation
-model,_ = pop_opf_real(opfdata, normal=true, AngleCons=true, LineLimit=true)
+model,_ = pop_opf_real(opfdata, normal=true, AngleCons=true, LineLimit="relax")
 n = model.n
 m = model.m
 numeq = model.numeq
 supp = model.supp
 coe = model.coe
-# mc = maximum(abs.(coe[1]))
-# coe[1]=coe[1]./mc
+mc = maximum(abs.(coe[1]))
+coe[1]=coe[1]./mc
 
 time = @elapsed begin
 opt,sol,popd = cs_tssos_first(supp, coe, n, 1, numeq=numeq, CS=false, TS="MF", MomentOne=false)
@@ -36,8 +38,8 @@ m = model.m
 numeq = model.numeq
 supp = model.supp
 coe = model.coe
-# mc = maximum(abs.(coe[1]))
-# coe[1] = coe[1]./mc
+mc = maximum(abs.(coe[1]))
+coe[1] = coe[1]./mc
 
 time = @elapsed begin
 opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, CS="MF", TS="block", MomentOne=true)
