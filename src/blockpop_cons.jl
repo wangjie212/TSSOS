@@ -25,7 +25,7 @@ end
 """
     opt,sol,data = tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[],
     reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", QUIET=false, solve=true,
-    MomentOne=false, solution=false, tol=1e-4)
+    MomentOne=false, Gram=false, solution=false, tol=1e-4)
 
 Compute the first step of the TSSOS hierarchy for constrained polynomial optimization with
 relaxation order `d`.
@@ -50,6 +50,10 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reduceba
         cpop = copy(pop)
         gb = cpop[end-numeq+1:end]
         cpop = cpop[1:end-numeq]
+        if numeq > 0 && QUIET == false
+            println("Starting to compute the Gröbner basis...")
+            println("This might take time. You can set quotient=false to close it.")
+        end
         SemialgebraicSets.gröbnerbasis!(gb)
         cpop[1] = rem(cpop[1], gb)
         lead = leadingmonomial.(gb)

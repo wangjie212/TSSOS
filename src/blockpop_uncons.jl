@@ -18,7 +18,7 @@ end
 
 """
     opt,sol,data = tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", merge=false,
-    md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, solution=false, tol=1e-4)
+    md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-4)
 
 Compute the first step of the TSSOS hierarchy for unconstrained polynomial optimization.
 If `newton=true`, then compute a monomial basis by the Newton polytope method.

@@ -48,14 +48,14 @@ Options:
 nb: specify the first nb variables to be binary variables (satisfying xi^2=1)  
 newton: true (use the monomial basis computed by the Newton polytope method), false  
 TS (term sparsity): "block" (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
-solution: true (extract an (approximate optimal) solution), false (don't extract an (approximate optimal) solution)
+solution: true (extract an (approximate optimal) solution), false (don't extract an (approximate optimal) solution)  
 
 Output:  
 basis: monomial basis  
 cl: numbers of blocks  
 blocksize: sizes of blocks  
 blocks: the block structrue  
-GramMat: Gram matrices  
+GramMat: Gram matrices (You need to set Gram=true)  
 flag: 0 if global optimality is certified; 1 otherwise  
 
 ### Constrained polynomial optimization problems
@@ -90,6 +90,7 @@ opt,sol,data = tssos_higher!(data, TS="MD")
 Options:  
 nb: specify the first nb variables to be binary variables (satisfying xi^2=1)  
 TS: "block" by default (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
+quotient: true (work in the quotient ring by computing Gröbner basis), false  
 solution: true (extract an (approximate optimal) solution), false (don't extract an (approximate optimal) solution)
 
 One can also exploit correlative sparsity and term sparsity simultaneously, which is called the CS-TSSOS hierarchy.
@@ -119,7 +120,7 @@ basis: monomial basis
 cl: numbers of blocks  
 blocksize: sizes of blocks  
 blocks: the block structrue  
-GramMat: Gram matrices  
+GramMat: Gram matrices (You need to set Gram=true)  
 Mmatrix: moment matrices  
 flag: 0 if global optimality is certified; 1 otherwise  
 
