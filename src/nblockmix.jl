@@ -119,8 +119,11 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
     data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, moment, solver, tol, 1)
     sol = nothing
     if solution == true
-        sol,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
+        sol,gap,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
         if data.flag == 1
+            if gap > 0.5
+                sol = randn(n)
+            end
             sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
             if gap != nothing
                 if gap < tol
@@ -178,8 +181,11 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
         end
         opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution, ipart=ipart, MomentOne=MomentOne, Mommat=Mommat)
         if solution == true
-            sol,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
+            sol,gap,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
             if data.flag == 1
+                if gap > 0.5
+                    sol = randn(n)
+                end
                 sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
                 if gap != nothing
                     if gap < tol
@@ -682,7 +688,7 @@ function approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe; numeq=0
     if flag == 0
         println("Global optimality certified!")
     end
-    return sol,flag
+    return sol,gap,flag
 end
 
 function get_moment(measure, tsupp, cliques, cql, cliquesize; basis=[], nb=0)
