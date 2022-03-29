@@ -120,8 +120,11 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reduceba
     data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, ksupp, sb, numb, blocks, cl, blocksize, GramMat, solver, tol, 1)
     sol = nothing
     if solution == true
-        sol,data.flag = extract_solutions(moment, opt, pop, x, numeq=numeq, tol=tol)
+        sol,gap,data.flag = extract_solutions(moment, opt, pop, x, numeq=numeq, tol=tol)
         if data.flag == 1
+            if gap > 0.5
+                sol = randn(n)
+            end
             sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
             if gap != nothing
                 if gap < tol
@@ -172,8 +175,11 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
         end
         opt,ksupp,moment,GramMat = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram)
         if solution == true
-            sol,data.flag = extract_solutions(moment, opt, pop, x, numeq=numeq, tol=tol)
+            sol,gap,data.flag = extract_solutions(moment, opt, pop, x, numeq=numeq, tol=tol)
             if data.flag == 1
+                if gap > 0.5
+                    sol = randn(n)
+                end
                 sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
                 if gap != nothing
                     if gap < tol

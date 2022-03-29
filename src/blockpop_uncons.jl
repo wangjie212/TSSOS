@@ -82,8 +82,11 @@ function tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", mer
     data = upop_data(n, nb, x, f, supp, coe, basis, ksupp, blocks, sb, numb, GramMat, solver, tol, 1)
     sol = nothing
     if solution == true
-        sol,data.flag = extract_solutions(moment, opt, [f], x, tol=tol)
+        sol,gap,data.flag = extract_solutions(moment, opt, [f], x, tol=tol)
         if data.flag == 1
+            if gap > 0.5
+                sol = randn(n)
+            end
             sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
             if gap != nothing
                 if gap < tol
@@ -131,8 +134,11 @@ function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=fal
         end
         opt,ksupp,moment,GramMat = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, feasible=feasible, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram)
         if solution == true
-            sol,data.flag = extract_solutions(moment, opt, [f], x, tol=tol)
+            sol,gap,data.flag = extract_solutions(moment, opt, [f], x, tol=tol)
             if data.flag == 1
+                if gap > 0.5
+                    sol = randn(n)
+                end
                 sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
                 if gap != nothing
                     if gap < tol
@@ -485,7 +491,8 @@ function extract_solutions(moment, opt, pop, x; numeq=0, tol=1e-4)
     F = eigen(moment, n+1:n+1)
     sol = sqrt(F.values[1])*F.vectors[:,1]
     if abs(sol[1]) < 1e-8
-        sol = zeros(n)
+        sol = nothing
+        gap = 1
         flag = 1
     else
         sol = sol[2:end]/sol[1]
@@ -509,5 +516,5 @@ function extract_solutions(moment, opt, pop, x; numeq=0, tol=1e-4)
     if flag == 0
         println("Global optimality certified!")
     end
-    return sol,flag
+    return sol,gap,flag
 end

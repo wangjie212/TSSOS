@@ -2,7 +2,7 @@ module TSSOS
 
 using MosekTools
 using JuMP
-using LightGraphs
+using Graphs
 using ChordalGraph
 using MultivariatePolynomials
 using Ipopt
