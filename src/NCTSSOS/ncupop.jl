@@ -46,7 +46,7 @@ function nctssos_first(supp::Vector{Vector{UInt16}}, coe, n::Int; d=0, newton=tr
     else
         supp,coe = sym_canon(supp, coe)
     end
-    if newton == true && d == 0
+    if newton == true && constraint == nothing
         if obj == "trace"
             basis = newton_cyclic(supp, n, d)
         else
@@ -83,7 +83,7 @@ function nctssos_first(supp::Vector{Vector{UInt16}}, coe, n::Int; d=0, newton=tr
         println("Starting to compute the block structure...")
     end
     blocks,cl,blocksize,sb,numb,_ = get_ncblocks(ksupp, basis, TS=TS, QUIET=QUIET, merge=merge, md=md, obj=obj, partition=partition, constraint=constraint)
-    if reducebasis == true && obj == "eigen" && d == 0
+    if reducebasis == true && obj == "eigen" && constraint == nothing
         psupp = copy(supp)
         psupp = psupp[is_sym.(psupp)]
         push!(psupp, UInt16[])
@@ -275,7 +275,8 @@ function cyclic_canon(supp, coe)
     l = length(nsupp)
     ncoe = zeros(l)
     for i = 1:length(supp)
-        Locb = ncbfind(nsupp, l, _cyclic_canon(_sym_canon(supp[i])))
+        bi = min(_cyclic_canon(supp[i]), _cyclic_canon(reverse(supp[i])))
+        Locb = ncbfind(nsupp, l, bi)
         ncoe[Locb] += coe[i]
     end
     return nsupp,ncoe

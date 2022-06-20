@@ -154,6 +154,9 @@ function cs_nctssos_higher!(data::ncmpop_data; TS="block", QUIET=false, merge=fa
     blocksize = data.blocksize
     sb = data.sb
     numb = data.numb
+    if QUIET == false
+        println("Starting to compute the block structure...")
+    end
     if m == 0
         time = @elapsed begin
         blocks,cl,blocksize,sb,numb,basis,status = get_blocks_mix(d, supp, cliques, cql, cliquesize, basis=basis, sb=sb, numb=numb, TS=TS, merge=merge, md=md, obj=obj)

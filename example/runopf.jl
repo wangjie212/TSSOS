@@ -8,8 +8,8 @@ cd("D:\\Programs\\PolyOPF\\pglib")
 
 silence()
 
-case = "pglib_opf_case3_lmbd"
-AC = 5812.6
+case = "pglib_opf_case240_pserc"
+AC = 3.3297e6
 opfdata = parse_file(case * ".m")
 
 # the first order relaxation

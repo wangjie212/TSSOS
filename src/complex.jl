@@ -18,6 +18,8 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
     QUIET=false, solve=true, tune=false, solution=false, ipart=true, MomentOne=false, Mommat=false)
     println("***************************TSSOS***************************")
     println("TSSOS is launching...")
+    supp = copy(supp)
+    coe = copy(coe)
     m = length(supp)-1
     ind = [supp[1][i][1]<=supp[1][i][2] for i=1:length(supp[1])]
     supp[1] = supp[1][ind]
@@ -556,16 +558,12 @@ function get_cmoment(rmeasure, imeasure, tsupp, cliques, cql, cliquesize, blocks
     return moment
 end
 
-function resort(supp, coe; field="real")
+function resort(supp, coe)
     nsupp = copy(supp)
     sort!(nsupp)
     unique!(nsupp)
     l = length(nsupp)
-    if field == "real"
-        ncoe = zeros(l)
-    else
-        ncoe = zeros(ComplexF64, l)
-    end
+    ncoe = zeros(typeof(coe[1]), l)
     for i = 1:length(supp)
         locb = bfind(nsupp, l, supp[i])
         ncoe[locb] += coe[i]

@@ -4,7 +4,7 @@ using DynamicPolynomials
 using MultivariatePolynomials
 using JuMP
 using MosekTools
-using LightGraphs
+using Graphs
 using ChordalGraph
 using MetaGraphs
 using LinearAlgebra
