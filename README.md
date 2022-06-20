@@ -18,7 +18,7 @@ TSSOS has been tested on Ubuntu and Windows.
 ## Usage
 ### Unconstrained polynomial optimization problems
 The unconstrained polynomial optimization problem formulizes as
-$$\rm{Inf}\ \lbrace f(\mathbf{x}): \mathbf{x}\in\mathbb{R}^n \rbrace$$
+$$\rm{Inf}\ \lbrace f(\mathbf{x}): \mathbf{x}\in\mathbb{R}^n \rbrace,$$
 where $f$ is a polynomial with variables $x_1,\ldots,x_n$ and of degree $d$.
 
 Taking $f=1+x_1^4+x_2^4+x_3^4+x_1x_2x_3+x_2$ as an example, to execute the first level of the TSSOS hierarchy, run
@@ -44,7 +44,7 @@ opt,sol,data = tssos_higher!(data, TS="MD")
 ```
 
 Options:  
-nb: specify the first nb variables to be binary variables (satisfying xi^2=1)  
+nb: specify the first nb variables to be binary variables (satisfying $x_i^2=1$)  
 newton: true (use the monomial basis computed by the Newton polytope method), false  
 TS (term sparsity): "block" (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
 solution: true (extract an (approximate optimal) solution), false (don't extract an (approximate optimal) solution)  
@@ -59,12 +59,12 @@ flag: 0 if global optimality is certified; 1 otherwise
 
 ### Constrained polynomial optimization problems
 The constrained polynomial optimization problem formulizes as
-$$\rm{Inf}\ \lbrace f(\mathbf{x}): \mathbf{x}\in\mathbf{K} \rbrace$$
-where $f$ is a polynomial and $\mathbf{K}$ is the basic semi-algebraic set
+$$\rm{Inf}\ \lbrace f(\mathbf{x}): \mathbf{x}\in\mathbf{K} \rbrace,$$
+where  $f $ is a polynomial and $\mathbf{K}$ is the basic semi-algebraic set
 $$\mathbf{K}=\lbrace \mathbf{x}\in\mathbb{R}^n \mid g_j(\mathbf{x})\ge0, j=1,\ldots,m-numeq, g_j(\mathbf{x})=0, j=m-numeq+1,\ldots,m\rbrace,$$
 for some polynomials $g_j, j=1,\ldots,m$.
 
-Taking $f=1+x_1^4+x_2^4+x_3^4+x_1x_2x_3+x_2$ and $\mathbf{K}=\lbrace \mathbf{x}\in\mathbb{R}^2 \mid g_1=1-x_1^2-2x_2^2\ge0, g_2=x_2^2+x_3^2-1=0\rbrace$ as an example, to execute the first level of the TSSOS hierarchy, run
+Taking  $f=1+x_1^4+x_2^4+x_3^4+x_1x_2x_3+x_2 $ and $\mathbf{K}=\lbrace \mathbf{x}\in\mathbb{R}^2 \mid g_1=1-x_1^2-2x_2^2\ge0, g_2=x_2^2+x_3^2-1=0\rbrace$ as an example, to execute the first level of the TSSOS hierarchy, run
 
 ```Julia
 @polyvar x[1:3]
@@ -83,7 +83,7 @@ opt,sol,data = tssos_higher!(data, TS="MD")
 ```
 
 Options:  
-nb: specify the first nb variables to be binary variables (satisfying xi^2=1)  
+nb: specify the first nb variables to be binary variables (satisfying $x_i^2=1$)  
 TS: "block" by default (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
 quotient: true (work in the quotient ring by computing Gröbner basis), false  
 solution: true (extract an (approximate optimal) solution), false (don't extract an (approximate optimal) solution)
@@ -101,7 +101,7 @@ opt,sol,data = cs_tssos_first(pop, x, order, numeq=0, TS="MD")
 opt,sol,data = cs_tssos_higher!(data, TS="MD")
 ```
 Options:  
-nb: specify the first nb variables to be binary variables (satisfying xi^2=1)  
+nb: specify the first nb variables to be binary variables (satisfying $x_i^2=1$)  
 CS (correlative sparsity): "MF" by default (generating an approximately smallest chordal extension), "NC" (without chordal extension), false (without correlative sparsity)   
 TS: "block" (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
 order: d (the relaxation order), "min" (using the lowest relaxation order for each variable clique)  
@@ -129,9 +129,10 @@ The complex polynomial optimization problem formulizes as
 $$\rm{Inf}\ \lbrace f(\mathbf{z},\bar{\mathbf{z}}): \mathbf{z}\in\mathbf{K} \rbrace$$
 with
 $$\mathbf{K}=\lbrace \mathbf{z}\in\mathbb{C}^n \mid g_j(\mathbf{z},\bar{\mathbf{z}})\ge0, j=1,\ldots,m-numeq, g_j(\mathbf{z},\bar{\mathbf{z}})=0, j=m-numeq+1,\ldots,m\rbrace,$$
-where $\bar{cdot}$ stands for conjugate and $f, g_j, j=1,\ldots,m$ are real-valued polynomials satisfying $\bar{f}=f$ and $\bar{g}_j=g_j$.
+where  $\mathbf{z} $ stands for conjugate and  $f, g_j, j=1,\ldots,m $ are real-valued polynomials satisfying  $\bar{f}=f $ and $\bar{g}_j=g_j$.
 
-We use Vector{UInt16}[[1;2], [2;3]] to represent $z_1z_2\bar{z}_2\bar{z}_3$. Consider the example $\rm{Inf}\ \lbrace 3-|z_1|^2-0.5\mathbf{i}z_1\bar{z}_2^2+0.5iz_2^2\bar{z}_1 : z_2+\bar{z}_2>=0, |z_1|^2-0.25z_1^2-0.25\bar{z}_1^2=1, |z_1|^2+|z_2|^2=3, iz_2-i\bar{z}_2=0\rbrace$.
+We use Vector{UInt16}[[1;2], [2;3]] to represent  $z_1z_2\bar{z}_2\bar{z}_3 $. Consider the example
+$$\rm{Inf}\ \lbrace 3-|z_1|^2-0.5\mathbf{i}z_1\bar{z}_2^2+0.5\mathbf{i}z_2^2\bar{z}_1 : z_2+\bar{z}_2\ge0, |z_1|^2-0.25z_1^2-0.25\bar{z}_1^2=1, |z_1|^2+|z_2|^2=3, \mathbf{i}z_2-\mathbf{i}\bar{z}_2=0\rbrace.$$
 
 ```Julia
 n = 2 # the number of complex variables
