@@ -12,17 +12,16 @@ pkg> add https://github.com/wangjie212/TSSOS
 - [Julia](https://julialang.org/)
 - [JuMP](https://github.com/jump-dev/JuMP.jl)
 - [Mosek](https://www.mosek.com/) or [COSMO](https://github.com/oxfordcontrol/COSMO.jl)
+- [ChordalGraph](https://github.com/wangjie212/ChordalGraph)
 
 TSSOS has been tested on Ubuntu and Windows.
 ## Usage
 ### Unconstrained polynomial optimization problems
 The unconstrained polynomial optimization problem formulizes as
-```
-Inf{f(x): x∈R^n}
-```
-where f is a polynomial with variables x1,...,xn and of degree d.
+$$\rm{Inf}\ \lbrace f(\mathbf{x}): \mathbf{x}\in\mathbb{R}^n \rbrace$$
+where $f$ is a polynomial with variables $x_1,\ldots,x_n$ and of degree $d$.
 
-Taking f=1+x1^4+x2^4+x3^4+x1\*x2\*x3+x2 as an example, to execute the first level of the TSSOS hierarchy, run
+Taking $f=1+x_1^4+x_2^4+x_3^4+x_1x_2x_3+x_2$ as an example, to execute the first level of the TSSOS hierarchy, run
 ```Julia
 using TSSOS
 using DynamicPolynomials
@@ -60,16 +59,12 @@ flag: 0 if global optimality is certified; 1 otherwise
 
 ### Constrained polynomial optimization problems
 The constrained polynomial optimization problem formulizes as
-```
-Inf{f(x): x∈K}
-```
-where f is a polynomial and K is the basic semi-algebraic set
-```
-K={x∈R^n: g_j(x)>=0, j=1,...,m-numeq, g_j(x)=0, j=m-numeq+1,...,m},
-```
-for some polynomials g_j, j=1,...,m.
+$$\rm{Inf}\ \lbrace f(\mathbf{x}): \mathbf{x}\in\mathbf{K} \rbrace$$
+where $f$ is a polynomial and $\mathbf{K}$ is the basic semi-algebraic set
+$$\mathbf{K}=\lbrace \mathbf{x}\in\mathbb{R}^n \mid g_j(\mathbf{x})\ge0, j=1,\ldots,m-numeq, g_j(\mathbf{x})=0, j=m-numeq+1,\ldots,m\rbrace,$$
+for some polynomials $g_j, j=1,\ldots,m$.
 
-Taking f=1+x1^4+x2^4+x3^4+x1\*x2\*x3+x2 and K={x∈R^2: g_1=1-x1^2-2\*x2^2>=0, g_2=x2^2+x3^2-1=0} as an example, to execute the first level of the TSSOS hierarchy, run
+Taking $f=1+x_1^4+x_2^4+x_3^4+x_1x_2x_3+x_2$ and $\mathbf{K}=\lbrace \mathbf{x}\in\mathbb{R}^2 \mid g_1=1-x_1^2-2x_2^2\ge0, g_2=x_2^2+x_3^2-1=0\rbrace$ as an example, to execute the first level of the TSSOS hierarchy, run
 
 ```Julia
 @polyvar x[1:3]
@@ -131,16 +126,12 @@ See the file runopf.jl as well as modelopf.jl in example.
 TSSOS also supports solving complex polynomial optimization via sparsity adapted complex moment-SOHS hierarchy. See [Exploiting Sparsity in Complex Polynomial Optimization](https://arxiv.org/abs/2103.12444) for more details.
 
 The complex polynomial optimization problem formulizes as
-```
-Inf{f(z,z'): z∈K}
-```
+$$\rm{Inf}\ \lbrace f(\mathbf{z},\bar{\mathbf{z}}): \mathbf{z}\in\mathbf{K} \rbrace$$
 with
-```
-K={z∈C^n: g_j(z,z')>=0, j=1,...,m-numeq, g_j(z,z')=0, j=m-numeq+1,...,m},
-```
-where ' stands for conjugate and f, g_j, j=1,...,m are real-valued polynomials satisfying f'=f and g_j'=g_j.
+$$\mathbf{K}=\lbrace \mathbf{z}\in\mathbb{C}^n \mid g_j(\mathbf{z},\bar{\mathbf{z}})\ge0, j=1,\ldots,m-numeq, g_j(\mathbf{z},\bar{\mathbf{z}})=0, j=m-numeq+1,\ldots,m\rbrace,$$
+where $\bar{cdot}$ stands for conjugate and $f, g_j, j=1,\ldots,m$ are real-valued polynomials satisfying $\bar{f}=f$ and $\bar{g}_j=g_j$.
 
-We use Vector{UInt16}[[1;2], [2;3]] to represent z_1z_2z_2'z_3'. Consider the example Inf{3-|z_1|^2-0.5iz_1z_2'^2+0.5iz_2^2z_1': z_2+z_2'>=0, |z_1|^2-0.25z_1^2-0.25z_1'^2=1, |z_1|^2+|z_2|^2=3, iz_2-iz_2'=0}.
+We use Vector{UInt16}[[1;2], [2;3]] to represent $z_1z_2\bar{z}_2\bar{z}_3$. Consider the example $\rm{Inf}\ \lbrace 3-|z_1|^2-0.5\mathbf{i}z_1\bar{z}_2^2+0.5iz_2^2\bar{z}_1 : z_2+\bar{z}_2>=0, |z_1|^2-0.25z_1^2-0.25\bar{z}_1^2=1, |z_1|^2+|z_2|^2=3, iz_2-i\bar{z}_2=0\rbrace$.
 
 ```Julia
 n = 2 # the number of complex variables
