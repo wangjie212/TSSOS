@@ -129,9 +129,9 @@ The complex polynomial optimization problem formulizes as
 $$\rm{Inf}\ \lbrace f(\mathbf{z},\bar{\mathbf{z}}): \mathbf{z}\in\mathbf{K} \rbrace$$
 with
 $$\mathbf{K}=\lbrace \mathbf{z}\in\mathbb{C}^n \mid g_j(\mathbf{z},\bar{\mathbf{z}})\ge0, j=1,\ldots,m-numeq, g_j(\mathbf{z},\bar{\mathbf{z}})=0, j=m-numeq+1,\ldots,m\rbrace,$$
-where $\bar{\mathbf{z}}$ stands for the conjugate of $\mathbf{z}:=(z_1,\ldots,z_n)$, and $f, g_j, j=1,\ldots,m $ are real-valued polynomials satisfying $\bar{f}=f $ and $\bar{g}_j=g_j$.
+where  $\bar{\mathbf{z}} $ stands for the conjugate of  $\mathbf{z}:=(z_1,\ldots,z_n) $, and  $f, g_j, j=1,\ldots,m $ are real-valued polynomials satisfying  $\bar{f}=f $ and  $\bar{g}_j=g_j $.
 
-In Julia, we use $x_i$ to represent the complex variable $z_i$ and use $x_{n+i}$ to represent its conjugate $\bar{z}_i$. Consider the example
+In Julia, we use  $x_i $ to represent the complex variable  $z_i $ and use  $x_{n+i} $ to represent its conjugate  $\bar{z}_i $. Consider the example
 $$\rm{Inf}\ \lbrace 3-|z_1|^2-0.5\mathbf{i}z_1\bar{z}_2^2+0.5\mathbf{i}z_2^2\bar{z}_1 : z_2+\bar{z}_2\ge0, |z_1|^2-0.25z_1^2-0.25\bar{z}_1^2=1, |z_1|^2+|z_2|^2=3, \mathbf{i}z_2-\mathbf{i}\bar{z}_2=0\rbrace.$$
 It can be represented as
 $$\rm{Inf}\ \lbrace 3-x_1x_3-0.5\mathbf{i}x_1x_4^2+0.5\mathbf{i}x_2^2x_3 : x_2+x_4\ge0, x_1x_3-0.25x_1^2-0.25x_3^2=1, x_1x_3+x_2x_4=3, \mathbf{i}x_2-\mathbf{i}x_4=0\rbrace.$$
