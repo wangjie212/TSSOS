@@ -1,4 +1,4 @@
-using DynamicPolynomials
+# using DynamicPolynomials
 
 n = 3
 @ncpolyvar x[1:3]

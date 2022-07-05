@@ -132,7 +132,8 @@ function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=fal
             mb = maximum(maximum.(sb))
             println("Obtained the block structure. The maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,GramMat = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, feasible=feasible, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram)
+        opt,ksupp,moment,GramMat = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver,
+        feasible=feasible, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram)
         if solution == true
             sol,gap,data.flag = extract_solutions(moment, opt, [f], x, tol=tol)
             if data.flag == 1
@@ -282,8 +283,8 @@ function generate_basis!(supp, basis)
 end
 
 function bfind(A, l, a)
-    low=1
-    high=l
+    low = 1
+    high = l
     while low <= high
         mid = Int(ceil(1/2*(low+high)))
         if ndims(A) == 2

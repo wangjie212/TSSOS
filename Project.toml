@@ -18,8 +18,9 @@ SemialgebraicSets = "8e049039-38e8-557d-ae3a-bc521ccf6204"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
+ChordalGraph = "0.4"
 JuMP = "0.21"
-MetaGraphs = "0.6"
+MetaGraphs = "0.7"
 MultivariatePolynomials = "0.3"
 SemialgebraicSets = "0.2"
 julia = "1"
