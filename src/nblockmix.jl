@@ -144,7 +144,8 @@ end
 Compute higher steps of the CS-TSSOS hierarchy.
 Return the optimum, the (near) optimal solution (if `solution=true`) and other auxiliary data.
 """
-function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false, solution=false, ipart=true, MomentOne=false, Mommat=false)
+function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false,
+    solution=false, ipart=true, MomentOne=false, Mommat=false)
     n = data.n
     nb = data.nb
     m = data.m
@@ -170,7 +171,9 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,cl,blocksize,sb,numb,basis,status = get_cblocks_mix([], J, rlorder, m, supp, cliques, cql, cliquesize, tsupp=ksupp, basis=basis, blocks=blocks, cl=cl, blocksize=blocksize, sb=sb, numb=numb, nb=nb, TS=TS, merge=merge, md=md)
+    blocks,cl,blocksize,sb,numb,basis,status = get_cblocks_mix([], J, rlorder, m, supp, cliques, cql,
+    cliquesize, tsupp=ksupp, basis=basis, blocks=blocks, cl=cl, blocksize=blocksize, sb=sb, numb=numb,
+    nb=nb, TS=TS, merge=merge, md=md)
     end
     opt = nothing
     sol = nothing
@@ -179,7 +182,9 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
             mb = maximum(maximum.(sb))
             println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution, ipart=ipart, MomentOne=MomentOne, Mommat=Mommat)
+        opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl,
+        blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution,
+        ipart=ipart, MomentOne=MomentOne, Mommat=Mommat)
         if solution == true
             sol,gap,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
             if data.flag == 1
@@ -480,9 +485,12 @@ function get_cblocks_mix(dg, J, rlorder, m, supp::Vector{Vector{Vector{UInt16}}}
             blocksize[i] = Vector{Vector{UInt16}}(undef, lc+1)
             sb[i] = Vector{UInt16}(undef, lc+1)
             numb[i] = Vector{UInt16}(undef, lc+1)
-            blocks[i],cl[i],blocksize[i],sb[i],numb[i],status[i] = get_cblocks(lc, fsupp, supp[J[i].+1], basis[i], TS=TS, nb=nb, QUIET=true, merge=merge, md=md)
+            blocks[i],cl[i],blocksize[i],sb[i],numb[i],status[i] = get_cblocks(lc, fsupp, supp[J[i].+1], basis[i],
+            TS=TS, nb=nb, QUIET=true, merge=merge, md=md)
         else
-            blocks[i],cl[i],blocksize[i],sb[i],numb[i],status[i] = get_cblocks(lc, fsupp, supp[J[i].+1], basis[i], blocks=blocks[i], cl=cl[i], blocksize=blocksize[i], sb=sb[i], numb=numb[i], TS=TS, nb=nb, QUIET=true, merge=merge, md=md)
+            blocks[i],cl[i],blocksize[i],sb[i],numb[i],status[i] = get_cblocks(lc, fsupp, supp[J[i].+1], basis[i],
+            blocks=blocks[i], cl=cl[i], blocksize=blocksize[i], sb=sb[i], numb=numb[i], TS=TS, nb=nb, QUIET=true,
+            merge=merge, md=md)
         end
     end
     return blocks,cl,blocksize,sb,numb,basis,maximum(status)

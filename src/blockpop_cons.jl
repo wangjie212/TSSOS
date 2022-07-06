@@ -46,11 +46,11 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reduceba
     println("***************************TSSOS***************************")
     println("TSSOS is launching...")
     n = length(x)
-    if quotient == true
+    if numeq > 0 && quotient == true
         cpop = copy(pop)
         gb = cpop[end-numeq+1:end]
         cpop = cpop[1:end-numeq]
-        if numeq > 0 && QUIET == false
+        if QUIET == false
             println("Starting to compute the Gröbner basis...")
             println("This might take time. You can set quotient=false to close it.")
         end
