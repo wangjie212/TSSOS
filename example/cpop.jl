@@ -38,6 +38,10 @@ for i = 1:l
     coe[i+1] = [1; -ones(b)]
 end
 
+@polyvar x[1:2]
+pop = [-2x[1]*x[2]+x[1]^2+x[2]^2, x[1]*x[2]-x[1]-x[2]]
+opt,sol,data = cs_tssos_first(pop, x, 1, 2, numeq=1, CS=false, TS=false, ipart=false, QUIET=true, Mommat=true)
+
 @polyvar x[1:4]
 pop = [3-x[1]^2-x[3]^2+x[3]*x[2]^2-2x[1]*x[2]*x[4]-x[3]*x[4]^2, x[2], x[1]^2+3x[3]^2-2, x[4], x[1]^2+x[2]^2+x[3]^2+x[4]^2-3]
 # pop = [3-x[1]^2-x[3]^2+x[1]*x[2]^2+2x[2]*x[3]*x[4]-x[1]*x[4]^2, x[2], x[1]^2+3x[3]^2-2, x[4], x[1]^2+x[2]^2+x[3]^2+x[4]^2-3]

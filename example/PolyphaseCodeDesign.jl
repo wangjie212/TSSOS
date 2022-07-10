@@ -34,17 +34,39 @@ for k = 1:N-2
     # coe[k+1][(N-k)*(N-k)+2] = -1.0
 end
 
-order = 5
+order = 4
 @time begin
-opt,sol,data = cs_tssos_first(supp, coe, N+1, order, CS=false, TS="block", ipart=false, solve=false, nb=N, QUIET=true)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true)
+opt,sol,data = cs_tssos_first(supp, coe, N+1, order, CS=false, TS="block", ipart=false, solve=true, nb=N, QUIET=true)
+# opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, Mommat=true)
 end
 println(opt^0.5)
+
+mm = data.Mmatrix[1]
+b = [acos(mm[N+3+2k][1,2]) for k=1:N-2]
+# b[1] = b[8] = - b[1]
+# b[2] = b[7] = - b[2]
+# b[3] = b[6] = - b[3]
+# b[4] = b[5] = - b[4]
+A = diagm(2*ones(N-2))
+A[1,2] = A[N-2,N-3] = -1
+for k = 2:N-3
+    A[k,k-1] = A[k,k+1] = -1
+end
+θ = A\b
+θ = [0;θ;0]
+sol = cos.(θ)+sin.(θ)*im
+
+@polyvar x[1:2N]
+pop = Vector{Polynomial{true,Float64}}(undef, N-2)
+for j = 1:N-2
+    pop[j] = sum(x[i]*x[i+j+N] for i = 1:N-j)
+end
+abs.([pop[j](x=>[sol;conj.(sol)]) for j=1:N-2])
 
 # compute a local solution
 using DynamicPolynomials
 
-N = 15
+N = 4
 @polyvar x[1:N]
 @polyvar y[1:N]
 @polyvar t
