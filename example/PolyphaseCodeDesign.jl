@@ -2,7 +2,7 @@ using TSSOS
 
 # N Polyphase Code Waveform Design, N+1 complex variables
 # N bit Code Elements x[n], n = 1,...,N, the (N+1)th complex variables is the Object variable
-N = 10   # N+1 complex variables
+N = 4   # N+1 complex variables
 #  N           PSL           SDP Time(s)                   SDP Time(s)                      SDP Time(s)
 #                           without ipart=false           with ipart=false                with ipart=false
 #                           but All Equalities            and (N-2)Inequalities           and All Equalities
@@ -86,3 +86,15 @@ end
 # println(opt^0.5)
 sol,ub,gap = refine_sol(1, rand(2N+1), data, QUIET=true)
 println([ub^0.5])
+
+@polyvar x[1:2N]
+pop = Vector{Polynomial{true,Float64}}(undef, N-2)
+for j = 1:N-2
+    pop[j] = sum(x[i]*x[i+j+N] for i = 1:N-j)
+end
+
+z1 = 1
+z2 = cos(18pi/31)+sin(18pi/31)*im
+z3 = z2
+z4 = 1
+abs.([pop[j](x=>[z1;z2;z3;z4;conj(z1);conj(z2);conj(z3);conj(z4)]) for j=1:N-2])
