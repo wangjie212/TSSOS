@@ -4,6 +4,8 @@ mutable struct nccpop_data
     numeq # number of equality constraints
     supp # support data
     coe # coefficient data
+    partition # the first 'partition' variables commutes with the remaining variables
+    constraint # "projection" or "unipotent"
     obj # "eigen" or "trace"
     basis # monomial bases
     ksupp # extending support at the k-th step
@@ -30,9 +32,11 @@ Return the optimum and other auxiliary data.
 """
 
 function nctssos_first(pop::Vector{Polynomial{false, T}} where T<:Number, x::Vector{PolyVar{false}},
-    d::Int; numeq=0, reducebasis=false, TS="block", obj="eigen", merge=false, md=3, solve=true, QUIET=false)
+    d::Int; numeq=0, reducebasis=false, TS="block", obj="eigen", merge=false, md=3, solve=true, QUIET=false,
+    partition=0, constraint=nothing)
     n,supp,coe = polys_info(pop, x)
-    opt,data = nctssos_first(supp, coe, n, d, numeq=numeq, reducebasis=reducebasis, TS=TS, obj=obj, merge=merge, md=md, QUIET=QUIET, solve=solve)
+    opt,data = nctssos_first(supp, coe, n, d, numeq=numeq, reducebasis=reducebasis, TS=TS, obj=obj, merge=merge,
+    md=md, QUIET=QUIET, solve=solve, partition=partition, constraint=constraint)
     return opt,data
 end
 
@@ -59,7 +63,7 @@ function polys_info(pop, x)
 end
 
 function nctssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n::Int64, d::Int64; numeq=0,
-    reducebasis=false, TS="block", obj="eigen", merge=false, md=3, solve=true, QUIET=false)
+    reducebasis=false, TS="block", obj="eigen", merge=false, md=3, solve=true, QUIET=false, partition=0, constraint=nothing)
     println("***************************NCTSSOS***************************")
     println("NCTSSOS is launching...")
     m = length(supp)-1
@@ -70,10 +74,26 @@ function nctssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n::Int64, d::I
         supp[1],coe[1] = sym_canon(supp[1], coe[1])
     end
     basis = Vector{Vector{Vector{UInt16}}}(undef, m+1)
-    basis[1] = get_ncbasis(n,d)
+    basis[1] = get_ncbasis(n, d)
+    if partition > 0
+        ind = [_comm(basis[1][i], partition) == basis[1][i] for i=1:length(basis[1])]
+        basis[1] = basis[1][ind]
+    end
+    if constraint != nothing
+        ind = [findfirst(j -> basis[1][i][j] == basis[1][i][j+1], 1:length(basis[1][i])-1) == nothing for i=1:length(basis[1])]
+        basis[1] = basis[1][ind]
+    end
     ksupp = copy(supp[1])
     for i = 1:m
         basis[i+1] = get_ncbasis(n, d-Int(ceil(dg[i]/2)))
+        if partition > 0
+            ind = [_comm(basis[i+1][k], partition) == basis[i+1][k] for k=1:length(basis[i+1])]
+            basis[i+1] = basis[i+1][ind]
+        end
+        if constraint != nothing
+            ind = [findfirst(j -> basis[i+1][k][j] == basis[i+1][k][j+1], 1:length(basis[i+1][k])-1) == nothing for k=1:length(basis[i+1])]
+            basis[i+1] = basis[i+1][ind]
+        end
         if obj == "trace"
             append!(ksupp, [min(_cyclic_canon(word), _cyclic_canon(reverse(word))) for word in supp[i+1]])
         else
@@ -85,14 +105,21 @@ function nctssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n::Int64, d::I
     else
         append!(ksupp, [[basis[1][i][end:-1:1]; basis[1][i]] for i=1:length(basis[1])])
     end
+    if partition > 0
+        ksupp = _comm.(ksupp, partition)
+    end
+    if constraint != nothing
+        reduce_cons!.(ksupp, constraint = constraint)
+    end
     sort!(ksupp)
     unique!(ksupp)
     if TS != false && QUIET == false
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,cl,blocksize,sb,numb,_ = get_nccblocks(m, ksupp, supp[2:end], basis, TS=TS, obj=obj, QUIET=QUIET, merge=merge, md=md)
-    if reducebasis == true && obj == "eigen"
+    blocks,cl,blocksize,sb,numb,_ = get_nccblocks(m, ksupp, supp[2:end], basis, TS=TS, obj=obj, QUIET=QUIET,
+    merge=merge, md=md, partition=partition, constraint=constraint)
+    if reducebasis == true && obj == "eigen" && constraint == nothing
         gsupp = get_ncgsupp(m, supp, basis[2:end], blocks[2:end], cl[2:end], blocksize[2:end])
         psupp = copy(supp[1])
         push!(psupp, UInt16[])
@@ -115,8 +142,9 @@ function nctssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n::Int64, d::I
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
     end
-    opt,ksupp = ncblockcpop(m, supp, coe, basis, blocks, cl, blocksize, numeq=numeq, QUIET=QUIET, obj=obj, solve=solve)
-    data = nccpop_data(n, m, numeq, supp, coe, obj, basis, ksupp, sb, numb, blocks, cl, blocksize)
+    opt,ksupp = ncblockcpop(m, supp, coe, basis, blocks, cl, blocksize, numeq=numeq, QUIET=QUIET, obj=obj,
+    solve=solve, partition=partition, constraint=constraint)
+    data = nccpop_data(n, m, numeq, supp, coe, partition, constraint, obj, basis, ksupp, sb, numb, blocks, cl, blocksize)
     return opt,data
 end
 
@@ -125,6 +153,8 @@ function nctssos_higher!(data::nccpop_data; TS="block", merge=false, md=3, solve
     numeq = data.numeq
     supp = data.supp
     coe = data.coe
+    partition = data.partition
+    constraint = data.constraint
     obj = data.obj
     basis = data.basis
     ksupp = data.ksupp
@@ -137,7 +167,9 @@ function nctssos_higher!(data::nccpop_data; TS="block", merge=false, md=3, solve
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks, cl, blocksize, sb, numb, status = get_nccblocks(m, ksupp, supp[2:end], basis, blocks=blocks, cl=cl, blocksize=blocksize, sb=sb, numb=numb, TS=TS, obj=obj, QUIET=QUIET, merge=merge, md=md)
+    blocks, cl, blocksize, sb, numb, status = get_nccblocks(m, ksupp, supp[2:end], basis, blocks=blocks,
+    cl=cl, blocksize=blocksize, sb=sb, numb=numb, TS=TS, obj=obj, QUIET=QUIET, merge=merge, md=md,
+    partition=partition, constraint=constraint)
     end
     opt = nothing
     if status == 1
@@ -145,7 +177,8 @@ function nctssos_higher!(data::nccpop_data; TS="block", merge=false, md=3, solve
             mb = maximum(maximum.(sb))
             println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
         end
-        opt,ksupp = ncblockcpop(m, supp, coe, basis, blocks, cl, blocksize, numeq=numeq, QUIET=QUIET, obj=obj, solve=solve)
+        opt,ksupp = ncblockcpop(m, supp, coe, basis, blocks, cl, blocksize, numeq=numeq, QUIET=QUIET, obj=obj,
+        solve=solve, partition=partition, constraint=constraint)
     end
     data.ksupp = ksupp
     data.sb = sb
@@ -220,7 +253,7 @@ function reducebasis!(psupp, basis, blocks, cl, blocksize)
     end
 end
 
-function get_nccgraph(ksupp, supp, basis; obj="eigen")
+function get_nccgraph(ksupp, supp, basis; obj="eigen", partition=0, constraint=nothing)
     lb = length(basis)
     lksupp = length(ksupp)
     G = SimpleGraph(lb)
@@ -228,7 +261,7 @@ function get_nccgraph(ksupp, supp, basis; obj="eigen")
         r = 1
         while r <= length(supp)
             bi = [basis[i][end:-1:1]; supp[r]; basis[j]]
-            bi = reduce!(bi, obj=obj)
+            bi = reduce!(bi, obj=obj, partition=partition, constraint=constraint)
             if ncbfind(ksupp, lksupp, bi)!=0
                break
             else
@@ -242,7 +275,8 @@ function get_nccgraph(ksupp, supp, basis; obj="eigen")
     return G
 end
 
-function get_nccblocks(m, ksupp, gsupp, basis; blocks=[], cl=[], blocksize=[], sb=[], numb=[], TS="block", obj="eigen", QUIET=true, merge=false, md=3)
+function get_nccblocks(m, ksupp, gsupp, basis; blocks=[], cl=[], blocksize=[], sb=[], numb=[],
+    TS="block", obj="eigen", QUIET=true, merge=false, md=3, partition=0, constraint=nothing)
     if isempty(blocks)
         blocks = Vector{Vector{Vector{UInt16}}}(undef, m+1)
         blocksize = Vector{Vector{UInt16}}(undef, m+1)
@@ -258,7 +292,7 @@ function get_nccblocks(m, ksupp, gsupp, basis; blocks=[], cl=[], blocksize=[], s
         nnumb = [1]
         status = 1
     else
-        G = get_ncgraph(ksupp, basis[1], obj=obj)
+        G = get_ncgraph(ksupp, basis[1], obj=obj, partition=partition, constraint=constraint)
         if TS == "block"
             blocks[1] = connected_components(G)
             blocksize[1] = length.(blocks[1])
@@ -279,7 +313,7 @@ function get_nccblocks(m, ksupp, gsupp, basis; blocks=[], cl=[], blocksize=[], s
                 println("------------------------------------------------------")
             end
             for k = 1:m
-                G = get_nccgraph(ksupp, gsupp[k], basis[k+1], obj=obj)
+                G = get_nccgraph(ksupp, gsupp[k], basis[k+1], obj=obj, partition=partition, constraint=constraint)
                 if TS == "block"
                     blocks[k+1] = connected_components(G)
                     blocksize[k+1] = length.(blocks[k+1])
@@ -301,7 +335,8 @@ function get_nccblocks(m, ksupp, gsupp, basis; blocks=[], cl=[], blocksize=[], s
     return blocks,cl,blocksize,nsb,nnumb,status
 end
 
-function ncblockcpop(m, supp, coe, basis, blocks, cl, blocksize; numeq=0, QUIET=true, obj="eigen", solve=true)
+function ncblockcpop(m, supp, coe, basis, blocks, cl, blocksize; numeq=0, QUIET=true, obj="eigen",
+    solve=true, partition=0, constraint=nothing)
     ksupp = Vector{UInt16}[]
     for i = 1:cl[1], j = 1:blocksize[1][i], r = j:blocksize[1][i]
         @inbounds bi = [basis[1][blocks[1][i][j]][end:-1:1]; basis[1][blocks[1][i][r]]]
@@ -309,7 +344,7 @@ function ncblockcpop(m, supp, coe, basis, blocks, cl, blocksize; numeq=0, QUIET=
     end
     gsupp = get_ncgsupp(m, supp, basis[2:end], blocks[2:end], cl[2:end], blocksize[2:end])
     append!(ksupp, gsupp)
-    ksupp = reduce!.(ksupp, obj=obj)
+    ksupp = reduce!.(ksupp, obj=obj, partition=partition, constraint=constraint)
     sort!(ksupp)
     unique!(ksupp)
     lksupp = length(ksupp)
@@ -331,14 +366,14 @@ function ncblockcpop(m, supp, coe, basis, blocks, cl, blocksize; numeq=0, QUIET=
             if bs == 1
                @inbounds pos[i] = @variable(model, lower_bound=0)
                @inbounds bi = [basis[1][blocks[1][i][1]][end:-1:1]; basis[1][blocks[1][i][1]]]
-               bi = reduce!(bi, obj=obj)
+               bi = reduce!(bi, obj=obj, partition=partition, constraint=constraint)
                Locb = ncbfind(ksupp, lksupp, bi)
                @inbounds add_to_expression!(cons[Locb], pos[i])
             else
                @inbounds pos[i] = @variable(model, [1:bs, 1:bs], PSD)
                for j = 1:bs, r = j:bs
                    @inbounds bi = [basis[1][blocks[1][i][j]][end:-1:1]; basis[1][blocks[1][i][r]]]
-                   bi = reduce!(bi, obj=obj)
+                  bi = reduce!(bi, obj=obj, partition=partition, constraint=constraint)
                    Locb = ncbfind(ksupp, lksupp, bi)
                    if j == r
                        @inbounds add_to_expression!(cons[Locb], pos[i][j,r])
@@ -361,7 +396,7 @@ function ncblockcpop(m, supp, coe, basis, blocks, cl, blocksize; numeq=0, QUIET=
                     end
                     for s = 1:length(supp[k+1])
                         @inbounds bi = [basis[k+1][blocks[k+1][i][1]][end:-1:1]; supp[k+1][s]; basis[k+1][blocks[k+1][i][1]]]
-                        bi = reduce!(bi, obj=obj)
+                        bi = reduce!(bi, obj=obj, partition=partition, constraint=constraint)
                         Locb = ncbfind(ksupp, lksupp, bi)
                         @inbounds add_to_expression!(cons[Locb], coe[k+1][s], gpos[k][i])
                     end
@@ -373,7 +408,7 @@ function ncblockcpop(m, supp, coe, basis, blocks, cl, blocksize; numeq=0, QUIET=
                     end
                     for j = 1:bs, r = j:bs, s = 1:length(supp[k+1])
                         @inbounds bi=[basis[k+1][blocks[k+1][i][j]][end:-1:1]; supp[k+1][s]; basis[k+1][blocks[k+1][i][r]]]
-                        bi = reduce!(bi, obj=obj)
+                        bi = reduce!(bi, obj=obj, partition=partition, constraint=constraint)
                         Locb = ncbfind(ksupp, lksupp, bi)
                         if j == r
                             @inbounds add_to_expression!(cons[Locb], coe[k+1][s], gpos[k][i][j,r])
@@ -392,7 +427,7 @@ function ncblockcpop(m, supp, coe, basis, blocks, cl, blocksize; numeq=0, QUIET=
                return nothing,nothing
             else
                bc[Locb] = coe[1][i]
-           end
+            end
         end
         @variable(model, lower)
         cons[1] += lower

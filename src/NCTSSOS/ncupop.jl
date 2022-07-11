@@ -60,7 +60,7 @@ function nctssos_first(supp::Vector{Vector{UInt16}}, coe, n::Int; d=0, newton=tr
         basis = basis[ind]
     end
     if constraint != nothing
-        ind = [findfirst(j -> basis[i][j]== basis[i][j+1], 1:length(basis[i])-1) == nothing for i=1:length(basis)]
+        ind = [findfirst(j -> basis[i][j] == basis[i][j+1], 1:length(basis[i])-1) == nothing for i=1:length(basis)]
         basis = basis[ind]
     end
     ksupp = copy(supp)
