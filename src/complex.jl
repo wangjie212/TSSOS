@@ -16,7 +16,7 @@ corresponding to the supports and coeffients of `pop` respectively.
 function cs_tssos_first(pop, z, n, d; numeq=0, foc=100, nb=0, CS="MF", minimize=false, assign="first", TS="block",
     merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, tune=false, solution=false,
     ipart=true, MomentOne=false, Mommat=false)
-    ctype = ipart=true ? ComplexF64 : Float64
+    ctype = ipart==true ? ComplexF64 : Float64
     supp,coe = polys_info(pop, z, n, ctype=ctype)
     opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, foc=foc, nb=nb, CS=CS, minimize=minimize,
     assign=assign, TS=TS, merge=merge, md=md, solver=solver, reducebasis=reducebasis, QUIET=QUIET, solve=solve,
