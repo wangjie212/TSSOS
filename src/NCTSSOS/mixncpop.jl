@@ -24,7 +24,8 @@ end
 
 function cs_nctssos_first(f, x; d=0, CS="MF", minimize=false, TS="block", merge=false, md=3,
     QUIET=false, obj="eigen", solve=true, partition=0, constraint=nothing)
-    println("***************************NCTSSOS***************************")
+    println("********************************** NCTSSOS **********************************")
+    println("Version 0.2.0, developed by Jie Wang, 2020--2022")
     println("NCTSSOS is launching...")
     n,supp,coe = poly_info(f, x)
     if d == 0
@@ -105,7 +106,8 @@ corresponding to the supports and coeffients of `pop` respectively. Return the o
 function cs_nctssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n::Int, d::Int; numeq=0, CS="MF",
     minimize=false, assign="first", TS="block", merge=false, md=3, QUIET=false, obj="eigen", solve=true,
     partition=0, constraint=nothing)
-    println("***************************NCTSSOS***************************")
+    println("********************************** NCTSSOS **********************************")
+    println("Version 0.2.0, developed by Jie Wang, 2020--2022")
     println("NCTSSOS is launching...")
     m = length(supp)-1
     dg = [maximum(length.(supp[i])) for i=2:m+1]
@@ -200,7 +202,7 @@ function cs_nctssos_higher!(data::ncmpop_data; TS="block", QUIET=false, merge=fa
     end
     if status == 0
         opt = nothing
-        println("No higher CS-NCTSSOS hierarchy!")
+        println("No higher TS step of the CS-NCTSSOS hierarchy!")
     end
     data.ksupp = ksupp
     data.blocks = blocks
@@ -628,9 +630,9 @@ function clique_decomp(n::Int, supp::Vector{Vector{UInt16}}; alg="MF", minimize=
     end
     uc = unique(cliquesize)
     sizes = [sum(cliquesize.== i) for i in uc]
-    println("------------------------------------------------------")
+    println("-----------------------------------------------------------------------------")
     println("The clique sizes of varibles:\n$uc\n$sizes")
-    println("------------------------------------------------------")
+    println("-----------------------------------------------------------------------------")
     return cliques,cql,cliquesize
 end
 
@@ -662,8 +664,8 @@ function clique_decomp(n::Int, m::Int, d::Int, dg::Vector{Int}, supp::Vector{Vec
     end
     uc = unique(cliquesize)
     sizes = [sum(cliquesize.== i) for i in uc]
-    println("------------------------------------------------------")
+    println("-----------------------------------------------------------------------------")
     println("The clique sizes of varibles:\n$uc\n$sizes")
-    println("------------------------------------------------------")
+    println("-----------------------------------------------------------------------------")
     return cliques,cql,cliquesize
 end

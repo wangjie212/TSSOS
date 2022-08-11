@@ -81,7 +81,8 @@ function refine_sol(opt, sol, data::upop_data; QUIET=false, tol=1e-4)
     if status == MOI.LOCALLY_SOLVED
         gap = abs(upper_bound)>1 ? abs((opt-upper_bound)/upper_bound) : abs(opt-upper_bound)
         if gap < tol
-            println("Global optimality certified!")
+            rog = 100*gap
+            println("Global optimality certified with relative optimality gap $rog%!")
         end
     else
         rsol,upper_bound,gap = sol,nothing,nothing
@@ -122,7 +123,8 @@ function refine_sol(opt, sol, data::Union{cpop_data,mcpop_data}; QUIET=false, to
     if status == MOI.LOCALLY_SOLVED
         gap = abs(upper_bound)>1 ? abs((opt-upper_bound)/upper_bound) : abs(opt-upper_bound)
         if gap < tol
-            println("Global optimality certified!")
+            rog = 100*gap
+            println("Global optimality certified with relative optimality gap $rog%!")
         end
     else
         rsol,upper_bound,gap = sol,nothing,nothing

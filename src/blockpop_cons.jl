@@ -43,7 +43,8 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reducebasis=false,
     TS="block", merge=false, md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false,
     solution=false, tol=1e-4)
-    println("***************************TSSOS***************************")
+    println("*********************************** TSSOS ***********************************")
+    println("Version 1.0.0, developed by Jie Wang, 2020--2022")
     println("TSSOS is launching...")
     n = length(x)
     if numeq > 0 && quotient == true
@@ -130,7 +131,8 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reduceba
                 if gap < tol
                     data.flag = 0
                 else
-                    println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                    rog = 100*gap
+                    println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
                 end
             end
         end
@@ -185,7 +187,8 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
                     if gap < tol
                         data.flag = 0
                     else
-                        println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                        rog = 100*gap
+                        println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
                     end
                 end
             end
@@ -318,9 +321,9 @@ function get_cblocks(m, tsupp, supp, basis; blocks=[], cl=[], blocksize=[], sb=[
         if isempty(sb) || nsb!=sb || nnumb!=numb
             status = 1
             if QUIET == false
-                println("------------------------------------------------------")
+                println("-----------------------------------------------------------------------------")
                 println("The sizes of PSD blocks:\n$nsb\n$nnumb")
-                println("------------------------------------------------------")
+                println("-----------------------------------------------------------------------------")
             end
             for k = 1:m
                 G = get_cgraph(tsupp, supp[k], basis[k+1], nb=nb)
@@ -338,7 +341,7 @@ function get_cblocks(m, tsupp, supp, basis; blocks=[], cl=[], blocksize=[], sb=[
         else
             status = 0
             if QUIET == false
-                println("No higher TSSOS hierarchy!")
+                println("No higher TS step of the TSSOS hierarchy!")
             end
         end
     end

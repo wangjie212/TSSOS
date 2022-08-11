@@ -24,10 +24,11 @@ function cs_tssos_first(pop, z, n, d; numeq=0, foc=100, nb=0, CS="MF", minimize=
     return opt,sol,data
 end
 
-function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d; numeq=0, foc=100, nb=0,
+function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d; numeq=0, RemSig=true, foc=100, nb=0,
     CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, solver="Mosek", reducebasis=false,
     QUIET=false, solve=true, tune=false, solution=false, ipart=true, MomentOne=false, Mommat=false)
-    println("***************************TSSOS***************************")
+    println("*********************************** TSSOS ***********************************")
+    println("Version 1.0.0, developed by Jie Wang, 2020--2022")
     println("TSSOS is launching...")
     if nb > 0
         supp[1],coe[1] = resort(supp[1], coe[1], nb=nb)
@@ -57,6 +58,22 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
     time = @elapsed begin
     blocks,cl,blocksize,sb,numb,basis,status = get_cblocks_mix(dg, J, rlorder, m, supp, cliques, cql, cliquesize,
     TS=TS, merge=merge, md=md, nb=nb)
+    if RemSig == true
+        for i = 1:cql, j = 1:length(basis[i])
+            basis[i][j] = basis[i][j][union(blocks[i][j][blocksize[i][j] .> 1]...)]
+        end
+        tsupp = copy(supp[1])
+        for i = 2:m+1, j = 1:length(supp[i])
+            if supp[i][j][1] <= supp[i][j][2]
+                push!(tsupp, supp[i][j])
+            end
+        end
+        sort!(tsupp)
+        unique!(tsupp)
+        ind = [UInt16[] for i=1:cql]
+        blocks,cl,blocksize,sb,numb,basis,status = get_cblocks_mix(dg, J, rlorder, m, supp, cliques, cql, cliquesize,
+        tsupp=tsupp, basis=basis, sb=ind, numb=ind, blocks=blocks, cl=cl, blocksize=blocksize, TS=TS, merge=merge, md=md, nb=nb)
+    end
     if reducebasis == true
         tsupp = get_gsupp(basis, supp, cql, J, ncc, blocks, cl, blocksize, norm=true)
         for i = 1:length(supp[1])
@@ -620,7 +637,7 @@ function get_cgraph(tsupp::Vector{Vector{Vector{UInt16}}}, supp, basis; nb=0)
             if bi[1] > bi[2]
                 bi = bi[2:-1:1]
             end
-            if bfind(tsupp, ltsupp, bi)!=0
+            if bfind(tsupp, ltsupp, bi) != 0
                break
             else
                 r += 1
@@ -661,9 +678,9 @@ function clique_decomp(n, m, dg, supp::Vector{Vector{Vector{Vector{UInt16}}}}; o
     end
     uc = unique(cliquesize)
     sizes = [sum(cliquesize.== i) for i in uc]
-    println("------------------------------------------------------")
+    println("-----------------------------------------------------------------------------")
     println("The clique sizes of varibles:\n$uc\n$sizes")
-    println("------------------------------------------------------")
+    println("-----------------------------------------------------------------------------")
     return cliques,cql,cliquesize
 end
 

@@ -37,7 +37,8 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 """
 function tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", merge=false, feasible=false,
     md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-4)
-    println("************************TSSOS************************")
+    println("*********************************** TSSOS ***********************************")
+    println("Version 1.0.0, developed by Jie Wang, 2020--2022")
     println("TSSOS is launching...")
     n = length(x)
     mon = monomials(f)
@@ -92,7 +93,8 @@ function tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", mer
                 if gap < tol
                     data.flag = 0
                 else
-                    println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                    rog = 100*gap
+                    println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
                 end
             end
         end
@@ -145,7 +147,8 @@ function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=fal
                     if gap < tol
                         data.flag = 0
                     else
-                        println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                        rog = 100*gap
+                        println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
                     end
                 end
             end
@@ -340,13 +343,13 @@ function get_blocks(tsupp, basis; sb=[], numb=[], nb=0, TS="block", minimize=fal
     if isempty(sb) || nsb!=sb || nnumb!=numb
         status = 1
         if QUIET == false
-            println("------------------------------------------------------")
+            println("-----------------------------------------------------------------------------")
             println("The sizes of PSD blocks:\n$nsb\n$nnumb")
-            println("------------------------------------------------------")
+            println("-----------------------------------------------------------------------------")
         end
     else
         status = 0
-        println("No higher TSSOS hierarchy!")
+        println("No higher TS step of the TSSOS hierarchy!")
     end
     return blocks,cl,blocksize,nsb,nnumb,status
 end
@@ -515,7 +518,8 @@ function extract_solutions(moment, opt, pop, x; numeq=0, tol=1e-4)
         end
     end
     if flag == 0
-        println("Global optimality certified!")
+        rog = 100*gap
+        println("Global optimality certified with relative optimality gap $rog%!")
     end
     return sol,gap,flag
 end

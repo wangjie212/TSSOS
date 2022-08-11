@@ -36,7 +36,8 @@ end
 
 function nctssos_first(supp::Vector{Vector{UInt16}}, coe, n::Int; d=0, newton=true, reducebasis=true, monosquare=true,
     TS="block", obj="eigen", partition=0, constraint=nothing, merge=false, md=3, solve=true, QUIET=false)
-    println("************************NCTSSOS************************")
+    println("********************************** NCTSSOS **********************************")
+    println("Version 0.2.0, developed by Jie Wang, 2020--2022")
     println("NCTSSOS is launching...")
     if d == 0
         d = Int(maximum(length.(supp))/2)
@@ -416,13 +417,13 @@ function get_ncblocks(ksupp, basis; sb=[], numb=[], TS="block", obj="eigen", par
     if isempty(sb) || nsb!=sb || nnumb!=numb
         status = 1
         if QUIET == false
-            println("------------------------------------------------------")
+            println("-----------------------------------------------------------------------------")
             println("The sizes of PSD blocks:\n$nsb\n$nnumb")
-            println("------------------------------------------------------")
+            println("-----------------------------------------------------------------------------")
         end
     else
         status = 0
-        println("No higher NCTSSOS hierarchy!")
+        println("No higher TS step of the NCTSSOS hierarchy!")
     end
     return blocks,cl,blocksize,nsb,nnumb,status
 end

@@ -91,7 +91,8 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0,
     foc=100, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, QUIET=false,
     solver="Mosek", tune=false, solve=true, solution=false, MomentOne=true, Mommat=false, tol=1e-4)
-    println("************************TSSOS************************")
+    println("*********************************** TSSOS ***********************************")
+    println("Version 1.0.0, developed by Jie Wang, 2020--2022")
     println("TSSOS is launching...")
     m = length(supp)-1
     supp[1],coe[1] = resort(supp[1], coe[1])
@@ -129,7 +130,8 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
                 if gap < tol
                     data.flag = 0
                 else
-                    println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                    rog = 100*gap
+                    println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
                 end
             end
         end
@@ -196,7 +198,8 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
                     if gap < tol
                         data.flag = 0
                     else
-                        println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                        rog = 100*gap
+                        println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
                     end
                 end
             end
@@ -209,7 +212,7 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
         data.sb = sb
         data.numb = numb
     else
-        println("No higher CS-TSSOS hierarchy!")
+        println("No higher TS step of the CS-TSSOS hierarchy!")
     end
     return opt,sol,data
 end
@@ -629,9 +632,9 @@ function clique_decomp(n, m, dg, supp::Vector{Vector{Vector{UInt16}}}; order="mi
     end
     uc = unique(cliquesize)
     sizes=[sum(cliquesize.== i) for i in uc]
-    println("------------------------------------------------------")
+    println("-----------------------------------------------------------------------------")
     println("The clique sizes of varibles:\n$uc\n$sizes")
-    println("------------------------------------------------------")
+    println("-----------------------------------------------------------------------------")
     return cliques,cql,cliquesize
 end
 
@@ -694,7 +697,8 @@ function approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe; numeq=0
         end
     end
     if flag == 0
-        println("Global optimality certified!")
+        rog = 100*gap
+        println("Global optimality certified with relative optimality gap $rog%!")
     end
     return sol,gap,flag
 end
