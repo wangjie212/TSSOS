@@ -24,7 +24,7 @@ function cs_tssos_first(pop, z, n, d; numeq=0, foc=100, nb=0, CS="MF", minimize=
     return opt,sol,data
 end
 
-function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d; numeq=0, RemSig=true, foc=100, nb=0,
+function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d; numeq=0, RemSig=false, foc=100, nb=0,
     CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, solver="Mosek", reducebasis=false,
     QUIET=false, solve=true, tune=false, solution=false, ipart=true, MomentOne=false, Mommat=false)
     println("*********************************** TSSOS ***********************************")
@@ -59,8 +59,8 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
     blocks,cl,blocksize,sb,numb,basis,status = get_cblocks_mix(dg, J, rlorder, m, supp, cliques, cql, cliquesize,
     TS=TS, merge=merge, md=md, nb=nb)
     if RemSig == true
-        for i = 1:cql, j = 1:length(basis[i])
-            basis[i][j] = basis[i][j][union(blocks[i][j][blocksize[i][j] .> 1]...)]
+        for i = 1:cql
+            basis[i][1] = basis[i][1][union(blocks[i][1][blocksize[i][1] .> 1]...)]
         end
         tsupp = copy(supp[1])
         for i = 2:m+1, j = 1:length(supp[i])
