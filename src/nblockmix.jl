@@ -18,7 +18,7 @@ mutable struct mcpop_data
     blocks # block structure
     cl # numbers of blocks
     blocksize # sizes of blocks
-    Mmatrix # Moment matrix
+    moment # Moment matrix
     solver # SDP solver
     tol # tolerance to certify global optimality
     flag # 0 if global optimality is certified; 1 otherwise
@@ -43,15 +43,21 @@ other auxiliary data.
 """
 function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", minimize=false, assign="first", TS="block",
     merge=false, md=3, solver="Mosek", tune=false, QUIET=false, solve=true, solution=false, MomentOne=true, Mommat=false, tol=1e-4)
-    n,supp,coe = polys_info(pop, x)
+    n,supp,coe = polys_info(pop, x, nb=nb)
     opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, foc=foc, CS=CS, minimize=minimize, assign=assign, TS=TS,
     merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne, Mommat=Mommat, tol=tol)
     return opt,sol,data
 end
 
-function polys_info(pop, x)
+function polys_info(pop, x; nb=0)
     n = length(x)
     m = length(pop)-1
+    if nb > 0
+        gb = x[1:nb].^2 .- 1
+        for i in eachindex(pop)
+            pop[i] = rem(pop[i], gb)
+        end
+    end
     coe = Vector{Vector{Float64}}(undef, m+1)
     supp = Vector{Vector{Vector{UInt16}}}(undef, m+1)
     for k = 1:m+1
@@ -63,7 +69,7 @@ function polys_info(pop, x)
             ind = mon[i].z .> 0
             vars = mon[i].vars[ind]
             exp = mon[i].z[ind]
-            for j = 1:length(vars)
+            for j in eachindex(vars)
                 l = ncbfind(x, n, vars[j])
                 append!(supp[k][i], l*ones(UInt16, exp[j]))
             end
@@ -126,7 +132,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
                 sol = randn(n)
             end
             sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
-            if gap != nothing
+            if gap !== nothing
                 if gap < tol
                     data.flag = 0
                 else
@@ -194,7 +200,7 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
                     sol = randn(n)
                 end
                 sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
-                if gap != nothing
+                if gap !== nothing
                     if gap < tol
                         data.flag = 0
                     else
@@ -208,7 +214,7 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
         data.blocks = blocks
         data.cl = cl
         data.blocksize = blocksize
-        data.Mmatrix = moment
+        data.moment = moment
         data.sb = sb
         data.numb = numb
     else
@@ -282,6 +288,8 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
             model = Model(optimizer_with_attributes(COSMO.Optimizer, "max_iter" => 10000))
         elseif solver == "SDPT3"
             model = Model(optimizer_with_attributes(SDPT3.Optimizer))
+        elseif solver == "SDPNAL"
+            model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
         else
             @error "The solver is currently not supported!"
             return nothing,nothing,nothing
@@ -470,7 +478,7 @@ function get_cblocks_mix(dg, J, rlorder, m, supp::Vector{Vector{Vector{UInt16}}}
     for i = 1:cql
         lc = length(J[i])
         nvar = cliquesize[i]
-        ind = [issubset(tsupp[j], cliques[i]) for j=1:length(tsupp)]
+        ind = [issubset(tsupp[j], cliques[i]) for j in eachindex(tsupp)]
         fsupp = copy(tsupp[ind])
         if flag == 1
             basis[i] = Vector{Vector{Vector{UInt16}}}(undef, lc+1)
@@ -510,7 +518,7 @@ function assign_constraint(m, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql
         unique!(rind)
         if assign == "first"
             ind = findfirst(k->issubset(rind, cliques[k]), 1:cql)
-            if ind != nothing
+            if ind !== nothing
                 push!(J[ind], i-1)
             else
                 push!(ncc, i-1)
@@ -554,7 +562,7 @@ function get_sbasis(var, d; nb=0)
             j = bfind(var, n, basis[t-1][1])
             basis[t] = copy(basis[t-1])
             ind = findfirst(x->basis[t][x]!=var[j], 1:length(basis[t]))
-            if ind == nothing
+            if ind === nothing
                 ind = length(basis[t])+1
             end
             if j != 1
@@ -759,7 +767,7 @@ end
 
 function seval(supp, coe, x)
     val = 0
-    for i = 1:length(supp)
+    for i in eachindex(supp)
         if isempty(supp[i])
             temp = 1
         else

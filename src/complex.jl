@@ -110,18 +110,18 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
     end
-    opt,ksupp,Mmatrix = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize,
+    opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize,
     numeq=numeq, QUIET=QUIET, TS=TS, solver=solver, solve=solve, tune=tune, solution=solution, ipart=ipart, MomentOne=MomentOne,
     Mommat=Mommat, nb=nb)
     data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb,
-    numb, blocks, cl, blocksize, Mmatrix, solver, 1e-4, 1)
+    numb, blocks, cl, blocksize, moment, solver, 1e-4, 1)
     return opt,nothing,data
 end
 
 function polys_info(pop, z, n; ctype=ComplexF64)
     coe = Vector{Vector{ctype}}(undef, length(pop))
     supp = Vector{Vector{Vector{Vector{UInt16}}}}(undef, length(pop))
-    for k = 1:length(pop)
+    for k in eachindex(pop)
         mon = monomials(pop[k])
         coe[k] = coefficients(pop[k])
         lm = length(mon)
@@ -130,7 +130,7 @@ function polys_info(pop, z, n; ctype=ComplexF64)
             ind = mon[i].z .> 0
             vars = mon[i].vars[ind]
             exp = mon[i].z[ind]
-            for j = 1:length(vars)
+            for j in eachindex(vars)
                 l = ncbfind(z, 2n, vars[j])
                 if l <= n
                     append!(supp[k][i][1], l*ones(UInt16, exp[j]))
@@ -245,7 +245,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
         ksupp = tsupp
     end
     objv = nothing
-    Mmatrix = nothing
+    moment = nothing
     if solve == true
         ltsupp = length(tsupp)
         if QUIET == false
@@ -271,6 +271,8 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
             model = Model(optimizer_with_attributes(COSMO.Optimizer, "max_iter" => 10000))
         elseif solver == "SDPT3"
             model = Model(optimizer_with_attributes(SDPT3.Optimizer))
+        elseif solver == "SDPNAL"
+            model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
         else
             @error "The solver is currently not supported!"
             return nothing,nothing,nothing
@@ -483,10 +485,10 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
             if ipart == true
                 imeasure = -dual.(icon)
             end
-            Mmatrix = get_cmoment(rmeasure, imeasure, tsupp, cliques, cql, cliquesize, blocks, cl, blocksize, basis, ipart=ipart, nb=nb)
+            moment = get_cmoment(rmeasure, imeasure, tsupp, cliques, cql, cliquesize, blocks, cl, blocksize, basis, ipart=ipart, nb=nb)
         end
     end
-    return objv,ksupp,Mmatrix
+    return objv,ksupp,moment
 end
 
 function get_cblocks_mix(dg, J, rlorder, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques, cql, cliquesize;
@@ -514,7 +516,7 @@ function get_cblocks_mix(dg, J, rlorder, m, supp::Vector{Vector{Vector{Vector{UI
     for i = 1:cql
         lc = length(J[i])
         nvar = cliquesize[i]
-        ind = [issubset(union(tsupp[j][1], tsupp[j][2]), cliques[i]) for j=1:length(tsupp)]
+        ind = [issubset(union(tsupp[j][1], tsupp[j][2]), cliques[i]) for j in eachindex(tsupp)]
         fsupp = tsupp[ind]
         if flag == 1
             basis[i] = Vector{Vector{Vector{UInt16}}}(undef, lc+1)
@@ -548,7 +550,7 @@ function assign_constraint(m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliq
         unique!(rind)
         if assign == "first"
             ind = findfirst(k->issubset(rind, cliques[k]), 1:cql)
-            if ind != nothing
+            if ind !== nothing
                 push!(J[ind], i-1)
             else
                 push!(ncc, i-1)
@@ -592,7 +594,7 @@ function get_basis(var::Vector{UInt16}, d)
             j = bfind(var, n, basis[t-1][1])
             basis[t] = copy(basis[t-1])
             ind = findfirst(x->basis[t][x]!=var[j], 1:length(basis[t]))
-            if ind == nothing
+            if ind === nothing
                 ind = length(basis[t])+1
             end
             if j != 1
@@ -736,7 +738,7 @@ function resort(supp, coe; nb=0)
     unique!(nsupp)
     l = length(nsupp)
     ncoe = zeros(typeof(coe[1]), l)
-    for i = 1:length(supp)
+    for i in eachindex(supp)
         locb = bfind(nsupp, l, supp[i])
         ncoe[locb] += coe[i]
     end

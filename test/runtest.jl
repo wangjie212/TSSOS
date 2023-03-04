@@ -1,5 +1,4 @@
 using DynamicPolynomials
-# include("D:\\Programs\\TSSOS\\src\\TSSOS.jl")
 using TSSOS
 
 # unconstrained optimization using the TSSOS hierarchy

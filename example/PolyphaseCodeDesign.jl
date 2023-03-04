@@ -64,7 +64,7 @@ end
 abs.([pop[j](x=>[sol;conj.(sol)]) for j=1:N-2])
 
 # another model
-N = 12
+N = 4
 @polyvar x[1:2N]
 f = sum(sum(x[i]*x[i+j+N] for i = 1:N-j)*sum(x[i+N]*x[i+j] for i = 1:N-j) for j = 1:N-2)
 order = 5
