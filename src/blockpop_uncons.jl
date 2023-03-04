@@ -54,6 +54,8 @@ function tssos_first(f, x; nb=0, order=0, newton=true, reducebasis=false, TS="bl
     end
     if order == 0
         d = Int(maxdegree(f)/2)
+    else
+        d = order
     end
     if order == 0 && newton == true 
        if sum(supp[:,end]) != 0 && feasible == false
