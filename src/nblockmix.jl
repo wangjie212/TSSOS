@@ -41,11 +41,11 @@ other auxiliary data.
 - `md`: the tunable parameter for merging blocks.
 - `numeq`: the number of equality constraints.
 """
-function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", minimize=false, assign="first", TS="block",
-    merge=false, md=3, solver="Mosek", tune=false, QUIET=false, solve=true, solution=false, MomentOne=true, Mommat=false, tol=1e-4)
+function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, 
+    solver="Mosek", tune=false, QUIET=false, solve=true, solution=false, MomentOne=true, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
     n,supp,coe = polys_info(pop, x, nb=nb)
     opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, foc=foc, CS=CS, minimize=minimize, assign=assign, TS=TS,
-    merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne, Mommat=Mommat, tol=tol)
+    merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne, Mommat=Mommat, tol=tol, cosmo_setting=cosmo_setting)
     return opt,sol,data
 end
 
@@ -94,9 +94,9 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 - `d`: the relaxation order of the moment-SOS hierarchy.
 - `numeq`: the number of equality constraints.
 """
-function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0,
-    foc=100, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, QUIET=false,
-    solver="Mosek", tune=false, solve=true, solution=false, MomentOne=true, Mommat=false, tol=1e-4)
+function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, foc=100, CS="MF", minimize=false, 
+    assign="first", TS="block", merge=false, md=3, QUIET=false, solver="Mosek", tune=false, solve=true, solution=false, 
+    MomentOne=true, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
     println("*********************************** TSSOS ***********************************")
     println("Version 1.0.0, developed by Jie Wang, 2020--2022")
     println("TSSOS is launching...")
@@ -122,7 +122,8 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, TS=TS, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne, Mommat=Mommat)
+    opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, 
+    TS=TS, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne, Mommat=Mommat, cosmo_setting=cosmo_setting)
     data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, moment, solver, tol, 1)
     sol = nothing
     if solution == true
@@ -153,7 +154,7 @@ Compute higher steps of the CS-TSSOS hierarchy.
 Return the optimum, the (near) optimal solution (if `solution=true`) and other auxiliary data.
 """
 function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false,
-    solution=false, ipart=true, MomentOne=false, Mommat=false)
+    solution=false, ipart=true, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para())
     n = data.n
     nb = data.nb
     m = data.m
@@ -192,7 +193,7 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
         end
         opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl,
         blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution,
-        ipart=ipart, MomentOne=MomentOne, Mommat=Mommat)
+        ipart=ipart, MomentOne=MomentOne, Mommat=Mommat, cosmo_setting=cosmo_setting)
         if solution == true
             sol,gap,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
             if data.flag == 1
@@ -225,7 +226,7 @@ end
 
 function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, cliques, cql, cliquesize,
     J, ncc, blocks, cl, blocksize; numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", tune=false,
-    solve=true, solution=false, ipart=false, MomentOne=false, Mommat=false)
+    solve=true, solution=false, ipart=false, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para())
     tsupp = Vector{UInt16}[]
     for i = 1:cql, j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
         @inbounds bi = sadd(basis[i][1][blocks[i][1][j][k]], basis[i][1][blocks[i][1][j][r]], nb=nb)
@@ -285,7 +286,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
                 "MSK_DPAR_BASIS_REL_TOL_S" => 1e-5)
             end
         elseif solver == "COSMO"
-            model = Model(optimizer_with_attributes(COSMO.Optimizer, "max_iter" => 10000))
+            model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter))
         elseif solver == "SDPT3"
             model = Model(optimizer_with_attributes(SDPT3.Optimizer))
         elseif solver == "SDPNAL"

@@ -296,7 +296,7 @@ version = "0.7.2"
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[Mosek]]
-deps = ["Libdl", "Pkg", "Printf", "SparseArrays"]
+deps = ["Libdl", "Pkg", "Printf", "SparseArrays", "WinReg"]
 git-tree-sha1 = "4d639c16d45bd7962613ff984046c120915d82b2"
 uuid = "6405355b-0ac2-5fba-af84-adbd65488c0e"
 version = "10.0.2"
@@ -490,6 +490,12 @@ uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 git-tree-sha1 = "3350f94f6caa02f324a23645bf524fc9334c7488"
 uuid = "c4a57d5a-5b31-53a6-b365-19f8c011fbd6"
 version = "1.0.4"
+
+[[WinReg]]
+deps = ["Test"]
+git-tree-sha1 = "808380e0a0483e134081cc54150be4177959b5f4"
+uuid = "1b915085-20d7-51cf-bf83-8f477d6f5128"
+version = "0.3.1"
 
 [[Zlib_jll]]
 deps = ["Libdl"]

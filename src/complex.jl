@@ -15,18 +15,18 @@ corresponding to the supports and coeffients of `pop` respectively.
 """
 function cs_tssos_first(pop, z, n, d; numeq=0, foc=100, nb=0, CS="MF", minimize=false, assign="first", TS="block",
     merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, tune=false, solution=false,
-    ipart=true, MomentOne=false, Mommat=false)
+    ipart=true, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para())
     ctype = ipart==true ? ComplexF64 : Float64
     supp,coe = polys_info(pop, z, n, ctype=ctype)
     opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, foc=foc, nb=nb, CS=CS, minimize=minimize,
     assign=assign, TS=TS, merge=merge, md=md, solver=solver, reducebasis=reducebasis, QUIET=QUIET, solve=solve,
-    tune=tune, solution=solution, ipart=ipart, MomentOne=MomentOne, Mommat=Mommat)
+    tune=tune, solution=solution, ipart=ipart, MomentOne=MomentOne, Mommat=Mommat, cosmo_setting=cosmo_setting)
     return opt,sol,data
 end
 
 function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d; numeq=0, RemSig=false, foc=100, nb=0,
     CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, solver="Mosek", reducebasis=false,
-    QUIET=false, solve=true, tune=false, solution=false, ipart=true, MomentOne=false, Mommat=false)
+    QUIET=false, solve=true, tune=false, solution=false, ipart=true, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para())
     println("*********************************** TSSOS ***********************************")
     println("Version 1.0.0, developed by Jie Wang, 2020--2022")
     println("TSSOS is launching...")
@@ -112,7 +112,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
     end
     opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize,
     numeq=numeq, QUIET=QUIET, TS=TS, solver=solver, solve=solve, tune=tune, solution=solution, ipart=ipart, MomentOne=MomentOne,
-    Mommat=Mommat, nb=nb)
+    Mommat=Mommat, nb=nb, cosmo_setting=cosmo_setting)
     data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb,
     numb, blocks, cl, blocksize, moment, solver, 1e-4, 1)
     return opt,nothing,data
@@ -208,7 +208,7 @@ end
 
 function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, basis, cliques,
     cql, cliquesize, J, ncc, blocks, cl, blocksize; numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek",
-    tune=false, solve=true, solution=false, MomentOne=false, ipart=true, Mommat=false)
+    tune=false, solve=true, solution=false, MomentOne=false, ipart=true, Mommat=false, cosmo_setting=cosmo_para())
     tsupp = Vector{Vector{UInt16}}[]
     for i = 1:cql, j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
         @inbounds bi = [basis[i][1][blocks[i][1][j][k]], basis[i][1][blocks[i][1][j][r]]]
@@ -268,7 +268,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
                 "MSK_DPAR_BASIS_REL_TOL_S" => 1e-5)
             end
         elseif solver == "COSMO"
-            model = Model(optimizer_with_attributes(COSMO.Optimizer, "max_iter" => 10000))
+            model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter))
         elseif solver == "SDPT3"
             model = Model(optimizer_with_attributes(SDPT3.Optimizer))
         elseif solver == "SDPNAL"

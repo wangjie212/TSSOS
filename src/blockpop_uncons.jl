@@ -17,6 +17,14 @@ mutable struct upop_data
     flag # 0 if global optimality is certified; 1 otherwise
 end
 
+mutable struct cosmo_para
+    eps_abs::Float64
+    eps_rel::Float64
+    max_iter::Int64
+end
+
+cosmo_para() = cosmo_para(1e-5, 1e-5, 1e4)
+
 """
     opt,sol,data = tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", merge=false,
     md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-4)
@@ -37,7 +45,7 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 - `tol`: the relative tolerance to certify global optimality.
 """
 function tssos_first(f, x; nb=0, order=0, newton=true, reducebasis=false, TS="block", merge=false, feasible=false,
-    md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-4)
+    md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para())
     println("*********************************** TSSOS ***********************************")
     println("Version 1.0.0, developed by Jie Wang, 2020--2022")
     println("TSSOS is launching...")
@@ -87,7 +95,8 @@ function tssos_first(f, x; nb=0, order=0, newton=true, reducebasis=false, TS="bl
         mb = maximum(maximum.(sb))
         println("Obtained the block structure. The maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,momone,GramMat = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, feasible=feasible, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram)
+    opt,ksupp,moment,momone,GramMat = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, feasible=feasible, 
+    QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
     data = upop_data(n, nb, x, f, supp, coe, basis, ksupp, blocks, sb, numb, GramMat, moment, solver, tol, 1)
     sol = nothing
     if solution == true
@@ -118,7 +127,7 @@ Compute higher steps of the TSSOS hierarchy.
 Return the optimum, the (near) optimal solution (if `solution=true`) and other auxiliary data.
 """
 function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=false, solve=true,
-    feasible=false, MomentOne=false, Gram=false, solution=false)
+    feasible=false, MomentOne=false, Gram=false, solution=false, cosmo_setting=cosmo_para())
     n = data.n
     nb = data.nb
     x = data.x
@@ -143,7 +152,7 @@ function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=fal
             println("Obtained the block structure. The maximal size of blocks is $mb.")
         end
         opt,ksupp,moment,momone,GramMat = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver,
-        feasible=feasible, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram)
+        feasible=feasible, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
         if solution == true
             sol,gap,data.flag = extract_solutions(momone, opt, [f], x, tol=tol)
             if data.flag == 1
@@ -373,7 +382,7 @@ function get_blocks(tsupp, basis; sb=[], numb=[], nb=0, TS="block", minimize=fal
 end
 
 function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mosek",
-    feasible=false, QUIET=true, solve=true, solution=false, MomentOne=false, Gram=false)
+    feasible=false, QUIET=true, solve=true, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para())
     tsupp = zeros(UInt8, n, Int(sum(Int.(blocksize).^2+blocksize)/2))
     k = 1
     for i = 1:cl, j = 1:blocksize[i], r = j:blocksize[i]
@@ -403,7 +412,7 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
         if solver == "Mosek"
             model = Model(optimizer_with_attributes(Mosek.Optimizer))
         elseif solver == "COSMO"
-            model = Model(optimizer_with_attributes(COSMO.Optimizer, "max_iter" => 10000))
+            model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter))
         elseif solver == "SDPT3"
             model = Model(optimizer_with_attributes(SDPT3.Optimizer))
         elseif solver == "SDPNAL"
