@@ -110,6 +110,16 @@ solution: true (extract an (approximate optimal) solution), false (don't extract
 
 You may set solver="Mosek" or solver="COSMO" to specify the SDP solver invoked by TSSOS. By default, the solver is Mosek.
 
+You can tune the parameters of COSMO via
+
+```
+settings = cosmo_para()
+settings.eps_abs = 1e-5 # absolute residual tolerance
+settings.eps_rel = 1e-5 # relative residual tolerance
+settings.max_iter = 1e4 # maximum number of iterations
+```
+and run for instance tssos_first(..., cosmo_setting=settings)
+
 Output:  
 basis: monomial basis  
 cl: numbers of blocks  
