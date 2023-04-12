@@ -368,7 +368,7 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
         @inbounds ksupp[:,k] = bi
         k += 1
     end
-    objv,moment,momone,GramMat = nothing,nothing,nothing,nothing
+    objv = moment = momone = GramMat = nothing
     if solve == true
         tsupp = ksupp
         if m > 0

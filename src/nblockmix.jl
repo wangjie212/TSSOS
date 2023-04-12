@@ -18,6 +18,7 @@ mutable struct mcpop_data
     blocks # block structure
     cl # numbers of blocks
     blocksize # sizes of blocks
+    GramMat # Gram matrix
     moment # Moment matrix
     solver # SDP solver
     tol # tolerance to certify global optimality
@@ -27,7 +28,7 @@ end
 """
     opt,sol,data = cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", minimize=false,
     assign="first", TS="block", merge=false, md=3, solver="Mosek", QUIET=false, solve=true, solution=false,
-    MomentOne=true, tol=1e-4)
+    Gram=false, MomentOne=true, tol=1e-4)
 
 Compute the first step of the CS-TSSOS hierarchy for constrained polynomial optimization with
 relaxation order `d`. Return the optimum, the (near) optimal solution (if `solution=true`) and
@@ -42,10 +43,11 @@ other auxiliary data.
 - `numeq`: the number of equality constraints.
 """
 function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, 
-    solver="Mosek", tune=false, QUIET=false, solve=true, solution=false, MomentOne=true, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
+    solver="Mosek", tune=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=true, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
     n,supp,coe = polys_info(pop, x, nb=nb)
     opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, foc=foc, CS=CS, minimize=minimize, assign=assign, TS=TS,
-    merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne, Mommat=Mommat, tol=tol, cosmo_setting=cosmo_setting)
+    merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne, 
+    Mommat=Mommat, tol=tol, cosmo_setting=cosmo_setting)
     return opt,sol,data
 end
 
@@ -81,7 +83,7 @@ end
 """
     opt,sol,data = cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0,
     nb=0, foc=100, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3,
-    QUIET=false, solver="Mosek", solve=true, solution=false, MomentOne=true, tol=1e-4)
+    QUIET=false, solver="Mosek", solve=true, solution=false, Gram=false, MomentOne=true, tol=1e-4)
 
 Compute the first step of the CS-TSSOS hierarchy for constrained polynomial optimization with
 relaxation order `d`. Here the polynomial optimization problem is defined by `supp` and `coe`,
@@ -96,7 +98,7 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 """
 function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, foc=100, CS="MF", minimize=false, 
     assign="first", TS="block", merge=false, md=3, QUIET=false, solver="Mosek", tune=false, solve=true, solution=false, 
-    MomentOne=true, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
+    MomentOne=true, Gram=false, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
     println("*********************************** TSSOS ***********************************")
     println("Version 1.0.0, developed by Jie Wang, 2020--2022")
     println("TSSOS is launching...")
@@ -122,9 +124,9 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, 
-    TS=TS, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne, Mommat=Mommat, cosmo_setting=cosmo_setting)
-    data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, moment, solver, tol, 1)
+    opt,ksupp,moment,GramMat = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, 
+    TS=TS, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting)
+    data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, GramMat, moment, solver, tol, 1)
     sol = nothing
     if solution == true
         sol,gap,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
@@ -148,13 +150,13 @@ end
 
 """
     opt,sol,data = cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true,
-    solution=false, MomentOne=false)
+    solution=false, Gram=false, MomentOne=false)
 
 Compute higher steps of the CS-TSSOS hierarchy.
 Return the optimum, the (near) optimal solution (if `solution=true`) and other auxiliary data.
 """
 function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false,
-    solution=false, ipart=true, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para())
+    solution=false, Gram=false, ipart=true, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para())
     n = data.n
     nb = data.nb
     m = data.m
@@ -184,16 +186,15 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
     cliquesize, tsupp=ksupp, basis=basis, blocks=blocks, cl=cl, blocksize=blocksize, sb=sb, numb=numb,
     nb=nb, TS=TS, merge=merge, md=md)
     end
-    opt = nothing
-    sol = nothing
+    opt = sol = nothing
     if status == 1
         if TS != false && QUIET == false
             mb = maximum(maximum.(sb))
             println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl,
+        opt,ksupp,moment,GramMat = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl,
         blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution,
-        ipart=ipart, MomentOne=MomentOne, Mommat=Mommat, cosmo_setting=cosmo_setting)
+        ipart=ipart, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting)
         if solution == true
             sol,gap,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
             if data.flag == 1
@@ -215,6 +216,7 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
         data.blocks = blocks
         data.cl = cl
         data.blocksize = blocksize
+        data.GramMat = GramMat
         data.moment = moment
         data.sb = sb
         data.numb = numb
@@ -226,7 +228,7 @@ end
 
 function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, cliques, cql, cliquesize,
     J, ncc, blocks, cl, blocksize; numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", tune=false,
-    solve=true, solution=false, ipart=false, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para())
+    solve=true, solution=false, Gram=false, ipart=false, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para())
     tsupp = Vector{UInt16}[]
     for i = 1:cql, j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
         @inbounds bi = sadd(basis[i][1][blocks[i][1][j][k]], basis[i][1][blocks[i][1][j][r]], nb=nb)
@@ -262,8 +264,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
     else
         ksupp = tsupp
     end
-    objv = nothing
-    moment = nothing
+    objv = moment = GramMat = nothing
     if solve == true
         ltsupp = length(tsupp)
         if QUIET == false
@@ -293,15 +294,16 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
             model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
         else
             @error "The solver is currently not supported!"
-            return nothing,nothing,nothing
+            return nothing,nothing,nothing,nothing
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
         cons = [AffExpr(0) for i=1:ltsupp]
+        pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, cql)
         for i = 1:cql
             if (MomentOne == true || solution == true) && TS != false
                 bs = cliquesize[i]+1
-                pos = @variable(model, [1:bs, 1:bs], PSD)
+                pos0 = @variable(model, [1:bs, 1:bs], PSD)
                 for t = 1:bs, r = t:bs
                     if t == 1 && r == 1
                         bi = UInt16[]
@@ -312,30 +314,32 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
                     end
                     Locb = bfind(tsupp, ltsupp, bi)
                     if t == r
-                        @inbounds add_to_expression!(cons[Locb], pos[t,r])
+                        @inbounds add_to_expression!(cons[Locb], pos0[t,r])
                     else
-                        @inbounds add_to_expression!(cons[Locb], 2, pos[t,r])
+                        @inbounds add_to_expression!(cons[Locb], 2, pos0[t,r])
                     end
                 end
             end
+            pos[i] = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, 1+length(J[i]))
+            pos[i][1] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[i][1])
             for l = 1:cl[i][1]
                 @inbounds bs = blocksize[i][1][l]
                 if bs == 1
-                    pos = @variable(model, lower_bound=0)
+                    pos[i][1][l] = @variable(model, lower_bound=0)
                     @inbounds bi = sadd(basis[i][1][blocks[i][1][l][1]], basis[i][1][blocks[i][1][l][1]], nb=nb)
                     Locb = bfind(tsupp, ltsupp, bi)
-                    @inbounds add_to_expression!(cons[Locb], pos)
+                    @inbounds add_to_expression!(cons[Locb], pos[i][1][l])
                 else
-                    pos = @variable(model, [1:bs, 1:bs], PSD)
+                    pos[i][1][l] = @variable(model, [1:bs, 1:bs], PSD)
                     for t = 1:bs, r = t:bs
                         @inbounds ind1 = blocks[i][1][l][t]
                         @inbounds ind2 = blocks[i][1][l][r]
                         @inbounds bi = sadd(basis[i][1][ind1], basis[i][1][ind2], nb=nb)
                         Locb = bfind(tsupp, ltsupp, bi)
                         if t == r
-                            @inbounds add_to_expression!(cons[Locb], pos[t,r])
+                            @inbounds add_to_expression!(cons[Locb], pos[i][1][l][t,r])
                         else
-                            @inbounds add_to_expression!(cons[Locb], 2, pos[t,r])
+                            @inbounds add_to_expression!(cons[Locb], 2, pos[i][1][l][t,r])
                         end
                     end
                 end
@@ -343,45 +347,48 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
         end
         for i in ncc
             if i <= m-numeq
-                pos = @variable(model, lower_bound=0)
+                pos0 = @variable(model, lower_bound=0)
             else
-                pos = @variable(model)
+                pos0 = @variable(model)
             end
             for j = 1:length(supp[i+1])
                 Locb = bfind(tsupp, ltsupp, supp[i+1][j])
-                @inbounds add_to_expression!(cons[Locb], coe[i+1][j], pos)
+                @inbounds add_to_expression!(cons[Locb], coe[i+1][j], pos0)
             end
         end
-        for i = 1:cql, (j, w) in enumerate(J[i]), l = 1:cl[i][j+1]
-            bs = blocksize[i][j+1][l]
-            if bs == 1
-                if w <= m-numeq
-                    pos = @variable(model, lower_bound=0)
-                else
-                    pos = @variable(model)
-                end
-                ind = blocks[i][j+1][l][1]
-                for s = 1:length(supp[w+1])
-                    @inbounds bi = sadd(sadd(basis[i][j+1][ind], supp[w+1][s], nb=nb), basis[i][j+1][ind], nb=nb)
-                    Locb = bfind(tsupp, ltsupp, bi)
-                    @inbounds add_to_expression!(cons[Locb], coe[w+1][s], pos)
-                end
-            else
-                if w <= m-numeq
-                    pos = @variable(model, [1:bs, 1:bs], PSD)
-                else
-                    pos = @variable(model, [1:bs, 1:bs], Symmetric)
-                end
-                for t = 1:bs, r = t:bs
-                    ind1 = blocks[i][j+1][l][t]
-                    ind2 = blocks[i][j+1][l][r]
+        for i = 1:cql, (j, w) in enumerate(J[i])
+            pos[i][j+1] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[i][j+1])
+            for l = 1:cl[i][j+1]
+                bs = blocksize[i][j+1][l]
+                if bs == 1
+                    if w <= m-numeq
+                        pos[i][j+1][l] = @variable(model, lower_bound=0)
+                    else
+                        pos[i][j+1][l] = @variable(model)
+                    end
+                    ind = blocks[i][j+1][l][1]
                     for s = 1:length(supp[w+1])
-                        @inbounds bi = sadd(sadd(basis[i][j+1][ind1], supp[w+1][s], nb=nb), basis[i][j+1][ind2], nb=nb)
+                        @inbounds bi = sadd(sadd(basis[i][j+1][ind], supp[w+1][s], nb=nb), basis[i][j+1][ind], nb=nb)
                         Locb = bfind(tsupp, ltsupp, bi)
-                        if t == r
-                            @inbounds add_to_expression!(cons[Locb], coe[w+1][s], pos[t,r])
-                        else
-                            @inbounds add_to_expression!(cons[Locb], 2*coe[w+1][s], pos[t,r])
+                        @inbounds add_to_expression!(cons[Locb], coe[w+1][s], pos[i][j+1][l])
+                    end
+                else
+                    if w <= m-numeq
+                        pos[i][j+1][l] = @variable(model, [1:bs, 1:bs], PSD)
+                    else
+                        pos[i][j+1][l] = @variable(model, [1:bs, 1:bs], Symmetric)
+                    end
+                    for t = 1:bs, r = t:bs
+                        ind1 = blocks[i][j+1][l][t]
+                        ind2 = blocks[i][j+1][l][r]
+                        for s = 1:length(supp[w+1])
+                            @inbounds bi = sadd(sadd(basis[i][j+1][ind1], supp[w+1][s], nb=nb), basis[i][j+1][ind2], nb=nb)
+                            Locb = bfind(tsupp, ltsupp, bi)
+                            if t == r
+                                @inbounds add_to_expression!(cons[Locb], coe[w+1][s], pos[i][j+1][l][t,r])
+                            else
+                                @inbounds add_to_expression!(cons[Locb], 2*coe[w+1][s], pos[i][j+1][l][t,r])
+                            end
                         end
                     end
                 end
@@ -392,7 +399,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
             Locb = bfind(tsupp, ltsupp, supp[1][i])
             if Locb == 0
                @error "The monomial basis is not enough!"
-               return nothing,nothing,nothing
+               return nothing,nothing,nothing,nothing
             else
                bc[Locb] = coe[1][i]
             end
@@ -425,6 +432,15 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
            println("solution status: $status")
         end
         println("optimum = $objv")
+        if Gram == true
+            GramMat = Vector{Vector{Vector{Union{Float64,Matrix{Float64}}}}}(undef, cql)
+            for i = 1:cql
+                GramMat[i] = Vector{Vector{Union{Float64,Matrix{Float64}}}}(undef, 1+length(J[i]))
+                for j = 1:1+length(J[i])
+                    GramMat[i][j] = [value.(pos[i][j][l]) for l = 1:cl[i][j]]
+                end
+            end
+        end
         if solution == true
             measure = -dual.(con)
             moment = get_moment(measure, tsupp, cliques, cql, cliquesize, nb=nb)
@@ -434,7 +450,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
             moment = get_moment(measure, tsupp, cliques, cql, cliquesize, basis=basis, nb=nb)
         end
     end
-    return objv,ksupp,moment
+    return objv,ksupp,moment,GramMat
 end
 
 function init_order(dg, J, cliquesize, cql; foc=100, order="min")
