@@ -81,11 +81,12 @@ function refine_sol(opt, sol, data::upop_data; QUIET=false, tol=1e-4)
     if status == MOI.LOCALLY_SOLVED
         gap = abs(upper_bound)>1 ? abs((opt-upper_bound)/upper_bound) : abs(opt-upper_bound)
         if gap < tol
-            println("Global optimality certified!")
+            rog = 100*gap
+            println("Global optimality certified with relative optimality gap $rog%!")
         end
     else
         rsol,upper_bound,gap = sol,nothing,nothing
-        println("The local solver failed!")
+        println("The local solver failed refining the solution!")
     end
     return rsol,upper_bound,gap
 end
@@ -101,11 +102,11 @@ function refine_sol(opt, sol, data::Union{cpop_data,mcpop_data}; QUIET=false, to
         supp[2:m+1-numeq] = data.supp[2:end]
         coe[2:m+1-numeq] = data.coe[2:end]
         for k in [1; [k for k=m+2-numeq:m+1]]
-            mon = monomials(data.pop[k])
+            mons = monomials(data.pop[k])
             coe[k] = coefficients(data.pop[k])
-            supp[k] = zeros(UInt8, n, length(mon))
-            for i = 1:length(mon), j = 1:n
-                @inbounds supp[k][j,i] = MultivariatePolynomials.degree(mon[i], data.x[j])
+            supp[k] = zeros(UInt8, n, length(mons))
+            for i in eachindex(mons), j = 1:n
+                @inbounds supp[k][j,i] = MultivariatePolynomials.degree(mons[i], data.x[j])
             end
         end
     else
@@ -122,11 +123,12 @@ function refine_sol(opt, sol, data::Union{cpop_data,mcpop_data}; QUIET=false, to
     if status == MOI.LOCALLY_SOLVED
         gap = abs(upper_bound)>1 ? abs((opt-upper_bound)/upper_bound) : abs(opt-upper_bound)
         if gap < tol
-            println("Global optimality certified!")
+            rog = 100*gap
+            println("Global optimality certified with relative optimality gap $rog%!")
         end
     else
         rsol,upper_bound,gap = sol,nothing,nothing
-        println("The local solver failed!")
+        println("The local solver failed refining the solution!")
     end
     return rsol,upper_bound,gap
 end

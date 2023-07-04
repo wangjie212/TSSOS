@@ -8,12 +8,12 @@ cd("D:\\Programs\\PolyOPF\\pglib")
 
 silence()
 
-case = "pglib_opf_case240_pserc"
-AC = 3.3297e6
+case = "pglib_opf_case14_ieee"
+AC = 2178.08
 opfdata = parse_file(case * ".m")
 
 # the first order relaxation
-model,_ = pop_opf_real(opfdata, normal=true, AngleCons=true, LineLimit="relax")
+model = pop_opf_com(opfdata, normal=true, AngleCons=true, LineLimit="relax")
 n = model.n
 m = model.m
 numeq = model.numeq
@@ -32,7 +32,7 @@ println("n = $n, m = $m")
 println("opt = $opt, time = $time, mb = $mb, gap = $gap%")
 
 # the minimum order relaxation
-model,_ = pop_opf_real(opfdata, normal=true, AngleCons=true, LineLimit=true)
+model = pop_opf_com(opfdata, normal=true, AngleCons=true, LineLimit=true)
 n = model.n
 m = model.m
 numeq = model.numeq

@@ -17,6 +17,7 @@ mutable struct cpop_data
     cl # numbers of blocks
     blocksize # sizes of blocks
     GramMat # Gram matrix
+    moment # Moment matrix
     solver # SDP solver
     tol # tolerance to certify global optimality
     flag # 0 if global optimality is certified; 1 otherwise
@@ -42,13 +43,20 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 """
 function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reducebasis=false,
     TS="block", merge=false, md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false,
-    solution=false, tol=1e-4)
-    println("***************************TSSOS***************************")
+    solution=false, tol=1e-4, cosmo_setting=cosmo_para())
+    println("*********************************** TSSOS ***********************************")
+    println("Version 1.0.0, developed by Jie Wang, 2020--2023")
     println("TSSOS is launching...")
     n = length(x)
+    if nb > 0
+        gb = x[1:nb].^2 .- 1
+        for i in eachindex(pop)
+            pop[i] = rem(pop[i], gb)
+        end
+    end
     if numeq > 0 && quotient == true
         cpop = copy(pop)
-        gb = cpop[end-numeq+1:end]
+        gb = convert.(Polynomial{true,Float64}, cpop[end-numeq+1:end])
         cpop = cpop[1:end-numeq]
         if QUIET == false
             println("Starting to compute the Gröbner basis...")
@@ -72,11 +80,11 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reduceba
     coe = Vector{Vector{Float64}}(undef, m+1)
     supp = Vector{Array{UInt8,2}}(undef, m+1)
     for k = 1:m+1
-        mon = monomials(cpop[k])
+        mons = monomials(cpop[k])
         coe[k] = coefficients(cpop[k])
-        supp[k] = zeros(UInt8,n,length(mon))
-        for i = 1:length(mon), j = 1:n
-            @inbounds supp[k][j,i] = MultivariatePolynomials.degree(mon[i],x[j])
+        supp[k] = zeros(UInt8,n,length(mons))
+        for i in eachindex(mons), j = 1:n
+            @inbounds supp[k][j,i] = MultivariatePolynomials.degree(mons[i],x[j])
         end
     end
     isupp = supp[1]
@@ -116,21 +124,23 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reduceba
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,GramMat = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram)
-    data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, ksupp, sb, numb, blocks, cl, blocksize, GramMat, solver, tol, 1)
+    opt,ksupp,moment,momone,GramMat = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, 
+    lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
+    data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, ksupp, sb, numb, blocks, cl, blocksize, GramMat, moment, solver, tol, 1)
     sol = nothing
     if solution == true
-        sol,gap,data.flag = extract_solutions(moment, opt, pop, x, numeq=numeq, tol=tol)
+        sol,gap,data.flag = extract_solutions(momone, opt, pop, x, numeq=numeq, tol=tol)
         if data.flag == 1
             if gap > 0.5
                 sol = randn(n)
             end
             sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
-            if gap != nothing
+            if gap !== nothing
                 if gap < tol
                     data.flag = 0
                 else
-                    println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                    rog = 100*gap
+                    println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
                 end
             end
         end
@@ -138,7 +148,8 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reduceba
     return opt,sol,data
 end
 
-function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false)
+function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, MomentOne=false, Gram=false, 
+    solution=false, cosmo_setting=cosmo_para())
     n = data.n
     nb = data.nb
     m = data.m
@@ -173,19 +184,21 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
             mb = maximum(maximum.(sb))
             println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,GramMat = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram)
+        opt,ksupp,moment,momone,GramMat = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, 
+        solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
         if solution == true
-            sol,gap,data.flag = extract_solutions(moment, opt, pop, x, numeq=numeq, tol=tol)
+            sol,gap,data.flag = extract_solutions(momone, opt, pop, x, numeq=numeq, tol=tol)
             if data.flag == 1
                 if gap > 0.5
                     sol = randn(n)
                 end
                 sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
-                if gap != nothing
+                if gap !== nothing
                     if gap < tol
                         data.flag = 0
                     else
-                        println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                        rog = 100*gap
+                        println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
                     end
                 end
             end
@@ -197,6 +210,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
         data.cl = cl
         data.blocksize = blocksize
         data.GramMat = GramMat
+        data.moment = moment
     end
     return opt,sol,data
 end
@@ -262,7 +276,7 @@ function reducebasis!(supp, basis, blocks, cl, blocksize; nb=0)
     end
 end
 
-function get_cgraph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0)
+function get_cgraph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, balanced=false)
     lb = size(basis, 2)
     G = SimpleGraph(lb)
     ltsupp = size(tsupp, 2)
@@ -285,7 +299,7 @@ function get_cgraph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{
 end
 
 function get_cblocks(m, tsupp, supp, basis; blocks=[], cl=[], blocksize=[], sb=[], numb=[], nb=0,
-    TS="block", QUIET=true, merge=false, md=3)
+    TS="block", balanced=false, QUIET=true, merge=false, md=3)
     if isempty(blocks)
         blocks = Vector{Vector{Vector{UInt16}}}(undef, m+1)
         blocksize = Vector{Vector{UInt16}}(undef, m+1)
@@ -302,7 +316,7 @@ function get_cblocks(m, tsupp, supp, basis; blocks=[], cl=[], blocksize=[], sb=[
         nsb = Int.(blocksize[1])
         nnumb = [1]
     else
-        G = get_graph(tsupp, basis[1], nb=nb)
+        G = get_graph(tsupp, basis[1], nb=nb, balanced=balanced)
         if TS == "block"
             blocks[1] = connected_components(G)
             blocksize[1] = length.(blocks[1])
@@ -318,12 +332,12 @@ function get_cblocks(m, tsupp, supp, basis; blocks=[], cl=[], blocksize=[], sb=[
         if isempty(sb) || nsb!=sb || nnumb!=numb
             status = 1
             if QUIET == false
-                println("------------------------------------------------------")
+                println("-----------------------------------------------------------------------------")
                 println("The sizes of PSD blocks:\n$nsb\n$nnumb")
-                println("------------------------------------------------------")
+                println("-----------------------------------------------------------------------------")
             end
             for k = 1:m
-                G = get_cgraph(tsupp, supp[k], basis[k+1], nb=nb)
+                G = get_cgraph(tsupp, supp[k], basis[k+1], nb=nb, balanced=balanced)
                 if TS == "block"
                     blocks[k+1] = connected_components(G)
                     blocksize[k+1] = length.(blocks[k+1])
@@ -338,7 +352,7 @@ function get_cblocks(m, tsupp, supp, basis; blocks=[], cl=[], blocksize=[], sb=[
         else
             status = 0
             if QUIET == false
-                println("No higher TSSOS hierarchy!")
+                println("No higher TS step of the TSSOS hierarchy!")
             end
         end
     end
@@ -346,7 +360,7 @@ function get_cblocks(m, tsupp, supp, basis; blocks=[], cl=[], blocksize=[], sb=[
 end
 
 function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0, gb=[],
-    x=[], lead=[], solver="Mosek", QUIET=true, solve=true, solution=false, MomentOne=false, Gram=false)
+    x=[], lead=[], solver="Mosek", QUIET=true, solve=true, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para())
     ksupp = zeros(UInt8, n, Int(sum(Int.(blocksize[1]).^2+blocksize[1])/2))
     k = 1
     for i = 1:cl[1], j = 1:blocksize[1][i], r = j:blocksize[1][i]
@@ -354,9 +368,7 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
         @inbounds ksupp[:,k] = bi
         k += 1
     end
-    objv = nothing
-    moment = nothing
-    GramMat = nothing
+    objv = moment = momone = GramMat = nothing
     if solve == true
         tsupp = ksupp
         if m > 0
@@ -366,16 +378,16 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
         if MomentOne == true || solution == true
             tsupp = [tsupp get_basis(n, 2, nb=nb)]
         end
-        tsupp = unique(tsupp, dims=2)
         if !isempty(gb)
+            tsupp = unique(tsupp, dims=2)
             nsupp = zeros(UInt8, n)
             llead = size(lead, 2)
-            for i = 1:size(tsupp, 2)
-                if divide(tsupp[:,i], lead, n, llead)
-                    _,temp,_ = reminder(tsupp[:,i], x, gb, n)
+            for col in eachcol(tsupp)
+                if divide(col, lead, n, llead)
+                    temp = reminder(col, x, gb, n)[2]
                     nsupp = [nsupp temp]
                 else
-                    nsupp = [nsupp tsupp[:,i]]
+                    nsupp = [nsupp col]
                 end
             end
             tsupp = nsupp
@@ -390,9 +402,11 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
         if solver == "Mosek"
             model = Model(optimizer_with_attributes(Mosek.Optimizer))
         elseif solver == "COSMO"
-            model = Model(optimizer_with_attributes(COSMO.Optimizer, "max_iter" => 10000))
+            model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter))
         elseif solver == "SDPT3"
             model = Model(optimizer_with_attributes(SDPT3.Optimizer))
+        elseif solver == "SDPNAL"
+            model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
         else
             @error "The solver is currently not supported!"
             return nothing,nothing,nothing,nothing
@@ -536,7 +550,7 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
         @constraint(model, con[i=1:ltsupp], cons[i]==bc[i])
         @objective(model, Max, lower)
         end
-        if QUIET==false
+        if QUIET == false
             println("SDP assembling time: $time seconds.")
             println("Solving the SDP...")
         end
@@ -561,25 +575,44 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
                 GramMat[k+1] = [value.(gpos[k][i]) for i = 1:cl[k+1]]
             end
         end
+        dual_var = -dual.(con)
+        moment = Vector{Matrix{Float64}}(undef, cl[1])
+        for i = 1:cl[1]
+            moment[i] = zeros(blocksize[1][i],blocksize[1][i])
+            for j = 1:blocksize[1][i], k = j:blocksize[1][i]
+                bi = bin_add(basis[1][:,blocks[1][i][j]], basis[1][:,blocks[1][i][k]], nb)
+                if !isempty(gb) && divide(bi, lead, n, llead)
+                    bi_lm,bi_supp,bi_coe = reminder(bi, x, gb, n)
+                    moment[i][j,k] = 0
+                    for l = 1:bi_lm
+                        Locb = bfind(tsupp, ltsupp, bi_supp[:,l])
+                        moment[i][j,k] += bi_coe[l]*dual_var[Locb]
+                    end
+                else
+                    Locb = bfind(tsupp, ltsupp, bi)
+                    moment[i][j,k] = dual_var[Locb]
+                end
+            end
+            moment[i] = Symmetric(moment[i],:U)
+        end
         if solution == true
-            dual_var = -dual.(con)
-            moment = zeros(Float64, n+1, n+1)
+            momone = zeros(Float64, n+1, n+1)
             for j = 1:n+1, k = j:n+1
                 bi = bin_add(basis[1][:,j], basis[1][:,k], nb)
                 if !isempty(gb) && divide(bi, lead, n, llead)
                     bi_lm,bi_supp,bi_coe = reminder(bi, x, gb, n)
-                    moment[j,k] = 0
+                    momone[j,k] = 0
                     for l = 1:bi_lm
                         Locb = bfind(tsupp, ltsupp, bi_supp[:,l])
-                        moment[j,k] += bi_coe[l]*dual_var[Locb]
+                        momone[j,k] += bi_coe[l]*dual_var[Locb]
                     end
                 else
-                    Locb = bfind(tsupp,ltsupp,bi)
-                    moment[j,k] = dual_var[Locb]
+                    Locb = bfind(tsupp, ltsupp, bi)
+                    momone[j,k] = dual_var[Locb]
                 end
             end
-            moment = Symmetric(moment,:U)
+            momone = Symmetric(momone,:U)
         end
     end
-    return objv,ksupp,moment,GramMat
+    return objv,ksupp,moment,momone,GramMat
 end

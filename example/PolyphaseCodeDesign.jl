@@ -2,7 +2,7 @@ using TSSOS
 
 # N Polyphase Code Waveform Design, N+1 complex variables
 # N bit Code Elements x[n], n = 1,...,N, the (N+1)th complex variables is the Object variable
-N = 4   # N+1 complex variables
+N = 13   # N+1 complex variables
 #  N           PSL           SDP Time(s)                   SDP Time(s)                      SDP Time(s)
 #                           without ipart=false           with ipart=false                with ipart=false
 #                           but All Equalities            and (N-2)Inequalities           and All Equalities
@@ -36,8 +36,8 @@ end
 
 order = 4
 @time begin
-opt,sol,data = cs_tssos_first(supp, coe, N+1, order, CS=false, TS="block", ipart=false, solve=true, nb=N, QUIET=true)
-# opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, Mommat=true)
+opt,sol,data = cs_tssos_first(supp, coe, N+1, order, CS=false, TS="block", ipart=false, solve=false, nb=N, balanced=true, QUIET=true)
+opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, balanced=true, QUIET=true, Mommat=true)
 end
 println(opt^0.5)
 
@@ -62,6 +62,15 @@ for j = 1:N-2
     pop[j] = sum(x[i]*x[i+j+N] for i = 1:N-j)
 end
 abs.([pop[j](x=>[sol;conj.(sol)]) for j=1:N-2])
+
+# another model
+N = 4
+@polyvar x[1:2N]
+f = sum(sum(x[i]*x[i+j+N] for i = 1:N-j)*sum(x[i+N]*x[i+j] for i = 1:N-j) for j = 1:N-2)
+order = 5
+@time begin
+opt,sol,data = cs_tssos_first([f], x, N, order, CS=false, TS="block", ipart=false, solve=true, nb=N, QUIET=true)
+end
 
 # compute a local solution
 using DynamicPolynomials

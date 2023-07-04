@@ -11,10 +11,19 @@ mutable struct upop_data
     sb # sizes of different blocks
     numb # numbers of different blocks
     GramMat # Gram matrix
+    moment # Moment matrix
     solver # SDP solver
     tol # tolerance to certify global optimality
     flag # 0 if global optimality is certified; 1 otherwise
 end
+
+mutable struct cosmo_para
+    eps_abs::Float64
+    eps_rel::Float64
+    max_iter::Int64
+end
+
+cosmo_para() = cosmo_para(1e-5, 1e-5, 1e4)
 
 """
     opt,sol,data = tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", merge=false,
@@ -35,11 +44,15 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 - `md`: the tunable parameter for merging blocks.
 - `tol`: the relative tolerance to certify global optimality.
 """
-function tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", merge=false, feasible=false,
-    md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-4)
-    println("************************TSSOS************************")
+function tssos_first(f, x; nb=0, order=0, newton=true, reducebasis=false, TS="block", merge=false, feasible=false,
+    md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para())
+    println("*********************************** TSSOS ***********************************")
+    println("Version 1.0.0, developed by Jie Wang, 2020--2023")
     println("TSSOS is launching...")
     n = length(x)
+    if nb > 0 
+        f = rem(f, x[1:nb].^2 .- 1)
+    end
     mon = monomials(f)
     coe = coefficients(f)
     lm = length(mon)
@@ -47,13 +60,17 @@ function tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", mer
     for i = 1:lm, j = 1:n
         @inbounds supp[j,i] = MultivariatePolynomials.degree(mon[i], x[j])
     end
-    d = Int(maxdegree(f)/2)
-    if newton == true
+    if order == 0
+        d = Int(maxdegree(f)/2)
+    else
+        d = order
+    end
+    if order == 0 && newton == true 
        if sum(supp[:,end]) != 0 && feasible == false
           supp = [supp zeros(UInt8, n)]
           coe = [coe; 0]
        end
-       basis = newton_basis(n, d, supp)
+       basis = newton_basis(n, d, supp, solver=solver)
     else
        basis = get_basis(n, d, nb=nb)
     end
@@ -78,21 +95,23 @@ function tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", mer
         mb = maximum(maximum.(sb))
         println("Obtained the block structure. The maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,GramMat = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, feasible=feasible, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram)
-    data = upop_data(n, nb, x, f, supp, coe, basis, ksupp, blocks, sb, numb, GramMat, solver, tol, 1)
+    opt,ksupp,moment,momone,GramMat = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, feasible=feasible, 
+    QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
+    data = upop_data(n, nb, x, f, supp, coe, basis, ksupp, blocks, sb, numb, GramMat, moment, solver, tol, 1)
     sol = nothing
     if solution == true
-        sol,gap,data.flag = extract_solutions(moment, opt, [f], x, tol=tol)
+        sol,gap,data.flag = extract_solutions(momone, opt, [f], x, tol=tol)
         if data.flag == 1
             if gap > 0.5
                 sol = randn(n)
             end
             sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
-            if gap != nothing
+            if gap !== nothing
                 if gap < tol
                     data.flag = 0
                 else
-                    println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                    rog = 100*gap
+                    println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
                 end
             end
         end
@@ -108,7 +127,7 @@ Compute higher steps of the TSSOS hierarchy.
 Return the optimum, the (near) optimal solution (if `solution=true`) and other auxiliary data.
 """
 function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=false, solve=true,
-    feasible=false, MomentOne=false, Gram=false, solution=false)
+    feasible=false, MomentOne=false, Gram=false, solution=false, cosmo_setting=cosmo_para())
     n = data.n
     nb = data.nb
     x = data.x
@@ -132,20 +151,21 @@ function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=fal
             mb = maximum(maximum.(sb))
             println("Obtained the block structure. The maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,GramMat = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver,
-        feasible=feasible, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram)
+        opt,ksupp,moment,momone,GramMat = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver,
+        feasible=feasible, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
         if solution == true
-            sol,gap,data.flag = extract_solutions(moment, opt, [f], x, tol=tol)
+            sol,gap,data.flag = extract_solutions(momone, opt, [f], x, tol=tol)
             if data.flag == 1
                 if gap > 0.5
                     sol = randn(n)
                 end
                 sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
-                if gap != nothing
+                if gap !== nothing
                     if gap < tol
                         data.flag = 0
                     else
-                        println("Found a local optimal solution giving an upper bound: $ub and a relative optimality gap: $gap.")
+                        rog = 100*gap
+                        println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
                     end
                 end
             end
@@ -155,6 +175,7 @@ function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=fal
         data.sb = sb
         data.numb = numb
         data.blocks = blocks
+        data.moment = moment
     end
     return opt,sol,data
 end
@@ -220,7 +241,7 @@ function reminder(a, x, gb, n)
     return lm,supp,coe
 end
 
-function newton_basis(n, d, supp; e=1e-5)
+function newton_basis(n, d, supp; e=1e-5, solver="Mosek")
     lsupp = size(supp,2)
     basis = get_basis(n, d)
     lb = size(basis,2)
@@ -233,7 +254,16 @@ function newton_basis(n, d, supp; e=1e-5)
           if bfind(temp, lsupp, UInt8(2)*basis[:,i]) != 0
              t += 1
           else
-             model = Model(optimizer_with_attributes(Mosek.Optimizer))
+             if solver == "Mosek"
+                model = Model(optimizer_with_attributes(Mosek.Optimizer))
+             elseif solver == "SDPT3"
+                model = Model(optimizer_with_attributes(SDPT3.Optimizer))
+             elseif solver == "SDPNAL"
+                model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
+             else
+                @error "The solver is currently not supported!"
+                return nothing
+             end
              set_optimizer_attribute(model, MOI.Silent(), true)
              @variable(model, x[1:n+1], lower_bound=-10, upper_bound=10)
              @constraint(model, [A0; [basis[:,i]' -1]]*x .<= zeros(lsupp+1))
@@ -303,7 +333,7 @@ function bfind(A, l, a)
     return 0
 end
 
-function get_graph(tsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0)
+function get_graph(tsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, balanced=false)
     lb = size(basis,2)
     G = SimpleGraph(lb)
     ltsupp = size(tsupp,2)
@@ -340,19 +370,19 @@ function get_blocks(tsupp, basis; sb=[], numb=[], nb=0, TS="block", minimize=fal
     if isempty(sb) || nsb!=sb || nnumb!=numb
         status = 1
         if QUIET == false
-            println("------------------------------------------------------")
+            println("-----------------------------------------------------------------------------")
             println("The sizes of PSD blocks:\n$nsb\n$nnumb")
-            println("------------------------------------------------------")
+            println("-----------------------------------------------------------------------------")
         end
     else
         status = 0
-        println("No higher TSSOS hierarchy!")
+        println("No higher TS step of the TSSOS hierarchy!")
     end
     return blocks,cl,blocksize,nsb,nnumb,status
 end
 
 function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mosek",
-    feasible=false, QUIET=true, solve=true, solution=false, MomentOne=false, Gram=false)
+    feasible=false, QUIET=true, solve=true, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para())
     tsupp = zeros(UInt8, n, Int(sum(Int.(blocksize).^2+blocksize)/2))
     k = 1
     for i = 1:cl, j = 1:blocksize[i], r = j:blocksize[i]
@@ -372,9 +402,7 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
         tsupp = sortslices(tsupp, dims=2)
         ksupp = tsupp
     end
-    objv = nothing
-    moment = nothing
-    GramMat = nothing
+    objv,moment,momone,GramMat = nothing,nothing,nothing,nothing
     if solve == true
         ltsupp = size(tsupp,2)
         if QUIET == false
@@ -384,9 +412,11 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
         if solver == "Mosek"
             model = Model(optimizer_with_attributes(Mosek.Optimizer))
         elseif solver == "COSMO"
-            model = Model(optimizer_with_attributes(COSMO.Optimizer, "max_iter" => 10000))
+            model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter))
         elseif solver == "SDPT3"
             model = Model(optimizer_with_attributes(SDPT3.Optimizer))
+        elseif solver == "SDPNAL"
+            model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
         else
             @error "The solver is currently not supported!"
             return nothing,nothing,nothing,nothing
@@ -427,7 +457,7 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
             end
         end
         bc = zeros(ltsupp)
-        for i = 1:size(supp, 2)
+        for i in axes(supp,2)
             Locb = bfind(tsupp, ltsupp, supp[:,i])
             if Locb == 0
                @error "The monomial basis is not enough!"
@@ -472,18 +502,28 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
         if Gram == true
             GramMat = [value.(pos[i]) for i = 1:cl]
         end
+        dual_var = -dual.(con)
+        moment = Vector{Matrix{Float64}}(undef, cl)
+        for i = 1:cl
+            moment[i] = zeros(blocksize[i],blocksize[i])
+            for j = 1:blocksize[i], k = j:blocksize[i]
+                bi = bin_add(basis[:,blocks[i][j]], basis[:,blocks[i][k]], nb)
+                Locb = bfind(tsupp, ltsupp, bi)
+                moment[i][j,k] = dual_var[Locb]
+            end
+            moment[i] = Symmetric(moment[i],:U)
+        end
         if solution == true
-            dual_var = -dual.(con)
-            moment = zeros(Float64, n+1, n+1)
+            momone = zeros(Float64, n+1, n+1)
             for j = 1:n+1, k = j:n+1
                 bi = bin_add(basis[:,j], basis[:,k], nb)
                 Locb = bfind(tsupp, ltsupp, bi)
-                moment[j,k] = dual_var[Locb]
+                momone[j,k] = dual_var[Locb]
             end
-            moment = Symmetric(moment,:U)
+            momone = Symmetric(momone,:U)
         end
     end
-    return objv,ksupp,moment,GramMat
+    return objv,ksupp,moment,momone,GramMat
 end
 
 function extract_solutions(moment, opt, pop, x; numeq=0, tol=1e-4)
@@ -515,7 +555,8 @@ function extract_solutions(moment, opt, pop, x; numeq=0, tol=1e-4)
         end
     end
     if flag == 0
-        println("Global optimality certified!")
+        rog = 100*gap
+        println("Global optimality certified with relative optimality gap $rog%!")
     end
     return sol,gap,flag
 end
