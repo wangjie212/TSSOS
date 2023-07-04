@@ -42,10 +42,10 @@ other auxiliary data.
 - `md`: the tunable parameter for merging blocks.
 - `numeq`: the number of equality constraints.
 """
-function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3,
+function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", cliques=[], minimize=false, assign="first", TS="block", merge=false, md=3,
     solver="Mosek", tune=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=true, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
     n,supp,coe = polys_info(pop, x, nb=nb)
-    opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, foc=foc, CS=CS, minimize=minimize, assign=assign, TS=TS,
+    opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, foc=foc, CS=CS, cliques=cliques, minimize=minimize, assign=assign, TS=TS,
     merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
     Mommat=Mommat, tol=tol, cosmo_setting=cosmo_setting)
     return opt,sol,data
@@ -96,7 +96,7 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 - `d`: the relaxation order of the moment-SOS hierarchy.
 - `numeq`: the number of equality constraints.
 """
-function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, foc=100, CS="MF", minimize=false,
+function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, foc=100, CS="MF", cliques=[], minimize=false,
     assign="first", TS="block", merge=false, md=3, QUIET=false, solver="Mosek", tune=false, solve=true, solution=false,
     MomentOne=true, Gram=false, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
     println("*********************************** TSSOS ***********************************")
@@ -105,12 +105,17 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
     m = length(supp)-1
     supp[1],coe[1] = resort(supp[1], coe[1])
     dg = [maximum(length.(supp[i])) for i=2:m+1]
-    time = @elapsed begin
-    cliques,cql,cliquesize = clique_decomp(n, m, dg, supp, order=d, alg=CS, minimize=minimize)
-    end
-    if CS != false && QUIET == false
-        mc = maximum(cliquesize)
-        println("Obtained the variable cliques in $time seconds. The maximal size of cliques is $mc.")
+    if cliques != []
+        cql = length(cliques)
+        cliquesize = length.(cliques)
+    else
+        time = @elapsed begin
+        cliques,cql,cliquesize = clique_decomp(n, m, dg, supp, order=d, alg=CS, minimize=minimize)
+        end
+        if CS != false && QUIET == false
+            mc = maximum(cliquesize)
+            println("Obtained the variable cliques in $time seconds. The maximal size of cliques is $mc.")
+        end
     end
     J,ncc = assign_constraint(m, supp, cliques, cql, cliquesize, assign=assign)
     rlorder = init_order(dg, J, cliquesize, cql, foc=foc, order=d)
