@@ -42,11 +42,11 @@ other auxiliary data.
 - `md`: the tunable parameter for merging blocks.
 - `numeq`: the number of equality constraints.
 """
-function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, 
+function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3,
     solver="Mosek", tune=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=true, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
     n,supp,coe = polys_info(pop, x, nb=nb)
     opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, foc=foc, CS=CS, minimize=minimize, assign=assign, TS=TS,
-    merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne, 
+    merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
     Mommat=Mommat, tol=tol, cosmo_setting=cosmo_setting)
     return opt,sol,data
 end
@@ -96,8 +96,8 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 - `d`: the relaxation order of the moment-SOS hierarchy.
 - `numeq`: the number of equality constraints.
 """
-function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, foc=100, CS="MF", minimize=false, 
-    assign="first", TS="block", merge=false, md=3, QUIET=false, solver="Mosek", tune=false, solve=true, solution=false, 
+function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, foc=100, CS="MF", minimize=false,
+    assign="first", TS="block", merge=false, md=3, QUIET=false, solver="Mosek", tune=false, solve=true, solution=false,
     MomentOne=true, Gram=false, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
     println("*********************************** TSSOS ***********************************")
     println("Version 1.0.0, developed by Jie Wang, 2020--2023")
@@ -124,7 +124,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,GramMat = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, 
+    opt,ksupp,moment,GramMat = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET,
     TS=TS, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting)
     data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, GramMat, moment, solver, tol, 1)
     sol = nothing
@@ -532,33 +532,56 @@ function assign_constraint(m, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql
             append!(rind, supp[i][j])
         end
         unique!(rind)
-        if assign == "first"
-            ind = findfirst(k->issubset(rind, cliques[k]), 1:cql)
-            if ind !== nothing
-                push!(J[ind], i-1)
-            else
-                push!(ncc, i-1)
+        flag = 0
+        for j = 1:cql
+            if issubset(rind, cliques[j])
+                push!(J[j], i-1)
+                flag = 1
             end
-        else
-            temp = UInt32[]
-            for j = 1:cql
-                if issubset(rind, cliques[j])
-                    push!(temp, j)
-                end
-            end
-            if !isempty(temp)
-                if assign == "min"
-                    push!(J[temp[argmin(cliquesize[temp])]], i-1)
-                else
-                    push!(J[temp[argmax(cliquesize[temp])]], i-1)
-                end
-            else
-                push!(ncc, i-1)
-            end
+        end
+        if flag == 0
+            push!(ncc, i-1)
         end
     end
     return J,ncc
 end
+
+# function assign_constraint(m, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql, cliquesize; assign="first")
+#     J = [UInt32[] for i=1:cql]
+#     ncc = UInt32[]
+#     for i = 2:m+1
+#         rind = copy(supp[i][1])
+#         for j = 2:length(supp[i])
+#             append!(rind, supp[i][j])
+#         end
+#         unique!(rind)
+#         if assign == "first"
+#             ind = findfirst(k->issubset(rind, cliques[k]), 1:cql)
+#             if ind !== nothing
+#                 push!(J[ind], i-1)
+#             else
+#                 push!(ncc, i-1)
+#             end
+#         else
+#             temp = UInt32[]
+#             for j = 1:cql
+#                 if issubset(rind, cliques[j])
+#                     push!(temp, j)
+#                 end
+#             end
+#             if !isempty(temp)
+#                 if assign == "min"
+#                     push!(J[temp[argmin(cliquesize[temp])]], i-1)
+#                 else
+#                     push!(J[temp[argmax(cliquesize[temp])]], i-1)
+#                 end
+#             else
+#                 push!(ncc, i-1)
+#             end
+#         end
+#     end
+#     return J,ncc
+# end
 
 function get_sbasis(var, d; nb=0)
     n = length(var)

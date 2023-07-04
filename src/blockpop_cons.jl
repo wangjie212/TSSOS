@@ -124,7 +124,7 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reduceba
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,momone,GramMat = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, 
+    opt,ksupp,moment,momone,GramMat = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x,
     lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
     data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, ksupp, sb, numb, blocks, cl, blocksize, GramMat, moment, solver, tol, 1)
     sol = nothing
@@ -148,7 +148,7 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reduceba
     return opt,sol,data
 end
 
-function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, MomentOne=false, Gram=false, 
+function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, MomentOne=false, Gram=false,
     solution=false, cosmo_setting=cosmo_para())
     n = data.n
     nb = data.nb
@@ -184,7 +184,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
             mb = maximum(maximum.(sb))
             println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,momone,GramMat = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, 
+        opt,ksupp,moment,momone,GramMat = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp,
         solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
         if solution == true
             sol,gap,data.flag = extract_solutions(momone, opt, pop, x, numeq=numeq, tol=tol)

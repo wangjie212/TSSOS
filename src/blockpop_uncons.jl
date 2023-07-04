@@ -50,7 +50,7 @@ function tssos_first(f, x; nb=0, order=0, newton=true, reducebasis=false, TS="bl
     println("Version 1.0.0, developed by Jie Wang, 2020--2023")
     println("TSSOS is launching...")
     n = length(x)
-    if nb > 0 
+    if nb > 0
         f = rem(f, x[1:nb].^2 .- 1)
     end
     mon = monomials(f)
@@ -65,7 +65,7 @@ function tssos_first(f, x; nb=0, order=0, newton=true, reducebasis=false, TS="bl
     else
         d = order
     end
-    if order == 0 && newton == true 
+    if order == 0 && newton == true
        if sum(supp[:,end]) != 0 && feasible == false
           supp = [supp zeros(UInt8, n)]
           coe = [coe; 0]
@@ -95,7 +95,7 @@ function tssos_first(f, x; nb=0, order=0, newton=true, reducebasis=false, TS="bl
         mb = maximum(maximum.(sb))
         println("Obtained the block structure. The maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,momone,GramMat = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, feasible=feasible, 
+    opt,ksupp,moment,momone,GramMat = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, feasible=feasible,
     QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
     data = upop_data(n, nb, x, f, supp, coe, basis, ksupp, blocks, sb, numb, GramMat, moment, solver, tol, 1)
     sol = nothing
