@@ -12,6 +12,7 @@ mutable struct SparsePolyModel <: AbstractSparsePolyModel
     supp
     coe
     dg
+    startpoint
 end
 
 function normalize(coe)
@@ -306,7 +307,7 @@ function pop_opf_real(data::Dict{String, Any}; normal=true, AngleCons=false, Lin
         k+=1
     end
 
-    return SparsePolyModel(n,m,numeq,nbus,ng,nb,supp,coe,dg),startpoint
+    return SparsePolyModel(n,m,numeq,nbus,ng,nb,supp,coe,dg,startpoint)
 end
 
 # complex POP formulization (voltage only)
@@ -565,7 +566,7 @@ function pop_opf_com_vol(data::Dict{String, Any}; normal=true, AngleCons=false, 
         coe[k]=[1;-2;1]
         k+=1
     end
-    return SparsePolyModel(n,m,numeq,nbus,ng,nb,supp,coe,dg)
+    return SparsePolyModel(n,m,numeq,nbus,ng,nb,supp,coe,dg,nothing)
 end
 
 # complex POP formulization (voltage-power)
@@ -792,5 +793,5 @@ function pop_opf_com(data::Dict{String, Any}; normal=true, AngleCons=false, Line
         k+=1
     end
 
-    return SparsePolyModel(n,m,numeq,nbus,ng,nb,supp,coe,dg)
+    return SparsePolyModel(n,m,numeq,nbus,ng,nb,supp,coe,dg,nothing)
 end
