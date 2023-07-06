@@ -1,3 +1,4 @@
+using TSSOS
 using DynamicPolynomials
 
 # Smale’s Mean Value Conjecture
@@ -11,8 +12,8 @@ coe = [[-1], [1;-1;-1;-4;1], [1;-1;-1;-4;1], [-1;-1;2/3], [3;3;-2], [9;-1]]
 
 @time begin
 opt,sol,data = cs_tssos_first(supp, coe, 3, 2, numeq=3, CS=false, TS="block", ipart=false, QUIET=true, solve=true)
-# opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true)
 end
+println(sqrt(-opt))
 
 n = 3
 @polyvar z1 z2 z3 z4 z5 z6 z7 z8
@@ -37,6 +38,13 @@ h1 = z1*z5 + z2*z6 + z3*z7 - n*(1/(n+1))^(2/n)
 h2 = 2*z1*z2*z3 + 2*z5*z6*z7 + 1
 h3 = 16*z1*z2*z3*z5*z6*z7 - 1
 pop = [f; g1; g2; g3; h1; h2; h3]
+
+@time begin
+opt,sol,data = cs_tssos_first(pop, z, n+1, 5, numeq=3, CS=false, TS="block", ipart=false, QUIET=true, solve=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=true, QUIET=true)  
+end
+println(sqrt(-opt))
 
 n = 4
 @polyvar z1 z2 z3 z4 z5 z6 z7 z8 z9 z10
@@ -99,6 +107,14 @@ h1 = z1*z6 + z2*z7 + z3*z8 + z4*z9 - n*(1/(n+1))^(2/n)
 h2 = 5*z1*z2*z3*z4 + 5*z6*z7*z8*z9 - 2
 h3 = 25*z1*z2*z3*z4*z6*z7*z8*z9 - 1
 pop = [f; g1; g2; g3; g4; h1; h2; h3]
+
+@time begin
+opt,sol,data = cs_tssos_first(pop, z, n+1, 8, numeq=3, CS=false, TS="block", ipart=false, QUIET=true, solve=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true)  
+end
+println(sqrt(-opt))
 
 n = 5
 @polyvar z1 z2 z3 z4 z5 z6 z7 z8 z9 z10 z11 z12
@@ -467,12 +483,11 @@ pop = [f; g1; g2; g3; g4; g5; h1; h2; h3]
 
 @time begin
 opt,sol,data = cs_tssos_first(pop, z, n+1, 7, numeq=3, CS=false, TS="block", ipart=false, QUIET=true, solve=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
 # opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
 opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true)
-println(sqrt(-opt))
 end
+println(sqrt(-opt))
 
 # Mordell Inequality Conjecture
 n = 2

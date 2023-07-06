@@ -42,11 +42,11 @@ other auxiliary data.
 - `md`: the tunable parameter for merging blocks.
 - `numeq`: the number of equality constraints.
 """
-function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", cliques=[], minimize=false, assign="first", TS="block", merge=false, md=3,
-    solver="Mosek", tune=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=true, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
+function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", cliques=[], minimize=false, assign="first", TS="block", merge=false, md=3, solver="Mosek", 
+    tune=false, dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=true, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
     n,supp,coe = polys_info(pop, x, nb=nb)
     opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, foc=foc, CS=CS, cliques=cliques, minimize=minimize, assign=assign, TS=TS,
-    merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
+    merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
     Mommat=Mommat, tol=tol, cosmo_setting=cosmo_setting)
     return opt,sol,data
 end
@@ -96,9 +96,9 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 - `d`: the relaxation order of the moment-SOS hierarchy.
 - `numeq`: the number of equality constraints.
 """
-function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, foc=100, CS="MF", cliques=[], minimize=false,
-    assign="first", TS="block", merge=false, md=3, QUIET=false, solver="Mosek", tune=false, solve=true, solution=false,
-    MomentOne=true, Gram=false, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
+function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, foc=100, CS="MF", cliques=[], minimize=false, assign="first", 
+    TS="block", merge=false, md=3, QUIET=false, solver="Mosek", tune=false, dualize=false, solve=true, solution=false, MomentOne=true, Gram=false, 
+    Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
     println("*********************************** TSSOS ***********************************")
     println("Version 1.0.0, developed by Jie Wang, 2020--2023")
     println("TSSOS is launching...")
@@ -127,27 +127,17 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
     end
     if TS != false && QUIET == false
         mb = maximum(maximum.(sb))
-        println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
+        println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
     opt,ksupp,moment,GramMat = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET,
-    TS=TS, solver=solver, tune=tune, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting)
+    TS=TS, solver=solver, tune=tune, dualize=dualize, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting)
     data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, GramMat, moment, solver, tol, 1)
     sol = nothing
     if solution == true
         sol,gap,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
         if data.flag == 1
-            if gap > 0.5
-                sol = randn(n)
-            end
-            sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
-            if gap !== nothing
-                if gap < tol
-                    data.flag = 0
-                else
-                    rog = 100*gap
-                    println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
-                end
-            end
+            sol = gap > 0.5 ? randn(n) : sol
+            sol,data.flag = refine_sol(opt, sol, data, QUIET=true, tol=tol)
         end
     end
     return opt,sol,data
@@ -160,8 +150,8 @@ end
 Compute higher steps of the CS-TSSOS hierarchy.
 Return the optimum, the (near) optimal solution (if `solution=true`) and other auxiliary data.
 """
-function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false,
-    solution=false, Gram=false, ipart=true, balanced=false, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para())
+function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false, solution=false, Gram=false, ipart=true, dualize=false, 
+    balanced=false, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para())
     n = data.n
     nb = data.nb
     m = data.m
@@ -195,26 +185,16 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
     if status == 1
         if TS != false && QUIET == false
             mb = maximum(maximum.(sb))
-            println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
+            println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
         opt,ksupp,moment,GramMat = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl,
-        blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution,
+        blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution, dualize=dualize,
         ipart=ipart, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting)
         if solution == true
             sol,gap,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
             if data.flag == 1
-                if gap > 0.5
-                    sol = randn(n)
-                end
-                sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
-                if gap !== nothing
-                    if gap < tol
-                        data.flag = 0
-                    else
-                        rog = 100*gap
-                        println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
-                    end
-                end
+                sol = gap > 0.5 ? randn(n) : sol
+                sol,data.flag = refine_sol(opt, sol, data, QUIET=true, tol=tol)
             end
         end
         data.ksupp = ksupp
@@ -231,9 +211,9 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
     return opt,sol,data
 end
 
-function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, cliques, cql, cliquesize,
-    J, ncc, blocks, cl, blocksize; numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", tune=false,
-    solve=true, solution=false, Gram=false, ipart=false, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para())
+function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize; 
+    numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", tune=false, solve=true, solution=false, Gram=false, ipart=false, MomentOne=false, 
+    Mommat=false, cosmo_setting=cosmo_para(), dualize=false)
     tsupp = Vector{UInt16}[]
     for i = 1:cql, j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
         @inbounds bi = sadd(basis[i][1][blocks[i][1][j][k]], basis[i][1][blocks[i][1][j][r]], nb=nb)
@@ -277,7 +257,11 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
             println("There are $ltsupp affine constraints.")
         end
         if solver == "Mosek"
-            model = Model(optimizer_with_attributes(Mosek.Optimizer))
+            if dualize == false
+                model = Model(optimizer_with_attributes(Mosek.Optimizer))
+            else
+                model = Model(dual_optimizer(Mosek.Optimizer))
+            end
             if tune == true
                 set_optimizer_attributes(model,
                 "MSK_DPAR_INTPNT_CO_TOL_MU_RED" => 1e-7,
@@ -731,12 +715,9 @@ function approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe; numeq=0
         end
     end
     sol = (A'*A)\(A'*qsol)
-    flag = 0
-    upper_bound = seval(supp[1], coe[1], sol)
-    gap = abs(upper_bound)>1 ? abs((opt-upper_bound)/upper_bound) : abs(opt-upper_bound)
-    if gap >= tol
-        flag = 1
-    end
+    ub = seval(supp[1], coe[1], sol)
+    gap = abs(opt-ub)/max(1, abs(ub))
+    flag = gap >= tol ? 1 : 0
     m = length(supp)-1
     for i = 1:m-numeq
         if seval(supp[i+1], coe[i+1], sol) <= -tol
@@ -749,8 +730,7 @@ function approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe; numeq=0
         end
     end
     if flag == 0
-        rog = 100*gap
-        println("Global optimality certified with relative optimality gap $rog%!")
+        @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
     end
     return sol,gap,flag
 end

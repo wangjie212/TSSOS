@@ -61,7 +61,7 @@ function local_solution(n, m, supp::Vector{Array{UInt8, 2}}, coe; nb=0, numeq=0,
 end
 
 """
-    ref_sol,upper_bound,rel_gap = refine_sol(opt, sol, data, QUIET=false, tol=1e-4)
+    ref_sol,ub,rel_gap = refine_sol(opt, sol, data, QUIET=false, tol=1e-4)
 
 Refine the obtained solution by a local solver.
 Return the refined solution, the upper bound given by the local solver and the
@@ -73,22 +73,24 @@ function refine_sol(opt, sol, data::upop_data; QUIET=false, tol=1e-4)
     supp = data.supp
     coe = data.coe
     for i = 1:n
-        if sol[i] == 0
-            sol[i] = 1e-10
+        if abs(sol[i]) < 1e-8
+            sol[i] = 1e-8
         end
     end
-    upper_bound,rsol,status = local_solution(n, 0, [supp], [coe], nb=nb, numeq=0, startpoint=sol, QUIET=QUIET)
+    ub,rsol,status = local_solution(n, 0, [supp], [coe], nb=nb, numeq=0, startpoint=sol, QUIET=QUIET)
     if status == MOI.LOCALLY_SOLVED
-        gap = abs(upper_bound)>1 ? abs((opt-upper_bound)/upper_bound) : abs(opt-upper_bound)
+        gap = abs(opt-ub)/max(1, abs(ub))
         if gap < tol
-            rog = 100*gap
-            println("Global optimality certified with relative optimality gap $rog%!")
+            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+            return rsol,0
+        else
+            @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
+            return rsol,1
         end
     else
-        rsol,upper_bound,gap = sol,nothing,nothing
         println("The local solver failed refining the solution!")
+        return sol,1
     end
-    return rsol,upper_bound,gap
 end
 
 function refine_sol(opt, sol, data::Union{cpop_data,mcpop_data}; QUIET=false, tol=1e-4)
@@ -115,20 +117,22 @@ function refine_sol(opt, sol, data::Union{cpop_data,mcpop_data}; QUIET=false, to
         coe = data.coe
     end
     for i = 1:n
-        if sol[i] == 0
+        if abs(sol[i]) < 1e-8
             sol[i] = 1e-10
         end
     end
-    upper_bound,rsol,status = local_solution(n, m, supp, coe, nb=nb, numeq=numeq, startpoint=sol, QUIET=QUIET)
+    ub,rsol,status = local_solution(n, m, supp, coe, nb=nb, numeq=numeq, startpoint=sol, QUIET=QUIET)
     if status == MOI.LOCALLY_SOLVED
-        gap = abs(upper_bound)>1 ? abs((opt-upper_bound)/upper_bound) : abs(opt-upper_bound)
+        gap = abs(opt-ub)/max(1, abs(ub))
         if gap < tol
-            rog = 100*gap
-            println("Global optimality certified with relative optimality gap $rog%!")
+            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+            return rsol,0
+        else
+            @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
+            return rsol,1
         end
     else
-        rsol,upper_bound,gap = sol,nothing,nothing
         println("The local solver failed refining the solution!")
+        return sol,1
     end
-    return rsol,upper_bound,gap
 end

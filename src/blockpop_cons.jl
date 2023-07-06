@@ -41,9 +41,8 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 - `md`: the tunable parameter for merging blocks.
 - `numeq`: the number of equality constraints.
 """
-function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reducebasis=false,
-    TS="block", merge=false, md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false,
-    solution=false, tol=1e-4, cosmo_setting=cosmo_para())
+function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
+    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para())
     println("*********************************** TSSOS ***********************************")
     println("Version 1.0.0, developed by Jie Wang, 2020--2023")
     println("TSSOS is launching...")
@@ -60,7 +59,7 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reduceba
         cpop = cpop[1:end-numeq]
         if QUIET == false
             println("Starting to compute the Gröbner basis...")
-            println("This might take time. You can set quotient=false to close it.")
+            println("This might take much time. You can set quotient=false to close it.")
         end
         SemialgebraicSets.gröbnerbasis!(gb)
         cpop[1] = rem(cpop[1], gb)
@@ -122,33 +121,23 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reduceba
     end
     if TS != false && QUIET == false
         mb = maximum(maximum.(sb))
-        println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
+        println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,momone,GramMat = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x,
+    opt,ksupp,moment,momone,GramMat = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, dualize=dualize,
     lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
     data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, ksupp, sb, numb, blocks, cl, blocksize, GramMat, moment, solver, tol, 1)
     sol = nothing
     if solution == true
-        sol,gap,data.flag = extract_solutions(momone, opt, pop, x, numeq=numeq, tol=tol)
+        sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, tol=tol)
         if data.flag == 1
-            if gap > 0.5
-                sol = randn(n)
-            end
-            sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
-            if gap !== nothing
-                if gap < tol
-                    data.flag = 0
-                else
-                    rog = 100*gap
-                    println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
-                end
-            end
+            sol = gap > 0.5 ? randn(n) : sol
+            sol,data.flag = refine_sol(opt, sol, data, QUIET=true, tol=tol)
         end
     end
     return opt,sol,data
 end
 
-function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, MomentOne=false, Gram=false,
+function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false,
     solution=false, cosmo_setting=cosmo_para())
     n = data.n
     nb = data.nb
@@ -182,25 +171,15 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
     if status == 1
         if QUIET == false
             mb = maximum(maximum.(sb))
-            println("Obtained the block structure in $time seconds. The maximal size of blocks is $mb.")
+            println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
         opt,ksupp,moment,momone,GramMat = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp,
-        solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
+        solver=solver, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
         if solution == true
-            sol,gap,data.flag = extract_solutions(momone, opt, pop, x, numeq=numeq, tol=tol)
+            sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, tol=tol)
             if data.flag == 1
-                if gap > 0.5
-                    sol = randn(n)
-                end
-                sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
-                if gap !== nothing
-                    if gap < tol
-                        data.flag = 0
-                    else
-                        rog = 100*gap
-                        println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
-                    end
-                end
+                sol = gap > 0.5 ? randn(n) : sol
+                sol,data.flag = refine_sol(opt, sol, data, QUIET=true, tol=tol)
             end
         end
         data.ksupp = ksupp
@@ -359,8 +338,8 @@ function get_cblocks(m, tsupp, supp, basis; blocks=[], cl=[], blocksize=[], sb=[
     return blocks,cl,blocksize,nsb,nnumb,status
 end
 
-function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0, gb=[],
-    x=[], lead=[], solver="Mosek", QUIET=true, solve=true, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para())
+function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0, gb=[], x=[], lead=[], solver="Mosek", 
+    QUIET=true, solve=true, dualize=false, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para())
     ksupp = zeros(UInt8, n, Int(sum(Int.(blocksize[1]).^2+blocksize[1])/2))
     k = 1
     for i = 1:cl[1], j = 1:blocksize[1][i], r = j:blocksize[1][i]
@@ -400,7 +379,11 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
             println("There are $ltsupp affine constraints.")
         end
         if solver == "Mosek"
-            model = Model(optimizer_with_attributes(Mosek.Optimizer))
+            if dualize == false
+                model = Model(optimizer_with_attributes(Mosek.Optimizer))
+            else
+                model = Model(dual_optimizer(Mosek.Optimizer))
+            end
         elseif solver == "COSMO"
             model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter))
         elseif solver == "SDPT3"

@@ -1,93 +1,120 @@
-using TSSOS
 using DynamicPolynomials
-using LinearAlgebra
+using TSSOS
+using Random
 
+# minimizing a random complex quartic polynomial over the unit sphere
+Random.seed!(1)
+n = 5
+@polyvar z[1:2n]
+basis1 = cbasis(z[1:n])
+basis2 = cbasis(z[n+1:2n])
+P = randn(length(basis1), length(basis1))
+Q = randn(length(basis1), length(basis1))
+f = basis2'*((P+P')/2+im*(Q-Q')/2)*basis1
+h = sum(z[i]*z[i+n] for i = 1:n) - 1
+@time begin
+opt,sol,data = cs_tssos_first([f; h], z, n, 2, numeq=1, QUIET=false, solve=true, CS=false, TS=false)
+end
+println(length(data.basis[1][1]))
+@time begin
+opt,sol,data = cs_tssos_first([f; h], z, n, 3, numeq=1, QUIET=false, solve=true, CS=false, TS=false)
+end
+println(length(data.basis[1][1]))
+
+# minimizing a random complex quadratic polynomial with unit-norm variables
+Random.seed!(1)
+n = 5
+@polyvar z[1:2n]
+basis1 = cbasis(z[1:n])
+basis2 = cbasis(z[n+1:2n])
+P = rand(length(basis1), length(basis1))
+Q = rand(length(basis1), length(basis1))
+pop = [basis2'*((P+P')/2+im*(Q-Q')/2)*basis1]
+@time begin
+opt,sol,data = cs_tssos_first(pop, z, n, 2, nb=n, QUIET=false, CS=false, TS=false)
+end
+println(length(data.basis[1][1]))
+@time begin
+opt,sol,data = cs_tssos_first(pop, z, n, 3, nb=n, QUIET=false, solve=true, CS=false, TS=false)
+end
+println(length(data.basis[1][1]))
+
+# minimizing large-scale randomly generated complex QCQPs
+Random.seed!(1)
 b = 10
-l = 1
+l = 400
 n = (b-5)*l + 5
 supp = Vector{Vector{Vector{Vector{UInt16}}}}(undef, l+1)
-# coe = Vector{Vector{ComplexF64}}(undef, l+1)
-coe = Vector{Vector{Float64}}(undef, l+1)
+coe = Vector{Vector{ComplexF64}}(undef, l+1)
 supp[1] = []
 coe[1] = []
-for i = 1:l,j = 1:2b
-    # if j < 3
-    #     p1 = sort(ceil.(UInt16, ((b-5)*i-(b-5)).+rand(1).*b))
-    #     push!(supp[1], [p1, []], [[], p1])
-    # else
-        # if j < 7
+for i = 1:l, j = 1:2b
+    if j < 3
+        p1 = sort(ceil.(UInt16, ((b-5)*i-(b-5)).+rand(1).*b))
+        push!(supp[1], [p1, []], [[], p1])
+    elseif j < 7
         p1 = sort(ceil.(UInt16, ((b-5)*i-(b-5)).+rand(1).*b))
         p2 = sort(ceil.(UInt16, ((b-5)*i-(b-5)).+rand(1).*b))
         push!(supp[1], [p1, p2], [p2, p1])
-    # elseif j < 13
-    #     p1 = sort(ceil.(UInt16, ((b-5)*i-(b-5)).+rand(1).*b))
-    #     p2 = sort(ceil.(UInt16, ((b-5)*i-(b-5)).+rand(2).*b))
-    #     push!(supp[1], [p1, p2], [p2, p1])
-    # else
-    #     p1 = sort(ceil.(UInt16, ((b-5)*i-(b-5)).+rand(2).*b))
-    #     p2 = sort(ceil.(UInt16, ((b-5)*i-(b-5)).+rand(2).*b))
-    #     push!(supp[1], [p1, p2], [p2, p1])
-    # end
+    elseif j < 13
+        p1 = sort(ceil.(UInt16, ((b-5)*i-(b-5)).+rand(1).*b))
+        p2 = sort(ceil.(UInt16, ((b-5)*i-(b-5)).+rand(2).*b))
+        push!(supp[1], [p1, p2], [p2, p1])
+    else
+        p1 = sort(ceil.(UInt16, ((b-5)*i-(b-5)).+rand(2).*b))
+        p2 = sort(ceil.(UInt16, ((b-5)*i-(b-5)).+rand(2).*b))
+        push!(supp[1], [p1, p2], [p2, p1])
+    end
     c1 = 2*rand(1)[1]-1
-    # c2 = 2*rand(1)[1]-1
-    # push!(coe[1], c1+c2*im, c1-c2*im)
-    push!(coe[1], c1, c1)
+    c2 = 2*rand(1)[1]-1
+    push!(coe[1], c1+c2*im, c1-c2*im)
 end
-supp[1],coe[1] = resort(supp[1],coe[1])
+supp[1],coe[1] = TSSOS.resort(supp[1],coe[1])
 for i = 1:l
     supp[i+1] = [[[[], []]]; [[[j], [j]] for j=(b-5)*i-(b-6):(b-5)*i+5]]
     coe[i+1] = [1; -ones(b)]
 end
 
-io = open("D:\\project\\cpop\\random\\supp_$n.txt", "w")
-writedlm(io, convert(Vector{Vector{Vector{Int}}}, supp[1]), ';')
-close(io)
-io = open("D:\\project\\cpop\\random\\coe_$n.txt", "w")
-writedlm(io, coe[1])
-close(io)
-
-@polyvar x[1:2]
-pop = [-2x[1]*x[2]+x[1]^2+x[2]^2, x[1]*x[2]-x[1]-x[2]]
-opt,sol,data = cs_tssos_first(pop, x, 1, 2, numeq=1, CS=false, TS=false, ipart=false, QUIET=true, Mommat=true)
-
-@polyvar x[1:4]
-# pop = [3-x[1]^2-x[3]^2+x[3]*x[2]^2-2x[1]*x[2]*x[4]-x[3]*x[4]^2, x[2], x[1]^2+3x[3]^2-2, x[4], x[1]^2+x[2]^2+x[3]^2+x[4]^2-3]
-pop = [3-x[1]^2-x[3]^2+x[1]*x[2]^2+2x[2]*x[3]*x[4]-x[1]*x[4]^2, x[2], x[1]^2+3x[3]^2-2, x[4], x[1]^2+x[2]^2+x[3]^2+x[4]^2-3]
-@time begin
-opt,sol,data = cs_tssos_first(pop, x, 2, numeq=3, CS=false, TS=false, QUIET=true, Mommat=true)
+time = @elapsed begin
+opt,sol,data = cs_tssos_first(supp, coe, n, 2, numeq=l, TS="MD")
 end
+mb = 2*maximum(maximum.(data.sb)) # maximal block size
+println("n = $n, time = $time, mb = $mb")
 
-supp = Vector{Vector{Vector{UInt16}}}[[[[], []], [[1], [1]], [[1], [2;2]], [[2;2], [1]]],
-[[[2], []], [[], [2]]], [[[], []], [[1], [1]], [[1;1], []], [[], [1;1]]],
-[[[2;2], []], [[], [2;2]], [[2], [2]]], [[[], []], [[1], [1]], [[2], [2]]]]
-coe = [[3;-1;0.5;0.5], [1;1], [-1;1;-0.25;-0.25], [1;1;-2], [-3;1;1]]
+# AC-OPF problem
+include("D:\\Programs\\TSSOS\\example\\modelopf.jl")
+cd("D:\\Programs\\PolyOPF\\pglib")
+silence()
 
-@time begin
-opt,sol,data = cs_tssos_first(supp, coe, 2, 2, numeq=1, QUIET=false, CS=false, TS=false, ipart=false, Mommat=true)
+case = "pglib_opf_case179_goc"
+AC = 2178.08
+opfdata = parse_file(case * ".m")
+model = pop_opf_com(opfdata, normal=true, AngleCons=true, LineLimit=true)
+n = model.n
+m = model.m
+numeq = model.numeq
+supp = model.supp
+coe = model.coe
+mc = maximum(abs.(coe[1]))
+coe[1] = coe[1]./mc
+
+time = @elapsed begin
+opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, tune=true, CS="MF", TS="block", MomentOne=true)
 end
+opt *= mc
+maxc = maximum(popd.cliquesize) # maximal clique size
+mb = 2*maximum(maximum.(popd.sb)) # maximal block size
+gap = 100*(AC-opt)/AC # optimality gap
+println("n = $n, m = $m")
+println("mc = $maxc, opt = $opt, time = $time, mb = $mb, gap = $gap%")
 
-M = Matrix{Float64}(data.Mmatrix[1][1])
-F = eigen(M)
-sol = F.vectors[2:end, end-1:end]
-ceval(supp[1], coe[1], sol)
-
-function ceval(supp, coe, sol)
-    val = 0
-    for i = 1:length(supp)
-        val += coe[i]*prod(sol[supp[i][1],1] + sol[supp[i][1],2]*im)*prod(sol[supp[i][2],1] - sol[supp[i][2],2]*im)
+function cbasis(z)
+    basis = Monomial{true}[1]
+    for i = 1:length(z)
+        push!(basis, z[i])
     end
-    return val
-end
-
-n = 300
-@polyvar z[1:2n]
-Q = randn(n, n)
-Q = (Q+Q')/2
-io = open("D:\\project\\cpop\\random\\Q_$n.txt", "w")
-writedlm(io, Q)
-close(io)
-f = z[1:n]'*Q*z[n+1:end]
-h = sum(z[i]*z[i+n] for i = 1:n) - 1
-@time begin
-opt,sol,data = cs_tssos_first([f; h], z, n, 1, numeq=1, QUIET=true, CS=false, TS=false, ipart=false)
+    for i = 1:length(z), j = i:length(z)
+        push!(basis, z[i]*z[j])
+    end
+    return basis
 end

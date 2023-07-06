@@ -2,7 +2,7 @@ using TSSOS
 
 # N Polyphase Code Waveform Design, N+1 complex variables
 # N bit Code Elements x[n], n = 1,...,N, the (N+1)th complex variables is the Object variable
-N = 13   # N+1 complex variables
+N = 6   # N+1 complex variables
 #  N           PSL           SDP Time(s)                   SDP Time(s)                      SDP Time(s)
 #                           without ipart=false           with ipart=false                with ipart=false
 #                           but All Equalities            and (N-2)Inequalities           and All Equalities
@@ -107,3 +107,16 @@ z2 = cos(18pi/31)+sin(18pi/31)*im
 z3 = z2
 z4 = 1
 abs.([pop[j](x=>[z1;z2;z3;z4;conj(z1);conj(z2);conj(z3);conj(z4)]) for j=1:N-2])
+
+M = Matrix{Float64}(data.Mmatrix[1][1])
+F = eigen(M)
+sol = F.vectors[2:end, end-1:end]
+ceval(supp[1], coe[1], sol)
+
+function ceval(supp, coe, sol)
+    val = 0
+    for i = 1:length(supp)
+        val += coe[i]*prod(sol[supp[i][1],1] + sol[supp[i][1],2]*im)*prod(sol[supp[i][2],1] - sol[supp[i][2],2]*im)
+    end
+    return val
+end

@@ -44,8 +44,8 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 - `md`: the tunable parameter for merging blocks.
 - `tol`: the relative tolerance to certify global optimality.
 """
-function tssos_first(f, x; nb=0, order=0, newton=true, reducebasis=false, TS="block", merge=false, feasible=false,
-    md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para())
+function tssos_first(f, x; nb=0, order=0, newton=true, reducebasis=false, TS="block", merge=false, feasible=false, md=3, solver="Mosek", 
+    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para())
     println("*********************************** TSSOS ***********************************")
     println("Version 1.0.0, developed by Jie Wang, 2020--2023")
     println("TSSOS is launching...")
@@ -96,24 +96,14 @@ function tssos_first(f, x; nb=0, order=0, newton=true, reducebasis=false, TS="bl
         println("Obtained the block structure. The maximal size of blocks is $mb.")
     end
     opt,ksupp,moment,momone,GramMat = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, feasible=feasible,
-    QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
+    QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
     data = upop_data(n, nb, x, f, supp, coe, basis, ksupp, blocks, sb, numb, GramMat, moment, solver, tol, 1)
     sol = nothing
     if solution == true
-        sol,gap,data.flag = extract_solutions(momone, opt, [f], x, tol=tol)
+        sol,gap,data.flag = extract_solution(momone, opt, [f], x, tol=tol)
         if data.flag == 1
-            if gap > 0.5
-                sol = randn(n)
-            end
-            sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
-            if gap !== nothing
-                if gap < tol
-                    data.flag = 0
-                else
-                    rog = 100*gap
-                    println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
-                end
-            end
+            sol = gap > 0.5 ? randn(n) : sol
+            sol,data.flag = refine_sol(opt, sol, data, QUIET=true, tol=tol)
         end
     end
     return opt,sol,data
@@ -126,8 +116,8 @@ end
 Compute higher steps of the TSSOS hierarchy.
 Return the optimum, the (near) optimal solution (if `solution=true`) and other auxiliary data.
 """
-function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=false, solve=true,
-    feasible=false, MomentOne=false, Gram=false, solution=false, cosmo_setting=cosmo_para())
+function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, feasible=false, MomentOne=false, Gram=false, 
+    solution=false, cosmo_setting=cosmo_para(), dualize=false)
     n = data.n
     nb = data.nb
     x = data.x
@@ -151,23 +141,13 @@ function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=fal
             mb = maximum(maximum.(sb))
             println("Obtained the block structure. The maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,momone,GramMat = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver,
-        feasible=feasible, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
+        opt,ksupp,moment,momone,GramMat = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, feasible=feasible, 
+        QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
         if solution == true
-            sol,gap,data.flag = extract_solutions(momone, opt, [f], x, tol=tol)
+            sol,gap,data.flag = extract_solution(momone, opt, [f], x, tol=tol)
             if data.flag == 1
-                if gap > 0.5
-                    sol = randn(n)
-                end
-                sol,ub,gap = refine_sol(opt, sol, data, QUIET=true)
-                if gap !== nothing
-                    if gap < tol
-                        data.flag = 0
-                    else
-                        rog = 100*gap
-                        println("Found a locally optimal solution by Ipopt, giving an upper bound: $ub and a relative optimality gap: $rog%.")
-                    end
-                end
+                sol = gap > 0.5 ? randn(n) : sol
+                sol,data.flag = refine_sol(opt, sol, data, QUIET=true, tol=tol)
             end
         end
         data.ksupp = ksupp
@@ -381,8 +361,8 @@ function get_blocks(tsupp, basis; sb=[], numb=[], nb=0, TS="block", minimize=fal
     return blocks,cl,blocksize,nsb,nnumb,status
 end
 
-function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mosek",
-    feasible=false, QUIET=true, solve=true, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para())
+function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mosek", feasible=false, QUIET=true, solve=true, 
+    solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), dualize=false)
     tsupp = zeros(UInt8, n, Int(sum(Int.(blocksize).^2+blocksize)/2))
     k = 1
     for i = 1:cl, j = 1:blocksize[i], r = j:blocksize[i]
@@ -410,7 +390,11 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
             println("There are $ltsupp affine constraints.")
         end
         if solver == "Mosek"
-            model = Model(optimizer_with_attributes(Mosek.Optimizer))
+            if dualize == false
+                model = Model(optimizer_with_attributes(Mosek.Optimizer))
+            else
+                model = Model(dual_optimizer(Mosek.Optimizer))
+            end
         elseif solver == "COSMO"
             model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter))
         elseif solver == "SDPT3"
@@ -526,23 +510,18 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
     return objv,ksupp,moment,momone,GramMat
 end
 
-function extract_solutions(moment, opt, pop, x; numeq=0, tol=1e-4)
+function extract_solution(moment, opt, pop, x; numeq=0, tol=1e-4)
     n = length(x)
     m = length(pop) - 1
     F = eigen(moment, n+1:n+1)
     sol = sqrt(F.values[1])*F.vectors[:,1]
     if abs(sol[1]) < 1e-8
-        sol = nothing
-        gap = 1
-        flag = 1
+        return nothing,1,1
     else
         sol = sol[2:end]/sol[1]
-        flag = 0
-        upper_bound = polynomial(pop[1])(x => sol)
-        gap = abs(upper_bound)>1 ? abs((opt-upper_bound)/upper_bound) : abs(opt-upper_bound)
-        if gap >= tol
-            flag = 1
-        end
+        ub = polynomial(pop[1])(x => sol)
+        gap = abs(opt-ub)/max(1, abs(ub))
+        flag = gap >= tol ? 1 : 0
         for i = 1:m-numeq
             if polynomial(pop[i+1])(x => sol) <= -tol
                 flag = 1
@@ -553,10 +532,9 @@ function extract_solutions(moment, opt, pop, x; numeq=0, tol=1e-4)
                 flag = 1
             end
         end
+        if flag == 0
+            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+        end
+        return sol,gap,flag
     end
-    if flag == 0
-        rog = 100*gap
-        println("Global optimality certified with relative optimality gap $rog%!")
-    end
-    return sol,gap,flag
 end
