@@ -511,6 +511,6 @@ h1 = z1*z5 + z2*z6 + z3*z7 + z4*z8 + (z1+z2+z3+z4)*(z5+z6+z7+z8) - 5
 
 pop = [-f; h1]
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 10, numeq=1, CS=false, TS="block", ipart=false, QUIET=true, solve=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true)
+opt,sol,data = cs_tssos_first(pop, z, n, 10, numeq=1, CS=false, balanced=true, TS="block", ipart=false, solve=false, QUIET=true)
+opt,sol,data = cs_tssos_higher!(data, balanced=true, TS="block", ipart=false, QUIET=false)
 end

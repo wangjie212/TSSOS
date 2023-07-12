@@ -73,8 +73,8 @@ function refine_sol(opt, sol, data::upop_data; QUIET=false, tol=1e-4)
     supp = data.supp
     coe = data.coe
     for i = 1:n
-        if abs(sol[i]) < 1e-8
-            sol[i] = 1e-8
+        if abs(sol[i]) < 1e-10
+            sol[i] = 1e-10
         end
     end
     ub,rsol,status = local_solution(n, 0, [supp], [coe], nb=nb, numeq=0, startpoint=sol, QUIET=QUIET)
@@ -117,7 +117,7 @@ function refine_sol(opt, sol, data::Union{cpop_data,mcpop_data}; QUIET=false, to
         coe = data.coe
     end
     for i = 1:n
-        if abs(sol[i]) < 1e-8
+        if abs(sol[i]) < 1e-10
             sol[i] = 1e-10
         end
     end

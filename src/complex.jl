@@ -115,11 +115,11 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,GramMat = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize,
+    opt,ksupp,moment,GramMat,SDP_status = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize,
     numeq=numeq, QUIET=QUIET, TS=TS, solver=solver, solve=solve, tune=tune, solution=solution, ipart=ipart, MomentOne=MomentOne,
     Gram=Gram, Mommat=Mommat, nb=nb, cosmo_setting=cosmo_setting, dualize=dualize)
     data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb,
-    numb, blocks, cl, blocksize, GramMat, moment, solver, 1e-4, 1)
+    numb, blocks, cl, blocksize, GramMat, moment, solver, SDP_status, 1e-4, 1)
     return opt,nothing,data
 end
 
@@ -414,6 +414,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
                     else
                         if ipart == true
                             pos[i][j+1][l] = @variable(model, [1:2bs, 1:2bs], Symmetric)
+                            # pos1 = @variable(model, [1:bs, 1:bs], Symmetric)
                         else
                             pos[i][j+1][l] = @variable(model, [1:bs, 1:bs], Symmetric)
                         end
@@ -429,11 +430,19 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
                             if bi[1] <= bi[2]
                                 Locb = bfind(tsupp, ltsupp, bi)
                                 if ipart == true
-                                    @inbounds add_to_expression!(rcons[Locb], real(coe[w+1][s]), pos[i][j+1][l][t,r]+pos[i][j+1][l][t+bs,r+bs])
-                                    @inbounds add_to_expression!(rcons[Locb], -imag(coe[w+1][s]), pos[i][j+1][l][t,r+bs]-pos[i][j+1][l][r,t+bs])
+                                    # if w <= m-numeq
+                                        @inbounds add_to_expression!(rcons[Locb], real(coe[w+1][s]), pos[i][j+1][l][t,r]+pos[i][j+1][l][t+bs,r+bs])
+                                        @inbounds add_to_expression!(rcons[Locb], -imag(coe[w+1][s]), pos[i][j+1][l][t,r+bs]-pos[i][j+1][l][r,t+bs])
+                                    # else
+                                    #     @inbounds add_to_expression!(rcons[Locb], real(coe[w+1][s])*pos[i][j+1][l][t,r]-imag(coe[w+1][s])*pos1[t,r])
+                                    # end
                                     if bi[1] != bi[2]
-                                        @inbounds add_to_expression!(icons[Locb], imag(coe[w+1][s]), pos[i][j+1][l][t,r]+pos[i][j+1][l][t+bs,r+bs])
-                                        @inbounds add_to_expression!(icons[Locb], real(coe[w+1][s]), pos[i][j+1][l][t,r+bs]-pos[i][j+1][l][r,t+bs])
+                                        # if w <= m-numeq
+                                            @inbounds add_to_expression!(icons[Locb], imag(coe[w+1][s]), pos[i][j+1][l][t,r]+pos[i][j+1][l][t+bs,r+bs])
+                                            @inbounds add_to_expression!(icons[Locb], real(coe[w+1][s]), pos[i][j+1][l][t,r+bs]-pos[i][j+1][l][r,t+bs])
+                                        # else
+                                        #     @inbounds add_to_expression!(icons[Locb], real(coe[w+1][s])*pos1[t,r]+imag(coe[w+1][s])*pos[i][j+1][l][t,r])
+                                        # end
                                     end
                                 else
                                     @inbounds add_to_expression!(rcons[Locb], real(coe[w+1][s]), pos[i][j+1][l][t,r])
@@ -496,10 +505,10 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
         if QUIET == false
             println("SDP solving time: $time seconds.")
         end
-        status = termination_status(model)
+        SDP_status = termination_status(model)
         objv = objective_value(model)
-        if status != MOI.OPTIMAL
-           println("termination status: $status")
+        if SDP_status != MOI.OPTIMAL
+           println("termination status: $SDP_status")
            status = primal_status(model)
            println("solution status: $status")
         end
@@ -532,7 +541,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
             moment = get_cmoment(rmeasure, imeasure, tsupp, itsupp, cql, blocks, cl, blocksize, basis, ipart=ipart, nb=nb)
         end
     end
-    return objv,ksupp,moment,GramMat
+    return objv,ksupp,moment,GramMat,SDP_status
 end
 
 function get_cblocks_mix(dg, J, rlorder, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques, cql, cliquesize;

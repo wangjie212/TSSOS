@@ -19,6 +19,7 @@ mutable struct cpop_data
     GramMat # Gram matrix
     moment # Moment matrix
     solver # SDP solver
+    SDP_status
     tol # tolerance to certify global optimality
     flag # 0 if global optimality is certified; 1 otherwise
 end
@@ -123,9 +124,9 @@ function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reduceba
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,momone,GramMat = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, dualize=dualize,
+    opt,ksupp,moment,momone,GramMat,SDP_status = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, dualize=dualize,
     lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
-    data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, ksupp, sb, numb, blocks, cl, blocksize, GramMat, moment, solver, tol, 1)
+    data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, ksupp, sb, numb, blocks, cl, blocksize, GramMat, moment, solver, SDP_status, tol, 1)
     sol = nothing
     if solution == true
         sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, tol=tol)
@@ -173,7 +174,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
             mb = maximum(maximum.(sb))
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,momone,GramMat = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp,
+        opt,ksupp,moment,momone,GramMat,SDP_status = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp,
         solver=solver, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
         if solution == true
             sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, tol=tol)
@@ -190,6 +191,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
         data.blocksize = blocksize
         data.GramMat = GramMat
         data.moment = moment
+        data.SDP_status = SDP_status
     end
     return opt,sol,data
 end
@@ -543,10 +545,10 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
         if QUIET == false
             println("SDP solving time: $time seconds.")
         end
-        status = termination_status(model)
+        SDP_status = termination_status(model)
         objv = objective_value(model)
-        if status != MOI.OPTIMAL
-           println("termination status: $status")
+        if SDP_status != MOI.OPTIMAL
+           println("termination status: $SDP_status")
            status = primal_status(model)
            println("solution status: $status")
         end
@@ -597,5 +599,5 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
             momone = Symmetric(momone,:U)
         end
     end
-    return objv,ksupp,moment,momone,GramMat
+    return objv,ksupp,moment,momone,GramMat,SDP_status
 end
