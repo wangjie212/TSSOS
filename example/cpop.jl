@@ -2,6 +2,17 @@ using DynamicPolynomials
 using TSSOS
 using Random
 
+function cbasis(z)
+    basis = Monomial{true}[1]
+    for i = 1:length(z)
+        push!(basis, z[i])
+    end
+    for i = 1:length(z), j = i:length(z)
+        push!(basis, z[i]*z[j])
+    end
+    return basis
+end
+
 # minimizing a random complex quartic polynomial over the unit sphere
 Random.seed!(1)
 n = 5
@@ -21,7 +32,7 @@ opt,sol,data = cs_tssos_first([f; h], z, n, 3, numeq=1, QUIET=false, solve=true,
 end
 println(length(data.basis[1][1]))
 
-# minimizing a random complex quadratic polynomial with unit-norm variables
+# minimizing a random complex quartic polynomial with unit-norm variables
 Random.seed!(1)
 n = 5
 @polyvar z[1:2n]
@@ -86,7 +97,7 @@ include("D:\\Programs\\TSSOS\\example\\modelopf.jl")
 cd("D:\\Programs\\PolyOPF\\pglib")
 silence()
 
-case = "pglib_opf_case179_goc"
+case = "pglib_opf_case14_ieee"
 AC = 2178.08
 opfdata = parse_file(case * ".m")
 model = pop_opf_com(opfdata, normal=true, AngleCons=true, LineLimit=true)
@@ -107,14 +118,3 @@ mb = 2*maximum(maximum.(popd.sb)) # maximal block size
 gap = 100*(AC-opt)/AC # optimality gap
 println("n = $n, m = $m")
 println("mc = $maxc, opt = $opt, time = $time, mb = $mb, gap = $gap%")
-
-function cbasis(z)
-    basis = Monomial{true}[1]
-    for i = 1:length(z)
-        push!(basis, z[i])
-    end
-    for i = 1:length(z), j = i:length(z)
-        push!(basis, z[i]*z[j])
-    end
-    return basis
-end

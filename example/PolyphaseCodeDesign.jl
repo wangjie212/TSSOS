@@ -2,7 +2,7 @@ using TSSOS
 
 # N Polyphase Code Waveform Design, N+1 complex variables
 # N bit Code Elements x[n], n = 1,...,N, the (N+1)th complex variables is the Object variable
-N = 6   # N+1 complex variables
+N = 4   # N+1 complex variables
 #  N           PSL           SDP Time(s)                   SDP Time(s)                      SDP Time(s)
 #                           without ipart=false           with ipart=false                with ipart=false
 #                           but All Equalities            and (N-2)Inequalities           and All Equalities
@@ -37,16 +37,16 @@ end
 order = 4
 @time begin
 opt,sol,data = cs_tssos_first(supp, coe, N+1, order, CS=false, TS="block", ipart=false, solve=false, nb=N, balanced=true, QUIET=true)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, balanced=true, QUIET=true, Mommat=true)
+opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, writetofile="D:/project/ManiDSDP/polyphasecode.sdpa", balanced=true, QUIET=false, Mommat=true)
 end
 println(opt^0.5)
 
 mm = data.Mmatrix[1]
 b = [acos(mm[N+3+2k][1,2]) for k=1:N-2]
-# b[1] = b[8] = - b[1]
-# b[2] = b[7] = - b[2]
-# b[3] = b[6] = - b[3]
-# b[4] = b[5] = - b[4]
+# b[1] = b[8] = -b[1]
+# b[2] = b[7] = -b[2]
+# b[3] = b[6] = -b[3]
+# b[4] = b[5] = -b[4]
 A = diagm(2*ones(N-2))
 A[1,2] = A[N-2,N-3] = -1
 for k = 2:N-3

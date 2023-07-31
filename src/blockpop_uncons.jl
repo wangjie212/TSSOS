@@ -6,8 +6,8 @@ mutable struct upop_data
     supp # support data
     coe # coefficient data
     basis # monomial basis
-    ksupp # extending support at the k-th step
-    blocks # the block structrue
+    ksupp # extended support at the k-th step
+    blocks # block structrue
     sb # sizes of different blocks
     numb # numbers of different blocks
     GramMat # Gram matrix
@@ -384,7 +384,7 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
         tsupp = sortslices(tsupp, dims=2)
         ksupp = tsupp
     end
-    objv,moment,momone,GramMat = nothing,nothing,nothing,nothing
+    objv = moment = momone = GramMat = SDP_status = nothing
     if solve == true
         ltsupp = size(tsupp,2)
         if QUIET == false
@@ -405,7 +405,7 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
             model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
         else
             @error "The solver is currently not supported!"
-            return nothing,nothing,nothing,nothing
+            return nothing,nothing,nothing,nothing,nothing,nothing
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         cons = [AffExpr(0) for i=1:ltsupp]
@@ -447,7 +447,7 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
             Locb = bfind(tsupp, ltsupp, supp[:,i])
             if Locb == 0
                @error "The monomial basis is not enough!"
-               return nothing,nothing,nothing,nothing
+               return nothing,nothing,nothing,nothing,nothing,nothing
             else
                bc[Locb] = coe[i]
             end

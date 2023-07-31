@@ -18,3 +18,9 @@ coe = [[1;1;1;1;1;1], [1;-1;-1], [1;-1;-1], [1;1;1]]
 @time begin
 opt,sol,data = cs_tssos_first(supp, coe, 3, 2, numeq=1, QUIET=false, CS=false, TS=false, Gram=true, Mommat=true)
 end
+
+@polyvar z[1:4]
+pop = [z[1]+z[2]+z[3]+z[4], (1+im)*z[1]^2*z[4]+(1-im)*z[2]*z[3]^2, 1-z[1]*z[3]-z[2]*z[4]]
+@time begin
+opt,sol,data = cs_tssos_first(pop, z, 2, 2, numeq=1, QUIET=false, CS=false, TS=false)
+end
