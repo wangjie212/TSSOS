@@ -44,10 +44,10 @@ other auxiliary data.
 - `numeq`: the number of equality constraints.
 """
 function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", cliques=[], minimize=false, assign="first", TS="block", merge=false, md=3, solver="Mosek", 
-    tune=false, Dual=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=true, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
+    tune=false, dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=true, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
     n,supp,coe = polys_info(pop, x, nb=nb)
     opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, foc=foc, CS=CS, cliques=cliques, minimize=minimize, assign=assign, TS=TS,
-    merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, Dual=Dual, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
+    merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
     Mommat=Mommat, tol=tol, cosmo_setting=cosmo_setting)
     return opt,sol,data
 end
@@ -98,7 +98,7 @@ Return the optimum, the (near) optimal solution (if `solution=true`) and other a
 - `numeq`: the number of equality constraints.
 """
 function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, foc=100, CS="MF", cliques=[], minimize=false, assign="first", 
-    TS="block", merge=false, md=3, QUIET=false, solver="Mosek", tune=false, Dual=false, solve=true, solution=false, MomentOne=true, Gram=false, 
+    TS="block", merge=false, md=3, QUIET=false, solver="Mosek", tune=false, dualize=false, solve=true, solution=false, MomentOne=true, Gram=false, 
     Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
     println("*********************************** TSSOS ***********************************")
     println("Version 1.0.0, developed by Jie Wang, 2020--2023")
@@ -131,7 +131,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
     opt,ksupp,moment,GramMat,SDP_status = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET,
-    TS=TS, solver=solver, tune=tune, Dual=Dual, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting)
+    TS=TS, solver=solver, tune=tune, dualize=dualize, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting)
     data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, GramMat, moment, solver, SDP_status, tol, 1)
     sol = nothing
     if solution == true
@@ -151,8 +151,8 @@ end
 Compute higher steps of the CS-TSSOS hierarchy.
 Return the optimum, the (near) optimal solution (if `solution=true`) and other auxiliary data.
 """
-function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false, solution=false, Gram=false, ipart=true, Dual=false, 
-    balanced=false, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para(), writetofile=false)
+function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false, solution=false, Gram=false, ipart=true, dualize=false, 
+    balanced=false, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para())
     n = data.n
     nb = data.nb
     m = data.m
@@ -189,8 +189,8 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
         opt,ksupp,moment,GramMat,SDP_status = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl,
-        blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution, Dual=Dual,
-        ipart=ipart, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting, writetofile=writetofile)
+        blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution, dualize=dualize,
+        ipart=ipart, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting)
         if solution == true
             sol,gap,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
             if data.flag == 1
@@ -215,7 +215,7 @@ end
 
 function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize; 
     numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", tune=false, solve=true, solution=false, Gram=false, ipart=false, MomentOne=false, 
-    Mommat=false, cosmo_setting=cosmo_para(), Dual=false, writetofile=false)
+    Mommat=false, cosmo_setting=cosmo_para(), dualize=false)
     tsupp = Vector{UInt16}[]
     for i = 1:cql, j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
         @inbounds bi = sadd(basis[i][1][blocks[i][1][j][k]], basis[i][1][blocks[i][1][j][r]], nb=nb)
@@ -224,6 +224,16 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
     if (MomentOne == true || solution == true) && TS != false
         ksupp = copy(tsupp)
     end
+    # wbasis = get_sbasis(Vector(1:n), 1)
+    # bs = length(wbasis)
+    # for i = 1:n
+    #     for j = 1:bs, k = j:bs
+    #         bi = sadd(sadd(wbasis[j], wbasis[k], nb=nb), [i;i], nb=nb)
+    #         push!(tsupp, bi)
+    #         bi = sadd(sadd(wbasis[j], wbasis[k], nb=nb), [i], nb=nb)
+    #         push!(tsupp, bi)
+    #     end
+    # end
     for i = 1:cql, (j, w) in enumerate(J[i])
         for l = 1:cl[i][j+1], t = 1:blocksize[i][j+1][l], r = t:blocksize[i][j+1][l], s = 1:length(supp[w+1])
             ind1 = blocks[i][j+1][l][t]
@@ -259,7 +269,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
             println("There are $ltsupp affine constraints.")
         end
         if solver == "Mosek"
-            if Dual == false
+            if dualize == false
                 model = Model(optimizer_with_attributes(Mosek.Optimizer))
             else
                 model = Model(dual_optimizer(Mosek.Optimizer))
@@ -285,11 +295,36 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
             model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
         else
             @error "The solver is currently not supported!"
-            return nothing,nothing,nothing,nothing,nothing
+            return nothing,nothing,nothing,nothing
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
         cons = [AffExpr(0) for i=1:ltsupp]
+        # bs = length(wbasis)
+        # for i = 1:n
+        #     hnom = @variable(model, [1:2bs, 1:2bs], PSD)
+        #     for j = 1:bs, k = j:bs
+        #         bi = sadd(wbasis[j], wbasis[k], nb=nb)
+        #         Locb = bfind(tsupp, ltsupp, bi)
+        #         if j == k
+        #             @inbounds add_to_expression!(cons[Locb], hnom[j,k])
+        #         else
+        #             @inbounds add_to_expression!(cons[Locb], 2, hnom[j,k])
+        #         end
+        #         bi = sadd(sadd(wbasis[j], wbasis[k], nb=nb), [i;i], nb=nb)
+        #         Locb = bfind(tsupp, ltsupp, bi)
+        #         if j == k
+        #             @inbounds add_to_expression!(cons[Locb], hnom[j+bs,k+bs])
+        #         else
+        #             @inbounds add_to_expression!(cons[Locb], 2, hnom[j+bs,k+bs])
+        #         end
+        #     end
+        #     for j = 1:bs, k = 1:bs
+        #         bi = sadd(sadd(wbasis[j], wbasis[k], nb=nb), [i], nb=nb)           
+        #         Locb = bfind(tsupp, ltsupp, bi)
+        #         @inbounds add_to_expression!(cons[Locb], 2, hnom[j,k+bs])
+        #     end
+        # end
         pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, cql)
         for i = 1:cql
             if (MomentOne == true || solution == true) && TS != false
@@ -390,7 +425,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
             Locb = bfind(tsupp, ltsupp, supp[1][i])
             if Locb == 0
                @error "The monomial basis is not enough!"
-               return nothing,nothing,nothing,nothing,nothing
+               return nothing,nothing,nothing,nothing
             else
                bc[Locb] = coe[1][i]
             end
@@ -414,9 +449,6 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
         end
         if QUIET == false
             println("SDP solving time: $time seconds.")
-        end
-        if writetofile != false
-            write_to_file(dualize(model), writetofile)
         end
         SDP_status = termination_status(model)
         objv = objective_value(model)

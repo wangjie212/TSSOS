@@ -21,7 +21,7 @@ end
 
 # minimizing a random complex quadratic polynomial over the unit sphere
 Random.seed!(1)
-n = 300
+n = 50
 @polyvar z[1:2n]
 Q = rand(n+1, n+1)
 Q = (Q+Q')/2

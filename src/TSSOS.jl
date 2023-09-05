@@ -17,7 +17,8 @@ using Printf
 # using SDPNAL
 
 export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, local_solution, refine_sol,
-nctssos_first, nctssos_higher!, cs_nctssos_first, cs_nctssos_higher!, cosmo_para
+nctssos_first, nctssos_higher!, cs_nctssos_first, cs_nctssos_higher!, cosmo_para, add_psatz!, add_poly!,
+get_basis, get_moment, get_moment_matrix
 
 include("clique_merge.jl")
 include("blockpop_uncons.jl")
@@ -26,6 +27,7 @@ include("nblockmix.jl")
 include("complex.jl")
 include("local_solution.jl")
 include("NCTSSOS/NCTSSOS.jl")
+include("add_psatz.jl")
 using .NCTSSOS
 
 end

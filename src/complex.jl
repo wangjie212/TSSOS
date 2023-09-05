@@ -53,7 +53,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
         end
         if CS != false && QUIET == false
             mc = maximum(cliquesize)
-            println("Obtained the variable cliques in $time seconds. The maximal size of cliques is $mc.")
+            println("Obtained the variable cliques in $time seconds.\nThe maximal size of cliques is $mc.")
         end
     end
     J,ncc = assign_constraint(m, supp, cliques, cql, cliquesize, assign=assign)
@@ -227,6 +227,32 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
             push!(tsupp, bi[2:-1:1])
         end
     end
+    # wbasis = get_sbasis(Vector(1:n), 2)
+    # bs = length(wbasis)
+    # for i = 1:n
+    #     for j = 1:bs, k = j:bs
+    #         bi = [sadd(wbasis[j], [i]), sadd(wbasis[k], [i])]
+    #         if nb > 0
+    #             bi = reduce_unitnorm(bi, nb=nb)
+    #         end
+    #         if bi[1] <= bi[2]
+    #             push!(tsupp, bi)
+    #         else
+    #             push!(tsupp, bi[2:-1:1])
+    #         end
+    #     end
+    #     for j = 1:bs, k = 1:bs
+    #         bi = [sadd(wbasis[j], [i]), wbasis[k]]
+    #         if nb > 0
+    #             bi = reduce_unitnorm(bi, nb=nb)
+    #         end
+    #         if bi[1] <= bi[2]
+    #             push!(tsupp, bi)
+    #         else
+    #             push!(tsupp, bi[2:-1:1])
+    #         end
+    #     end
+    # end
     gsupp = get_gsupp(basis, supp, cql, J, ncc, blocks, cl, blocksize, nb=nb)
     append!(tsupp, gsupp)
     if (MomentOne == true || solution == true) && TS != false
@@ -291,6 +317,210 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
         if ipart == true
             icons = [AffExpr(0) for i=1:ltsupp]
         end
+        # bs = length(wbasis)
+        # for i = 1:n
+        #     hnom = @variable(model, [1:2bs, 1:2bs], PSD)
+        #     for j = 1:bs, k = j:bs
+        #         bi = [wbasis[j], wbasis[k]]
+        #         if nb > 0
+        #             bi = reduce_unitnorm(bi, nb=nb)
+        #         end
+        #         if bi[1] <= bi[2]
+        #             Locb = bfind(tsupp, ltsupp, bi)
+        #         else
+        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
+        #         end
+        #         @inbounds add_to_expression!(rcons[Locb], hnom[j,k])
+        #         bi = [sadd(wbasis[j], [i]), sadd(wbasis[k], [i])]
+        #         if nb > 0
+        #             bi = reduce_unitnorm(bi, nb=nb)
+        #         end
+        #         if bi[1] <= bi[2]
+        #             Locb = bfind(tsupp, ltsupp, bi)
+        #         else
+        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
+        #         end
+        #         @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+bs])
+        #     end
+        #     for j = 1:bs, k = 1:bs
+        #         bi = [sadd(wbasis[j], [i]), wbasis[k]]
+        #         if nb > 0
+        #             bi = reduce_unitnorm(bi, nb=nb)
+        #         end
+        #         if bi[1] <= bi[2]
+        #             Locb = bfind(tsupp, ltsupp, bi)
+        #         else
+        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
+        #         end
+        #         if bi[1] != bi[2]
+        #             @inbounds add_to_expression!(rcons[Locb], hnom[j,k+bs])
+        #         else
+        #             @inbounds add_to_expression!(rcons[Locb], 2, hnom[j,k+bs])
+        #         end
+        #     end
+        # end
+        # for i = 1:n
+        #     if ipart == true
+        #         hnom = @variable(model, [1:6bs, 1:6bs], PSD)
+        #     else
+        #         hnom = @variable(model, [1:3bs, 1:3bs], PSD)
+        #     end
+        #     for j = 1:bs, k = j:bs
+        #         bi = [wbasis[j], wbasis[k]]
+        #         if nb > 0
+        #             bi = reduce_unitnorm(bi, nb=nb)
+        #         end
+        #         if bi[1] <= bi[2]
+        #             Locb = bfind(tsupp, ltsupp, bi)
+        #             if bi[1] != bi[2] && ipart == true
+        #                 @inbounds add_to_expression!(icons[Locb], hnom[j,k+2bs]-hnom[k,j+2bs])
+        #             end
+        #         else
+        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
+        #             if ipart == true
+        #                 @inbounds add_to_expression!(icons[Locb], -1, hnom[j,k+2bs]-hnom[k,j+2bs])
+        #             end
+        #         end
+        #         if ipart == true
+        #             @inbounds add_to_expression!(rcons[Locb], hnom[j,k]+hnom[j+2bs,k+2bs])
+        #         else
+        #             @inbounds add_to_expression!(rcons[Locb], hnom[j,k])
+        #         end
+        #         bi = [sadd(wbasis[j], [1]), sadd(wbasis[k], [1])]
+        #         if nb > 0
+        #             bi = reduce_unitnorm(bi, nb=nb)
+        #         end
+        #         if bi[1] <= bi[2]
+        #             Locb = bfind(tsupp, ltsupp, bi)
+        #             if bi[1] != bi[2] && ipart == true
+        #                 @inbounds add_to_expression!(icons[Locb], hnom[j+bs,k+3bs]-hnom[k+bs,j+3bs])
+        #             end
+        #         else
+        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
+        #             if ipart == true
+        #                 @inbounds add_to_expression!(icons[Locb], -1, hnom[j+bs,k+3bs]-hnom[k+bs,j+3bs])
+        #             end
+        #         end
+        #         if ipart == true
+        #             @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+bs]+hnom[j+3bs,k+3bs])
+        #         else
+        #             @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+bs])
+        #         end
+        #         bi = [sadd(wbasis[j], [2]), sadd(wbasis[k], [2])]
+        #         if nb > 0
+        #             bi = reduce_unitnorm(bi, nb=nb)
+        #         end
+        #         if bi[1] <= bi[2]
+        #             Locb = bfind(tsupp, ltsupp, bi)
+        #             if bi[1] != bi[2] && ipart == true
+        #                 @inbounds add_to_expression!(icons[Locb], hnom[j+2bs,k+5bs]-hnom[k+2bs,j+5bs])
+        #             end
+        #         else
+        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
+        #             if ipart == true
+        #                 @inbounds add_to_expression!(icons[Locb], -1, hnom[j+2bs,k+5bs]-hnom[k+2bs,j+5bs])
+        #             end
+        #         end
+        #         if ipart == true
+        #             @inbounds add_to_expression!(rcons[Locb], hnom[j+2bs,k+2bs]+hnom[j+5bs,k+5bs])
+        #         else
+        #             @inbounds add_to_expression!(rcons[Locb], hnom[j+2bs,k+2bs])
+        #         end
+        #     end
+        #     for j = 1:bs, k = 1:bs
+        #         bi = [sadd(wbasis[j], [1]), wbasis[k]]
+        #         if nb > 0
+        #             bi = reduce_unitnorm(bi, nb=nb)
+        #         end
+        #         if bi[1] <= bi[2]
+        #             Locb = bfind(tsupp, ltsupp, bi)
+        #             if bi[1] != bi[2]
+        #                 if ipart == true
+        #                     @inbounds add_to_expression!(icons[Locb], hnom[j,k+3bs]-hnom[k+bs,j+2bs])
+        #                     @inbounds add_to_expression!(rcons[Locb], hnom[j,k+bs]+hnom[j+2bs,k+3bs])
+        #                 else
+        #                     @inbounds add_to_expression!(rcons[Locb], hnom[j,k+bs])
+        #                 end
+        #             else
+        #                 if ipart == true
+        #                     @inbounds add_to_expression!(rcons[Locb], 2, hnom[j,k+bs]+hnom[j+2bs,k+3bs])
+        #                 else
+        #                     @inbounds add_to_expression!(rcons[Locb], 2, hnom[j,k+bs])
+        #                 end
+        #             end
+        #         else
+        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
+        #             if ipart == true
+        #                 @inbounds add_to_expression!(icons[Locb], -1, hnom[j,k+3bs]-hnom[k+bs,j+2bs])
+        #                 @inbounds add_to_expression!(rcons[Locb], hnom[j,k+bs]+hnom[j+2bs,k+3bs])
+        #             else
+        #                 @inbounds add_to_expression!(rcons[Locb], hnom[j,k+bs])
+        #             end
+        #         end
+        #     end
+        #     for j = 1:bs, k = 1:bs
+        #         bi = [sadd(wbasis[j], [2]), wbasis[k]]
+        #         if nb > 0
+        #             bi = reduce_unitnorm(bi, nb=nb)
+        #         end
+        #         if bi[1] <= bi[2]
+        #             Locb = bfind(tsupp, ltsupp, bi)
+        #             if bi[1] != bi[2]
+        #                 if ipart == true
+        #                     @inbounds add_to_expression!(icons[Locb], hnom[j,k+5bs]-hnom[k+2bs,j+3bs])
+        #                     @inbounds add_to_expression!(rcons[Locb], hnom[j,k+2bs]+hnom[j+3bs,k+5bs])
+        #                 else
+        #                     @inbounds add_to_expression!(rcons[Locb], hnom[j,k+2bs])
+        #                 end
+        #             else
+        #                 if ipart == true
+        #                     @inbounds add_to_expression!(rcons[Locb], 2, hnom[j,k+2bs]+hnom[j+3bs,k+5bs])
+        #                 else
+        #                     @inbounds add_to_expression!(rcons[Locb], 2, hnom[j,k+2bs])
+        #                 end
+        #             end
+        #         else
+        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
+        #             if ipart == true
+        #                 @inbounds add_to_expression!(icons[Locb], -1, hnom[j,k+5bs]-hnom[k+2bs,j+3bs])
+        #                 @inbounds add_to_expression!(rcons[Locb], hnom[j,k+2bs]+hnom[j+3bs,k+5bs])
+        #             else
+        #                 @inbounds add_to_expression!(rcons[Locb], hnom[j,k+2bs])
+        #             end
+        #         end
+        #     end
+        #     for j = 1:bs, k = 1:bs
+        #         bi = [sadd(wbasis[j], [2]), sadd(wbasis[k], [1])]
+        #         if nb > 0
+        #             bi = reduce_unitnorm(bi, nb=nb)
+        #         end
+        #         if bi[1] <= bi[2]
+        #             Locb = bfind(tsupp, ltsupp, bi)
+        #             if bi[1] != bi[2]
+        #                 if ipart == true
+        #                     @inbounds add_to_expression!(icons[Locb], hnom[j+bs,k+5bs]-hnom[k+2bs,j+4bs])
+        #                     @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+2bs]+hnom[j+4bs,k+5bs])
+        #                 else
+        #                     @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+2bs])
+        #                 end
+        #             else
+        #                 if ipart == true
+        #                     @inbounds add_to_expression!(rcons[Locb], 2, hnom[j+bs,k+2bs]+hnom[j+4bs,k+5bs])
+        #                 else
+        #                     @inbounds add_to_expression!(rcons[Locb], 2, hnom[j+bs,k+2bs])
+        #                 end
+        #             end
+        #         else
+        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
+        #             if ipart == true
+        #                 @inbounds add_to_expression!(icons[Locb], -1, hnom[j+bs,k+5bs]-hnom[k+2bs,j+4bs])
+        #                 @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+2bs]+hnom[j+4bs,k+5bs])
+        #             else
+        #                 @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+2bs])
+        #             end
+        #         end
+        #     end
+        # end
         pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, cql)
         for i = 1:cql
             if (MomentOne == true || solution == true) && TS != false
@@ -398,7 +628,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
                             bi = reduce_unitnorm(bi, nb=nb)
                         end
                         if bi[1] <= bi[2]
-                            Locb = bfind(tsupp,ltsupp,bi)
+                            Locb = bfind(tsupp, ltsupp, bi)
                             if ipart == true
                                 @inbounds add_to_expression!(icons[Locb], imag(coe[w+1][s]), pos[i][j+1][l])
                             end
