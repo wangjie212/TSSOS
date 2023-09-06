@@ -18,7 +18,7 @@ using Printf
 
 export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, local_solution, refine_sol,
 nctssos_first, nctssos_higher!, cs_nctssos_first, cs_nctssos_higher!, cosmo_para, add_psatz!, add_poly!,
-get_basis, get_moment, get_moment_matrix
+get_nbasis, get_moment, get_moment_matrix
 
 include("clique_merge.jl")
 include("blockpop_uncons.jl")

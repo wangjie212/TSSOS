@@ -60,12 +60,12 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
     basis = Vector{Vector{Matrix{UInt8}}}(undef, cql)
     for t = 1:cql
         basis[t] = Vector{Matrix{UInt8}}(undef, length(I[t])+length(J[t])+1)
-        basis[t][1] = get_basis(n, order, var=cliques[t])
+        basis[t][1] = get_nbasis(n, order, var=cliques[t])
         for s = 1:length(I[t])
-            basis[t][s+1] = get_basis(n, order-ceil(Int, dg[I[t][s]]/2), var=cliques[t])
+            basis[t][s+1] = get_nbasis(n, order-ceil(Int, dg[I[t][s]]/2), var=cliques[t])
         end
         for s = 1:length(J[t])
-            basis[t][s+length(I[t])+1] = get_basis(n, order-ceil(Int, dh[J[t][s]]/2), var=cliques[t])
+            basis[t][s+length(I[t])+1] = get_nbasis(n, order-ceil(Int, dh[J[t][s]]/2), var=cliques[t])
         end
     end
     blocks,cl,blocksize,sb,numb,status = get_cblocks_mix(n, I, J, m, l, fsupp, gsupp, glt, hsupp, hlt, basis, cliques, cql, tsupp=[], TS=TS, SO=SO, QUIET=QUIET)
@@ -384,7 +384,7 @@ function poly_info(p, x)
     return psupp,pcoe
 end
 
-function get_basis(n, d; var=Vector(1:n))
+function get_nbasis(n, d; var=Vector(1:n))
     lb = binomial(length(var)+d, d)
     basis = zeros(UInt8, n, lb)
     i = 0

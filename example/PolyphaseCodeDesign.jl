@@ -20,7 +20,7 @@ println(opt^0.5)
 # writetofile="D:/project/ManiDSDP/polyphasecode.sdpa"
 
 ## formulation with equality constraints
-N = 4
+N = 10
 @polyvar z[1:4N-2]
 pop = Vector{Polynomial{true,Float64}}(undef, N-1)
 pop[1] = z[N+1]^2 + z[3N]^2
@@ -31,7 +31,7 @@ end
 
 order = 4
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, 2N-1, order, numeq=N-2, nb=2N-1, CS=false, balanced=false, TS="block", ipart=false, solve=true, QUIET=false)
+opt,sol,data = cs_tssos_first(pop, z, 2N-1, order, writetofile="D:/project/ManiDSDP/polyphasecode14.sdpa", numeq=N-2, nb=2N-1, CS=false, balanced=false, TS="block", ipart=false, solve=true, QUIET=false)
 # opt,sol,data = cs_tssos_higher!(data, TS="block", balanced=true, ipart=false, solve=true, QUIET=false)
 end
 println(opt^0.5)
