@@ -13,6 +13,31 @@ mutable struct struct_data
     constrs # constraint name
 end
 
+"""
+model,info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS="MF", cliques=[], TS="block", 
+SO=1, Groebnerbasis=false, QUIET=false, constrs=nothing)
+
+Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP `model`.
+
+# Input arguments
+- `model`: a JuMP optimization model
+- `nonneg`: a nonnegative polynomial constrained to be a Putinar's style SOS on a semialgebraic set
+- `vars`: the set of POP variables
+- `ineq_cons`: inequality constraints
+- `eq_cons`: equality constraints
+- `order`: relaxation order
+- `CS`: method of chordal extension for correlative sparsity (`"MF"`, `"MD"`, `false`)
+- `cliques`: the set of cliques used in correlative sparsity
+- `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
+- `SO`: sparse order
+- `Groebnerbasis`: exploit the quotient ring structure or not (`true`, `false`)
+- `QUIET`: run in the quiet mode or not (`true`, `false`)
+- `constrs`: the constraint name used in the JuMP model
+
+# Output arguments
+- `model`: the modified JuMP model
+- `info`: other auxiliary data
+"""
 function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], TS="block", SO=1, Groebnerbasis=false, QUIET=false, constrs=nothing)
     n = length(vars)
     m = length(ineq_cons)
@@ -345,6 +370,21 @@ function numele(a)
     return Int(sum(Int.(a).^2+a)/2)
 end
 
+"""
+p,coe,mon = add_poly!(model, vars, degree)
+
+Generate an unknown polynomial of given degree whose coefficients are from the JuMP `model`.
+
+# Input arguments
+- `model`: a JuMP optimization model
+- `vars`: the set of POP variables
+- `degree`: polynomial degree
+
+# Output arguments
+- `p`: the unknown polynomial 
+- `coe`: coefficients of the unknown polynomial 
+- `mon`: monomials of the unknown polynomial 
+"""
 function add_poly!(model, vars, degree)
     mon = reverse(monomials(vars, 0:degree))
     coe = @variable(model, [1:length(mon)])

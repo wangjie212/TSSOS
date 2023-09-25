@@ -29,18 +29,28 @@ end
     reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", QUIET=false, solve=true,
     MomentOne=false, Gram=false, solution=false, tol=1e-4)
 
-Compute the first step of the TSSOS hierarchy for constrained polynomial optimization with
-relaxation order `d`.
+Compute the first TS step of the TSSOS hierarchy for constrained polynomial optimization.
 If `quotient=true`, then exploit the quotient ring structure defined by the equality constraints.
-Return the optimum, the (near) optimal solution (if `solution=true`) and other auxiliary data.
+If `merge=true`, perform the PSD block merging. 
+If `solve=false`, then do not solve the SDP.
+If `Gram=true`, then output the Gram matrix.
+If `MomentOne=true`, add an extra first order moment matrix to the moment relaxation.
 
-# Arguments
-- `pop`: the vector of the objective function, inequality constraints, and equality constraints.
-- `x`: the set of variables.
-- `d`: the relaxation order of the moment-SOS hierarchy.
-- `nb`: the number of binary variables in `x`.
-- `md`: the tunable parameter for merging blocks.
-- `numeq`: the number of equality constraints.
+# Input arguments
+- `pop`: vector of the objective, inequality constraints, and equality constraints
+- `x`: POP variables
+- `d`: relaxation order
+- `nb`: number of binary variables in `x`
+- `numeq`: number of equality constraints
+- `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
+- `md`: tunable parameter for merging blocks
+- `QUIET`: run in the quiet mode or not (`true`, `false`)
+- `tol`: relative tolerance to certify global optimality
+
+# Output arguments
+- `opt`: optimum
+- `sol`: (near) optimal solution (if `solution=true`)
+- `data`: other auxiliary data 
 """
 function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
     QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para())

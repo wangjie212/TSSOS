@@ -1,33 +1,55 @@
 """
-    opt,sol,data = cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vector{Vector{ComplexF64}},
-    n, d; numeq=0, foc=100, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3, solver="Mosek",
-    QUIET=false, solve=true, Gram=false, MomentOne=true)
+    opt,sol,data = cs_tssos_first(pop, z, n, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", ipart=true, merge=false, md=3, 
+    solver="Mosek", QUIET=false, solve=true, Gram=false, Mommat=false, MomentOne=true)
 
-Compute the first step of the CS-TSSOS hierarchy for constrained complex polynomial optimization with
-relaxation order `d`. Here the complex polynomial optimization problem is defined by `supp` and `coe`,
-corresponding to the supports and coeffients of `pop` respectively.
+Compute the first TS step of the CS-TSSOS hierarchy for constrained complex polynomial optimization. 
+If `merge=true`, perform the PSD block merging. 
+If `ipart=false`, then use the real moment-HSOS hierarchy.
+If `solve=false`, then do not solve the SDP.
+If `Gram=true`, then output the Gram matrix.
+If `Mommat=true`, then output the moment matrix.
+If `MomentOne=true`, add an extra first order moment matrix to the moment relaxation.
 
-# Arguments
-- `supp`: the supports of the complex polynomial optimization problem.
-- `coe`: the coeffients of the complex polynomial optimization problem.
-- `d`: the relaxation order of the moment-SOHS hierarchy.
-- `numeq`: the number of equality constraints.
+# Input arguments
+- `pop`: vector of the objective, inequality constraints, and equality constraints
+- `z`: CPOP variables and their conjugate
+- `n`: number of CPOP variables
+- `d`: relaxation order
+- `nb`: number of unit-norm variables in `x`
+- `numeq`: number of equality constraints
+- `CS`: method of chordal extension for correlative sparsity (`"MF"`, `"MD"`, `false`)
+- `cliques`: the set of cliques used in correlative sparsity
+- `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
+- `md`: tunable parameter for merging blocks
+- `QUIET`: run in the quiet mode or not (`true`, `false`)
+
+# Output arguments
+- `opt`: optimum
+- `data`: other auxiliary data 
 """
 function cs_tssos_first(pop, z, n, d; numeq=0, foc=100, nb=0, CS="MF", cliques=[], minimize=false, assign="first", TS="block",
     merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, tune=false, solution=false,
-    ipart=true, Dual=false, balanced=false, MomentOne=false, Gram=false, Mommat=false, cosmo_setting=cosmo_para(), writetofile=false)
+    ipart=true, dualize=false, balanced=false, MomentOne=false, Gram=false, Mommat=false, cosmo_setting=cosmo_para(), writetofile=false)
     ctype = ipart==true ? ComplexF64 : Float64
     supp,coe = polys_info(pop, z, n, ctype=ctype)
     opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, foc=foc, nb=nb, CS=CS, cliques=cliques, minimize=minimize,
     assign=assign, TS=TS, merge=merge, md=md, solver=solver, reducebasis=reducebasis, QUIET=QUIET, solve=solve, tune=tune, 
-    solution=solution, ipart=ipart, Dual=Dual, balanced=balanced, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, 
+    solution=solution, ipart=ipart, dualize=dualize, balanced=balanced, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, 
     cosmo_setting=cosmo_setting, writetofile=writetofile)
     return opt,sol,data
 end
 
+"""
+    opt,sol,data = cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vector{Vector{ComplexF64}},
+    n, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", ipart=true, merge=false, md=3, solver="Mosek",
+    QUIET=false, solve=true, Gram=false, Mommat=false, MomentOne=true)
+
+Compute the first TS step of the CS-TSSOS hierarchy for constrained complex polynomial optimization. 
+Here the complex polynomial optimization problem is defined by `supp` and `coe`, corresponding to the supports and coeffients of `pop` respectively.
+"""
 function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d; numeq=0, RemSig=false, foc=100, nb=0, CS="MF", cliques=[], 
     minimize=false, assign="first", TS="block", merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, tune=false, 
-    solution=false, ipart=true, Dual=false, balanced=false, MomentOne=false, Gram=false, Mommat=false, cosmo_setting=cosmo_para(), writetofile=false)
+    solution=false, ipart=true, dualize=false, balanced=false, MomentOne=false, Gram=false, Mommat=false, cosmo_setting=cosmo_para(), writetofile=false)
     println("*********************************** TSSOS ***********************************")
     println("Version 1.0.0, developed by Jie Wang, 2020--2023")
     println("TSSOS is launching...")
@@ -118,7 +140,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
     end
     opt,ksupp,moment,GramMat,SDP_status = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize,
     numeq=numeq, QUIET=QUIET, TS=TS, solver=solver, solve=solve, tune=tune, solution=solution, ipart=ipart, MomentOne=MomentOne,
-    Gram=Gram, Mommat=Mommat, nb=nb, cosmo_setting=cosmo_setting, Dual=Dual, writetofile=writetofile)
+    Gram=Gram, Mommat=Mommat, nb=nb, cosmo_setting=cosmo_setting, dualize=dualize, writetofile=writetofile)
     data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb,
     numb, blocks, cl, blocksize, GramMat, moment, solver, SDP_status, 1e-4, 1)
     return opt,nothing,data
@@ -213,7 +235,7 @@ function get_gsupp(basis, supp, cql, J, ncc, blocks, cl, blocksize; norm=false, 
 end
 
 function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize; 
-    numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", tune=false, solve=true, Dual=false, solution=false, Gram=false, MomentOne=false, 
+    numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", tune=false, solve=true, dualize=false, solution=false, Gram=false, MomentOne=false, 
     ipart=true, Mommat=false, cosmo_setting=cosmo_para(), writetofile=false)
     tsupp = Vector{Vector{UInt16}}[]
     for i = 1:cql, j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
@@ -227,32 +249,6 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
             push!(tsupp, bi[2:-1:1])
         end
     end
-    # wbasis = get_sbasis(Vector(1:n), 2)
-    # bs = length(wbasis)
-    # for i = 1:n
-    #     for j = 1:bs, k = j:bs
-    #         bi = [sadd(wbasis[j], [i]), sadd(wbasis[k], [i])]
-    #         if nb > 0
-    #             bi = reduce_unitnorm(bi, nb=nb)
-    #         end
-    #         if bi[1] <= bi[2]
-    #             push!(tsupp, bi)
-    #         else
-    #             push!(tsupp, bi[2:-1:1])
-    #         end
-    #     end
-    #     for j = 1:bs, k = 1:bs
-    #         bi = [sadd(wbasis[j], [i]), wbasis[k]]
-    #         if nb > 0
-    #             bi = reduce_unitnorm(bi, nb=nb)
-    #         end
-    #         if bi[1] <= bi[2]
-    #             push!(tsupp, bi)
-    #         else
-    #             push!(tsupp, bi[2:-1:1])
-    #         end
-    #     end
-    # end
     gsupp = get_gsupp(basis, supp, cql, J, ncc, blocks, cl, blocksize, nb=nb)
     append!(tsupp, gsupp)
     if (MomentOne == true || solution == true) && TS != false
@@ -283,7 +279,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
             println("Assembling the SDP...")
         end
         if solver == "Mosek"
-            if Dual == false
+            if dualize == false
                 model = Model(optimizer_with_attributes(Mosek.Optimizer))
             else
                 model = Model(dual_optimizer(Mosek.Optimizer))
@@ -317,210 +313,6 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, 
         if ipart == true
             icons = [AffExpr(0) for i=1:ltsupp]
         end
-        # bs = length(wbasis)
-        # for i = 1:n
-        #     hnom = @variable(model, [1:2bs, 1:2bs], PSD)
-        #     for j = 1:bs, k = j:bs
-        #         bi = [wbasis[j], wbasis[k]]
-        #         if nb > 0
-        #             bi = reduce_unitnorm(bi, nb=nb)
-        #         end
-        #         if bi[1] <= bi[2]
-        #             Locb = bfind(tsupp, ltsupp, bi)
-        #         else
-        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
-        #         end
-        #         @inbounds add_to_expression!(rcons[Locb], hnom[j,k])
-        #         bi = [sadd(wbasis[j], [i]), sadd(wbasis[k], [i])]
-        #         if nb > 0
-        #             bi = reduce_unitnorm(bi, nb=nb)
-        #         end
-        #         if bi[1] <= bi[2]
-        #             Locb = bfind(tsupp, ltsupp, bi)
-        #         else
-        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
-        #         end
-        #         @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+bs])
-        #     end
-        #     for j = 1:bs, k = 1:bs
-        #         bi = [sadd(wbasis[j], [i]), wbasis[k]]
-        #         if nb > 0
-        #             bi = reduce_unitnorm(bi, nb=nb)
-        #         end
-        #         if bi[1] <= bi[2]
-        #             Locb = bfind(tsupp, ltsupp, bi)
-        #         else
-        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
-        #         end
-        #         if bi[1] != bi[2]
-        #             @inbounds add_to_expression!(rcons[Locb], hnom[j,k+bs])
-        #         else
-        #             @inbounds add_to_expression!(rcons[Locb], 2, hnom[j,k+bs])
-        #         end
-        #     end
-        # end
-        # for i = 1:n
-        #     if ipart == true
-        #         hnom = @variable(model, [1:6bs, 1:6bs], PSD)
-        #     else
-        #         hnom = @variable(model, [1:3bs, 1:3bs], PSD)
-        #     end
-        #     for j = 1:bs, k = j:bs
-        #         bi = [wbasis[j], wbasis[k]]
-        #         if nb > 0
-        #             bi = reduce_unitnorm(bi, nb=nb)
-        #         end
-        #         if bi[1] <= bi[2]
-        #             Locb = bfind(tsupp, ltsupp, bi)
-        #             if bi[1] != bi[2] && ipart == true
-        #                 @inbounds add_to_expression!(icons[Locb], hnom[j,k+2bs]-hnom[k,j+2bs])
-        #             end
-        #         else
-        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
-        #             if ipart == true
-        #                 @inbounds add_to_expression!(icons[Locb], -1, hnom[j,k+2bs]-hnom[k,j+2bs])
-        #             end
-        #         end
-        #         if ipart == true
-        #             @inbounds add_to_expression!(rcons[Locb], hnom[j,k]+hnom[j+2bs,k+2bs])
-        #         else
-        #             @inbounds add_to_expression!(rcons[Locb], hnom[j,k])
-        #         end
-        #         bi = [sadd(wbasis[j], [1]), sadd(wbasis[k], [1])]
-        #         if nb > 0
-        #             bi = reduce_unitnorm(bi, nb=nb)
-        #         end
-        #         if bi[1] <= bi[2]
-        #             Locb = bfind(tsupp, ltsupp, bi)
-        #             if bi[1] != bi[2] && ipart == true
-        #                 @inbounds add_to_expression!(icons[Locb], hnom[j+bs,k+3bs]-hnom[k+bs,j+3bs])
-        #             end
-        #         else
-        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
-        #             if ipart == true
-        #                 @inbounds add_to_expression!(icons[Locb], -1, hnom[j+bs,k+3bs]-hnom[k+bs,j+3bs])
-        #             end
-        #         end
-        #         if ipart == true
-        #             @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+bs]+hnom[j+3bs,k+3bs])
-        #         else
-        #             @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+bs])
-        #         end
-        #         bi = [sadd(wbasis[j], [2]), sadd(wbasis[k], [2])]
-        #         if nb > 0
-        #             bi = reduce_unitnorm(bi, nb=nb)
-        #         end
-        #         if bi[1] <= bi[2]
-        #             Locb = bfind(tsupp, ltsupp, bi)
-        #             if bi[1] != bi[2] && ipart == true
-        #                 @inbounds add_to_expression!(icons[Locb], hnom[j+2bs,k+5bs]-hnom[k+2bs,j+5bs])
-        #             end
-        #         else
-        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
-        #             if ipart == true
-        #                 @inbounds add_to_expression!(icons[Locb], -1, hnom[j+2bs,k+5bs]-hnom[k+2bs,j+5bs])
-        #             end
-        #         end
-        #         if ipart == true
-        #             @inbounds add_to_expression!(rcons[Locb], hnom[j+2bs,k+2bs]+hnom[j+5bs,k+5bs])
-        #         else
-        #             @inbounds add_to_expression!(rcons[Locb], hnom[j+2bs,k+2bs])
-        #         end
-        #     end
-        #     for j = 1:bs, k = 1:bs
-        #         bi = [sadd(wbasis[j], [1]), wbasis[k]]
-        #         if nb > 0
-        #             bi = reduce_unitnorm(bi, nb=nb)
-        #         end
-        #         if bi[1] <= bi[2]
-        #             Locb = bfind(tsupp, ltsupp, bi)
-        #             if bi[1] != bi[2]
-        #                 if ipart == true
-        #                     @inbounds add_to_expression!(icons[Locb], hnom[j,k+3bs]-hnom[k+bs,j+2bs])
-        #                     @inbounds add_to_expression!(rcons[Locb], hnom[j,k+bs]+hnom[j+2bs,k+3bs])
-        #                 else
-        #                     @inbounds add_to_expression!(rcons[Locb], hnom[j,k+bs])
-        #                 end
-        #             else
-        #                 if ipart == true
-        #                     @inbounds add_to_expression!(rcons[Locb], 2, hnom[j,k+bs]+hnom[j+2bs,k+3bs])
-        #                 else
-        #                     @inbounds add_to_expression!(rcons[Locb], 2, hnom[j,k+bs])
-        #                 end
-        #             end
-        #         else
-        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
-        #             if ipart == true
-        #                 @inbounds add_to_expression!(icons[Locb], -1, hnom[j,k+3bs]-hnom[k+bs,j+2bs])
-        #                 @inbounds add_to_expression!(rcons[Locb], hnom[j,k+bs]+hnom[j+2bs,k+3bs])
-        #             else
-        #                 @inbounds add_to_expression!(rcons[Locb], hnom[j,k+bs])
-        #             end
-        #         end
-        #     end
-        #     for j = 1:bs, k = 1:bs
-        #         bi = [sadd(wbasis[j], [2]), wbasis[k]]
-        #         if nb > 0
-        #             bi = reduce_unitnorm(bi, nb=nb)
-        #         end
-        #         if bi[1] <= bi[2]
-        #             Locb = bfind(tsupp, ltsupp, bi)
-        #             if bi[1] != bi[2]
-        #                 if ipart == true
-        #                     @inbounds add_to_expression!(icons[Locb], hnom[j,k+5bs]-hnom[k+2bs,j+3bs])
-        #                     @inbounds add_to_expression!(rcons[Locb], hnom[j,k+2bs]+hnom[j+3bs,k+5bs])
-        #                 else
-        #                     @inbounds add_to_expression!(rcons[Locb], hnom[j,k+2bs])
-        #                 end
-        #             else
-        #                 if ipart == true
-        #                     @inbounds add_to_expression!(rcons[Locb], 2, hnom[j,k+2bs]+hnom[j+3bs,k+5bs])
-        #                 else
-        #                     @inbounds add_to_expression!(rcons[Locb], 2, hnom[j,k+2bs])
-        #                 end
-        #             end
-        #         else
-        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
-        #             if ipart == true
-        #                 @inbounds add_to_expression!(icons[Locb], -1, hnom[j,k+5bs]-hnom[k+2bs,j+3bs])
-        #                 @inbounds add_to_expression!(rcons[Locb], hnom[j,k+2bs]+hnom[j+3bs,k+5bs])
-        #             else
-        #                 @inbounds add_to_expression!(rcons[Locb], hnom[j,k+2bs])
-        #             end
-        #         end
-        #     end
-        #     for j = 1:bs, k = 1:bs
-        #         bi = [sadd(wbasis[j], [2]), sadd(wbasis[k], [1])]
-        #         if nb > 0
-        #             bi = reduce_unitnorm(bi, nb=nb)
-        #         end
-        #         if bi[1] <= bi[2]
-        #             Locb = bfind(tsupp, ltsupp, bi)
-        #             if bi[1] != bi[2]
-        #                 if ipart == true
-        #                     @inbounds add_to_expression!(icons[Locb], hnom[j+bs,k+5bs]-hnom[k+2bs,j+4bs])
-        #                     @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+2bs]+hnom[j+4bs,k+5bs])
-        #                 else
-        #                     @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+2bs])
-        #                 end
-        #             else
-        #                 if ipart == true
-        #                     @inbounds add_to_expression!(rcons[Locb], 2, hnom[j+bs,k+2bs]+hnom[j+4bs,k+5bs])
-        #                 else
-        #                     @inbounds add_to_expression!(rcons[Locb], 2, hnom[j+bs,k+2bs])
-        #                 end
-        #             end
-        #         else
-        #             Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
-        #             if ipart == true
-        #                 @inbounds add_to_expression!(icons[Locb], -1, hnom[j+bs,k+5bs]-hnom[k+2bs,j+4bs])
-        #                 @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+2bs]+hnom[j+4bs,k+5bs])
-        #             else
-        #                 @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+2bs])
-        #             end
-        #         end
-        #     end
-        # end
         pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, cql)
         for i = 1:cql
             if (MomentOne == true || solution == true) && TS != false

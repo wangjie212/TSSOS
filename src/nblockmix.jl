@@ -27,21 +27,33 @@ mutable struct mcpop_data
 end
 
 """
-    opt,sol,data = cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", minimize=false,
-    assign="first", TS="block", merge=false, md=3, solver="Mosek", QUIET=false, solve=true, solution=false,
-    Gram=false, MomentOne=true, tol=1e-4)
+    opt,sol,data = cs_tssos_first(pop, x, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", merge=false, md=3, solver="Mosek", QUIET=false, solve=true, solution=false,
+    Gram=false, MomentOne=true, Mommat=false, tol=1e-4)
 
-Compute the first step of the CS-TSSOS hierarchy for constrained polynomial optimization with
-relaxation order `d`. Return the optimum, the (near) optimal solution (if `solution=true`) and
-other auxiliary data.
+Compute the first TS step of the CS-TSSOS hierarchy for constrained polynomial optimization.
+If `merge=true`, perform the PSD block merging. 
+If `solve=false`, then do not solve the SDP.
+If `Gram=true`, then output the Gram matrix.
+If `Mommat=true`, then output the moment matrix.
+If `MomentOne=true`, add an extra first order moment matrix to the moment relaxation.
 
-# Arguments
-- `pop`: the vector of the objective function, inequality constraints, and equality constraints.
-- `x`: the set of variables.
-- `d`: the relaxation order of the moment-SOS hierarchy.
-- `nb`: the number of binary variables in `x`.
-- `md`: the tunable parameter for merging blocks.
-- `numeq`: the number of equality constraints.
+# Input arguments
+- `pop`: vector of the objective, inequality constraints, and equality constraints
+- `x`: POP variables
+- `d`: relaxation order
+- `nb`: number of binary variables in `x`
+- `numeq`: number of equality constraints
+- `CS`: method of chordal extension for correlative sparsity (`"MF"`, `"MD"`, `false`)
+- `cliques`: the set of cliques used in correlative sparsity
+- `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
+- `md`: tunable parameter for merging blocks
+- `QUIET`: run in the quiet mode or not (`true`, `false`)
+- `tol`: relative tolerance to certify global optimality
+
+# Output arguments
+- `opt`: optimum
+- `sol`: (near) optimal solution (if `solution=true`)
+- `data`: other auxiliary data 
 """
 function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", cliques=[], minimize=false, assign="first", TS="block", merge=false, md=3, solver="Mosek", 
     tune=false, dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=true, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
@@ -82,20 +94,11 @@ function polys_info(pop, x; nb=0)
 end
 
 """
-    opt,sol,data = cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0,
-    nb=0, foc=100, CS="MF", minimize=false, assign="first", TS="block", merge=false, md=3,
-    QUIET=false, solver="Mosek", solve=true, solution=false, Gram=false, MomentOne=true, tol=1e-4)
+    opt,sol,data = cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", 
+    merge=false, md=3, QUIET=false, solver="Mosek", solve=true, solution=false, Gram=false, MomentOne=true, Mommat=false, tol=1e-4)
 
-Compute the first step of the CS-TSSOS hierarchy for constrained polynomial optimization with
-relaxation order `d`. Here the polynomial optimization problem is defined by `supp` and `coe`,
-corresponding to the supports and coeffients of `pop` respectively.
-Return the optimum, the (near) optimal solution (if `solution=true`) and other auxiliary data.
-
-# Arguments
-- `supp`: the supports of the polynomial optimization problem.
-- `coe`: the coeffients of the polynomial optimization problem.
-- `d`: the relaxation order of the moment-SOS hierarchy.
-- `numeq`: the number of equality constraints.
+Compute the first TS step of the CS-TSSOS hierarchy for constrained polynomial optimization. 
+Here the polynomial optimization problem is defined by `supp` and `coe`, corresponding to the supports and coeffients of `pop` respectively.
 """
 function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, foc=100, CS="MF", cliques=[], minimize=false, assign="first", 
     TS="block", merge=false, md=3, QUIET=false, solver="Mosek", tune=false, dualize=false, solve=true, solution=false, MomentOne=true, Gram=false, 
@@ -146,10 +149,9 @@ end
 
 """
     opt,sol,data = cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true,
-    solution=false, Gram=false, MomentOne=false)
+    solution=false, Gram=false, Mommat=false, MomentOne=false)
 
-Compute higher steps of the CS-TSSOS hierarchy.
-Return the optimum, the (near) optimal solution (if `solution=true`) and other auxiliary data.
+Compute higher TS steps of the CS-TSSOS hierarchy.
 """
 function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false, solution=false, Gram=false, ipart=true, dualize=false, 
     balanced=false, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para())
@@ -224,16 +226,6 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
     if (MomentOne == true || solution == true) && TS != false
         ksupp = copy(tsupp)
     end
-    # wbasis = get_sbasis(Vector(1:n), 1)
-    # bs = length(wbasis)
-    # for i = 1:n
-    #     for j = 1:bs, k = j:bs
-    #         bi = sadd(sadd(wbasis[j], wbasis[k], nb=nb), [i;i], nb=nb)
-    #         push!(tsupp, bi)
-    #         bi = sadd(sadd(wbasis[j], wbasis[k], nb=nb), [i], nb=nb)
-    #         push!(tsupp, bi)
-    #     end
-    # end
     for i = 1:cql, (j, w) in enumerate(J[i])
         for l = 1:cl[i][j+1], t = 1:blocksize[i][j+1][l], r = t:blocksize[i][j+1][l], s = 1:length(supp[w+1])
             ind1 = blocks[i][j+1][l][t]
@@ -300,31 +292,6 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
         cons = [AffExpr(0) for i=1:ltsupp]
-        # bs = length(wbasis)
-        # for i = 1:n
-        #     hnom = @variable(model, [1:2bs, 1:2bs], PSD)
-        #     for j = 1:bs, k = j:bs
-        #         bi = sadd(wbasis[j], wbasis[k], nb=nb)
-        #         Locb = bfind(tsupp, ltsupp, bi)
-        #         if j == k
-        #             @inbounds add_to_expression!(cons[Locb], hnom[j,k])
-        #         else
-        #             @inbounds add_to_expression!(cons[Locb], 2, hnom[j,k])
-        #         end
-        #         bi = sadd(sadd(wbasis[j], wbasis[k], nb=nb), [i;i], nb=nb)
-        #         Locb = bfind(tsupp, ltsupp, bi)
-        #         if j == k
-        #             @inbounds add_to_expression!(cons[Locb], hnom[j+bs,k+bs])
-        #         else
-        #             @inbounds add_to_expression!(cons[Locb], 2, hnom[j+bs,k+bs])
-        #         end
-        #     end
-        #     for j = 1:bs, k = 1:bs
-        #         bi = sadd(sadd(wbasis[j], wbasis[k], nb=nb), [i], nb=nb)           
-        #         Locb = bfind(tsupp, ltsupp, bi)
-        #         @inbounds add_to_expression!(cons[Locb], 2, hnom[j,k+bs])
-        #     end
-        # end
         pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, cql)
         for i = 1:cql
             if (MomentOne == true || solution == true) && TS != false
@@ -609,6 +576,7 @@ end
 #     return J,ncc
 # end
 
+# generate the standard monomial basis in the sparse form
 function get_sbasis(var, d; nb=0)
     n = length(var)
     lb = binomial(n+d, d)
@@ -731,6 +699,7 @@ function sadd(a, b; nb=0)
     return c
 end
 
+# extract an approximate solution from the moment matrix
 function approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe; numeq=0, tol=1e-4)
     qsol = Float64[]
     lcq = sum(cliquesize)

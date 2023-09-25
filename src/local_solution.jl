@@ -1,3 +1,23 @@
+"""
+    obj,sol,status = local_solution(n, m, supp::Vector{Union{Vector{Vector{UInt16}}, Array{UInt8, 2}}}, coe; nb=0, numeq=0,
+    startpoint=[], QUIET=false)
+
+Compute a local solution by a local solver.
+# Input arguments
+- `n`: number of POP variables
+- `m`: number of POP constraints
+- `supp`: supports of the POP
+- `coe`: coefficients of the POP
+- `nb`: number of binary variables
+- `numeq`: number of equality constraints
+- `startpoint`: provide a start point
+- `QUIET`: run in the quiet mode or not (`true`, `false`)
+
+# Output arguments
+- `obj`: local optimum
+- `sol`: local solution
+- `status`: solver termination status
+"""
 function local_solution(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe; nb=0, numeq=0,
     startpoint=[], QUIET=false)
     model = Model(optimizer_with_attributes(Ipopt.Optimizer))
@@ -61,11 +81,10 @@ function local_solution(n, m, supp::Vector{Array{UInt8, 2}}, coe; nb=0, numeq=0,
 end
 
 """
-    ref_sol,ub,rel_gap = refine_sol(opt, sol, data, QUIET=false, tol=1e-4)
+    ref_sol,flag = refine_sol(opt, sol, data, QUIET=false, tol=1e-4)
 
 Refine the obtained solution by a local solver.
-Return the refined solution, the upper bound given by the local solver and the
-relative optimality gap.
+Return the refined solution, and `flag=0` if global optimality is certified, `flag=1` otherwise.
 """
 function refine_sol(opt, sol, data::upop_data; QUIET=false, tol=1e-4)
     n = data.n

@@ -28,24 +28,32 @@ cosmo_para() = cosmo_para(1e-5, 1e-5, 1e4)
 
 """
     opt,sol,data = tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", merge=false,
-    md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-4)
+    md=3, feasible=false, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-4)
 
-Compute the first step of the TSSOS hierarchy for unconstrained polynomial optimization.
+Compute the first TS step of the TSSOS hierarchy for unconstrained polynomial optimization.
 If `newton=true`, then compute a monomial basis by the Newton polytope method.
 If `reducebasis=true`, then remove monomials from the monomial basis by diagonal inconsistency.
-If `TS="block"`, use maximal chordal extensions; if `TS="MD"`, use approximately smallest chordal
-extensions. If `merge=true`, perform the PSD block merging. If `MomentOne=true`, add an extra first
-order moment matrix to the moment relaxation.
-Return the optimum, the (near) optimal solution (if `solution=true`) and other auxiliary data.
+If `TS="block"`, use maximal chordal extensions; if `TS="MD"`, use approximately smallest chordal extensions. 
+If `merge=true`, perform the PSD block merging. 
+If `feasible=true`, then solve the feasibility problem.
+If `solve=false`, then do not solve the SDP.
+If `Gram=true`, then output the Gram matrix.
+If `MomentOne=true`, add an extra first order moment matrix to the moment relaxation.
 
-# Arguments
-- `f`: the objective function for unconstrained polynomial optimization.
-- `x`: the set of variables.
-- `nb`: the number of binary variables in `x`.
-- `md`: the tunable parameter for merging blocks.
-- `tol`: the relative tolerance to certify global optimality.
+# Input arguments
+- `f`: objective
+- `x`: POP variables
+- `nb`: number of binary variables in `x`
+- `md`: tunable parameter for merging blocks
+- `QUIET`: run in the quiet mode or not (`true`, `false`)
+- `tol`: relative tolerance to certify global optimality
+
+# Output arguments
+- `opt`: optimum
+- `sol`: (near) optimal solution (if `solution=true`)
+- `data`: other auxiliary data 
 """
-function tssos_first(f, x; nb=0, order=0, newton=true, reducebasis=false, TS="block", merge=false, feasible=false, md=3, solver="Mosek", 
+function tssos_first(f, x; nb=0, order=0, newton=true, reducebasis=false, TS="block", merge=false, md=3, feasible=false, solver="Mosek", 
     QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para())
     println("*********************************** TSSOS ***********************************")
     println("Version 1.0.0, developed by Jie Wang, 2020--2023")
@@ -114,8 +122,7 @@ end
     opt,sol,data = tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true,
     MomentOne=false, solution=false, tol=1e-4)
 
-Compute higher steps of the TSSOS hierarchy.
-Return the optimum, the (near) optimal solution (if `solution=true`) and other auxiliary data.
+Compute higher TS steps of the TSSOS hierarchy.
 """
 function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, feasible=false, MomentOne=false, Gram=false, 
     solution=false, cosmo_setting=cosmo_para(), dualize=false)
@@ -170,6 +177,7 @@ function bin_add(bi, bj, nb)
     return bs
 end
 
+# generate the standard monomial basis
 function get_basis(n, d; nb=0, lead=[])
     lb = binomial(n+d, d)
     basis = zeros(UInt8, n, lb)
@@ -294,6 +302,7 @@ function generate_basis!(supp, basis)
     return basis[:,indexb]
 end
 
+# find the position of an entry a in a sorted sequence A
 function bfind(A, l, a)
     low = 1
     high = l
@@ -512,6 +521,7 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
     return objv,ksupp,moment,momone,GramMat,SDP_status
 end
 
+# extract a solution from the eigenvector associated with the maximal eigenvalue of the moment matrix
 function extract_solution(moment, opt, pop, x; numeq=0, tol=1e-4)
     n = length(x)
     m = length(pop) - 1
