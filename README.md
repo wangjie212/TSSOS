@@ -15,6 +15,7 @@ pkg> add https://github.com/wangjie212/TSSOS
 - [ChordalGraph](https://github.com/wangjie212/ChordalGraph)
 
 TSSOS has been tested on Ubuntu and Windows.
+
 ## Usage
 ### Unconstrained polynomial optimization
 The unconstrained polynomial optimization problem formulizes as
@@ -43,13 +44,13 @@ To compute higher TS steps of the TSSOS hierarchy, repeatedly run
 opt,sol,data = tssos_higher!(data, TS="MD")
 ```
 
-Options:  
+Options  
 **nb**: specify the first nb variables to be binary variables (satisfying $x_i^2=1$)  
 **newton**: true (using the monomial basis computed by the Newton polytope method), false  
 **TS (term sparsity)**: "block" (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
 **solution**: true (extracting an (approximate optimal) solution), false  
 
-Output:  
+Output  
 **basis**: monomial basis  
 **cl**: numbers of blocks  
 **blocksize**: sizes of blocks  
@@ -61,7 +62,7 @@ Output:
 The constrained polynomial optimization problem formulizes as
 $$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ f(\mathbf{x}),$$
 where $f\in\mathbb{R}[\mathbf{x}]$ is a polynomial and $\mathbf{K}$ is the basic semialgebraic set
-$$\mathbf{K}=\lbrace \mathbf{x}\in\mathbb{R}^n \mid g_j(\mathbf{x})\ge0, j=1,\ldots,m-numeq, \,g_j(\mathbf{x})=0, j=m-numeq+1,\ldots,m\rbrace,$$
+$$\mathbf{K}=\lbrace \mathbf{x}\in\mathbb{R}^n \mid g_j(\mathbf{x})\ge0, j=1,\ldots,m-numeq,\ g_j(\mathbf{x})=0, j=m-numeq+1,\ldots,m\rbrace,$$
 for some polynomials $g_j\in\mathbb{R}[\mathbf{x}], j=1,\ldots,m$.
 
 Taking $f=1+x_1^4+x_2^4+x_3^4+x_1x_2x_3+x_2$ and $\mathbf{K}=\lbrace \mathbf{x}\in\mathbb{R}^2 \mid g_1=1-x_1^2-2x_2^2\ge0, g_2=x_2^2+x_3^2-1=0\rbrace$ as an example, to compute the first TS step of the TSSOS hierarchy, run
@@ -82,7 +83,7 @@ To compute higher TS steps of the TSSOS hierarchy, repeatedly run
 opt,sol,data = tssos_higher!(data, TS="MD")
 ```
 
-Options:  
+Options  
 **nb**: specify the first nb variables to be binary variables (satisfying $x_i^2=1$)  
 **TS**: "block" by default (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
 **quotient**: true (working in the quotient ring by computing Gröbner basis), false  
@@ -100,7 +101,7 @@ order = 2 # set the relaxation order
 opt,sol,data = cs_tssos_first(pop, x, order, numeq=0, TS="MD")
 opt,sol,data = cs_tssos_higher!(data, TS="MD")
 ```
-Options:  
+Options  
 **nb**: specify the first nb variables to be binary variables (satisfying $x_i^2=1$)  
 **CS (correlative sparsity)**: "MF" by default (generating an approximately smallest chordal extension), "NC" (without chordal extension), false (without correlative sparsity)   
 **TS**: "block" (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
@@ -120,7 +121,7 @@ settings.max_iter = 1e4 # maximum number of iterations
 ```
 and run for instance tssos_first(..., cosmo_setting=settings)
 
-Output:  
+Output  
 **basis**: monomial basis  
 **cl**: numbers of blocks  
 **blocksize**: sizes of blocks  
@@ -181,13 +182,20 @@ optimize!(model)
 ```
 See the file example/sosprogram.jl for a more complicated example.
 
+## Compute a local solution
+It is possible to compute a local solution of the polynomial optimization problem in TSSOS by [Ipopt](https://github.com/jump-dev/Ipopt.jl):
+
+```Julia
+obj,sol,status = local_solution(data.n, data.m, data.supp, data.coe, numeq=data.numeq, startpoint=rand(data.n))
+```
+
 ## Complex polynomial optimization
 TSSOS also supports solving complex polynomial optimization via the sparsity adapted complex moment-HSOS hierarchies. See [Exploiting Sparsity in Complex Polynomial Optimization](https://arxiv.org/abs/2103.12444) for more details.
 
 The complex polynomial optimization problem formulizes as
 $$\mathrm{inf}_{\mathbf{z}\in\mathbf{K}}\ f(\mathbf{z},\bar{\mathbf{z}}),$$
 with
-$$\mathbf{K}=\lbrace \mathbf{z}\in\mathbb{C}^n \mid g_j(\mathbf{z},\bar{\mathbf{z}})\ge0, j=1,\ldots,m-numeq, \,g_j(\mathbf{z},\bar{\mathbf{z}})=0, j=m-numeq+1,\ldots,m\rbrace,$$
+$$\mathbf{K}=\lbrace \mathbf{z}\in\mathbb{C}^n \mid g_j(\mathbf{z},\bar{\mathbf{z}})\ge0, j=1,\ldots,m-numeq,\ g_j(\mathbf{z},\bar{\mathbf{z}})=0, j=m-numeq+1,\ldots,m\rbrace,$$
 where $\bar{\mathbf{z}}$ stands for the conjugate of $\mathbf{z}:=(z_1,\ldots,z_n)$, and $f, g_j, j=1,\ldots,m$ are real-valued polynomials satisfying $\bar{f}=f$ and $\bar{g}_j=g_j$.
 
 In TSSOS, we use $x_i$ to represent the complex variable $z_i$ and use $x_{n+i}$ to represent its conjugate $\bar{z}_i$. Consider the example
@@ -228,13 +236,20 @@ pop = [f, g1, g2, g3, g4]
 order = 2 # set the relaxation order
 opt,sol,data = cs_tssos_first(pop, x, n, order, numeq=3, TS="block")
 ```
-Options:  
+Options  
 **nb**: specify the first nb complex variables to be of unit norm (satisfying $|z_i|=1$)  
 **CS (correlative sparsity)**: "MF" by default (generating an approximately smallest chordal extension), "NC" (without chordal extension), false (without correlative sparsity)   
 **TS**: "block" (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
 **order**: d (relaxation order), "min" (using the lowest relaxation order for each variable clique)  
 **MomentOne**: true (adding a first-order moment matrix for each variable clique), false  
 **ipart**: true (with complex moment matrices), false (with real moment matrices)
+
+## Tips for modelling polynomial optimization problem
+- When possible, explictly include a sphere/ball constraint (or multi-sphere/multi-ball constraints).
+- When the feasible set is unbounded, try the homogenization technique introduced in [Homogenization for polynomial optimization with unbounded sets](https://link.springer.com/article/10.1007/s10107-022-01878-5).
+- Scale the coefficients of the polynomial optimization problem to $[-1, 1]$.
+- Scale the variables so that they take values in $[-1, 1]$ or $[0, 1]$.
+- Try to include more (redundant) inequality constraints.
 
 ## Non-commutative polynomial optimization
 Visit [NCTSSOS](https://github.com/wangjie212/NCTSSOS)

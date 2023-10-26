@@ -14,7 +14,7 @@ mutable struct struct_data
 end
 
 """
-model,info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS="MF", cliques=[], TS="block", 
+model,info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], TS="block", 
 SO=1, Groebnerbasis=false, QUIET=false, constrs=nothing)
 
 Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP `model`.
@@ -26,7 +26,7 @@ Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP 
 - `ineq_cons`: inequality constraints
 - `eq_cons`: equality constraints
 - `order`: relaxation order
-- `CS`: method of chordal extension for correlative sparsity (`"MF"`, `"MD"`, `false`)
+- `CS`: method of chordal extension for correlative sparsity (`true`, `false`)
 - `cliques`: the set of cliques used in correlative sparsity
 - `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
 - `SO`: sparse order
