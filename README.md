@@ -135,10 +135,9 @@ See the file runopf.jl as well as modelopf.jl in example.
 
 ## Sum-of-squares optimization
 TSSOS supports more general [sum-of-squares optimization](https://en.wikipedia.org/wiki/Sum-of-squares_optimization) (including polynomial optimization as a special case):
-$$\mathrm{inf}_{\mathbf{y}\in\mathbb{R}^n}\mathbf{c}^{\intercal}\mathbf{y}\ \mathrm{s.t.}\ a_{k0}+y_1 a_{k1}+\cdots+y_n a_{kn}\in\mathrm{SOS}, \ k=1,\ldots,m.$$
+$$\mathrm{inf}_{\mathbf{y}\in\mathbb{R}^n}\mathbf{c}^{\intercal}\mathbf{y}$$
+$$\mathrm{s.t.}\ a_{k0}+y_1 a_{k1}+\cdots+y_n a_{kn}\in\mathrm{SOS}, \ k=1,\ldots,m.$$
 where $\mathbf{c}\in\mathbb{R}^n$ and $a_{ki}\in\mathbb{R}[\mathbf{x}]$ are polynomials. The SOS constraints can be handled with the routine **add_psatz!**:
-
-$$\mathrm{inf}_{\mathbf{y}\in\mathbb{R}^n}\mathbf{c}^{\intercal}\mathbf{y}\ \mathrm{s.t.}\ a_{k0}+y_1a_{k1}+\cdots+y_na_{kn}\in\mathrm{SOS}, \ k=1,\ldots,m.$$
 
 ```Julia
 model,info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order, TS="block", SO=1, Groebnerbasis=false)
@@ -146,13 +145,9 @@ model,info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order, TS="bloc
 where **nonneg** is a nonnegative polynomial constrained to be a Putinar's style SOS on the semialgebraic set defined by **ineq_cons** and **eq_cons**, and **SO** is the sparse order.
 
 The following is a simple exmaple.
-$$
-\begin{cases}
-\mathrm{sup}&\lambda\\
-\mathrm{s.t.}&x_1^2 + x_1x_2 + x_2^2 + x_2x_3 + x_3^2 - \lambda(x_1^2+x_2^2+x_3^2)=\sigma+\tau_1(x_1^2+x_2^2+y_1^2-1)+\tau_2(x_2^2+x_3^2+y_2^2-1),\\
-&\sigma\in\mathrm{SOS},\deg(\sigma)\le2d,\,\tau_1,\tau_2\in\mathbb{R}[\mathbf{x}],\deg(\tau_1),\deg(\tau_2)\le2d-2.
-\end{cases}\notag
-$$
+$$\mathrm{sup}\ \lambda$$
+$$\mathrm{s.t.}\ x_1^2 + x_1x_2 + x_2^2 + x_2x_3 + x_3^2 - \lambda(x_1^2+x_2^2+x_3^2)=\sigma+\tau_1(x_1^2+x_2^2+y_1^2-1)+\tau_2(x_2^2+x_3^2+y_2^2-1),$$
+$$\sigma\in\mathrm{SOS},\deg(\sigma)\le2d,\ \tau_1,\tau_2\in\mathbb{R}[\mathbf{x}],\deg(\tau_1),\deg(\tau_2)\le2d-2.$$
 
 ```Julia
 using JuMP
@@ -192,25 +187,11 @@ $$\mathbf{K}=\lbrace \mathbf{z}\in\mathbb{C}^n \mid g_j(\mathbf{z},\bar{\mathbf{
 where $\bar{\mathbf{z}}$ stands for the conjugate of $\mathbf{z}:=(z_1,\ldots,z_n)$, and $f, g_j, j=1,\ldots,m$ are real-valued polynomials satisfying $\bar{f}=f$ and $\bar{g}_j=g_j$.
 
 In TSSOS, we use $x_i$ to represent the complex variable $z_i$ and use $x_{n+i}$ to represent its conjugate $\bar{z}_i$. Consider the example
-$$
-\begin{cases}
-\mathrm{inf}&3-|z_1|^2-0.5\mathbf{i}z_1\bar{z}_2^2+0.5\mathbf{i}z_2^2\bar{z}_1\\
-\mathrm{s.t.}&z_2+\bar{z}_2\ge0,\\
-&|z_1|^2-0.25z_1^2-0.25\bar{z}_1^2=1,\\
-&|z_1|^2+|z_2|^2=3,\\
-&\mathbf{i}z_2-\mathbf{i}\bar{z}_2=0.
-\end{cases}\notag
-$$
+$$\mathrm{inf}\ 3-|z_1|^2-0.5\mathbf{i}z_1\bar{z}_2^2+0.5\mathbf{i}z_2^2\bar{z}_1$$
+$$\mathrm{s.t.}\ z_2+\bar{z}_2\ge0,|z_1|^2-0.25z_1^2-0.25\bar{z}_1^2=1,|z_1|^2+|z_2|^2=3,\mathbf{i}z_2-\mathbf{i}\bar{z}_2=0.$$
 It can be represented as
-$$
-\begin{cases}
-\mathrm{inf}&3-x_1x_3-0.5\mathbf{i}x_1x_4^2+0.5\mathbf{i}x_2^2x_3\\
-\mathrm{s.t.}&x_2+x_4\ge0,\\
-&x_1x_3-0.25x_1^2-0.25x_3^2=1,\\
-&x_1x_3+x_2x_4=3,\\
-&\mathbf{i}x_2-\mathbf{i}x_4=0.
-\end{cases}\notag
-$$
+$$\mathrm{inf}\ 3-x_1x_3-0.5\mathbf{i}x_1x_4^2+0.5\mathbf{i}x_2^2x_3$$
+$$\mathrm{s.t.}\ x_2+x_4\ge0,x_1x_3-0.25x_1^2-0.25x_3^2=1,x_1x_3+x_2x_4=3,\mathbf{i}x_2-\mathbf{i}x_4=0.$$
 
 ```Julia
 using DynamicPolynomials
