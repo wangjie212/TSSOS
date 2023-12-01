@@ -138,6 +138,10 @@ TSSOS supports more general [sum-of-squares optimization](https://en.wikipedia.o
 $$\mathrm{inf}_{\mathbf{y}\in\mathbb{R}^n}\mathbf{c}^{\intercal}\mathbf{y}\ \mathrm{s.t.}\ a_{k0}+y_1 a_{k1}+\cdots+y_n a_{kn}\in\mathrm{SOS}, \ k=1,\ldots,m.$$
 where $\mathbf{c}\in\mathbb{R}^n$ and $a_{ki}\in\mathbb{R}[\mathbf{x}]$ are polynomials. The SOS constraints can be handled with the routine **add_psatz!**:
 
+$$\mathrm{inf}_{\mathbf{y}\in\mathbb{R}^n}\mathbf{c}^{\intercal}\mathbf{y}$$
+
+$$\ \mathrm{s.t.}\ a_{k0}+y_1 a_{k1}+\cdots+y_n a_{kn}\in\mathrm{SOS}, \ k=1,\ldots,m.$$
+
 ```Julia
 model,info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order, TS="block", SO=1, Groebnerbasis=false)
 ```
