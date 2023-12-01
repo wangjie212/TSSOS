@@ -140,7 +140,7 @@ where $\mathbf{c}\in\mathbb{R}^n$ and $a_{ki}\in\mathbb{R}[\mathbf{x}]$ are poly
 
 $$\mathrm{inf}_{\mathbf{y}\in\mathbb{R}^n}\mathbf{c}^{\intercal}\mathbf{y}$$
 
-$$\ \mathrm{s.t.}\ a_{k0}+y_1 a_{k1}+\cdots+y_n a_{kn}\in\mathrm{SOS}, \ k=1,\ldots,m.$$
+$$\ \mathrm{s.t.}\ a_{k0}+y_1a_{k1}+\cdots+y_na_{kn}\in\mathrm{SOS}, \ k=1,\ldots,m.$$
 
 ```Julia
 model,info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order, TS="block", SO=1, Groebnerbasis=false)
