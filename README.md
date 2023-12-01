@@ -136,12 +136,10 @@ See the file runopf.jl as well as modelopf.jl in example.
 ## Sum-of-squares optimization
 TSSOS supports more general [sum-of-squares optimization](https://en.wikipedia.org/wiki/Sum-of-squares_optimization) (including polynomial optimization as a special case):
 $$
-\begin{equation}
 \begin{cases}
 \mathrm{inf}_{\mathbb{y}\in\mathbb{R}^n}&\mathbb{c}^{\intercal}\mathbb{y}\\
 \mathrm{s.t.}&a_{k0}+y_1a_{k1}+\cdots+y_na_{kn}\in\mathrm{SOS}, \quad k=1,\ldots,m.
 \end{cases}\notag
-\end{equation}
 $$
 where $\mathbb{c}\in\mathbb{R}^n$ and $a_{ki}\in\mathbb{R}[\mathbf{x}]$ are polynomials. The SOS constraints can be handled with the routine **add_psatz!**:
 
@@ -152,13 +150,11 @@ where **nonneg** is a nonnegative polynomial constrained to be a Putinar's style
 
 The following is a simple exmaple.
 $$
-\begin{equation}
 \begin{cases}
 \mathrm{sup}&\lambda\\
 \mathrm{s.t.}&x_1^2 + x_1x_2 + x_2^2 + x_2x_3 + x_3^2 - \lambda(x_1^2+x_2^2+x_3^2)=\sigma+\tau_1(x_1^2+x_2^2+y_1^2-1)+\tau_2(x_2^2+x_3^2+y_2^2-1),\\
 &\sigma\in\mathrm{SOS},\deg(\sigma)\le2d,\,\tau_1,\tau_2\in\mathbb{R}[\mathbf{x}],\deg(\tau_1),\deg(\tau_2)\le2d-2.
 \end{cases}\notag
-\end{equation}
 $$
 
 ```Julia
@@ -200,7 +196,6 @@ where $\bar{\mathbf{z}}$ stands for the conjugate of $\mathbf{z}:=(z_1,\ldots,z_
 
 In TSSOS, we use $x_i$ to represent the complex variable $z_i$ and use $x_{n+i}$ to represent its conjugate $\bar{z}_i$. Consider the example
 $$
-\begin{equation}
 \begin{cases}
 \mathrm{inf}&3-|z_1|^2-0.5\mathbf{i}z_1\bar{z}_2^2+0.5\mathbf{i}z_2^2\bar{z}_1\\
 \mathrm{s.t.}&z_2+\bar{z}_2\ge0,\\
@@ -208,11 +203,9 @@ $$
 &|z_1|^2+|z_2|^2=3,\\
 &\mathbf{i}z_2-\mathbf{i}\bar{z}_2=0.
 \end{cases}\notag
-\end{equation}
 $$
 It can be represented as
 $$
-\begin{equation}
 \begin{cases}
 \mathrm{inf}&3-x_1x_3-0.5\mathbf{i}x_1x_4^2+0.5\mathbf{i}x_2^2x_3\\
 \mathrm{s.t.}&x_2+x_4\ge0,\\
@@ -220,7 +213,6 @@ $$
 &x_1x_3+x_2x_4=3,\\
 &\mathbf{i}x_2-\mathbf{i}x_4=0.
 \end{cases}\notag
-\end{equation}
 $$
 
 ```Julia
