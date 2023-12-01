@@ -135,10 +135,7 @@ See the file runopf.jl as well as modelopf.jl in example.
 
 ## Sum-of-squares optimization
 TSSOS supports more general [sum-of-squares optimization](https://en.wikipedia.org/wiki/Sum-of-squares_optimization) (including polynomial optimization as a special case):
-$$
-\mathrm{inf}_{\mathbb{y}\in\mathbb{R}^n} \mathbb{c}^{\intercal}\mathbb{y}\\
-\mathrm{s.t.} a_{k0}+y_1a_{k1}+\cdots+y_na_{kn}\in\mathrm{SOS}, \quad k=1,\ldots,m.
-$$
+$$\mathrm{inf}_{\mathbb{y}\in\mathbb{R}^n}\mathbb{c}^{\intercal}\mathbb{y}\quad\mathrm{s.t.}\quad a_{k0}+y_1a_{k1}+\cdots+y_na_{kn}\in\mathrm{SOS}, \quad k=1,\ldots,m.$$
 where $\mathbb{c}\in\mathbb{R}^n$ and $a_{ki}\in\mathbb{R}[\mathbf{x}]$ are polynomials. The SOS constraints can be handled with the routine **add_psatz!**:
 
 ```Julia
