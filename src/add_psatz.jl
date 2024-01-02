@@ -26,7 +26,7 @@ Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP 
 - `ineq_cons`: inequality constraints
 - `eq_cons`: equality constraints
 - `order`: relaxation order
-- `CS`: method of chordal extension for correlative sparsity (`true`, `false`)
+- `CS`: method of chordal extension for correlative sparsity (`"MF"`, `"MD"`, `"NC"`, `false`)
 - `cliques`: the set of cliques used in correlative sparsity
 - `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
 - `SO`: sparse order
@@ -69,11 +69,9 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
         l = length(eq_cons)
     end
     fsupp,fcoe = poly_info(nonneg, vars)
-    dmin = ceil(Int, maximum([maxdegree(nonneg); dg; dh])/2)
-    order = order < dmin ? dmin : order
-    if CS == true
+    if CS != false
         if cliques == []
-            cliques,cql,cliquesize = clique_decomp(n, m, length(eq_cons), fsupp, gsupp, hsupp, QUIET=QUIET)
+            cliques,cql,cliquesize = clique_decomp(n, m, length(eq_cons), fsupp, gsupp, hsupp, alg=CS, QUIET=false)
         else
             cql = length(cliques)
             cliquesize = length.(cliques)
@@ -81,6 +79,8 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
     else
         cliques,cql,cliquesize = [Vector(1:n)],1,[n]
     end
+    dmin = ceil(Int, maximum([maxdegree(nonneg); dg; dh])/2)
+    order = order < dmin ? dmin : order
     I,J = assign_constraint(m, l, gsupp, hsupp, cliques, cql)
     basis = Vector{Vector{Matrix{UInt8}}}(undef, cql)
     for t = 1:cql
@@ -278,7 +278,7 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
     return model,info
 end
 
-function clique_decomp(n, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matrix{UInt8}}, hsupp::Vector{Matrix{UInt8}}; QUIET=false)
+function clique_decomp(n, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matrix{UInt8}}, hsupp::Vector{Matrix{UInt8}}; alg="MF", QUIET=false)
     G = SimpleGraph(n)
     for item in eachcol(fsupp)
         add_clique!(G, findall(item .!= 0))
@@ -297,9 +297,13 @@ function clique_decomp(n, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matrix{UInt8
         end
         add_clique!(G, unique(temp))
     end
-    cliques,cql,cliquesize = chordal_cliques!(G)
+    if alg == "NC"
+        cliques,cql,cliquesize = max_cliques(G)
+    else
+        cliques,cql,cliquesize = chordal_cliques!(G, method=alg, minimize=true)
+    end
     uc = unique(cliquesize)
-    sizes=[sum(cliquesize.== i) for i in uc]
+    sizes = [sum(cliquesize.== i) for i in uc]
     if QUIET == false
         println("-----------------------------------------------------------------------------")
         println("The clique sizes of varibles:\n$uc\n$sizes")
@@ -513,9 +517,7 @@ function get_blocks(n::Int, m::Int, tsupp, gsupp::Vector{Array{UInt8, 2}}, glt, 
                     tsupp = unique(tsupp, dims=2)
                 end
             else
-                if QUIET == false
-                    println("No higher TSSOS hierarchy!")
-                end
+                println("No higher TS step of the TSSOS hierarchy!")
                 status = 0
                 sb = numb = nothing
                 break

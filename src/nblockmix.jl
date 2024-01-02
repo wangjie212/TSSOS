@@ -43,7 +43,7 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 - `d`: relaxation order
 - `nb`: number of binary variables in `x`
 - `numeq`: number of equality constraints
-- `CS`: method of chordal extension for correlative sparsity (`"MF"`, `"MD"`, `false`)
+- `CS`: method of chordal extension for correlative sparsity (`"MF"`, `"MD"`, `"NC"`, `false`)
 - `cliques`: the set of cliques used in correlative sparsity
 - `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
 - `md`: tunable parameter for merging blocks
