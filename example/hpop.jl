@@ -26,9 +26,9 @@ solve_hpop(f, x, [], [], 4, QUIET=true, CS=false, TS="block", SO=2, nnhomovar=tr
 # Homogenization with CS type 1
 solve_hpop(f, x, [], [], 3, QUIET=true, type=1, ε=0, TS="block", SO=2, nnhomovar=true)
 # Homogenization with CS type 2
-solve_hpop(f, x, [], [], 4, QUIET=true, type=2, TS="block", SO=2, nnhomovar=true)
+solve_hpop(f, x, [], [], 5, QUIET=true, type=2, TS="block", SO=2, nnhomovar=true)
 # Homogenization with CS type 3
-solve_hpop(f, x, [], [], 4, QUIET=true, type=3, TS="block", SO=2, nnhomovar=true)
+solve_hpop(f, x, [], [], 5, QUIET=true, type=3, TS="block", SO=2, nnhomovar=true)
 # No homogenization with CS
 @time begin
 opt,sol,data = cs_tssos_first([f], x, 7, TS="block", solution=true, QUIET=true)
@@ -71,9 +71,9 @@ solve_hpop(f, x, [], [], 2, QUIET=true, CS=false, TS="block")
 # Homogenization with CS type 1
 solve_hpop(f, x, [], [], 2, QUIET=true, type=1, TS="block", SO=2, nnhomovar=true)
 # Homogenization with CS type 2
-solve_hpop(f, x, [], [], 4, QUIET=true, type=2, TS="block", SO=1, nnhomovar=true)
+solve_hpop(f, x, [], [], 3, QUIET=true, type=2, TS="block", SO=1, nnhomovar=true)
 # Homogenization with CS type 3
-solve_hpop(f, x, [], [], 2, QUIET=true, type=3, TS="block", SO=1, nnhomovar=true)
+solve_hpop(f, x, [], [], 3, QUIET=true, type=3, TS="block", SO=1, nnhomovar=true)
 # No homogenization with CS
 @time begin
 opt,sol,data = cs_tssos_first([f], x, 2, TS="block", solution=false, QUIET=true)
@@ -107,8 +107,12 @@ x[4]^2*x[5]^2*(10 - x[6]^2) + x[7]^2*(x[4]^2 + 2x[5]^2 + 3x[6]^2)
 g = [x[1]-x[2]*x[3], -x[2]+x[3]^2, 1-sum(x[4:6].^2)]
 # Homogenization without CS
 solve_hpop(f, x, g, [], 5, QUIET=true, CS=false, TS="block", SO=2, nnhomovar=true)
-# Homogenization with CS
+# Homogenization with CS type 1
 solve_hpop(f, x, g, [], 5, QUIET=true, type=1, ε=1e-4, TS="block", SO=2, nnhomovar=true)
+# Homogenization with CS type 2
+solve_hpop(f, x, g, [], 5, QUIET=true, type=2, TS="block", SO=2, nnhomovar=true)
+# Homogenization with CS type 3
+solve_hpop(f, x, g, [], 5, QUIET=true, type=3, TS="block", SO=2, nnhomovar=true)
 # No homogenization with CS
 @time begin
 opt,sol,data = cs_tssos_first([f; g], x, 3, TS="block", solution=true, QUIET=true)
@@ -116,7 +120,7 @@ end
 
 #######################################################################
 # Example 5.7
-p = 10
+p = 3
 @polyvar x[1:8*p+2]
 f = 0
 for i = 1:p
@@ -139,7 +143,7 @@ end
 #######################################################################
 # Example 5.8
 Random.seed!(0)
-n = 100
+n = 40
 u = 3
 p = trunc(Int, n/u)
 @polyvar x[1:n]
@@ -159,12 +163,15 @@ f += (x[u*(p-1):n].^2)'*A'*A*(x[u*(p-1):n].^2) + b'*(x[u*(p-1):n].^2)
 g = [g; sum(x[u*(p-1):n].^4) - 1]
 # Homogenization without CS
 solve_hpop(f, x, g, [], 4, QUIET=true, CS=false, TS="block")
-# Homogenization with CS
+# Homogenization with CS type 1
 solve_hpop(f, x, g, [], 4, QUIET=true, type=1, ε=1e-4, TS="block")
+# Homogenization with CS type 2
+solve_hpop(f, x, g, [], 4, QUIET=true, type=2, TS="block")
+# Homogenization with CS type 3
 solve_hpop(f, x, g, [], 4, QUIET=true, type=3, TS="block")
 # No homogenization with CS
 @time begin
-opt,sol,data = cs_tssos_first([f; g], x, 4, TS="block", solution=false, QUIET=true)
+opt,sol,data = cs_tssos_first([f; g], x, 2, TS="block", solution=false, QUIET=true)
 end
 # Find a local solution
 obj,sol,status = local_solution(data.n, data.m, data.supp, data.coe, startpoint=rand(data.n))
