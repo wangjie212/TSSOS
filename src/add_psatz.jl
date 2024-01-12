@@ -1,11 +1,12 @@
 mutable struct struct_data
-    cliques # the clique structrue
+    cliques # clique structrue
     cql # number of cliques
     cliquesize # size of cliques
     basis # monomial basis
-    blocks # the block structrue
+    blocks # block structrue corresponding to inequality constraints
     cl # number of blocks
     blocksize # size of blocks
+    eblocks # block structrue corresponding to equality constraints
     tsupp # total support
     I # index sets of inequality constraints
     J # index sets of equality constraints
@@ -90,10 +91,10 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
             basis[t][s+1] = get_nbasis(n, order-ceil(Int, dg[I[t][s]]/2), var=cliques[t])
         end
         for s = 1:length(J[t])
-            basis[t][s+length(I[t])+1] = get_nbasis(n, order-ceil(Int, dh[J[t][s]]/2), var=cliques[t])
+            basis[t][s+length(I[t])+1] = get_nbasis(n, 2*order-dh[J[t][s]], var=cliques[t])
         end
     end
-    blocks,cl,blocksize,sb,numb,status = get_cblocks_mix(n, I, J, m, l, fsupp, gsupp, glt, hsupp, hlt, basis, cliques, cql, tsupp=[], TS=TS, SO=SO, QUIET=QUIET)
+    blocks,cl,blocksize,eblocks,sb,numb,status = get_cblocks_mix(n, I, J, m, l, fsupp, gsupp, glt, hsupp, hlt, basis, cliques, cql, tsupp=[], TS=TS, SO=SO, QUIET=QUIET)
     ne = 0
     for t = 1:cql
         ne += sum(numele(blocksize[t][1]))
@@ -101,7 +102,7 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
             ne += sum(glt[I[t][k]]*numele(blocksize[t][k+1]) for k=1:length(I[t]))
         end
         if J[t] != []
-            ne += sum(hlt[J[t][k]]*numele(blocksize[t][k+length(I[t])+1]) for k=1:length(J[t]))
+            ne += sum(hlt[J[t][k]]*length(eblocks[t][k]) for k=1:length(J[t]))
         end
     end
     tsupp = zeros(UInt8, n, ne)
@@ -119,10 +120,8 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
             tsupp[:, q] = bi
             q += 1
         end
-        for (j, w) in enumerate(J[i]), p = 1:cl[i][j+length(I[i])+1], t = 1:blocksize[i][j+length(I[i])+1][p], r = t:blocksize[i][j+length(I[i])+1][p], s = 1:hlt[w]
-            ind1 = blocks[i][j+length(I[i])+1][p][t]
-            ind2 = blocks[i][j+length(I[i])+1][p][r]
-            @inbounds bi = basis[i][j+length(I[i])+1][:, ind1] + basis[i][j+length(I[i])+1][:, ind2] + hsupp[w][:, s]
+        for (j, w) in enumerate(J[i]), t in eblocks[i][j], s = 1:hlt[w]
+            @inbounds bi = basis[i][j+length(I[i])+1][:, t] + hsupp[w][:, s]
             tsupp[:, q] = bi
             q += 1
         end
@@ -145,8 +144,11 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
     ltsupp = size(tsupp, 2)
     cons = [AffExpr(0) for i=1:ltsupp]
     pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, cql)
+    if l > 0
+        mul = Vector{Vector{Vector{VariableRef}}}(undef, cql)
+    end
     for t = 1:cql
-        pos[t] = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, 1+length(I[t])+length(J[t]))
+        pos[t] = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, 1+length(I[t]))
         pos[t][1] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[t][1])
         for i = 1:cl[t][1]
             bs = blocksize[t][1][i]
@@ -190,8 +192,8 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
         end
         for k = 1:length(I[t])
             pos[t][k+1] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[t][k+1])
-            for i = 1:length(blocks[t][k+1])
-                bs = length(blocks[t][k+1][i])
+            for i = 1:cl[t][k+1]
+                bs = blocksize[t][k+1][i]
                 if bs == 1
                     pos[t][k+1][i] = @variable(model, lower_bound=0)
                     for s = 1:glt[I[t][k]]
@@ -233,29 +235,14 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
                 end
             end
         end
+        mul[t] = Vector{Vector{VariableRef}}(undef, length(J[t]))
         for k = 1:length(J[t])
-            pos[t][k+length(I[t])+1] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[t][k+length(I[t])+1])
-            for i = 1:length(blocks[t][k+length(I[t])+1])
-                bs = length(blocks[t][k+length(I[t])+1][i])
-                if bs == 1
-                    pos[t][k+length(I[t])+1][i] = @variable(model)
-                    for s = 1:hlt[J[t][k]]
-                        bi = 2*basis[t][k+length(I[t])+1][:, blocks[t][k+length(I[t])+1][i][1]] + hsupp[J[t][k]][:,s]
-                        Locb = bfind(tsupp, ltsupp, bi)
-                        @inbounds add_to_expression!(cons[Locb], hcoe[J[t][k]][s], pos[t][k+length(I[t])+1][i])
-                    end
-                else
-                    pos[t][k+length(I[t])+1][i] = @variable(model, [1:bs, 1:bs], Symmetric)
-                    for j = 1:bs, r = j:bs, s = 1:hlt[J[t][k]]
-                        bi = basis[t][k+length(I[t])+1][:, blocks[t][k+length(I[t])+1][i][j]] + basis[t][k+length(I[t])+1][:, blocks[t][k+length(I[t])+1][i][r]] + hsupp[J[t][k]][:,s]
-                        Locb = bfind(tsupp, ltsupp, bi)
-                        if j == r
-                           @inbounds add_to_expression!(cons[Locb], hcoe[J[t][k]][s], pos[t][k+length(I[t])+1][i][j,r])
-                        else
-                           @inbounds add_to_expression!(cons[Locb], 2*hcoe[J[t][k]][s], pos[t][k+length(I[t])+1][i][j,r])
-                        end
-                    end
-                end
+            bs = length(eblocks[t][k])
+            mul[t][k] = @variable(model, [1:bs])
+            for i = 1:bs, s = 1:hlt[J[t][k]]
+                bi = basis[t][k+length(I[t])+1][:, eblocks[t][k][i]] + hsupp[J[t][k]][:, s]
+                Locb = bfind(tsupp, ltsupp, bi)
+                @inbounds add_to_expression!(cons[Locb], hcoe[J[t][k]][s], mul[t][k][i])
             end
         end
     end
@@ -274,7 +261,7 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
     else
         @constraint(model, cons.==bc)
     end
-    info = struct_data(cliques,cql,cliquesize,basis,blocks,cl,blocksize,tsupp,I,J,pos,constrs)
+    info = struct_data(cliques,cql,cliquesize,basis,blocks,cl,blocksize,eblocks,tsupp,I,J,pos,constrs)
     return model,info
 end
 
@@ -338,6 +325,7 @@ end
 
 function get_cblocks_mix(n, I, J, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matrix{UInt8}}, glt, hsupp::Vector{Matrix{UInt8}}, hlt, basis, cliques, cql; tsupp=[], TS="block", SO=1, QUIET=false)
     blocks = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
+    eblocks = Vector{Vector{Vector{UInt16}}}(undef, cql)
     cl = Vector{Vector{Int}}(undef, cql)
     blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
     sb = Vector{Vector{Int}}(undef, cql)
@@ -355,19 +343,20 @@ function get_cblocks_mix(n, I, J, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matr
     end
     status = ones(Int, cql)
     for i = 1:cql
-        lc = length(I[i]) + length(J[i])
+        lc = length(I[i])
         ind = [issubset(findall(item .!= 0), cliques[i]) for item in eachcol(tsupp)]
         supp = [tsupp[:, ind] UInt8(2)*basis[i][1]]
         supp = sortslices(supp, dims=2)
         supp = unique(supp, dims=2)
         blocks[i] = Vector{Vector{Vector{UInt16}}}(undef, lc+1)
+        eblocks[i] = Vector{Vector{UInt16}}(undef, length(J[i]))
         cl[i] = Vector{Int}(undef, lc+1)
         blocksize[i] = Vector{Vector{Int}}(undef, lc+1)
         sb[i] = Vector{Int}(undef, lc+1)
         numb[i] = Vector{Int}(undef, lc+1)
-        blocks[i],cl[i],blocksize[i],sb[i],numb[i],status[i] = get_blocks(n, lc, supp, [gsupp[I[i]]; hsupp[J[i]]], [glt[I[i]]; hlt[J[i]]], basis[i], TS=TS, SO=SO, QUIET=QUIET)
+        blocks[i],cl[i],blocksize[i],eblocks[i],sb[i],numb[i],status[i] = get_blocks(n, lc, length(J[i]), supp, [gsupp[I[i]]; hsupp[J[i]]], [glt[I[i]]; hlt[J[i]]], basis[i], TS=TS, SO=SO, QUIET=QUIET)
     end
-    return blocks,cl,blocksize,sb,numb,maximum(status)
+    return blocks,cl,blocksize,eblocks,sb,numb,maximum(status)
 end
 
 function numele(a)
@@ -477,8 +466,29 @@ function get_cgraph(tsupp::Array{UInt8, 2}, gsupp::Array{UInt8, 2}, glt, basis::
     return G
 end
 
-function get_blocks(n::Int, m::Int, tsupp, gsupp::Vector{Array{UInt8, 2}}, glt, basis::Vector{Array{UInt8, 2}}; TS="block", SO=1, merge=false, md=3, QUIET=false)
+function get_eblock(tsupp::Array{UInt8, 2}, hsupp::Array{UInt8, 2}, hlt, basis::Array{UInt8, 2})
+    ltsupp = size(tsupp, 2)
+    eblock = UInt16[]
+    for i = 1:size(basis, 2)
+        r = 1
+        while r <= hlt
+            bi = basis[:,i] + hsupp[:,r]
+            if bfind(tsupp, ltsupp, bi) != 0
+               break
+            else
+                r += 1
+            end
+        end
+        if r <= hlt
+           push!(eblock, i)
+        end
+    end
+    return eblock
+end
+
+function get_blocks(n::Int, m::Int, l::Int, tsupp, supp::Vector{Array{UInt8, 2}}, lt, basis::Vector{Array{UInt8, 2}}; TS="block", SO=1, merge=false, md=3, QUIET=false)
     blocks = Vector{Vector{Vector{UInt16}}}(undef, m+1)
+    eblocks = Vector{Vector{UInt16}}(undef, l)
     blocksize = Vector{Vector{Int}}(undef, m+1)
     cl = Vector{Int}(undef, m+1)
     if TS == false
@@ -486,6 +496,9 @@ function get_blocks(n::Int, m::Int, tsupp, gsupp::Vector{Array{UInt8, 2}}, glt, 
             blocks[k] = [[i for i=1:size(basis[k],2)]]
             blocksize[k] = [size(basis[k],2)]
             cl[k] = 1          
+        end
+        for k = 1:l
+            eblocks[k] = [i for i=1:size(basis[k+m+1],2)]
         end
         sb = blocksize[1]
         numb = [1]
@@ -535,14 +548,17 @@ function get_blocks(n::Int, m::Int, tsupp, gsupp::Vector{Array{UInt8, 2}}, glt, 
                 println("------------------------------------------------------")
             end
             for k = 1:m
-                G = get_cgraph(tsupp, gsupp[k], glt[k], basis[k+1])
+                G = get_cgraph(tsupp, supp[k], lt[k], basis[k+1])
                 blocks[k+1] = connected_components(G)
                 blocksize[k+1] = length.(blocks[k+1])
                 cl[k+1] = length(blocksize[k+1])
             end
+            for k = 1:l
+                eblocks[k] = get_eblock(tsupp, supp[k+m], lt[k+m], basis[k+m+1])
+            end
         end
     end
-    return blocks,cl,blocksize,sb,numb,status
+    return blocks,cl,blocksize,eblocks,sb,numb,status
 end
 
 function get_moment(n, tsupp, lb, ub)

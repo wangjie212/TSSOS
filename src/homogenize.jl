@@ -1,11 +1,11 @@
 # Homogenize the polynomial f with the homogenization variable z
 function homogenize(f, z)
     d = maxdegree(f)
-    mons = [mon*z^(d-maxdegree(mon)) for mon in monomials(f)]
-    return coefficients(f)'*mons
+    ts = [term*z^(d-maxdegree(term)) for term in terms(f)]
+    return sum(ts)
 end
 
-function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF", type=3, ε=0, TS="block", SO=1, nnhomovar=false, Groebnerbasis=false)
+function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF", type=3, ε=0, TS="block", SO=1, nnhomovar=false, Groebnerbasis=false, Mommat=false)
     println("*********************************** TSSOS ***********************************")
     println("Version 1.0.0, developed by Jie Wang, 2020--2023")
     println("TSSOS is launching...")
@@ -83,7 +83,7 @@ function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF",
     model = Model(optimizer_with_attributes(Mosek.Optimizer))
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     @variable(model, λ)
-    model,info = add_psatz!(model, cost-λ*z^d, nvars, ineq_cons, eq_cons, order, QUIET=QUIET, CS=CS, TS=TS, SO=SO, Groebnerbasis=Groebnerbasis)
+    model,info = add_psatz!(model, cost-λ*z^d, nvars, ineq_cons, eq_cons, order, QUIET=QUIET, CS=CS, TS=TS, SO=SO, Groebnerbasis=Groebnerbasis, constrs="con")
     @objective(model, Max, λ)
     optimize!(model)
     status = termination_status(model)
@@ -96,5 +96,10 @@ function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF",
     @show optimum
     end
     println("POP solving time: $time seconds.")
-    return optimum
+    MomMat = nothing
+    if Mommat == true
+        moment = [-dual(constraint_by_name(model, "con[$i]")) for i=1:size(info.tsupp, 2)]
+        MomMat = get_moment_matrix(moment, info.tsupp, info.cql, info.basis)
+    end
+    return optimum,MomMat,info
 end
