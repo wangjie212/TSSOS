@@ -24,11 +24,11 @@ f = x[1]^6 + x[2]^6 + 1 + 3*x[1]^2*x[2]^2 - x[1]^4*(x[2]^2 + 1) - x[2]^4*(x[1]^2
 # Homogenization without CS
 solve_hpop(f, x, [], [], 4, QUIET=true, CS=false, TS="block", SO=2, nnhomovar=true)
 # Homogenization with CS type 1
-solve_hpop(f, x, [], [], 3, QUIET=true, type=1, ε=0, TS="block", SO=2, nnhomovar=true)
+solve_hpop(f, x, [], [], 3, QUIET=true, type=1, ε=1e-4, TS="block", SO=2, nnhomovar=true)
 # Homogenization with CS type 2
 solve_hpop(f, x, [], [], 5, QUIET=true, type=2, TS="block", SO=2, nnhomovar=true)
 # Homogenization with CS type 3
-solve_hpop(f, x, [], [], 5, QUIET=true, type=3, TS="block", SO=2, nnhomovar=true)
+solve_hpop(f, x, [], [], 3, QUIET=true, type=3, TS="block", SO=2, nnhomovar=true)
 # No homogenization with CS
 @time begin
 opt,sol,data = cs_tssos_first([f], x, 7, TS="block", solution=true, QUIET=true)
@@ -44,9 +44,9 @@ f2 = sum(x[4:7].^4) + (1-x[4])*(1-x[5])*(1-x[6])*(1-x[7]) + (x[4]-1)*(x[4]-x[5])
 f3 = sum(x[7:10].^4) + (1-x[7])*(1-x[8])*(1-x[9])*(1-x[10]) + (x[7]-1)*(x[7]-x[8])*(x[7]-x[9])*(x[7]-x[10]) + (x[8]-1)*(x[8]-x[7])*(x[8]-x[9])*(x[8]-x[10]) + (x[9]-1)*(x[9]-x[7])*(x[9]-x[8])*(x[9]-x[10]) + (x[10]-1)*(x[10]-x[7])*(x[10]-x[8])*(x[10]-x[9])
 f = f1 + f2 + f3
 # Homogenization without CS
-solve_hpop(f, x, [], [], 4, QUIET=true, CS=false, TS="block")
+solve_hpop(f, x, [], [], 2, QUIET=true, CS=false, TS="block")
 # Homogenization with CS type 1
-solve_hpop(f, x, [], [], 4, QUIET=true, type=1, TS="block", SO=2, nnhomovar=true)
+solve_hpop(f, x, [], [], 2, QUIET=true, type=1, ε=1e-4, TS="block", SO=2, nnhomovar=true)
 # Homogenization with CS type 2
 solve_hpop(f, x, [], [], 2, QUIET=true, type=2, TS="block")
 # Homogenization with CS type 3

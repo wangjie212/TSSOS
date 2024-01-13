@@ -308,8 +308,8 @@ function assign_constraint(m, l, gsupp::Vector{Matrix{UInt8}}, hsupp::Vector{Mat
             append!(rind, findall(gsupp[i][:,j] .!= 0))
         end
         unique!(rind)
-        ind = findfirst(k->issubset(rind, cliques[k]), 1:cql)
-        push!(I[ind], i)
+        ind = findall(k->issubset(rind, cliques[k]), 1:cql)
+        push!.(I[ind], i)
     end
     for i = 1:l
         rind = findall(hsupp[i][:,1] .!= 0)
@@ -317,8 +317,8 @@ function assign_constraint(m, l, gsupp::Vector{Matrix{UInt8}}, hsupp::Vector{Mat
             append!(rind, findall(hsupp[i][:,j] .!= 0))
         end
         unique!(rind)
-        ind = findfirst(k->issubset(rind, cliques[k]), 1:cql)
-        push!(J[ind], i)
+        ind = findall(k->issubset(rind, cliques[k]), 1:cql)
+        push!.(J[ind], i)
     end
     return I,J
 end
@@ -330,7 +330,7 @@ function get_cblocks_mix(n, I, J, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matr
     blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
     sb = Vector{Vector{Int}}(undef, cql)
     numb = Vector{Vector{Int}}(undef, cql)
-    if tsupp == []
+    if isempty(tsupp)
         tsupp = copy(fsupp)
         for i = 1:m
             tsupp = [tsupp gsupp[i]]
@@ -450,16 +450,8 @@ function get_cgraph(tsupp::Array{UInt8, 2}, gsupp::Array{UInt8, 2}, glt, basis::
     G = SimpleGraph(lb)
     ltsupp = size(tsupp, 2)
     for i = 1:lb, j = i+1:lb
-        r = 1
-        while r <= glt
-            bi = basis[:,i] + basis[:,j] + gsupp[:,r]
-            if bfind(tsupp, ltsupp, bi) != 0
-               break
-            else
-                r += 1
-            end
-        end
-        if r <= glt
+        ind = findfirst(x -> bfind(tsupp, ltsupp, basis[:,i] + basis[:,j] + gsupp[:,x]) != 0, 1:glt)
+        if ind !== nothing
            add_edge!(G, i, j)
         end
     end
@@ -470,16 +462,8 @@ function get_eblock(tsupp::Array{UInt8, 2}, hsupp::Array{UInt8, 2}, hlt, basis::
     ltsupp = size(tsupp, 2)
     eblock = UInt16[]
     for i = 1:size(basis, 2)
-        r = 1
-        while r <= hlt
-            bi = basis[:,i] + hsupp[:,r]
-            if bfind(tsupp, ltsupp, bi) != 0
-               break
-            else
-                r += 1
-            end
-        end
-        if r <= hlt
+        ind = findfirst(x -> bfind(tsupp, ltsupp, basis[:,i] + hsupp[:,x]) != 0, 1:hlt)
+        if ind !== nothing
            push!(eblock, i)
         end
     end

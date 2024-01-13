@@ -452,7 +452,7 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
             end
         end
         bc = zeros(ltsupp)
-        for i in axes(supp,2)
+        for i in axes(supp, 2)
             Locb = bfind(tsupp, ltsupp, supp[:,i])
             if Locb == 0
                @error "The monomial basis is not enough!"

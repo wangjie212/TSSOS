@@ -21,7 +21,7 @@ function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF",
         else
             hsupp = Matrix{UInt8}[]
         end
-        cliques,cql,_ = clique_decomp(length(vars), length(ineq_cons), length(eq_cons), fsupp, gsupp, hsupp, alg=CS, QUIET=true)  
+        cliques,cql,_ = clique_decomp(length(vars), length(ineq_cons), length(eq_cons), fsupp, gsupp, hsupp, alg="NC", QUIET=QUIET)  
     end
     @polyvar z
     if ineq_cons != []

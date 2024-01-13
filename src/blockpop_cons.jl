@@ -272,17 +272,8 @@ function get_cgraph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{
     G = SimpleGraph(lb)
     ltsupp = size(tsupp, 2)
     for i = 1:lb, j = i+1:lb
-        r = 1
-        while r <= size(supp, 2)
-            bi = bin_add(basis[:,i], basis[:,j], nb)
-            bi = bin_add(bi, supp[:,r], nb)
-            if bfind(tsupp, ltsupp, bi) != 0
-               break
-            else
-                r += 1
-            end
-        end
-        if r <= size(supp, 2)
+        ind = findfirst(x -> bfind(tsupp, ltsupp, bin_add(bin_add(basis[:,i], basis[:,j], nb), supp[:,x], nb)) != 0, size(supp, 2))
+        if ind !== nothing
            add_edge!(G, i, j)
         end
     end

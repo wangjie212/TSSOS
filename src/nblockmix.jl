@@ -426,13 +426,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
         end
         println("optimum = $objv")
         if Gram == true
-            GramMat = Vector{Vector{Vector{Union{Float64,Matrix{Float64}}}}}(undef, cql)
-            for i = 1:cql
-                GramMat[i] = Vector{Vector{Union{Float64,Matrix{Float64}}}}(undef, 1+length(J[i]))
-                for j = 1:1+length(J[i])
-                    GramMat[i][j] = [value.(pos[i][j][l]) for l = 1:cl[i][j]]
-                end
-            end
+            GramMat = [[[value.(pos[i][j][l]) for l = 1:cl[i][j]] for j = 1:1+length(J[i])] for i = 1:cql]
         end
         if solution == true
             measure = -dual.(con)
@@ -474,10 +468,7 @@ function get_cblocks_mix(dg, J, rlorder, m, supp::Vector{Vector{Vector{UInt16}}}
         sb = Vector{Vector{UInt16}}(undef, cql)
         numb = Vector{Vector{UInt16}}(undef, cql)
         basis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
-        tsupp = copy(supp[1])
-        for i = 2:m+1, j = 1:length(supp[i])
-            push!(tsupp, supp[i][j])
-        end
+        tsupp = reduce(vcat, supp) 
         sort!(tsupp)
         unique!(tsupp)
         flag = 1
@@ -520,61 +511,11 @@ function assign_constraint(m, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql
     J = [UInt32[] for i=1:cql]
     ncc = UInt32[]
     for i = 2:m+1
-        rind = copy(supp[i][1])
-        for j = 2:length(supp[i])
-            append!(rind, supp[i][j])
-        end
-        unique!(rind)
-        flag = 0
-        for j = 1:cql
-            if issubset(rind, cliques[j])
-                push!(J[j], i-1)
-                flag = 1
-            end
-        end
-        if flag == 0
-            push!(ncc, i-1)
-        end
+        ind = findall(k->issubset(unique(reduce(vcat, supp[i])), cliques[k]), 1:cql)
+        isempty(ind) ? push!(ncc, i-1) : push!.(J[ind], i-1)
     end
     return J,ncc
 end
-
-# function assign_constraint(m, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql, cliquesize; assign="first")
-#     J = [UInt32[] for i=1:cql]
-#     ncc = UInt32[]
-#     for i = 2:m+1
-#         rind = copy(supp[i][1])
-#         for j = 2:length(supp[i])
-#             append!(rind, supp[i][j])
-#         end
-#         unique!(rind)
-#         if assign == "first"
-#             ind = findfirst(k->issubset(rind, cliques[k]), 1:cql)
-#             if ind !== nothing
-#                 push!(J[ind], i-1)
-#             else
-#                 push!(ncc, i-1)
-#             end
-#         else
-#             temp = UInt32[]
-#             for j = 1:cql
-#                 if issubset(rind, cliques[j])
-#                     push!(temp, j)
-#                 end
-#             end
-#             if !isempty(temp)
-#                 if assign == "min"
-#                     push!(J[temp[argmin(cliquesize[temp])]], i-1)
-#                 else
-#                     push!(J[temp[argmax(cliquesize[temp])]], i-1)
-#                 end
-#             else
-#                 push!(ncc, i-1)
-#             end
-#         end
-#     end
-#     return J,ncc
-# end
 
 # generate the standard monomial basis in the sparse form
 function get_sbasis(var, d; nb=0)
@@ -629,16 +570,8 @@ function get_cgraph(tsupp::Vector{Vector{UInt16}}, supp::Vector{Vector{UInt16}},
     ltsupp = length(tsupp)
     G = SimpleGraph(lb)
     for i = 1:lb, j = i+1:lb
-        r = 1
-        while r <= length(supp)
-            bi = sadd(sadd(basis[i], supp[r], nb=nb), basis[j], nb=nb)
-            if bfind(tsupp, ltsupp, bi)!=0
-               break
-            else
-                r += 1
-            end
-        end
-        if r <= length(supp)
+        ind = findfirst(x -> bfind(tsupp, ltsupp, sadd(sadd(basis[i], x, nb=nb), basis[j], nb=nb)) != 0, supp)
+        if ind !== nothing
             add_edge!(G, i, j)
         end
     end
@@ -647,22 +580,14 @@ end
 
 function clique_decomp(n, m, dg, supp::Vector{Vector{Vector{UInt16}}}; order="min", alg="MF", minimize=false)
     if alg == false
-        cliques = [UInt16[i for i=1:n]]
-        cql = 1
-        cliquesize = [n]
+        cliques,cql,cliquesize = [UInt16[i for i=1:n]],1,[n]
     else
         G = SimpleGraph(n)
         for i = 1:m+1
             if order == "min" || i == 1 || order == ceil(Int, dg[i-1]/2)
-                for j = 1:length(supp[i])
-                    add_clique!(G, unique(supp[i][j]))
-                end
+                foreach(x -> add_clique!(G, unique(x)), supp[i])
             else
-                temp = copy(supp[i][1])
-                for j = 2:length(supp[i])
-                    append!(temp, supp[i][j])
-                end
-                add_clique!(G, unique(temp))
+                add_clique!(G, unique(reduce(vcat, supp[i])))
             end
         end
         if alg == "NC"
@@ -680,7 +605,7 @@ function clique_decomp(n, m, dg, supp::Vector{Vector{Vector{UInt16}}}; order="mi
 end
 
 function sadd(a, b; nb=0)
-    c = [a;b]
+    c = [a; b]
     sort!(c)
     if nb > 0
         i = 1
@@ -745,20 +670,12 @@ function get_moment(measure, tsupp, cliques, cql, cliquesize; basis=[], nb=0)
     moment = Vector{Union{Float64, Symmetric{Float64}, Array{Float64,2}}}(undef, cql)
     ltsupp = length(tsupp)
     for i = 1:cql
-        if basis == []
-            lb = cliquesize[i]+1
-        else
-            lb = length(basis[i][1])
-        end
+        lb = isempty(basis) ? cliquesize[i] + 1 : length(basis[i][1])
         moment[i] = zeros(Float64, lb, lb)
         if basis == []
             for j = 1:lb, k = j:lb
                 if j == 1
-                    if k == 1
-                        bi = UInt16[]
-                    else
-                        bi = [cliques[i][k-1]]
-                    end
+                    bi = k == 1 ? UInt16[] : [cliques[i][k-1]]
                 else
                     bi = sadd(cliques[i][j-1], cliques[i][k-1], nb=nb)
                 end
@@ -798,11 +715,7 @@ end
 function seval(supp, coe, x)
     val = 0
     for i in eachindex(supp)
-        if isempty(supp[i])
-            temp = 1
-        else
-            temp = prod(x[supp[i][j]] for j=1:length(supp[i]))
-        end
+        temp = isempty(supp[i]) ? 1 : prod(x[supp[i][j]] for j=1:length(supp[i]))
         val += coe[i]*temp
     end
     return val

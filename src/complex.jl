@@ -27,9 +27,9 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 - `opt`: optimum
 - `data`: other auxiliary data 
 """
-function cs_tssos_first(pop, z, n, d; numeq=0, foc=100, nb=0, CS="MF", cliques=[], minimize=false, assign="first", TS="block",
+function cs_tssos_first(pop::Vector{Polynomial{true, T}}, z, n, d; numeq=0, foc=100, nb=0, CS="MF", cliques=[], minimize=false, assign="first", TS="block",
     merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, tune=false, solution=false,
-    ipart=true, dualize=false, balanced=false, MomentOne=false, Gram=false, Mommat=false, cosmo_setting=cosmo_para(), writetofile=false)
+    ipart=true, dualize=false, balanced=false, MomentOne=false, Gram=false, Mommat=false, cosmo_setting=cosmo_para(), writetofile=false) where {T<:Number}
     ctype = ipart==true ? ComplexF64 : Float64
     supp,coe = polys_info(pop, z, n, ctype=ctype)
     opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, foc=foc, nb=nb, CS=CS, cliques=cliques, minimize=minimize,
@@ -617,43 +617,6 @@ function get_cblocks_mix(dg, J, rlorder, m, supp::Vector{Vector{Vector{Vector{UI
     return blocks,cl,blocksize,sb,numb,basis,maximum(status)
 end
 
-# function assign_constraint(m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques, cql, cliquesize; assign="first")
-#     J = [UInt32[] for i=1:cql]
-#     ncc = UInt32[]
-#     for i = 2:m+1
-#         rind = copy(supp[i][1][1])
-#         for j = 2:length(supp[i])
-#             append!(rind, supp[i][j][1])
-#         end
-#         unique!(rind)
-#         if assign == "first"
-#             ind = findfirst(k->issubset(rind, cliques[k]), 1:cql)
-#             if ind !== nothing
-#                 push!(J[ind], i-1)
-#             else
-#                 push!(ncc, i-1)
-#             end
-#         else
-#             temp = UInt32[]
-#             for j = 1:cql
-#                 if issubset(rind, cliques[j])
-#                     push!(temp, j)
-#                 end
-#             end
-#             if !isempty(temp)
-#                 if assign == "min"
-#                     push!(J[temp[argmin(cliquesize[temp])]], i-1)
-#                 else
-#                     push!(J[temp[argmax(cliquesize[temp])]], i-1)
-#                 end
-#             else
-#                 push!(ncc, i-1)
-#             end
-#         end
-#     end
-#     return J,ncc
-# end
-
 function assign_constraint(m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques, cql, cliquesize; assign="first")
     J = [UInt32[] for i=1:cql]
     ncc = UInt32[]
@@ -663,16 +626,8 @@ function assign_constraint(m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliq
             append!(rind, supp[i][j][1])
         end
         unique!(rind)
-        flag = 0
-        for j = 1:cql
-            if issubset(rind, cliques[j])
-                push!(J[j], i-1)
-                flag = 1
-            end
-        end
-        if flag == 0
-            push!(ncc, i-1)
-        end
+        ind = findall(k->issubset(rind, cliques[k]), 1:cql)
+        isempty(ind) ? push!(ncc, i-1) : push!.(J[ind], i-1)
     end
     return J,ncc
 end
