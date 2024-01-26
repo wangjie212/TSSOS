@@ -57,8 +57,8 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
     if Groebnerbasis == true && eq_cons != []
         l = 0
         gb = convert.(Polynomial{true,Float64}, eq_cons)
-        nonneg = rem(nonneg, gb)
         SemialgebraicSets.gröbnerbasis!(gb)
+        nonneg = rem(nonneg, gb)
         leadm = leadingmonomial.(gb)
         llead = length(leadm)
         lead = zeros(UInt8, n, llead)
