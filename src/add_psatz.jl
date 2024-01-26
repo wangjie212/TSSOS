@@ -235,14 +235,16 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
                 end
             end
         end
-        mul[t] = Vector{Vector{VariableRef}}(undef, length(J[t]))
-        for k = 1:length(J[t])
-            bs = length(eblocks[t][k])
-            mul[t][k] = @variable(model, [1:bs])
-            for i = 1:bs, s = 1:hlt[J[t][k]]
-                bi = basis[t][k+length(I[t])+1][:, eblocks[t][k][i]] + hsupp[J[t][k]][:, s]
-                Locb = bfind(tsupp, ltsupp, bi)
-                @inbounds add_to_expression!(cons[Locb], hcoe[J[t][k]][s], mul[t][k][i])
+        if l > 0
+            mul[t] = Vector{Vector{VariableRef}}(undef, length(J[t]))
+            for k = 1:length(J[t])
+                bs = length(eblocks[t][k])
+                mul[t][k] = @variable(model, [1:bs])
+                for i = 1:bs, s = 1:hlt[J[t][k]]
+                    bi = basis[t][k+length(I[t])+1][:, eblocks[t][k][i]] + hsupp[J[t][k]][:, s]
+                    Locb = bfind(tsupp, ltsupp, bi)
+                    @inbounds add_to_expression!(cons[Locb], hcoe[J[t][k]][s], mul[t][k][i])
+                end
             end
         end
     end
