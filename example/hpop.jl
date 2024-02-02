@@ -46,7 +46,7 @@ f = f1 + f2 + f3
 # Homogenization without CS
 solve_hpop(f, x, [], [], 2, QUIET=true, CS=false, TS="block")
 # Homogenization with CS type 1
-solve_hpop(f, x, [], [], 2, QUIET=true, type=1, ε=1e-4, TS="block", SO=2, nnhomovar=true)
+solve_hpop(f, x, [], [], 2, QUIET=true, type=1, TS="block", SO=2, nnhomovar=true)
 # Homogenization with CS type 2
 solve_hpop(f, x, [], [], 2, QUIET=true, type=2, TS="block")
 # Homogenization with CS type 3
