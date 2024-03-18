@@ -1,7 +1,7 @@
 name = "TSSOS"
 uuid = "81648402-ffe6-11e9-2394-0de17a9afdad"
 authors = ["jwang <wangjie212@amss.ac.cn>"]
-version = "1.0.0"
+version = "1.0.1"
 
 [deps]
 COSMO = "1e616198-aa4e-51ec-90a2-23f7fbd31d8d"

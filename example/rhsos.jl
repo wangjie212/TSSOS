@@ -19,6 +19,17 @@ coe = [[3;-1;0.5;0.5], [1;1], [-1;1;-0.25;-0.25], [1;1;-2], [-3;1;1]]
 opt,sol,data = cs_tssos_first(supp, coe, 2, 2, numeq=1, QUIET=false, CS=false, TS=false, ipart=false, Mommat=true)
 end
 
+function cbasis(z)
+    basis = Monomial{true}[1]
+    for i = 1:length(z)
+        push!(basis, z[i])
+    end
+    for i = 1:length(z), j = i:length(z)
+        push!(basis, z[i]*z[j])
+    end
+    return basis
+end
+
 # minimizing a random complex quadratic polynomial over the unit sphere
 Random.seed!(1)
 n = 50
@@ -35,30 +46,13 @@ opt,sol,data = cs_tssos_first([f; h], z, n, 1, numeq=1, QUIET=true, CS=false, TS
 end
 
 @polyvar x[1:2n]
-obj = f(z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
-rsupp = Vector{Vector{Vector{UInt16}}}(undef, 2)
-rcoe = Vector{Vector{Float64}}(undef, 2)
-mon = monomials(obj)
-bcoe = coefficients(obj)
-rsupp[1] = [UInt16[] for i=1:length(mon)]
-rcoe[1] = []
-for i = 1:length(mon)
-    ind = mon[i].z .>0
-    vars = mon[i].vars[ind]
-    exp = mon[i].z[ind]
-    for j = 1:length(vars)
-        k = TSSOS.ncbfind(x, 2n, vars[j])
-        append!(rsupp[1][i], k*ones(UInt16, exp[j]))
-    end
-    push!(rcoe[1], real(bcoe[i]))
-end
-rsupp[2] = [[[]]; [[j;j] for j=1:2n]]
-rcoe[2] = [1; -ones(2n)]
+rf = f(z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
+rpop = [real.(coefficients(rf))'*monomials(rf), 1-sum(x.^2)]
 @time begin
-opt,sol,data = cs_tssos_first(rsupp, rcoe, 2n, 1, numeq=1, QUIET=true, CS=false, TS=false, solve=false)
+opt,sol,data = tssos_first(rpop, x, 1, numeq=1, quotient=false, QUIET=true, TS="block")
 end
 
-opt,sol = local_solution(2n, 1, rsupp, rcoe, numeq=1, startpoint=rand(2n), QUIET=true)
+opt,sol = local_solution(2n, 1, data.supp, data.coe, numeq=1, startpoint=rand(2n), QUIET=true)
 println(opt)
 
 # minimizing a random complex quartic polynomial over the unit sphere
@@ -77,41 +71,13 @@ end
 @time begin
 opt,sol,data = cs_tssos_first([f; h], z, n, 2, numeq=1, QUIET=true, CS=false, TS=false, ipart=true)
 end
-    
-@polyvar x[1:2n]
-obj = f(z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
-rsupp = Vector{Vector{Vector{UInt16}}}(undef, 2)
-rcoe = Vector{Vector{Float64}}(undef, 2)
-mon = monomials(obj)
-bcoe = coefficients(obj)
-rsupp[1] = [UInt16[] for i=1:length(mon)]
-rcoe[1] = []
-for i = 1:length(mon)
-    ind = mon[i].z .>0
-    vars = mon[i].vars[ind]
-    exp = mon[i].z[ind]
-    for j = 1:length(vars)
-        k = TSSOS.ncbfind(x, 2n, vars[j])
-        append!(rsupp[1][i], k*ones(UInt16, exp[j]))
-    end
-    push!(rcoe[1], real(bcoe[i]))
-end
-rsupp[2] = [[[]]; [[j;j] for j=1:2n]]
-rcoe[2] = [1; -ones(2n)]
-@time begin
-opt,sol,data = cs_tssos_first(rsupp, rcoe, 2n, 2, numeq=1, QUIET=true, CS=false, TS=false, solve=false)
-end
-    
-opt,sol = local_solution(2n, 1, rsupp, rcoe, numeq=1, startpoint=rand(2n), QUIET=true)
-println(opt)
 
-function cbasis(z)
-    basis = Monomial{true}[1]
-    for i = 1:length(z)
-        push!(basis, z[i])
-    end
-    for i = 1:length(z), j = i:length(z)
-        push!(basis, z[i]*z[j])
-    end
-    return basis
+@polyvar x[1:2n]
+rf = f(z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
+rpop = [real.(coefficients(rf))'*monomials(rf), 1-sum(x.^2)]
+@time begin
+opt,sol,data = tssos_first(rpop, x, 2, numeq=1, quotient=false, QUIET=true, TS="block")
 end
+    
+opt,sol = local_solution(2n, 1, data.supp, data.coe, numeq=1, startpoint=rand(2n), QUIET=true)
+println(opt)

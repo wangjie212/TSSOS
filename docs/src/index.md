@@ -1,13 +1,12 @@
 # TSSOS
 
-[TSSOS](https://github.com/wangjie212/TSSOS) is a sparse polynomial optimization package
-based on the sparsity adapted moment-SOS hierarchies, which can fully exploit the sparsity in the problem data including correlative (variable) sparsity and term sparsity.
+[TSSOS](https://github.com/wangjie212/TSSOS) is a sparse polynomial optimization package based on the sparsity adapted moment-SOS hierarchies, which can fully exploit the sparsity in the problem data including correlative (variable) sparsity and term sparsity.
 
 ---
 
 ### Authors
 
-- [Jie Wang](https://wangjie212.github.io/jiewang),  LAAS-CNRS.
+- [Jie Wang](https://wangjie212.github.io/jiewang), Academy of Mathematics and Systems Science, Chinese Academy of Sciences.
 
 ### Installation
 
@@ -20,7 +19,7 @@ pkg> add https://github.com/wangjie212/TSSOS
 ### Related packages
 
 - [DynamicPolynomials](https://github.com/JuliaAlgebra/DynamicPolynomials.jl): Polynomial definition
-- [MultivariatePolynomials](https://github.com/JuliaAlgebra/MultivariatePolynomials.jl): Polynomials manipulations
+- [MultivariatePolynomials](https://github.com/JuliaAlgebra/MultivariatePolynomials.jl): Polynomial manipulation
 - [NCTSSOS](https://github.com/wangjie212/NCTSSOS): Noncommutative polynomial optimization
 - [ChordalGraph](https://github.com/wangjie212/ChordalGraph): Chordal graphs and chordal extentions
 - [SparseJSR](https://github.com/wangjie212/SparseJSR): Computing joint spetral radius

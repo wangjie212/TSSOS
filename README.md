@@ -96,7 +96,7 @@ using DynamicPolynomials
 n = 6
 @polyvar x[1:n]
 f = 1+sum(x.^4)+x[1]*x[2]*x[3]+x[3]*x[4]*x[5]+x[3]*x[4]*x[6]+x[3]*x[5]*x[6]+x[4]*x[5]*x[6]
-pop = [f, 1-sum(x[1:3].^2), 1-sum(x[1:4].^2)]
+pop = [f, 1-sum(x[1:3].^2), 1-sum(x[3:6].^2)]
 order = 2 # set the relaxation order
 opt,sol,data = cs_tssos_first(pop, x, order, numeq=0, TS="MD")
 opt,sol,data = cs_tssos_higher!(data, TS="MD")

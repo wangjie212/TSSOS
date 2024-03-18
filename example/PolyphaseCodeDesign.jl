@@ -13,7 +13,7 @@ end
 
 order = 3
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, N+1, order, nb=N+1, writetofile="D:/project/ManiDSDP/polyphasecode4n.sdpa", CS=false, TS="block", ipart=false, solve=true, balanced=false, QUIET=false)
+opt,sol,data = cs_tssos_first(pop, z, N+1, order, nb=N+1, CS=false, TS="block", ipart=false, solve=true, balanced=false, QUIET=false)
 end
 println(opt^0.5)
 
@@ -53,30 +53,8 @@ end
 sol = cos.(θ)+sin.(θ)*im
 abs.([pop[j+1](z=>[sol;conj.(sol)]) for j=1:N-2])
 
-# another model
-N = 12
-@polyvar z[1:2N]
-f = sum(sum(z[i]*z[i+j+N] for i = 1:N-j)*sum(z[i+N]*z[i+j] for i = 1:N-j) for j = 1:N-2)
-order = 5
-@time begin
-opt,sol,data = cs_tssos_first([f], z, N, order, nb=N, CS=false, TS="block", balanced=true, ipart=false, solve=true, QUIET=true)
-end
-
-N = 4
-@polyvar x[1:N]
-@polyvar y[1:N]
-pop = Vector{Polynomial{true,Float64}}(undef, N+1)
-pop[1] = sum(sum(x[j]*x[j+k]+y[j]*y[j+k] for j=1:N-k)^2 + sum(x[j]*y[j+k]-y[j]*x[j+k] for j=1:N-k)^2 for k=1:N-2)
-for k = 1:N
-    pop[k+1] = 1 - x[k]^2 - y[k]^2
-end
-@time begin
-opt,sol,data = tssos_first(pop, [x;y], 5, numeq=N, TS="block", QUIET=true, solve=false, quotient=true)
-opt,sol,data = tssos_higher!(data, TS="block", QUIET=true)
-end
-
 # compute a local solution
-N = 8
+N = 15
 @polyvar x[1:N]
 @polyvar y[1:N]
 @polyvar t
@@ -90,13 +68,37 @@ for k = 1:N
 end
 
 @time begin
-opt,sol,data = tssos_first(pop, [x;y;t], 4, numeq=N, TS="block", QUIET=true, solve=false, quotient=true)
-opt,sol,data = tssos_higher!(data, TS="block", QUIET=true)
+opt,sol,data = tssos_first(pop, [x;y;t], 2, numeq=N, quotient=false, TS=false, QUIET=true, solve=false)
+# opt,sol,data = tssos_higher!(data, TS="block", QUIET=true)
 end
+# println(opt^0.5)
+
+opt,sol = local_solution(data.n, data.m, data.supp, data.coe, numeq=N, startpoint=rand(2N+1), QUIET=false)
 println(opt^0.5)
 
-sol,ub,gap = refine_sol(1, rand(2N+1), data, QUIET=true)
-println([ub^0.5])
+# Another model
+N = 4
+@polyvar z[1:2N]
+f = sum(sum(z[i]*z[i+j+N] for i = 1:N-j)*sum(z[i+N]*z[i+j] for i = 1:N-j) for j = 1:N-2)
+order = 5
+@time begin
+opt,sol,data = cs_tssos_first([f], z, N, order, nb=N, CS=false, TS="block", balanced=true, ipart=false, QUIET=true)
+end
+
+N = 12
+@polyvar x[1:N]
+@polyvar y[1:N]
+pop = Vector{Polynomial{true,Float64}}(undef, N+1)
+pop[1] = sum(sum(x[j]*x[j+k]+y[j]*y[j+k] for j=1:N-k)^2 + sum(x[j]*y[j+k]-y[j]*x[j+k] for j=1:N-k)^2 for k=1:N-2)
+for k = 1:N
+    pop[k+1] = 1 - x[k]^2 - y[k]^2
+end
+@time begin
+opt,sol,data = tssos_first(pop, [x;y], 2, numeq=N, TS=false, quotient=false, QUIET=true, solve=false)
+# opt,sol,data = tssos_higher!(data, TS="block", QUIET=true)
+end
+
+opt,sol = local_solution(data.n, data.m, data.supp, data.coe, numeq=N, startpoint=rand(2N), QUIET=false)
 
 # extract a pair of conjugate solutions
 using LinearAlgebra
