@@ -61,7 +61,7 @@ end
 
 function ptraceopt_first(tr_supp, coe, n, d; TS="block", monosquare=false, QUIET=false, constraint="unipotent", solve=true)
     println("********************************** NCTSSOS **********************************")
-    println("Version 0.2.0, developed by Jie Wang, 2020--2022")
+    println("Version 0.2.0, developed by Jie Wang, 2020--2024")
     println("NCTSSOS is launching...")
     bsupp = get_ncbasis(n, 2d)
     ind = [length(bsupp[i]) <= 1 || (bsupp[i][1] != bsupp[i][end] && findfirst(j -> bsupp[i][j]
@@ -174,7 +174,7 @@ function ptrace_SDP(supp, coe, ptsupp, wbasis, tbasis, basis, blocks, cl, blocks
                    constraint_reduce!(bi2, constraint=constraint)
                    bi = trace_reduce(bi1, bi2, ptsupp)
                    Locb = ncbfind(ksupp, lksupp, bi)
-                   if Locb == 0
+                   if Locb === nothing
                        @error "The word does not exist!"
                        return nothing,nothing
                    end
@@ -189,7 +189,7 @@ function ptrace_SDP(supp, coe, ptsupp, wbasis, tbasis, basis, blocks, cl, blocks
         bc = zeros(lksupp)
         for i = 1:length(supp)
             Locb = ncbfind(ksupp, lksupp, supp[i])
-            if Locb == 0
+            if Locb === nothing
                @error "The monomial basis is not enough!"
                return nothing,nothing
             else
@@ -260,7 +260,7 @@ function get_ncgraph(ksupp, ptsupp, wbasis, tbasis, basis; constraint="unipotent
         @inbounds bi2 = [reverse(basis[wbasis[i][2]]); basis[wbasis[j][2]]]
         constraint_reduce!(bi2, constraint=constraint)
         bi = trace_reduce(bi1, bi2, ptsupp)
-        if ncbfind(ksupp, lksupp, bi) != 0
+        if ncbfind(ksupp, lksupp, bi) !== nothing
             add_edge!(G, i, j)
         end
     end
@@ -300,7 +300,7 @@ end
 
 function Werner_witness_first(dY, sigma, n, d; TS="block", monosquare=false, QUIET=false, solve=true)
     println("********************************** NCTSSOS **********************************")
-    println("Version 0.2.0, developed by Jie Wang, 2020--2022")
+    println("Version 0.2.0, developed by Jie Wang, 2020--2024")
     println("NCTSSOS is launching...")
     bsupp = get_ncbasis(n, 2d)
     ind = [length(bsupp[i]) <= 1 || (bsupp[i][1] != bsupp[i][end] && findfirst(j -> bsupp[i][j]
@@ -413,7 +413,7 @@ function Werner_SDP(dY, sigma, htrace, ptsupp, wbasis, tbasis, basis, blocks, cl
                    constraint_reduce!(bi2, constraint="projection")
                    bi = trace_reduce(bi1, bi2, ptsupp)
                    Locb = ncbfind(ksupp, lksupp, bi)
-                   if Locb == 0
+                   if Locb === nothing
                        @error "The word does not exist!"
                        return nothing,nothing
                    end
@@ -434,7 +434,7 @@ function Werner_SDP(dY, sigma, htrace, ptsupp, wbasis, tbasis, basis, blocks, cl
             end
             temp = sort([ncbfind(ptsupp, length(ptsupp), sym_cyclic(htrace[i][j])) for j=1:length(htrace[i])])
             Locb = ncbfind(ksupp, lksupp, temp)
-            if Locb == 0
+            if Locb === nothing
                @error "The monomial basis is not enough!"
                return nothing,nothing
             else

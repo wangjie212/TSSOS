@@ -50,7 +50,7 @@ function bfind(A, l, a)
            high=mid-1
         end
     end
-    return 0
+    return nothing
 end
 
 function resort(supp, coe; field="real")

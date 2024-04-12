@@ -45,7 +45,7 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 - `x`: POP variables
 - `nb`: number of binary variables in `x`
 - `md`: tunable parameter for merging blocks
-- `QUIET`: run in the quiet mode or not (`true`, `false`)
+- `QUIET`: run in the quiet mode (`true`, `false`)
 - `tol`: relative tolerance to certify global optimality
 
 # Output arguments
@@ -56,7 +56,7 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 function tssos_first(f, x; nb=0, order=0, newton=true, reducebasis=false, TS="block", merge=false, md=3, feasible=false, solver="Mosek", 
     QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para())
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.0.0, developed by Jie Wang, 2020--2023")
+    println("Version 1.0.0, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     n = length(x)
     if nb > 0
@@ -105,7 +105,7 @@ function tssos_first(f, x; nb=0, order=0, newton=true, reducebasis=false, TS="bl
         println("Obtained the block structure. The maximal size of blocks is $mb.")
     end
     opt,ksupp,moment,momone,GramMat,SDP_status = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, feasible=feasible,
-    QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
+    TS=TS, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
     data = upop_data(n, nb, x, f, supp, coe, basis, ksupp, blocks, sb, numb, GramMat, moment, solver, SDP_status, tol, 1)
     sol = nothing
     if solution == true
@@ -150,7 +150,7 @@ function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=fal
             println("Obtained the block structure. The maximal size of blocks is $mb.")
         end
         opt,ksupp,moment,momone,GramMat,SDP_status = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, feasible=feasible, 
-        QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
+        TS=TS, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting)
         if solution == true
             sol,gap,data.flag = extract_solution(momone, opt, [f], x, tol=tol)
             if data.flag == 1
@@ -241,7 +241,7 @@ function newton_basis(n, d, supp; e=1e-5, solver="Mosek")
     temp = sortslices(supp, dims=2)
     while t <= lb
           i = indexb[t]
-          if bfind(temp, lsupp, UInt8(2)*basis[:,i]) != 0
+          if bfind(temp, lsupp, UInt8(2)*basis[:,i]) !== nothing
              t += 1
           else
              if solver == "Mosek"
@@ -293,7 +293,7 @@ function generate_basis!(supp, basis)
     indexb = UInt32[]
     for i = 1:lb, j = i:lb
         bi = basis[:,i] + basis[:,j]
-        if bfind(supp, lsupp, bi) != 0
+        if bfind(supp, lsupp, bi) !== nothing
              push!(indexb, i, j)
         end
     end
@@ -316,12 +316,12 @@ function bfind(A, l, a)
         if temp == a
            return mid
         elseif temp < a
-           low = mid+1
+           low = mid + 1
         else
-           high = mid-1
+           high = mid - 1
         end
     end
-    return 0
+    return nothing
 end
 
 function get_graph(tsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, balanced=false)
@@ -330,7 +330,7 @@ function get_graph(tsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, balance
     ltsupp = size(tsupp,2)
     for i = 1:lb, j = i+1:lb
         bi = bin_add(basis[:,i], basis[:,j], nb)
-        if bfind(tsupp, ltsupp, bi) != 0
+        if bfind(tsupp, ltsupp, bi) !== nothing
            add_edge!(G, i, j)
         end
     end
@@ -373,7 +373,7 @@ function get_blocks(tsupp, basis; sb=[], numb=[], nb=0, TS="block", minimize=fal
 end
 
 function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mosek", feasible=false, QUIET=true, solve=true, 
-    solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), dualize=false)
+    TS="block", solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), dualize=false)
     tsupp = zeros(UInt8, n, Int(sum(Int.(blocksize).^2+blocksize)/2))
     k = 1
     for i = 1:cl, j = 1:blocksize[i], r = j:blocksize[i]
@@ -381,7 +381,7 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
         @inbounds tsupp[:,k] = bi
         k += 1
     end
-    if MomentOne == true || solution == true
+    if (MomentOne == true || solution == true) && TS != false
         ksupp = copy(tsupp)
         ksupp = unique(ksupp, dims=2)
         ksupp = sortslices(ksupp, dims=2)
@@ -454,7 +454,7 @@ function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mos
         bc = zeros(ltsupp)
         for i in axes(supp, 2)
             Locb = bfind(tsupp, ltsupp, supp[:,i])
-            if Locb == 0
+            if Locb === nothing
                @error "The monomial basis is not enough!"
                return nothing,nothing,nothing,nothing,nothing,nothing
             else

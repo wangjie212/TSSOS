@@ -25,7 +25,7 @@ end
 function cs_nctssos_first(f, x; d=0, CS="MF", minimize=false, TS="block", merge=false, md=3,
     QUIET=false, obj="eigen", solve=true, partition=0, constraint=nothing)
     println("********************************** NCTSSOS **********************************")
-    println("Version 0.2.0, developed by Jie Wang, 2020--2022")
+    println("Version 0.2.0, developed by Jie Wang, 2020--2024")
     println("NCTSSOS is launching...")
     n,supp,coe = poly_info(f, x)
     if d == 0
@@ -107,7 +107,7 @@ function cs_nctssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n::Int, d::
     minimize=false, assign="first", TS="block", merge=false, md=3, QUIET=false, obj="eigen", solve=true,
     partition=0, constraint=nothing)
     println("********************************** NCTSSOS **********************************")
-    println("Version 0.2.0, developed by Jie Wang, 2020--2022")
+    println("Version 0.2.0, developed by Jie Wang, 2020--2024")
     println("NCTSSOS is launching...")
     m = length(supp)-1
     dg = [maximum(length.(supp[i])) for i=2:m+1]
@@ -266,7 +266,7 @@ function blockupop_mix(n, supp, coe, basis, cliques, cql, cliquesize, blocks, cl
         bc = zeros(lksupp)
         for i = 1:length(supp)
             Locb = ncbfind(ksupp, lksupp, supp[i])
-            if Locb == 0
+            if Locb === nothing
                @error "The monomial basis is not enough!"
                return nothing,nothing
             else
@@ -415,7 +415,7 @@ function blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc,
         bc = zeros(lksupp)
         for i = 1:length(supp[1])
             Locb = ncbfind(ksupp, lksupp, supp[1][i])
-            if Locb == 0
+            if Locb === nothing
                @error "The monomial basis is not enough!"
                return nothing,nothing
             else

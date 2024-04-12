@@ -36,9 +36,9 @@ f = 0.0
 for i = 1:n
     jset = max(1,i-5):min(n,i+1)
     jset = setdiff(jset,i)
-    global f += (2x[i]+5*x[i]^3+1)^2
-    global f -= sum([4x[i]*x[j]+10x[i]^3*x[j]+2x[j]+4x[i]*x[j]^2+10x[i]^3*x[j]^2+2x[j]^2 for j in jset])
-    global f += sum([x[j]*x[k]+2x[j]^2*x[k]+x[j]^2*x[k]^2 for j in jset for k in jset])
+    f += (2x[i]+5*x[i]^3+1)^2
+    f -= sum([4x[i]*x[j]+10x[i]^3*x[j]+2x[j]+4x[i]*x[j]^2+10x[i]^3*x[j]^2+2x[j]^2 for j in jset])
+    f += sum([x[j]*x[k]+2x[j]^2*x[k]+x[j]^2*x[k]^2 for j in jset for k in jset])
 end
 
 opt,data = cs_nctssos_first(f, x, TS="MD", obj="trace", QUIET=true)

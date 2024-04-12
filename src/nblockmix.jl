@@ -47,7 +47,8 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 - `cliques`: the set of cliques used in correlative sparsity
 - `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
 - `md`: tunable parameter for merging blocks
-- `QUIET`: run in the quiet mode or not (`true`, `false`)
+- `normality`: impose the normality condtions (`true`, `false`)
+- `QUIET`: run in the quiet mode (`true`, `false`)
 - `tol`: relative tolerance to certify global optimality
 
 # Output arguments
@@ -55,12 +56,12 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", cliques=[], minimize=false, assign="first", TS="block", merge=false, md=3, solver="Mosek", 
-    tune=false, dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
+function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", cliques=[], basis=[], minimize=false, TS="block", merge=false, md=3, solver="Mosek", 
+    tune=false, dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para(), normality=false, NormalSparse=false)
     n,supp,coe = polys_info(pop, x, nb=nb)
-    opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, foc=foc, CS=CS, cliques=cliques, minimize=minimize, assign=assign, TS=TS,
+    opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, foc=foc, CS=CS, cliques=cliques, basis=basis, minimize=minimize, TS=TS,
     merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
-    Mommat=Mommat, tol=tol, cosmo_setting=cosmo_setting)
+    Mommat=Mommat, tol=tol, cosmo_setting=cosmo_setting, normality=normality, NormalSparse=NormalSparse)
     return opt,sol,data
 end
 
@@ -100,11 +101,11 @@ end
 Compute the first TS step of the CS-TSSOS hierarchy for constrained polynomial optimization. 
 Here the polynomial optimization problem is defined by `supp` and `coe`, corresponding to the supports and coeffients of `pop` respectively.
 """
-function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, foc=100, CS="MF", cliques=[], minimize=false, assign="first", 
+function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, foc=100, CS="MF", cliques=[], basis=[], minimize=false, 
     TS="block", merge=false, md=3, QUIET=false, solver="Mosek", tune=false, dualize=false, solve=true, solution=false, MomentOne=false, Gram=false, 
-    Mommat=false, tol=1e-4, cosmo_setting=cosmo_para())
+    Mommat=false, tol=1e-4, cosmo_setting=cosmo_para(), normality=false, NormalSparse=false)
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.0.0, developed by Jie Wang, 2020--2023")
+    println("Version 1.0.0, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     m = length(supp)-1
     supp[1],coe[1] = resort(supp[1], coe[1])
@@ -121,20 +122,20 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
             println("Obtained the variable cliques in $time seconds. The maximal size of cliques is $mc.")
         end
     end
-    J,ncc = assign_constraint(m, supp, cliques, cql, cliquesize, assign=assign)
+    J,ncc = assign_constraint(m, supp, cliques, cql, cliquesize)
     rlorder = init_order(dg, J, cliquesize, cql, foc=foc, order=d)
     if TS != false && QUIET == false
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,cl,blocksize,sb,numb,basis,status = get_cblocks_mix(dg, J, rlorder, m, supp, cliques, cql, cliquesize, nb=nb, TS=TS, merge=merge, md=md)
+    blocks,cl,blocksize,sb,numb,basis,status = get_cblocks_mix(dg, J, rlorder, m, supp, cliques, cql, cliquesize, nb=nb, TS=TS, merge=merge, md=md, basis=basis)
     end
     if TS != false && QUIET == false
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
     opt,ksupp,moment,GramMat,SDP_status = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET,
-    TS=TS, solver=solver, tune=tune, dualize=dualize, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting)
+    TS=TS, solver=solver, tune=tune, dualize=dualize, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting, normality=normality, NormalSparse=NormalSparse)
     data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, GramMat, moment, solver, SDP_status, tol, 1)
     sol = nothing
     if solution == true
@@ -153,8 +154,8 @@ end
 
 Compute higher TS steps of the CS-TSSOS hierarchy.
 """
-function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false, solution=false, Gram=false, ipart=true, dualize=false, 
-    balanced=false, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para())
+function cs_tssos_higher!(data::mcpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false, solution=false, Gram=false, dualize=false, 
+    MomentOne=false, Mommat=false, cosmo_setting=cosmo_para(), normality=false, NormalSparse=false)
     n = data.n
     nb = data.nb
     m = data.m
@@ -182,7 +183,7 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
     time = @elapsed begin
     blocks,cl,blocksize,sb,numb,basis,status = get_cblocks_mix([], J, rlorder, m, supp, cliques, cql,
     cliquesize, tsupp=ksupp, basis=basis, blocks=blocks, cl=cl, blocksize=blocksize, sb=sb, numb=numb,
-    nb=nb, balanced=balanced, TS=TS, merge=merge, md=md)
+    nb=nb, TS=TS, merge=merge, md=md)
     end
     opt = sol = nothing
     if status == 1
@@ -192,7 +193,7 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
         end
         opt,ksupp,moment,GramMat,SDP_status = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl,
         blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution, dualize=dualize,
-        ipart=ipart, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting)
+        MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting, normality=normality, NormalSparse=NormalSparse)
         if solution == true
             sol,gap,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
             if data.flag == 1
@@ -216,8 +217,8 @@ function cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solv
 end
 
 function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize; 
-    numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", tune=false, solve=true, solution=false, Gram=false, ipart=false, MomentOne=false, 
-    Mommat=false, cosmo_setting=cosmo_para(), dualize=false)
+    numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", tune=false, solve=true, solution=false, Gram=false, MomentOne=false, 
+    Mommat=false, cosmo_setting=cosmo_para(), dualize=false, normality=false, NormalSparse=false)
     tsupp = Vector{UInt16}[]
     for i = 1:cql, j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
         @inbounds bi = sadd(basis[i][1][blocks[i][1][j][k]], basis[i][1][blocks[i][1][j][r]], nb=nb)
@@ -225,6 +226,65 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
     end
     if (MomentOne == true || solution == true) && TS != false
         ksupp = copy(tsupp)
+    end
+    if normality == true
+        if NormalSparse == true
+            st = Vector{UInt16}[]
+            for i = 1:m+1
+                append!(st, sign_type.(supp[i]))
+            end
+            unique!(st)
+            hyblocks = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
+        end
+        # wbasis = Vector{Vector{Vector{UInt16}}}(undef, cql)
+        wbasis = get_sbasis(Vector(1:n), 1, nb=nb)
+        bs = length(wbasis)
+        # for s = 1:cql
+            # wbasis[s] = basis[s][1]
+            # bs = length(wbasis[s])
+            if NormalSparse == true
+                hyblocks[s] = Vector{Vector{Vector{UInt16}}}(undef, cliquesize[s])
+                for i = 1:cliquesize[s]
+                    G = SimpleGraph(2bs)
+                    for j = 1:bs, k = j:bs
+                        bi = sadd(wbasis[s][j], wbasis[s][k], nb=nb)
+                        if isempty(sign_type(bi)) || any(l->isodd(length(intersect(sign_type(bi), st[l]))), 1:length(st))
+                            add_edge!(G, j, k)
+                        end
+                        bi = sadd(sadd(wbasis[s][j], wbasis[s][k], nb=nb), [cliques[s][i];cliques[s][i]], nb=nb)
+                        if isempty(sign_type(bi)) || any(l->isodd(length(intersect(sign_type(bi), st[l]))), 1:length(st))
+                            add_edge!(G, j+bs, k+bs)
+                        end
+                        bi = sadd(sadd(wbasis[s][j], wbasis[s][k], nb=nb), [cliques[s][i]], nb=nb)
+                        if isempty(sign_type(bi)) || any(l->isodd(length(intersect(sign_type(bi), st[l]))), 1:length(st))
+                            add_edge!(G, j, k+bs)
+                        end
+                    end
+                    hyblocks[s][i] = connected_components(G)
+                    for l = 1:length(hyblocks[s][i])
+                        for j = 1:length(hyblocks[s][i][l]), k = j:length(hyblocks[s][i][l])
+                            if hyblocks[s][i][l][j] <= bs && hyblocks[s][i][l][k] > bs
+                                bi = sadd(sadd(wbasis[s][hyblocks[s][i][l][j]], wbasis[s][hyblocks[s][i][l][k]-bs], nb=nb), [cliques[s][i]], nb=nb)
+                                push!(tsupp, bi)
+                            elseif hyblocks[s][i][l][j] > bs
+                                bi = sadd(sadd(wbasis[s][hyblocks[s][i][l][j]-bs], wbasis[s][hyblocks[s][i][l][k]-bs], nb=nb), [cliques[s][i];cliques[s][i]], nb=nb)
+                                push!(tsupp, bi)
+                            end
+                        end
+                    end
+                end
+            else
+                # for i = 1:cliquesize[s], j = 1:bs, k = j:bs
+                for i = 1:n, j = 1:bs, k = j:bs
+                    # bi = sadd(sadd(wbasis[s][j], wbasis[s][k], nb=nb), [cliques[s][i];cliques[s][i]], nb=nb)
+                    bi = sadd(sadd(wbasis[j], wbasis[k], nb=nb), [i;i], nb=nb)
+                    push!(tsupp, bi)
+                    # bi = sadd(sadd(wbasis[s][j], wbasis[s][k], nb=nb), [cliques[s][i]], nb=nb)
+                    bi = sadd(sadd(wbasis[j], wbasis[k], nb=nb), [i], nb=nb)
+                    push!(tsupp, bi)
+                end
+            end
+        # end
     end
     for i = 1:cql, (j, w) in enumerate(J[i])
         for l = 1:cl[i][j+1], t = 1:blocksize[i][j+1][l], r = t:blocksize[i][j+1][l], s = 1:length(supp[w+1])
@@ -292,6 +352,64 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
         cons = [AffExpr(0) for i=1:ltsupp]
+        if normality == true
+            # for s = 1:cql
+                # bs = length(wbasis[s])
+                bs = length(wbasis)
+                # for i = 1:cliquesize[s]
+                for i = 1:n
+                    if NormalSparse == false
+                       hnom = @variable(model, [1:2bs, 1:2bs], PSD)
+                       for j = 1:bs, k = j:bs
+                        #    bi = sadd(wbasis[s][j], wbasis[s][k], nb=nb)
+                           bi = sadd(wbasis[j], wbasis[k], nb=nb)
+                           Locb = bfind(tsupp, ltsupp, bi)
+                           if j == k
+                               @inbounds add_to_expression!(cons[Locb], hnom[j,k])
+                           else
+                               @inbounds add_to_expression!(cons[Locb], 2, hnom[j,k])
+                           end
+                        #    bi = sadd(sadd(wbasis[s][j], wbasis[s][k], nb=nb), [cliques[s][i];cliques[s][i]], nb=nb)
+                           bi = sadd(sadd(wbasis[j], wbasis[k], nb=nb), [i;i], nb=nb)
+                           Locb = bfind(tsupp, ltsupp, bi)
+                           if j == k
+                               @inbounds add_to_expression!(cons[Locb], hnom[j+bs,k+bs])
+                           else
+                               @inbounds add_to_expression!(cons[Locb], 2, hnom[j+bs,k+bs])
+                           end
+                        #    bi = sadd(sadd(wbasis[s][j], wbasis[s][k], nb=nb), [cliques[s][i]], nb=nb)
+                           bi = sadd(sadd(wbasis[j], wbasis[k], nb=nb), [i], nb=nb)        
+                           Locb = bfind(tsupp, ltsupp, bi)
+                           if j == k
+                               @inbounds add_to_expression!(cons[Locb], 2, hnom[j,k+bs])
+                           else
+                               @inbounds add_to_expression!(cons[Locb], 2, hnom[j,k+bs]+hnom[k,j+bs])
+                           end
+                        end
+                    else
+                        for l = 1:length(hyblocks[s][i])
+                            hbs = length(hyblocks[s][i][l])
+                            hnom = @variable(model, [1:hbs, 1:hbs], PSD)
+                            for j = 1:hbs, k = j:hbs
+                                if hyblocks[s][i][l][k] <= bs
+                                    bi = sadd(wbasis[s][hyblocks[s][i][l][j]], wbasis[s][hyblocks[s][i][l][k]], nb=nb)
+                                elseif hyblocks[s][i][l][j] <= bs && hyblocks[s][i][l][k] > bs
+                                    bi = sadd(sadd(wbasis[s][hyblocks[s][i][l][j]], wbasis[s][hyblocks[s][i][l][k]-bs], nb=nb), [cliques[s][i]], nb=nb)
+                                else
+                                    bi = sadd(sadd(wbasis[s][hyblocks[s][i][l][j]-bs], wbasis[s][hyblocks[s][i][l][k]-bs], nb=nb), [cliques[s][i];cliques[s][i]], nb=nb)
+                                end
+                                Locb = bfind(tsupp, ltsupp, bi)
+                                if j == k
+                                    @inbounds add_to_expression!(cons[Locb], hnom[j,k])
+                                else
+                                    @inbounds add_to_expression!(cons[Locb], 2, hnom[j,k])
+                                end
+                            end
+                        end
+                    end
+                end
+            # end
+        end
         pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, cql)
         for i = 1:cql
             if (MomentOne == true || solution == true) && TS != false
@@ -390,7 +508,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
         bc = zeros(ltsupp)
         for i = 1:length(supp[1])
             Locb = bfind(tsupp, ltsupp, supp[1][i])
-            if Locb == 0
+            if Locb === nothing
                @error "The monomial basis is not enough!"
                return nothing,nothing,nothing,nothing
             else
@@ -426,7 +544,13 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
         end
         println("optimum = $objv")
         if Gram == true
-            GramMat = [[[value.(pos[i][j][l]) for l = 1:cl[i][j]] for j = 1:1+length(J[i])] for i = 1:cql]
+            GramMat = Vector{Vector{Vector{Union{Float64,Matrix{Float64}}}}}(undef, cql)
+            for i = 1:cql
+                GramMat[i] = Vector{Vector{Union{Float64,Matrix{Float64}}}}(undef, 1+length(J[i]))
+                for j = 1:1+length(J[i])
+                    GramMat[i][j] = [value.(pos[i][j][l]) for l = 1:cl[i][j]]
+                end
+            end
         end
         if solution == true
             measure = -dual.(con)
@@ -460,14 +584,18 @@ end
 
 function get_cblocks_mix(dg, J, rlorder, m, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql,
     cliquesize; tsupp=[], basis=[], blocks=[], cl=[], blocksize=[], sb=[], numb=[], TS="block",
-    balanced=false, nb=0, merge=false, md=3)
+    nb=0, merge=false, md=3)
     if isempty(tsupp)
         blocks = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
         cl = Vector{Vector{UInt16}}(undef, cql)
         blocksize = Vector{Vector{Vector{UInt16}}}(undef, cql)
         sb = Vector{Vector{UInt16}}(undef, cql)
         numb = Vector{Vector{UInt16}}(undef, cql)
-        basis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
+        label = 0
+        if isempty(basis)
+            label = 1
+            basis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
+        end
         tsupp = reduce(vcat, supp) 
         sort!(tsupp)
         unique!(tsupp)
@@ -481,15 +609,19 @@ function get_cblocks_mix(dg, J, rlorder, m, supp::Vector{Vector{Vector{UInt16}}}
         ind = [issubset(tsupp[j], cliques[i]) for j in eachindex(tsupp)]
         fsupp = copy(tsupp[ind])
         if flag == 1
-            basis[i] = Vector{Vector{Vector{UInt16}}}(undef, lc+1)
-            basis[i][1] = get_sbasis(cliques[i], rlorder[i], nb=nb)
+            if label == 1
+               basis[i] = Vector{Vector{Vector{UInt16}}}(undef, lc+1)
+               basis[i][1] = get_sbasis(cliques[i], rlorder[i], nb=nb)
+            end
             for j = 1:length(basis[i][1])
                 push!(fsupp, sadd(basis[i][1][j], basis[i][1][j], nb=nb))
             end
             sort!(fsupp)
             unique!(fsupp)
-            for s = 1:lc
-                basis[i][s+1] = get_sbasis(cliques[i], rlorder[i]-ceil(Int, dg[J[i][s]]/2), nb=nb)
+            if label == 1
+                for s = 1:lc
+                    basis[i][s+1] = get_sbasis(cliques[i], rlorder[i]-ceil(Int, dg[J[i][s]]/2), nb=nb)
+                end
             end
             blocks[i] = Vector{Vector{Vector{UInt16}}}(undef, lc+1)
             cl[i] = Vector{UInt16}(undef, lc+1)
@@ -507,7 +639,7 @@ function get_cblocks_mix(dg, J, rlorder, m, supp::Vector{Vector{Vector{UInt16}}}
     return blocks,cl,blocksize,sb,numb,basis,maximum(status)
 end
 
-function assign_constraint(m, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql, cliquesize; assign="first")
+function assign_constraint(m, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql, cliquesize)
     J = [UInt32[] for i=1:cql]
     ncc = UInt32[]
     for i = 2:m+1
@@ -552,25 +684,25 @@ function get_sbasis(var, d; nb=0)
     return basis
 end
 
-function get_graph(tsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0, balanced=false)
+function get_graph(tsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0)
     lb = length(basis)
     G = SimpleGraph(lb)
     ltsupp = length(tsupp)
     for i = 1:lb, j = i+1:lb
         bi = sadd(basis[i], basis[j], nb=nb)
-        if bfind(tsupp, ltsupp, bi)!=0
+        if bfind(tsupp, ltsupp, bi) !== nothing
             add_edge!(G, i, j)
         end
     end
     return G
 end
 
-function get_cgraph(tsupp::Vector{Vector{UInt16}}, supp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0, balanced=false)
+function get_cgraph(tsupp::Vector{Vector{UInt16}}, supp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0)
     lb = length(basis)
     ltsupp = length(tsupp)
     G = SimpleGraph(lb)
     for i = 1:lb, j = i+1:lb
-        ind = findfirst(x -> bfind(tsupp, ltsupp, sadd(sadd(basis[i], x, nb=nb), basis[j], nb=nb)) != 0, supp)
+        ind = findfirst(x -> bfind(tsupp, ltsupp, sadd(sadd(basis[i], x, nb=nb), basis[j], nb=nb)) !== nothing, supp)
         if ind !== nothing
             add_edge!(G, i, j)
         end
@@ -686,7 +818,7 @@ function get_moment(measure, tsupp, cliques, cql, cliquesize; basis=[], nb=0)
             for j = 1:lb, k = j:lb
                 bi = sadd(basis[i][1][j], basis[i][1][k], nb=nb)
                 Locb = bfind(tsupp, ltsupp, bi)
-                if Locb != 0
+                if Locb !== nothing
                     moment[i][j,k] = measure[Locb]
                 end
             end
@@ -709,7 +841,7 @@ function ncbfind(A, l, a)
             low = mid + 1
         end
     end
-    return 0
+    return nothing
 end
 
 function seval(supp, coe, x)

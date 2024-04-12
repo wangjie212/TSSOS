@@ -65,7 +65,7 @@ end
 function nctssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n::Int64, d::Int64; numeq=0,
     reducebasis=false, TS="block", obj="eigen", merge=false, md=3, solve=true, QUIET=false, partition=0, constraint=nothing)
     println("********************************** NCTSSOS **********************************")
-    println("Version 0.2.0, developed by Jie Wang, 2020--2022")
+    println("Version 0.2.0, developed by Jie Wang, 2020--2024")
     println("NCTSSOS is launching...")
     m = length(supp)-1
     dg = [maximum(length.(supp[i])) for i=2:m+1]
@@ -228,7 +228,7 @@ function reducebasis!(psupp, basis, blocks, cl, blocksize)
             while lo >= j
                 bi = [basis[blocks[i][indexb[j]]][end:-1:1]; basis[blocks[i][indexb[j]]]]
                 Locb = ncbfind(psupp, lpsupp, bi)
-                if Locb == 0
+                if Locb === nothing
                    check = 1
                    flag = 1
                    deleteat!(indexb, j)
@@ -263,7 +263,7 @@ function get_nccgraph(ksupp, supp, basis; obj="eigen", partition=0, constraint=n
         while r <= length(supp)
             bi = [basis[i][end:-1:1]; supp[r]; basis[j]]
             bi = reduce!(bi, obj=obj, partition=partition, constraint=constraint)
-            if ncbfind(ksupp, lksupp, bi)!=0
+            if ncbfind(ksupp, lksupp, bi) !== nothing
                break
             else
                 r += 1
@@ -423,7 +423,7 @@ function ncblockcpop(m, supp, coe, basis, blocks, cl, blocksize; numeq=0, QUIET=
         bc = zeros(lksupp)
         for i = 1:length(supp[1])
             Locb = ncbfind(ksupp, lksupp, supp[1][i])
-            if Locb == 0
+            if Locb === nothing
                @error "The monomial basis is not enough!"
                return nothing,nothing
             else

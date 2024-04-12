@@ -25,22 +25,6 @@ h2 = 3*z1*z2 + 3*z4*z5 - 2
 h3 = 9*z1*z2*z4*z5 - 1
 cpop = [f; g1; g2; h1; h2; h3]
 
-nn = n + 1
-@polyvar x[1:2nn]
-rpop = Polynomial{true, Float64}[]
-for cp in cpop
-  rp = cp(z[1:nn]=>x[1:nn]+im*x[nn+1:2nn], z[nn+1:2nn]=>x[1:nn]-im*x[nn+1:2nn])
-  push!(rpop, real.(coefficients(rp))'*monomials(rp))
-end
-@time begin
-opt,sol,data = tssos_first(rpop, x, 2, numeq=3, quotient=false, QUIET=true, TS="block", solve=false)
-opt,sol,data = tssos_higher!(data, QUIET=true, TS="block")
-end
-println(sqrt(-opt))
-
-opt,sol = local_solution(data.n, data.m, data.supp, data.coe, numeq=3, startpoint=rand(2nn), QUIET=true)
-println(sqrt(-opt))
-
 n = 3
 @polyvar z1 z2 z3 z4 z5 z6 z7 z8
 z = tuple(z1,z2,z3,z4,z5,z6,z7,z8)
@@ -70,22 +54,6 @@ opt,sol,data = cs_tssos_first(cpop, z, n+1, 5, numeq=3, CS=false, TS="block", ip
 opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
 opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=true, QUIET=true)  
 end
-println(sqrt(-opt))
-
-nn = n + 1
-@polyvar x[1:2nn]
-rpop = Polynomial{true, Float64}[]
-for cp in cpop
-  rp = cp(z[1:nn]=>x[1:nn]+im*x[nn+1:2nn], z[nn+1:2nn]=>x[1:nn]-im*x[nn+1:2nn])
-  push!(rpop, real.(coefficients(rp))'*monomials(rp))
-end
-@time begin
-opt,sol,data = tssos_first(rpop, x, 5, numeq=3, quotient=false, QUIET=true, TS="block", solve=false)
-opt,sol,data = tssos_higher!(data, QUIET=true, TS="block")
-end
-println(sqrt(-opt))
-
-opt,sol = local_solution(data.n, data.m, data.supp, data.coe, numeq=3, startpoint=rand(2nn), QUIET=true)
 println(sqrt(-opt))
 
 n = 4
@@ -156,17 +124,6 @@ opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve
 opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
 opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true)  
 end
-println(sqrt(-opt))
-
-nn = n + 1
-@polyvar x[1:2nn]
-rpop = Polynomial{true, Float64}[]
-for cp in cpop
-  rp = cp(z[1:nn]=>x[1:nn]+im*x[nn+1:2nn], z[nn+1:2nn]=>x[1:nn]-im*x[nn+1:2nn])
-  push!(rpop, real.(coefficients(rp))'*monomials(rp))
-end
-opt,sol,data = tssos_first(rpop, x, 4, numeq=3, quotient=false, QUIET=true, TS=false, solve=false)
-opt,sol = local_solution(data.n, data.m, data.supp, data.coe, numeq=3, startpoint=rand(2nn), QUIET=false)
 println(sqrt(-opt))
 
 n = 5
@@ -537,20 +494,9 @@ cpop = [f; g1; g2; g3; g4; g5; h1; h2; h3]
 @time begin
 opt,sol,data = cs_tssos_first(cpop, z, n+1, 7, numeq=3, CS=false, TS="block", ipart=false, QUIET=true, solve=false)
 opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
-# opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
 opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true)
 end
-println(sqrt(-opt))
-
-nn = n + 1
-@polyvar x[1:2nn]
-rpop = Polynomial{true, Float64}[]
-for cp in cpop
-  rp = cp(z[1:nn]=>x[1:nn]+im*x[nn+1:2nn], z[nn+1:2nn]=>x[1:nn]-im*x[nn+1:2nn])
-  push!(rpop, real.(coefficients(rp))'*monomials(rp))
-end
-opt,sol,data = tssos_first(rpop, x, 5, numeq=3, quotient=false, QUIET=true, TS=false, solve=false)
-opt,sol = local_solution(data.n, data.m, data.supp, data.coe, numeq=3, startpoint=rand(2nn), QUIET=false)
 println(sqrt(-opt))
 
 # Mordell Inequality Conjecture
@@ -578,15 +524,3 @@ cpop = [-f; h1]
 opt,sol,data = cs_tssos_first(cpop, z, n, 10, numeq=1, CS=false, balanced=true, TS="block", ipart=false, solve=false, QUIET=true)
 opt,sol,data = cs_tssos_higher!(data, balanced=true, TS="block", ipart=false, QUIET=false)
 end
-
-@polyvar x[1:2n]
-rpop = Polynomial{true, Float64}[]
-for cp in cpop
-  rp = cp(z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
-  push!(rpop, real.(coefficients(rp))'*monomials(rp))
-end
-@time begin
-opt,sol,data = tssos_first(rpop, x, 10, numeq=1, quotient=false, QUIET=false, TS="block")
-end
-
-opt,sol = local_solution(data.n, data.m, data.supp, data.coe, numeq=1, startpoint=rand(2n), QUIET=false)

@@ -86,6 +86,8 @@ opt,sol,data = tssos_higher!(data, TS="MD")
 Options  
 **nb**: specify the first nb variables to be binary variables (satisfying $x_i^2=1$)  
 **TS**: "block" by default (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
+**normality**: true (imposing the normality condtions), false  
+**NormalSparse**: true (using sparsity for the normality conditions), false  
 **quotient**: true (working in the quotient ring by computing Gröbner basis), false  
 **solution**: true (extracting an (approximate optimal) solution), false  
 
@@ -106,6 +108,8 @@ Options
 **CS (correlative sparsity)**: "MF" by default (generating an approximately smallest chordal extension), "NC" (without chordal extension), false (without correlative sparsity)   
 **TS**: "block" (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
 **order**: d (relaxation order), "min" (using the lowest relaxation order for each variable clique)  
+**normality**: true (imposing the normality condtions), false  
+**NormalSparse**: true (using sparsity for the normality conditions), false  
 **MomentOne**: true (adding a first-order moment matrix for each variable clique), false  
 **solution**: true (extracting an (approximate optimal) solution), false  
 
@@ -212,6 +216,8 @@ Options
 **CS (correlative sparsity)**: "MF" by default (generating an approximately smallest chordal extension), "NC" (without chordal extension), false (without correlative sparsity)   
 **TS**: "block" (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
 **order**: d (relaxation order), "min" (using the lowest relaxation order for each variable clique)  
+**normality**: specify the normal order  
+**NormalSparse**: true (using sparsity for the normality conditions), false  
 **MomentOne**: true (adding a first-order moment matrix for each variable clique), false  
 **ipart**: true (with complex moment matrices), false (with real moment matrices)
 
@@ -237,6 +243,7 @@ Visit [SparseJSR](https://github.com/wangjie212/SparseJSR)
 [3] [CS-TSSOS: Correlative and term sparsity for large-scale polynomial optimization](https://arXiv:2005.02828)  
 [4] [TSSOS: a Julia library to exploit sparsity for large-scale polynomial optimization](https://arxiv.org/abs/2103.00915)  
 [5] [Sparse polynomial optimization: theory and practice](https://arxiv.org/abs/2208.11158)
+[6] [Strengthening Lasserre's Hierarchy in Real and Complex Polynomial Optimization](https://arxiv.org/abs/2404.07125)
 
 ## Contact
 [Jie Wang](https://wangjie212.github.io/jiewang/): wangjie212@amss.ac.cn  

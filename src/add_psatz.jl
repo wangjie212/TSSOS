@@ -32,7 +32,7 @@ Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP 
 - `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
 - `SO`: sparse order
 - `Groebnerbasis`: exploit the quotient ring structure or not (`true`, `false`)
-- `QUIET`: run in the quiet mode or not (`true`, `false`)
+- `QUIET`: run in the quiet mode (`true`, `false`)
 - `constrs`: the constraint name used in the JuMP model
 
 # Output arguments
@@ -251,7 +251,7 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
     bc = [AffExpr(0) for i=1:ltsupp]
     for i = 1:size(fsupp, 2)
         Locb = bfind(tsupp, ltsupp, fsupp[:, i])
-        if Locb == 0
+        if Locb === nothing
             @error "The monomial basis is not enough!"
             return model,info
         else
@@ -452,7 +452,7 @@ function get_cgraph(tsupp::Array{UInt8, 2}, gsupp::Array{UInt8, 2}, glt, basis::
     G = SimpleGraph(lb)
     ltsupp = size(tsupp, 2)
     for i = 1:lb, j = i+1:lb
-        ind = findfirst(x -> bfind(tsupp, ltsupp, basis[:,i] + basis[:,j] + gsupp[:,x]) != 0, 1:glt)
+        ind = findfirst(x -> bfind(tsupp, ltsupp, basis[:,i] + basis[:,j] + gsupp[:,x]) !== nothing, 1:glt)
         if ind !== nothing
            add_edge!(G, i, j)
         end
@@ -464,7 +464,7 @@ function get_eblock(tsupp::Array{UInt8, 2}, hsupp::Array{UInt8, 2}, hlt, basis::
     ltsupp = size(tsupp, 2)
     eblock = UInt16[]
     for i = 1:size(basis, 2)
-        ind = findfirst(x -> bfind(tsupp, ltsupp, basis[:,i] + hsupp[:,x]) != 0, 1:hlt)
+        ind = findfirst(x -> bfind(tsupp, ltsupp, basis[:,i] + hsupp[:,x]) !== nothing, 1:hlt)
         if ind !== nothing
            push!(eblock, i)
         end
@@ -565,7 +565,7 @@ function get_moment_matrix(moment, tsupp, cql, basis)
         for j = 1:lb, k = j:lb
             bi = basis[i][1][:, j] + basis[i][1][:, k]
             Locb = bfind(tsupp, ltsupp, bi)
-            if Locb != 0
+            if Locb !== nothing
                 MomMat[i][j,k] = moment[Locb]
             end
         end

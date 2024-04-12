@@ -37,7 +37,7 @@ end
 function nctssos_first(supp::Vector{Vector{UInt16}}, coe, n::Int; d=0, newton=true, reducebasis=true, monosquare=true,
     TS="block", obj="eigen", partition=0, constraint=nothing, merge=false, md=3, solve=true, QUIET=false)
     println("********************************** NCTSSOS **********************************")
-    println("Version 0.2.0, developed by Jie Wang, 2020--2022")
+    println("Version 0.2.0, developed by Jie Wang, 2020--2024")
     println("NCTSSOS is launching...")
     if d == 0
         d = Int(maximum(length.(supp))/2)
@@ -377,7 +377,7 @@ function ncbfind(A, l, a; rev=false)
             end
         end
     end
-    return 0
+    return nothing
 end
 
 function get_ncgraph(ksupp, basis; obj="eigen", partition=0, constraint=nothing)
@@ -387,7 +387,7 @@ function get_ncgraph(ksupp, basis; obj="eigen", partition=0, constraint=nothing)
     for i = 1:lb, j = i+1:lb
         bi = [basis[i][end:-1:1]; basis[j]]
         bi = reduce!(bi, obj=obj, partition=partition, constraint=constraint)
-        if ncbfind(ksupp, lksupp, bi) != 0
+        if ncbfind(ksupp, lksupp, bi) !== nothing
            add_edge!(G, i, j)
         end
     end
@@ -457,7 +457,7 @@ function ncblockupop(supp, coe, basis, blocks, cl, blocksize; QUIET=true, obj="e
                @inbounds pos = @variable(model, lower_bound=0)
                @inbounds bi = [basis[blocks[i][1]][end:-1:1]; basis[blocks[i][1]]]
                bi = reduce!(bi, obj=obj, partition=partition, constraint=constraint)
-               Locb = ncbfind(ksupp,lksupp,bi)
+               Locb = ncbfind(ksupp, lksupp, bi)
                @inbounds add_to_expression!(cons[Locb], pos)
             else
                @inbounds pos = @variable(model, [1:bs, 1:bs], PSD)
@@ -476,7 +476,7 @@ function ncblockupop(supp, coe, basis, blocks, cl, blocksize; QUIET=true, obj="e
         bc = zeros(lksupp)
         for i = 1:length(supp)
             Locb = ncbfind(ksupp, lksupp, supp[i])
-            if Locb == 0
+            if Locb === nothing
                @error "The monomial basis is not enough!"
                return nothing,nothing
             else
