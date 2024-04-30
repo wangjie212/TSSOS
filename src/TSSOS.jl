@@ -29,6 +29,7 @@ include("local_solution.jl")
 include("NCTSSOS/NCTSSOS.jl")
 include("add_psatz.jl")
 include("homogenize.jl")
+include("matrixsos.jl")
 using .NCTSSOS
 
 end

@@ -56,8 +56,8 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function cs_tssos_first(pop, x, d; nb=0, numeq=0, foc=100, CS="MF", cliques=[], basis=[], minimize=false, TS="block", merge=false, md=3, solver="Mosek", 
-    tune=false, dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para(), normality=false, NormalSparse=false)
+function cs_tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, foc=100, CS="MF", cliques=[], basis=[], minimize=false, TS="block", merge=false, md=3, solver="Mosek", 
+    tune=false, dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para(), normality=false, NormalSparse=false) where {T<:Number}
     n,supp,coe = polys_info(pop, x, nb=nb)
     opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, foc=foc, CS=CS, cliques=cliques, basis=basis, minimize=minimize, TS=TS,
     merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,

@@ -53,8 +53,8 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
-    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para(), normality=0, NormalSparse=false)
+function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quotient=true, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
+    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para(), normality=0, NormalSparse=false) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("Version 1.0.0, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")

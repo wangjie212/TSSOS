@@ -1,4 +1,5 @@
-# using DynamicPolynomials
+using DynamicPolynomials
+using TSSOS
 
 n = 3
 @ncpolyvar x[1:3]
