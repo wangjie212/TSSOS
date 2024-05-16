@@ -56,7 +56,7 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quotient=true, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
     QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para(), normality=0, NormalSparse=false) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.0.0, developed by Jie Wang, 2020--2024")
+    println("Version 1.1.2, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     n = length(x)
     if nb > 0
@@ -86,13 +86,18 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
         gb = []
         leadsupp = []
     end
+    if NormalSparse == true
+        ss = get_signsymmetry(pop, x)
+    else
+        ss = false
+    end
     m = length(cpop)-1
     dg = zeros(Int, m)
     coe = Vector{Vector{Float64}}(undef, m+1)
     supp = Vector{Array{UInt8,2}}(undef, m+1)
     for k = 1:m+1
-        mons = monomials(cpop[k])
-        coe[k] = coefficients(cpop[k])
+        mons = MultivariatePolynomials.monomials(cpop[k])
+        coe[k] = MultivariatePolynomials.coefficients(cpop[k])
         supp[k] = zeros(UInt8,n,length(mons))
         for i in eachindex(mons), j = 1:n
             @inbounds supp[k][j,i] = MultivariatePolynomials.degree(mons[i],x[j])
@@ -124,7 +129,7 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
         psupp = [psupp gsupp]
         basis[1],flag = reducebasis!(psupp, basis[1], blocks[1], cl[1], blocksize[1], nb=nb)
         if flag == 1
-            tsupp = [isupp bin_add(basis[1],basis[1],nb)]
+            tsupp = [isupp bin_add(basis[1], basis[1], nb)]
             tsupp = sortslices(tsupp, dims=2)
             tsupp = unique(tsupp, dims=2)
             blocks,cl,blocksize,sb,numb,_ = get_cblocks(m, tsupp, supp[2:end], basis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
@@ -136,7 +141,8 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
     opt,ksupp,moment,momone,GramMat,SDP_status = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, dualize=dualize, TS=TS,
-    lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, normality=normality, NormalSparse=NormalSparse)
+    lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, signsymmetry=ss, 
+    normality=normality, NormalSparse=NormalSparse)
     data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, ksupp, sb, numb, blocks, cl, blocksize, GramMat, moment, solver, SDP_status, tol, 1)
     sol = nothing
     if solution == true
@@ -343,7 +349,8 @@ function get_cblocks(m, tsupp, supp, basis; blocks=[], cl=[], blocksize=[], sb=[
 end
 
 function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0, gb=[], x=[], lead=[], solver="Mosek", TS="block",
-    QUIET=true, solve=true, dualize=false, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), normality=false, NormalSparse=false)
+    QUIET=true, solve=true, dualize=false, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), signsymmetry=false, 
+    normality=false, NormalSparse=false)
     ksupp = zeros(UInt8, n, Int(sum(Int.(blocksize[1]).^2+blocksize[1])/2))
     k = 1
     for i = 1:cl[1], j = 1:blocksize[1][i], r = j:blocksize[1][i]
@@ -355,28 +362,23 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
         wbasis = basis[1]
         bs = size(wbasis, 2)  
         if NormalSparse == true
-            st = Vector{UInt8}[]
-            for i = 1:m+1, j = 1:size(supp[i],2)
-                push!(st, mod.(supp[i][:, j], 2))
-            end
-            unique!(st)
             hyblocks = Vector{Vector{Vector{UInt16}}}(undef, n)
             for i = 1:n
                 G = SimpleGraph(2bs)
                 for j = 1:bs, k = j:bs
                     bi = bin_add(wbasis[:, j], wbasis[:, k], nb)
-                    if all(iseven.(bi)) || any(l->isodd(sum((mod.(bi, 2)'*st[l]))), 1:length(st))
+                    if all(transpose(signsymmetry)*bi .== 0)
                         add_edge!(G, j, k)
                     end
                     temp = zeros(UInt8, n)
                     temp[i] = 2
                     bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
-                    if all(iseven.(bi)) || any(l->isodd(sum((mod.(bi, 2)'*st[l]))), 1:length(st))
+                    if all(transpose(signsymmetry)*bi .== 0)
                         add_edge!(G, j+bs, k+bs)
                     end
                     temp[i] = 1
                     bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
-                    if all(iseven.(bi)) || any(l->isodd(sum((mod.(bi, 2)'*st[l]))), 1:length(st))
+                    if all(transpose(signsymmetry)*bi .== 0)
                         add_edge!(G, j, k+bs)
                     end
                 end
@@ -388,7 +390,7 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
                             temp[i] = 1
                             bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
                             ksupp = [ksupp bi]
-                        elseif hyblocks[s][i][l][j] > bs
+                        elseif hyblocks[i][l][j] > bs
                             temp = zeros(UInt8, n)
                             temp[i] = 2
                             bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]-bs], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
@@ -533,13 +535,13 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
                         for j = 1:hbs, k = j:hbs
                             temp = zeros(UInt8, n)
                             if hyblocks[i][l][k] <= bs
-                                bi = bin_add(wbasis[:, hyblocks[i][l][j]], wbasis[:, hyblocks[i][l][k]], nb=nb)
+                                bi = bin_add(wbasis[:, hyblocks[i][l][j]], wbasis[:, hyblocks[i][l][k]], nb)
                             elseif hyblocks[i][l][j] <= bs && hyblocks[i][l][k] > bs
                                 temp[i] = 1
-                                bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]], wbasis[:, hyblocks[i][l][k]-bs], nb=nb), temp, nb=nb)
+                                bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
                             else
                                 temp[i] = 2
-                                bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]-bs], wbasis[:, hyblocks[i][l][k]-bs], nb=nb), temp, nb=nb)
+                                bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]-bs], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
                             end
                             if !isempty(gb) && divide(bi, lead, n, llead)
                                 bi_lm,bi_supp,bi_coe = reminder(bi, x, gb, n)

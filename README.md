@@ -221,6 +221,27 @@ Options
 **MomentOne**: true (adding a first-order moment matrix for each variable clique), false  
 **ipart**: true (with complex moment matrices), false (with real moment matrices)
 
+## Sums of rational functions optimization
+The sum of rational functions optimization problem formulizes as
+$$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ \sum_{i=1}^N\frac{p_i(\mathbf{x})}{q_i(\mathbf{x})},$$
+where $p_i,q_i\in\mathbb{R}[\mathbf{x}]$ are polynomials and $\mathbf{K}$ is the basic semialgebraic set
+$$\mathbf{K}=\lbrace \mathbf{x}\in\mathbb{R}^n \mid g_j(\mathbf{x})\ge0, j=1,\ldots,m-numeq,\ g_j(\mathbf{x})=0, j=m-numeq+1,\ldots,m\rbrace,$$
+for some polynomials $g_j\in\mathbb{R}[\mathbf{x}], j=1,\ldots,m$.
+
+Taking $\frac{p_1}{q_1}=\frac{x^2+y^2-y*z}{1+2x^2+y^2+z^2}$, $\frac{p_2}{q_2}=\frac{y^2+x^2*z}{1+x^2+2y^2+z^2}$, $\frac{p_3}{q_3}=\frac{z^2-x+y}{1+x^2+y^2+2z^2}$, and $\mathbf{K}=\lbrace \mathbf{x}\in\mathbb{R}^2 \mid g=1-x^2-y^2-z^2\ge0\rbrace$ as an example, run
+
+```Julia
+@polyvar x y z
+p = [x^2+y^2-y*z, y^2+x^2*z, z^2-x+y]
+q = [1+2x^2+y^2+z^2, 1+x^2+2y^2+z^2, 1+x^2+y^2+2z^2]
+g = [1-x^2-y^2-z^2]
+d = 2 # set the relaxation order
+opt = SumOfRatios(p, q, g, [], [x;y;z], d, QUIET=true, SignSymmetry=true) # No correlative sparsity
+opt = SparseSumOfRatios(p, q, g, [], [x;y;z], d, QUIET=true, SignSymmetry=true) # Exploiting correlative sparsity
+```
+Options  
+**SignSymmetry**: true, false
+
 ## Tips for modelling polynomial optimization problem
 - When possible, explictly include a sphere/ball constraint (or multi-sphere/multi-ball constraints).
 - When the feasible set is unbounded, try the homogenization technique introduced in [Homogenization for polynomial optimization with unbounded sets](https://link.springer.com/article/10.1007/s10107-022-01878-5).
@@ -244,6 +265,7 @@ Visit [SparseJSR](https://github.com/wangjie212/SparseJSR)
 [4] [TSSOS: a Julia library to exploit sparsity for large-scale polynomial optimization](https://arxiv.org/abs/2103.00915)  
 [5] [Sparse polynomial optimization: theory and practice](https://arxiv.org/abs/2208.11158)
 [6] [Strengthening Lasserre's Hierarchy in Real and Complex Polynomial Optimization](https://arxiv.org/abs/2404.07125)
+[7] [Exploiting Sign Symmetries in Minimizing Sums of Rational Functions](https://arxiv.org/abs/2405.09419)
 
 ## Contact
 [Jie Wang](https://wangjie212.github.io/jiewang/): wangjie212@amss.ac.cn  

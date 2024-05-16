@@ -39,23 +39,21 @@ end
 opt,sol,data = cs_tssos_first(pop, z, n, 1, nb=n, QUIET=true, CS=false, TS=false, normality=1)
 end
 
-function cbasis(z)
+function basis(x)
     basis = Monomial{true}[1]
-    for i = 1:length(z)
-        push!(basis, z[i])
-    end
-    for i = 1:length(z), j = i:length(z)
-        push!(basis, z[i]*z[j])
+    push!(basis, x...)
+    for i = 1:length(x), j = i:length(x)
+        push!(basis, x[i]*x[j])
     end
     return basis
 end
 
-# Minimizing a random complex quadratic polynomial on a unit sphere
+# Minimizing a random complex quartic polynomial on a unit sphere
 Random.seed!(1)
 n = 5
 @polyvar z[1:2n]
-cb1 = cbasis(z[1:n])
-cb2 = cbasis(z[n+1:2n])
+cb1 = basis(z[1:n])
+cb2 = basis(z[n+1:2n])
 lcb = length(cb1)
 P = rand(lcb, lcb)
 Q = rand(lcb, lcb)
@@ -71,6 +69,35 @@ end
 opt,sol,data = cs_tssos_first(pop, z, n, 2, numeq=1, QUIET=true, CS=false, TS=false, normality=1)
 end
 
+# Minimizing a random sparse complex quartic polynomial on a unit sphere
+function sbasis(x)
+    basis = Monomial{true}[1]
+    for i = 1:length(x), j = i:length(x)
+        push!(basis, x[i]*x[j])
+    end
+    return basis
+end
+
+Random.seed!(1)
+n = 6
+@polyvar z[1:2n]
+cb1 = sbasis(z[1:n])
+cb2 = sbasis(z[n+1:2n])
+P = rand(length(cb1), length(cb1))
+Q = rand(length(cb1), length(cb1))
+pop = [cb2'*((P+P')/2+im*(Q-Q')/2)*cb1]
+push!(pop, 1 - sum(z[1:n]'*z[n+1:2n]))
+@time begin
+opt,sol,data = cs_tssos_first(pop, z, n, 2, numeq=1, QUIET=true, CS=false, TS="block")
+end
+@time begin
+opt,sol,data = cs_tssos_first(pop, z, n, 3, numeq=1, QUIET=true, CS=false, TS="block", solve=false)
+opt,sol,data = cs_tssos_higher!(data, QUIET=true, TS="block")
+end
+@time begin
+opt,sol,data = cs_tssos_first(pop, z, n, 2, numeq=1, QUIET=true, CS=false, TS="block", normality=1, NormalSparse=true)
+end
+
 # Minimizing a random complex quartic polynomial with CS on multi-spheres
 Random.seed!(1)
 l = 5
@@ -78,8 +105,8 @@ n = 4l + 2
 @polyvar z[1:2n]
 f = 0
 for i = 1:l
-    cb1 = cbasis(z[4i-3:4i+2])
-    cb2 = cbasis(z[n+4i-3:n+4i+2])
+    cb1 = basis(z[4i-3:4i+2])
+    cb2 = basis(z[n+4i-3:n+4i+2])
     lcb = length(cb1)
     P = rand(lcb, lcb)
     Q = rand(lcb, lcb)

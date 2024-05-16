@@ -56,14 +56,14 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 function tssos_first(f::Polynomial{true, T}, x; nb=0, order=0, newton=true, reducebasis=false, TS="block", merge=false, md=3, feasible=false, solver="Mosek", 
     QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para()) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.0.0, developed by Jie Wang, 2020--2024")
+    println("Version 1.1.2, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     n = length(x)
     if nb > 0
         f = rem(f, x[1:nb].^2 .- 1)
     end
-    mon = monomials(f)
-    coe = coefficients(f)
+    mon = MultivariatePolynomials.monomials(f)
+    coe = MultivariatePolynomials.coefficients(f)
     lm = length(mon)
     supp = zeros(UInt8, n, lm)
     for i = 1:lm, j = 1:n
@@ -169,60 +169,14 @@ function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=fal
     return opt,sol,data
 end
 
-function bin_add(bi, bj, nb)
-    bs = bi + bj
-    if nb > 0
-        bs[1:nb,:] = isodd.(bs[1:nb,:])
-    end
-    return bs
-end
-
-# generate the standard monomial basis
-function get_basis(n, d; nb=0, lead=[])
-    lb = binomial(n+d, d)
-    basis = zeros(UInt8, n, lb)
-    i = 0
-    t = 1
-    while i < d+1
-        t += 1
-        if basis[n,t-1] == i
-           if i < d
-              basis[1,t] = i+1
-           end
-           i += 1
-        else
-            j = findfirst(x->basis[x,t-1]!=0, 1:n)
-            basis[:,t] = basis[:,t-1]
-            if j == 1
-               basis[1,t] -= 1
-               basis[2,t] += 1
-            else
-               basis[1,t] = basis[j,t] - 1
-               basis[j,t] = 0
-               basis[j+1,t] += 1
-            end
-        end
-    end
-    if nb > 0
-        basis_bin = basis[1:nb,:]
-        basis_valid = all.(x->x<=1, eachcol(basis_bin))
-        basis = basis[:, basis_valid]
-    end
-    if !isempty(lead)
-        basis_valid = map(a->!divide(a, lead, n, size(lead,2)), eachcol(basis))
-        basis = basis[:, basis_valid]
-    end
-    return basis
-end
-
 function divide(a, lead, n, llead)
     return any(j->all(i->lead[i,j]<=a[i], 1:n), 1:llead)
 end
 
 function reminder(a, x, gb, n)
     remind = rem(prod(x.^a), gb)
-    mon = monomials(remind)
-    coe = coefficients(remind)
+    mon = MultivariatePolynomials.monomials(remind)
+    coe = MultivariatePolynomials.coefficients(remind)
     lm = length(mon)
     supp = zeros(UInt8,n,lm)
     for i = 1:lm, j = 1:n
@@ -300,28 +254,6 @@ function generate_basis!(supp, basis)
     sort!(indexb)
     unique!(indexb)
     return basis[:,indexb]
-end
-
-# find the position of an entry a in a sorted sequence A
-function bfind(A, l, a)
-    low = 1
-    high = l
-    while low <= high
-        mid = Int(ceil(1/2*(low+high)))
-        if ndims(A) == 2
-            temp = A[:, mid]
-        else
-            temp = A[mid]
-        end
-        if temp == a
-           return mid
-        elseif temp < a
-           low = mid + 1
-        else
-           high = mid - 1
-        end
-    end
-    return nothing
 end
 
 function get_graph(tsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, balanced=false)
@@ -531,16 +463,16 @@ function extract_solution(moment, opt, pop, x; numeq=0, tol=1e-4)
         return nothing,1,1
     else
         sol = sol[2:end]/sol[1]
-        ub = polynomial(pop[1])(x => sol)
+        ub = MultivariatePolynomials.polynomial(pop[1])(x => sol)
         gap = abs(opt-ub)/max(1, abs(ub))
         flag = gap >= tol ? 1 : 0
         for i = 1:m-numeq
-            if polynomial(pop[i+1])(x => sol) <= -tol
+            if MultivariatePolynomials.polynomial(pop[i+1])(x => sol) <= -tol
                 flag = 1
             end
         end
         for i = m-numeq+1:m
-            if abs(polynomial(pop[i+1])(x => sol)) >= tol
+            if abs(MultivariatePolynomials.polynomial(pop[i+1])(x => sol)) >= tol
                 flag = 1
             end
         end

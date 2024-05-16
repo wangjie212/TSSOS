@@ -3,6 +3,7 @@ mutable struct mcpop_data
     nb # number of binary variables
     m # number of all constraints
     numeq # number of equality constraints
+    x # set of variables
     supp # support data
     coe # coefficient data
     basis # monomial bases
@@ -59,39 +60,15 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 function cs_tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, foc=100, CS="MF", cliques=[], basis=[], minimize=false, TS="block", merge=false, md=3, solver="Mosek", 
     tune=false, dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para(), normality=false, NormalSparse=false) where {T<:Number}
     n,supp,coe = polys_info(pop, x, nb=nb)
-    opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, foc=foc, CS=CS, cliques=cliques, basis=basis, minimize=minimize, TS=TS,
+    if NormalSparse == true
+        ss = get_signsymmetry(pop, x)
+    else
+        ss = false
+    end
+    opt,sol,data = cs_tssos_first(supp, coe, n, d, vars=x, numeq=numeq, nb=nb, foc=foc, CS=CS, cliques=cliques, basis=basis, minimize=minimize, TS=TS,
     merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
-    Mommat=Mommat, tol=tol, cosmo_setting=cosmo_setting, normality=normality, NormalSparse=NormalSparse)
+    Mommat=Mommat, signsymmetry=ss, tol=tol, cosmo_setting=cosmo_setting, normality=normality, NormalSparse=NormalSparse)
     return opt,sol,data
-end
-
-function polys_info(pop, x; nb=0)
-    n = length(x)
-    m = length(pop)-1
-    if nb > 0
-        gb = x[1:nb].^2 .- 1
-        for i in eachindex(pop)
-            pop[i] = rem(pop[i], gb)
-        end
-    end
-    coe = Vector{Vector{Float64}}(undef, m+1)
-    supp = Vector{Vector{Vector{UInt16}}}(undef, m+1)
-    for k = 1:m+1
-        mon = monomials(pop[k])
-        coe[k] = coefficients(pop[k])
-        lm = length(mon)
-        supp[k] = [UInt16[] for i=1:lm]
-        for i = 1:lm
-            ind = mon[i].z .> 0
-            vars = mon[i].vars[ind]
-            exp = mon[i].z[ind]
-            for j in eachindex(vars)
-                l = ncbfind(x, n, vars[j])
-                append!(supp[k][i], l*ones(UInt16, exp[j]))
-            end
-        end
-    end
-    return n,supp,coe
 end
 
 """
@@ -101,11 +78,11 @@ end
 Compute the first TS step of the CS-TSSOS hierarchy for constrained polynomial optimization. 
 Here the polynomial optimization problem is defined by `supp` and `coe`, corresponding to the supports and coeffients of `pop` respectively.
 """
-function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, foc=100, CS="MF", cliques=[], basis=[], minimize=false, 
+function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; vars=nothing, numeq=0, nb=0, foc=100, CS="MF", cliques=[], basis=[], minimize=false, 
     TS="block", merge=false, md=3, QUIET=false, solver="Mosek", tune=false, dualize=false, solve=true, solution=false, MomentOne=false, Gram=false, 
-    Mommat=false, tol=1e-4, cosmo_setting=cosmo_para(), normality=false, NormalSparse=false)
+    Mommat=false, signsymmetry=false, tol=1e-4, cosmo_setting=cosmo_para(), normality=false, NormalSparse=false)
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.0.0, developed by Jie Wang, 2020--2024")
+    println("Version 1.1.2, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     m = length(supp)-1
     supp[1],coe[1] = resort(supp[1], coe[1])
@@ -134,9 +111,9 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,GramMat,SDP_status = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET,
+    opt,ksupp,moment,GramMat,SDP_status = blockcpop_mix(n, m, supp, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, signsymmetry=signsymmetry,
     TS=TS, solver=solver, tune=tune, dualize=dualize, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting, normality=normality, NormalSparse=NormalSparse)
-    data = mcpop_data(n, nb, m, numeq, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, GramMat, moment, solver, SDP_status, tol, 1)
+    data = mcpop_data(n, nb, m, numeq, vars, supp, coe, basis, rlorder, ksupp, cql, cliques, cliquesize, J, ncc, sb, numb, blocks, cl, blocksize, GramMat, moment, solver, SDP_status, tol, 1)
     sol = nothing
     if solution == true
         sol,gap,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
@@ -218,7 +195,7 @@ end
 
 function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, cliques, cql, cliquesize, J, ncc, blocks, cl, blocksize; 
     numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", tune=false, solve=true, solution=false, Gram=false, MomentOne=false, 
-    Mommat=false, cosmo_setting=cosmo_para(), dualize=false, normality=false, NormalSparse=false)
+    signsymmetry=false, Mommat=false, cosmo_setting=cosmo_para(), dualize=false, normality=false, NormalSparse=false)
     tsupp = Vector{UInt16}[]
     for i = 1:cql, j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
         @inbounds bi = sadd(basis[i][1][blocks[i][1][j][k]], basis[i][1][blocks[i][1][j][r]], nb=nb)
@@ -229,11 +206,6 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
     end
     if normality == true
         if NormalSparse == true
-            st = Vector{UInt16}[]
-            for i = 1:m+1
-                append!(st, sign_type.(supp[i]))
-            end
-            unique!(st)
             hyblocks = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
         end
         # wbasis = Vector{Vector{Vector{UInt16}}}(undef, cql)
@@ -248,15 +220,24 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, c
                     G = SimpleGraph(2bs)
                     for j = 1:bs, k = j:bs
                         bi = sadd(wbasis[s][j], wbasis[s][k], nb=nb)
-                        if isempty(sign_type(bi)) || any(l->isodd(length(intersect(sign_type(bi), st[l]))), 1:length(st))
+                        sp = zeros(Int, n)
+                        st = sign_type(bi)
+                        sp[st] = ones(Int, length(st))
+                        if all(transpose(signsymmetry)*sp .== 0)
                             add_edge!(G, j, k)
                         end
                         bi = sadd(sadd(wbasis[s][j], wbasis[s][k], nb=nb), [cliques[s][i];cliques[s][i]], nb=nb)
-                        if isempty(sign_type(bi)) || any(l->isodd(length(intersect(sign_type(bi), st[l]))), 1:length(st))
+                        sp = zeros(Int, n)
+                        st = sign_type(bi)
+                        sp[st] = ones(Int, length(st))
+                        if all(transpose(signsymmetry)*sp .== 0)
                             add_edge!(G, j+bs, k+bs)
                         end
                         bi = sadd(sadd(wbasis[s][j], wbasis[s][k], nb=nb), [cliques[s][i]], nb=nb)
-                        if isempty(sign_type(bi)) || any(l->isodd(length(intersect(sign_type(bi), st[l]))), 1:length(st))
+                        sp = zeros(Int, n)
+                        st = sign_type(bi)
+                        sp[st] = ones(Int, length(st))
+                        if all(transpose(signsymmetry)*sp .== 0)
                             add_edge!(G, j, k+bs)
                         end
                     end
@@ -649,41 +630,6 @@ function assign_constraint(m, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql
     return J,ncc
 end
 
-# generate the standard monomial basis in the sparse form
-function get_sbasis(var, d; nb=0)
-    n = length(var)
-    lb = binomial(n+d, d)
-    basis = Vector{Vector{UInt16}}(undef, lb)
-    basis[1] = UInt16[]
-    i = 0
-    t = 1
-    while i < d+1
-        t += 1
-        if sum(basis[t-1]) == var[n]*i
-           if i < d
-               basis[t] = var[1]*ones(UInt16, i+1)
-           end
-           i += 1
-        else
-            j = bfind(var, n, basis[t-1][1])
-            basis[t] = copy(basis[t-1])
-            ind = findfirst(x->basis[t][x]!=var[j], 1:length(basis[t]))
-            if ind === nothing
-                ind = length(basis[t])+1
-            end
-            if j != 1
-                basis[t][1:ind-2] = var[1]*ones(UInt16, ind-2)
-            end
-            basis[t][ind-1] = var[j+1]
-        end
-    end
-    if nb > 0
-        ind = [!any([basis[i][j]==basis[i][j+1]&&basis[i][j]<=nb for j=1:length(basis[i])-1]) for i=1:lb]
-        basis = basis[ind]
-    end
-    return basis
-end
-
 function get_graph(tsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0)
     lb = length(basis)
     G = SimpleGraph(lb)
@@ -734,26 +680,6 @@ function clique_decomp(n, m, dg, supp::Vector{Vector{Vector{UInt16}}}; order="mi
     println("The clique sizes of varibles:\n$uc\n$sizes")
     println("-----------------------------------------------------------------------------")
     return cliques,cql,cliquesize
-end
-
-function sadd(a, b; nb=0)
-    c = [a; b]
-    sort!(c)
-    if nb > 0
-        i = 1
-        while i < length(c)
-            if c[i] <= nb
-                if c[i] == c[i+1]
-                    deleteat!(c, i:i+1)
-                else
-                    i += 1
-                end
-            else
-                break
-            end
-        end
-    end
-    return c
 end
 
 # extract an approximate solution from the moment matrix
@@ -826,29 +752,4 @@ function get_moment(measure, tsupp, cliques, cql, cliquesize; basis=[], nb=0)
         moment[i] = Symmetric(moment[i],:U)
     end
     return moment
-end
-
-function ncbfind(A, l, a)
-    low = 1
-    high = l
-    while low <= high
-        mid = Int(ceil(1/2*(low+high)))
-        if A[mid] == a
-           return mid
-        elseif A[mid] < a
-            high = mid - 1
-        else
-            low = mid + 1
-        end
-    end
-    return nothing
-end
-
-function seval(supp, coe, x)
-    val = 0
-    for i in eachindex(supp)
-        temp = isempty(supp[i]) ? 1 : prod(x[supp[i][j]] for j=1:length(supp[i]))
-        val += coe[i]*temp
-    end
-    return val
 end

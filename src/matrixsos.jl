@@ -10,6 +10,7 @@ mutable struct poly_matrix
 end
 
 mutable struct mpop_data
+    b
     obj_matrix
     cons_matrix
     basis # monomial basis
@@ -25,7 +26,7 @@ end
 
 function tssos_first(F::Matrix{Polynomial{true, T}}, G, x, d; TS="block", QUIET=false, solve=true) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.0.0, developed by Jie Wang, 2020--2024")
+    println("Version 1.1.2, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     n = length(x)
     m = length(G)
@@ -71,7 +72,7 @@ function tssos_first(F::Matrix{Polynomial{true, T}}, G, x, d; TS="block", QUIET=
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
     opt,ksupp,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, QUIET=QUIET, solve=solve)
-    data = mpop_data(obj_matrix, cons_matrix, basis, gbasis, ksupp, blocks, cl, blocksize, sb, numb, SDP_status)
+    data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocks, cl, blocksize, sb, numb, SDP_status)
     return opt,data
 end
 
@@ -258,7 +259,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize; 
         end
         pos = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[1])
         for i = 1:cl[1]
-            pos[i] = @variable(model, [1:blocksize[1][i], 1:blocksize[1][i]], base_name="Q", PSD)
+            pos[i] = @variable(model, [1:blocksize[1][i], 1:blocksize[1][i]], PSD)
             for j = 1:blocksize[1][i], k = j:blocksize[1][i]
                 p = mod(blocks[1][i][j], om)
                 p = p != 0 ? p : om
@@ -322,11 +323,240 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize; 
             end
             @constraint(model, cons[ind].==bc)
         end
-        # ac = all_constraints(model, include_variable_in_set_constraints = false)
-        # for i = 1:6
-        #     println(ac[i])
-        # end
         @objective(model, Max, lower)
+        end
+        if QUIET == false
+            println("SDP assembling time: $time seconds.")
+            println("Solving the SDP...")
+        end
+        time = @elapsed begin
+        optimize!(model)
+        end
+        if QUIET == false
+            println("SDP solving time: $time seconds.")
+        end
+        SDP_status = termination_status(model)
+        objv = objective_value(model)
+        if SDP_status != MOI.OPTIMAL
+            println("termination status: $SDP_status")
+            status = primal_status(model)
+            println("solution status: $status")
+        end
+        println("optimum = $objv")
+    end
+    return objv,ksupp,SDP_status
+end
+
+function LinearPMI_first(b, F::Vector{Matrix{Polynomial{true, T}}}, G, x, d; TS="block", QUIET=false, solve=true) where {T<:Number}
+    println("*********************************** TSSOS ***********************************")
+    println("Version 1.1.2, developed by Jie Wang, 2020--2024")
+    println("TSSOS is launching...")
+    n = length(x)
+    s = length(F)
+    m = length(G)
+    dG = [maximum(maxdegree.(vec(G[i]))) for i=1:m]
+    obj_matrix = Vector{poly_matrix}(undef, s)
+    for k = 1:s
+        obj_matrix[k] = poly_matrix(size(F[k],1), Vector{poly_data}(undef, Int((size(F[k],1)+1)*size(F[k],1)/2)))
+        for i = 1:obj_matrix[k].m, j = i:obj_matrix[k].m
+            _,supp,coe = polys_info([F[k][i,j]], x)
+            obj_matrix[k].poly[i+Int(j*(j-1)/2)] = poly_data(n, supp[1], coe[1])
+        end
+    end
+    basis = get_sbasis(Vector(1:n), d)
+    cons_matrix = Vector{poly_matrix}(undef, m)
+    gbasis = Vector{Vector{Vector{UInt16}}}(undef, m)
+    for k = 1:m
+        gbasis[k] = get_sbasis(Vector(1:n), d-Int(ceil(dG[k]/2)))
+        cons_matrix[k] = poly_matrix(size(G[k],1), Vector{poly_data}(undef, Int((size(G[k],1)+1)*size(G[k],1)/2)))
+        for i = 1:cons_matrix[k].m, j = i:cons_matrix[k].m
+            _,supp,coe = polys_info([G[k][i,j]], x)
+            cons_matrix[k].poly[i+Int(j*(j-1)/2)] = poly_data(n, supp[1], coe[1])
+        end
+    end
+    ksupp = Vector{Vector{Vector{UInt16}}}(undef, Int((obj_matrix[1].m+1)*obj_matrix[1].m/2))
+    if TS != false
+        for i = 1:obj_matrix[1].m, j = i:obj_matrix[1].m
+            ind = i + Int(j*(j-1)/2)
+            ksupp[ind] = reduce(vcat, [obj_matrix[k].poly[ind].supp for k=1:s])
+            if i == j
+                for item in basis
+                    push!(ksupp[ind], sadd(item, item))
+                end
+            end
+        end
+        unique!.(ksupp)
+        sort!.(ksupp)
+        if QUIET == false
+            println("Starting to compute the block structure...")
+        end
+    end
+    time = @elapsed begin
+    blocks,cl,blocksize,sb,numb,_ = get_mblocks(obj_matrix[1].m, cons_matrix, ksupp, basis, gbasis, TS=TS, QUIET=QUIET)
+    end
+    if TS != false && QUIET == false
+        mb = maximum(maximum.(sb))
+        println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
+    end
+    opt,ksupp,SDP_status = LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, QUIET=QUIET, solve=solve)
+    data = mpop_data(b, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocks, cl, blocksize, sb, numb, SDP_status)
+    return opt,data
+end
+
+function LinearPMI_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
+    basis = data.basis
+    gbasis = data.gbasis
+    ksupp = data.ksupp
+    obj_matrix = data.obj_matrix
+    cons_matrix = data.cons_matrix
+    blocks = data.blocks
+    cl = data.cl
+    blocksize = data.blocksize
+    sb = data.sb
+    numb = data.numb
+    if TS != false && QUIET == false
+        println("Starting to compute the block structure...")
+    end
+    time = @elapsed begin
+    blocks,cl,blocksize,data.sb,data.numb,status = get_mblocks(obj_matrix[1].m, cons_matrix, ksupp, basis, gbasis, blocks=blocks, cl=cl, blocksize=blocksize, sb=sb, numb=numb, TS=TS, QUIET=QUIET)
+    end
+    opt = nothing
+    if status == 1
+        if TS != false && QUIET == false
+            mb = maximum(maximum.(data.sb))
+            println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
+        end
+        opt,ksupp,SDP_status = LinearPMI_sdp(data.b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, QUIET=QUIET, solve=solve)
+        data.ksupp = ksupp
+        data.blocks = blocks
+        data.cl = cl
+        data.blocksize = blocksize
+        data.SDP_status = SDP_status
+    end
+    return opt,data
+end
+
+function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize; solve=true, QUIET=false)
+    om = obj_matrix[1].m
+    ksupp = [Vector{UInt16}[] for i = 1:length(obj_matrix[1].poly)]
+    for i = 1:cl[1], j = 1:blocksize[1][i], k = j:blocksize[1][i]
+        bi = sadd(basis[ceil(Int, blocks[1][i][j]/om)], basis[ceil(Int, blocks[1][i][k]/om)])
+        ind1 = mod(blocks[1][i][j], om)
+        ind1 = ind1 != 0 ? ind1 : om
+        ind2 = mod(blocks[1][i][k], om)
+        ind2 = ind2 != 0 ? ind2 : om
+        push!(ksupp[ind1+Int(ind2*(ind2-1)/2)], bi)
+    end
+    for s = 1:length(cons_matrix)
+        com = cons_matrix[s].m*om
+        for i = 1:cl[s+1], j = 1:blocksize[s+1][i], k = j:blocksize[s+1][i]
+            p = mod(blocks[s+1][i][j], com)
+            p = p != 0 ? p : com
+            q = mod(blocks[s+1][i][k], com)
+            q = q != 0 ? q : com
+            p1 = ceil(Int, p/cons_matrix[s].m)
+            q1 = ceil(Int, q/cons_matrix[s].m)
+            ind = p1 <= q1 ? p1 + Int(q1*(q1-1)/2) : q1 + Int(p1*(p1-1)/2)
+            t = mod(blocks[s+1][i][j], cons_matrix[s].m)
+            t = t != 0 ? t : cons_matrix[s].m
+            r = mod(blocks[s+1][i][k], cons_matrix[s].m)
+            r = r != 0 ? r : cons_matrix[s].m
+            loc = t <= r ? t + Int(r*(r-1)/2) : r + Int(t*(t-1)/2)
+            for w = 1:length(cons_matrix[s].poly[loc].supp)
+                bi = sadd(sadd(gbasis[s][ceil(Int, blocks[s+1][i][j]/com)], gbasis[s][ceil(Int, blocks[s+1][i][k]/com)]), cons_matrix[s].poly[loc].supp[w])
+                push!(ksupp[ind], bi)
+            end
+        end
+    end
+    unique!.(ksupp)
+    sort!.(ksupp)
+    objv = SDP_status = nothing
+    if solve == true
+        if QUIET == false
+            ncons = sum(length.(ksupp))
+            println("Assembling the SDP...")
+            println("There are $ncons affine constraints.")
+        end
+        model = Model(optimizer_with_attributes(Mosek.Optimizer))
+        set_optimizer_attribute(model, MOI.Silent(), QUIET)
+        time = @elapsed begin
+        cons = Vector{Vector{AffExpr}}(undef, length(obj_matrix[1].poly))
+        for i = 1:length(obj_matrix[1].poly)
+            cons[i] = [AffExpr(0) for j=1:length(ksupp[i])]
+        end
+        pos = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[1])
+        for i = 1:cl[1]
+            pos[i] = @variable(model, [1:blocksize[1][i], 1:blocksize[1][i]], PSD)
+            for j = 1:blocksize[1][i], k = j:blocksize[1][i]
+                p = mod(blocks[1][i][j], om)
+                p = p != 0 ? p : om
+                q = mod(blocks[1][i][k], om)
+                q = q != 0 ? q : om
+                ind = p <= q ? p + Int(q*(q-1)/2) : q + Int(p*(p-1)/2)
+                Locb = bfind(ksupp[ind], length(ksupp[ind]), sadd(basis[ceil(Int, blocks[1][i][j]/om)], basis[ceil(Int, blocks[1][i][k]/om)]))
+                if p != q || j == k
+                    @inbounds add_to_expression!(cons[ind][Locb], pos[i][j,k])
+                else
+                    @inbounds add_to_expression!(cons[ind][Locb], 2, pos[i][j,k])
+                end
+            end
+        end
+        gpos = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, length(cons_matrix))
+        for s = 1:length(cons_matrix)
+            gpos[s] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[s+1])
+            com = cons_matrix[s].m*om
+            for i = 1:cl[s+1]
+                gpos[s][i] = @variable(model, [1:blocksize[s+1][i], 1:blocksize[s+1][i]], base_name="P", PSD)
+                for j = 1:blocksize[s+1][i], k = j:blocksize[s+1][i]
+                    p = mod(blocks[s+1][i][j], com)
+                    p = p != 0 ? p : com
+                    q = mod(blocks[s+1][i][k], com)
+                    q = q != 0 ? q : com
+                    p1 = ceil(Int, p/cons_matrix[s].m)
+                    q1 = ceil(Int, q/cons_matrix[s].m)
+                    ind = p1 <= q1 ? p1 + Int(q1*(q1-1)/2) : q1 + Int(p1*(p1-1)/2)
+                    t = mod(blocks[s+1][i][j], cons_matrix[s].m)
+                    t = t != 0 ? t : cons_matrix[s].m
+                    r = mod(blocks[s+1][i][k], cons_matrix[s].m)
+                    r = r != 0 ? r : cons_matrix[s].m
+                    loc = t <= r ? t + Int(r*(r-1)/2) : r + Int(t*(t-1)/2)
+                    for w = 1:length(cons_matrix[s].poly[loc].supp)
+                        Locb = bfind(ksupp[ind], length(ksupp[ind]), sadd(sadd(gbasis[s][ceil(Int, blocks[s+1][i][j]/com)], 
+                        gbasis[s][ceil(Int, blocks[s+1][i][k]/com)]), cons_matrix[s].poly[loc].supp[w]))
+                        if p != q || j == k
+                            @inbounds add_to_expression!(cons[ind][Locb], cons_matrix[s].poly[loc].coe[w], gpos[s][i][j,k])
+                        else
+                            @inbounds add_to_expression!(cons[ind][Locb], 2*cons_matrix[s].poly[loc].coe[w], gpos[s][i][j,k])
+                        end
+                    end
+                end
+            end
+        end
+        λ = @variable(model, [1:length(b)])
+        for i = 1:om, j = i:om
+            ind = i + Int(j*(j-1)/2)
+            bc = [AffExpr(0) for k = 1:length(ksupp[ind])]
+            for k = 1:length(obj_matrix[1].poly[ind].supp)
+                Locb = bfind(ksupp[ind], length(ksupp[ind]), obj_matrix[1].poly[ind].supp[k])
+                if Locb === nothing
+                    @error "The monomial basis is not enough!"
+                    return nothing,nothing,nothing
+                else
+                    @inbounds add_to_expression!(bc[Locb], obj_matrix[1].poly[ind].coe[k])
+                end
+            end
+            for t = 2:length(obj_matrix), k = 1:length(obj_matrix[t].poly[ind].supp)
+                Locb = bfind(ksupp[ind], length(ksupp[ind]), obj_matrix[t].poly[ind].supp[k])
+                if Locb === nothing
+                    @error "The monomial basis is not enough!"
+                    return nothing,nothing,nothing
+                else
+                    @inbounds add_to_expression!(bc[Locb], λ[t-1], obj_matrix[t].poly[ind].coe[k])
+                end
+            end
+            @constraint(model, cons[ind].==bc)
+        end
+        @objective(model, Min, b'*λ)
         end
         if QUIET == false
             println("SDP assembling time: $time seconds.")

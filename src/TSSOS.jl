@@ -13,12 +13,14 @@ using SemialgebraicSets
 using COSMO
 using Dualization
 using Printf
+using AbstractAlgebra
 # using SDPT3
 # using SDPNAL
 
 export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, local_solution, refine_sol,
 nctssos_first, nctssos_higher!, cs_nctssos_first, cs_nctssos_higher!, cosmo_para, add_psatz!, add_poly!,
-get_nbasis, get_moment, get_moment_matrix, homogenize, solve_hpop
+get_nbasis, get_moment, get_moment_matrix, homogenize, solve_hpop, get_signsymmetry, SumOfRatios, SparseSumOfRatios,
+LinearPMI_first, LinearPMI_higher!, show_blocks
 
 include("clique_merge.jl")
 include("blockpop_uncons.jl")
@@ -30,6 +32,8 @@ include("NCTSSOS/NCTSSOS.jl")
 include("add_psatz.jl")
 include("homogenize.jl")
 include("matrixsos.jl")
+include("sum_of_ratios.jl")
+include("utils.jl")
 using .NCTSSOS
 
 end
