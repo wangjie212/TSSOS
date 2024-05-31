@@ -263,9 +263,9 @@ Visit [SparseJSR](https://github.com/wangjie212/SparseJSR)
 [2] [Chordal-TSSOS: a moment-SOS hierarchy that exploits term sparsity with chordal extension](https://arxiv.org/abs/2003.03210)  
 [3] [CS-TSSOS: Correlative and term sparsity for large-scale polynomial optimization](https://arXiv:2005.02828)  
 [4] [TSSOS: a Julia library to exploit sparsity for large-scale polynomial optimization](https://arxiv.org/abs/2103.00915)  
-[5] [Sparse polynomial optimization: theory and practice](https://arxiv.org/abs/2208.11158)
-[6] [Strengthening Lasserre's Hierarchy in Real and Complex Polynomial Optimization](https://arxiv.org/abs/2404.07125)
-[7] [Exploiting Sign Symmetries in Minimizing Sums of Rational Functions](https://arxiv.org/abs/2405.09419)
+[5] [Sparse polynomial optimization: theory and practice](https://arxiv.org/abs/2208.11158)  
+[6] [Strengthening Lasserre's Hierarchy in Real and Complex Polynomial Optimization](https://arxiv.org/abs/2404.07125)  
+[7] [Exploiting Sign Symmetries in Minimizing Sums of Rational Functions](https://arxiv.org/abs/2405.09419)  
 
 ## Contact
 [Jie Wang](https://wangjie212.github.io/jiewang/): wangjie212@amss.ac.cn  

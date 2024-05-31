@@ -18,10 +18,7 @@ B = rand(m, m)
 B = (B+B')/2
 F = (1-x[1]^2-x[2]^2)*I(m) + (x[1]*x[2]-x[1]^2)*A + (2x[1]^2*x[2]^2-x[1]*x[2]-2x[2]^2)*B
 G = [1-x[1]^2-x[2]^2]
-@time begin
-opt,data = tssos_first(F, [G], x, 2, TS="block", QUIET=true)
-println([Int.(data.blocksize[i]) for i = 1:2])
-end
+@time opt,data = tssos_first(F, [G], x, 2, TS="block", QUIET=true)
 
 ## Inf b'*λ s.t. F0 + λ1*F1 + ... λt*Ft >=0 on {x ∈ R^n | G1(x) >= 0, ..., Gm(x) >= 0}
 @polyvar x[1:3]
@@ -31,3 +28,10 @@ F[2] = sum(x.^2)*[0 x[1]^2*x[2]^2 0; x[1]^2*x[2]^2 0 0; 0 0 0]
 F[3] = sum(x.^2)*[x[1]^4 0 0; 0 x[2]^4 x[2]^2*x[3]^2; 0 x[2]^2*x[3]^2 x[3]^4]
 G = [1 - sum(x.^2)]
 @time opt,data = LinearPMI_first([-10, 1], F, [G], x, 3, TS="block", QUIET=true)
+
+## polynomial matrix optimization with correlative sparsity
+@polyvar x[1:3]
+F = [x[1]*x[2] + x[2]*x[3] 2 + x[1] + x[3]; 2 + x[1] + x[3] 2*x[2]^2]
+G = [[1 - x[1]^2 - x[2]^2], [1 - x[2]^2 - x[3]^2]]
+@time opt,data = cs_tssos_first(F, G, x, 2, TS="block")
+@time opt,data = cs_tssos_higher!(data)
