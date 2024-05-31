@@ -56,7 +56,7 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 function tssos_first(f::Polynomial{true, T}, x; nb=0, order=0, newton=true, reducebasis=false, TS="block", merge=false, md=3, feasible=false, solver="Mosek", 
     QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para()) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.1.2, developed by Jie Wang, 2020--2024")
+    println("Version 1.1.3, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     n = length(x)
     if nb > 0

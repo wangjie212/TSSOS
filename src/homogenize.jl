@@ -7,7 +7,7 @@ end
 
 function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF", type=3, ε=0, TS="block", SO=1, nnhomovar=false, Groebnerbasis=false, Mommat=false)
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.1.2, developed by Jie Wang, 2020--2023")
+    println("Version 1.1.3, developed by Jie Wang, 2020--2023")
     println("TSSOS is launching...")
     if CS != false
         fsupp = poly_info(cost, vars)[1]

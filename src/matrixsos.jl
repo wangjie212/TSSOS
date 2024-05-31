@@ -38,7 +38,7 @@ end
 
 function cs_tssos_first(F::Matrix{Polynomial{true, T}}, G, x, d; CS="MF", TS="block", QUIET=false, solve=true) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.1.2, developed by Jie Wang, 2020--2024")
+    println("Version 1.1.3, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     n = length(x)
     m = length(G)
@@ -372,7 +372,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
                 end
             end
             gpos = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, length(I[u]))
-            for u = 1:cql, (s,v) = enumerate(I[u])
+            for (s,v) = enumerate(I[u])
                 gpos[s] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[u][s+1])
                 com = cons_matrix[v].m*om
                 for i = 1:cl[u][s+1]
@@ -447,7 +447,7 @@ end
 
 function LinearPMI_first(b, F::Vector{Matrix{Polynomial{true, T}}}, G, x, d; TS="block", QUIET=false, solve=true) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.1.2, developed by Jie Wang, 2020--2024")
+    println("Version 1.1.3, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     n = length(x)
     s = length(F)

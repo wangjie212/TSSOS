@@ -86,7 +86,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
     ipart=true, dualize=false, balanced=false, MomentOne=false, Gram=false, Mommat=false, cosmo_setting=cosmo_para(), writetofile=false, 
     signsymmetry=false, normality=0, NormalSparse=false)
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.1.2, developed by Jie Wang, 2020--2024")
+    println("Version 1.1.3, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     if nb > 0
         supp[1],coe[1] = resort(supp[1], coe[1], nb=nb)

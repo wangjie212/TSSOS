@@ -82,7 +82,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; vars=no
     TS="block", merge=false, md=3, QUIET=false, solver="Mosek", tune=false, dualize=false, solve=true, solution=false, MomentOne=false, Gram=false, 
     Mommat=false, signsymmetry=false, tol=1e-4, cosmo_setting=cosmo_para(), normality=false, NormalSparse=false)
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.1.2, developed by Jie Wang, 2020--2024")
+    println("Version 1.1.3, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     m = length(supp)-1
     supp[1],coe[1] = resort(supp[1], coe[1])

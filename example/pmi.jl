@@ -33,5 +33,5 @@ G = [1 - sum(x.^2)]
 @polyvar x[1:3]
 F = [x[1]*x[2] + x[2]*x[3] 2 + x[1] + x[3]; 2 + x[1] + x[3] 2*x[2]^2]
 G = [[1 - x[1]^2 - x[2]^2], [1 - x[2]^2 - x[3]^2]]
-@time opt,data = cs_tssos_first(F, G, x, 2, TS="block")
-@time opt,data = cs_tssos_higher!(data)
+@time opt,data = cs_tssos_first(F, G, x, 1, TS=false)
+# @time opt,data = cs_tssos_higher!(data)
