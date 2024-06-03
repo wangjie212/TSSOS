@@ -1,12 +1,12 @@
 mutable struct struct_data
-    cliques # clique structrue
     cql # number of cliques
     cliquesize # size of cliques
+    cliques # clique structrue
     basis # monomial basis
-    blocks # block structrue corresponding to inequality constraints
     cl # number of blocks
     blocksize # size of blocks
-    eblocks # block structrue corresponding to equality constraints
+    blocks # block structrue for inequality constraints
+    eblocks # block structrue for equality constraints
     tsupp # total support
     I # index sets of inequality constraints
     J # index sets of equality constraints
@@ -94,7 +94,7 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
             basis[t][s+length(I[t])+1] = get_nbasis(n, 2*order-dh[J[t][s]], var=cliques[t])
         end
     end
-    blocks,cl,blocksize,eblocks,sb,numb,status = get_cblocks_mix(n, I, J, m, l, fsupp, gsupp, glt, hsupp, hlt, basis, cliques, cql, tsupp=[], TS=TS, SO=SO, QUIET=QUIET)
+    blocks,cl,blocksize,eblocks,_,_,_ = get_cblocks_mix(n, I, J, m, l, fsupp, gsupp, glt, hsupp, hlt, basis, cliques, cql, tsupp=[], TS=TS, SO=SO, QUIET=QUIET)
     ne = 0
     for t = 1:cql
         ne += sum(numele(blocksize[t][1]))
@@ -263,7 +263,7 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
     else
         @constraint(model, cons.==bc)
     end
-    info = struct_data(cliques,cql,cliquesize,basis,blocks,cl,blocksize,eblocks,tsupp,I,J,pos,constrs)
+    info = struct_data(cql,cliquesize,cliques,basis,cl,blocksize,blocks,eblocks,tsupp,I,J,pos,constrs)
     return model,info
 end
 

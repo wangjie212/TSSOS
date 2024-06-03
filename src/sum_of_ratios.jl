@@ -17,7 +17,6 @@ Minimizing the sum of ratios p1/q1 + ... + pN/qN on the set defined by g >= 0 an
 """
 function SumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, Groebnerbasis=false)
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.1.3, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     N = length(p)
     if SignSymmetry == true
@@ -78,7 +77,6 @@ Minimizing the sum of sparse ratios p1/q1 + ... + pN/qN on the set defined by g 
 """
 function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, Groebnerbasis=false)
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.1.3, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     N = length(p)
     if SignSymmetry == true

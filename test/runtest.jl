@@ -16,7 +16,8 @@ f = 1+x[1]^4+x[2]^4+x[3]^4+x[1]*x[2]*x[3]+x[2]
 g = 1-x[1]^2-2*x[2]^2
 h = x[2]^2+x[3]^2-1
 pop = [f, g, h]
-opt,sol,data = tssos_first(pop, x, 2, numeq=1, TS="block", solution=true, QUIET=true)
+opt,sol,data = tssos_first(pop, x, 2, numeq=1, quotient=false, TS="block", solution=true, QUIET=true)
+opt,sol,data = tssos_first(pop, x, 2, numeq=1, quotient=true, TS="block", solution=true, QUIET=true)
 # optimum = 0.6861925732538557
 
 opt,sol,data = tssos_higher!(data, TS="MD", solution=true, QUIET=true)

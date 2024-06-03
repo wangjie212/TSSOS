@@ -4,7 +4,7 @@ using Random
 
 # Minimizing a random real quadratic polynomial with binary variables
 Random.seed!(1)
-n = 10
+n = 5
 @polyvar x[1:n]
 Q = rand(n+1, n+1)
 Q = (Q+Q')/2

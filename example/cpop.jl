@@ -100,7 +100,7 @@ silence()
 case = "pglib_opf_case14_ieee"
 AC = 2178.08
 opfdata = parse_file(case * ".m")
-model = pop_opf_com(opfdata, normal=true, AngleCons=true, LineLimit=true)
+model = pop_opf_com_vol(opfdata, normal=true, AngleCons=true, LineLimit=true)
 n = model.n
 m = model.m
 numeq = model.numeq
@@ -110,7 +110,7 @@ mc = maximum(abs.(coe[1]))
 coe[1] = coe[1]./mc
 
 time = @elapsed begin
-opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, tune=true, CS="MF", TS="block", MomentOne=true)
+opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, tune=true, CS="MF", TS="block", MomentOne=false)
 end
 opt *= mc
 maxc = maximum(popd.cliquesize) # maximal clique size

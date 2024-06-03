@@ -10,12 +10,14 @@ mutable struct cpop_data
     supp # support data
     coe # coefficient data
     basis # monomial bases
+    hbasis # monomial bases for equality constraints
     ksupp # extended support at the k-th step
     sb # sizes of different blocks
     numb # numbers of different blocks
-    blocks # block structure
     cl # numbers of blocks
     blocksize # sizes of blocks
+    blocks # block structure for inequality constraints
+    eblocks # block structrue for equality constraints
     GramMat # Gram matrix
     moment # Moment matrix
     solver # SDP solver
@@ -56,7 +58,6 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quotient=true, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
     QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para(), normality=0, NormalSparse=false) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.1.3, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     n = length(x)
     if nb > 0
@@ -92,39 +93,45 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
         ss = false
     end
     m = length(cpop)-1
-    dg = zeros(Int, m)
     coe = Vector{Vector{Float64}}(undef, m+1)
     supp = Vector{Array{UInt8,2}}(undef, m+1)
     for k = 1:m+1
         mons = MultivariatePolynomials.monomials(cpop[k])
         coe[k] = MultivariatePolynomials.coefficients(cpop[k])
-        supp[k] = zeros(UInt8,n,length(mons))
+        supp[k] = zeros(UInt8, n, length(mons))
         for i in eachindex(mons), j = 1:n
-            @inbounds supp[k][j,i] = MultivariatePolynomials.degree(mons[i],x[j])
+            @inbounds supp[k][j,i] = MultivariatePolynomials.degree(mons[i], x[j])
         end
     end
     isupp = supp[1]
     for i = 2:m+1
-        dg[i-1] = maxdegree(pop[i])
         isupp = [isupp supp[i]]
     end
+    neq = isempty(gb) ? numeq : 0
     if basis == []
-        basis = Vector{Array{UInt8,2}}(undef, m+1)
+        basis = Vector{Array{UInt8,2}}(undef, m-neq+1)
         basis[1] = get_basis(n, d, nb=nb, lead=leadsupp)
-        for k = 1:m
-            basis[k+1] = get_basis(n, d-Int(ceil(dg[k]/2)), nb=nb, lead=leadsupp)
+        for k = 1:m-neq
+            basis[k+1] = get_basis(n, d-Int(ceil(maxdegree(pop[k+1])/2)), nb=nb, lead=leadsupp)
+        end
+        hbasis = nothing
+        if isempty(gb) && numeq > 0
+            hbasis = Vector{Array{UInt8,2}}(undef, numeq)
+            for k = 1:numeq
+                hbasis[k] = get_basis(n, 2*d-maxdegree(pop[k+1+m-numeq]), nb=nb, lead=leadsupp)
+            end
         end
     end
-    tsupp = [isupp bin_add(basis[1],basis[1],nb)]
+    tsupp = [isupp bin_add(basis[1], basis[1], nb)]
     tsupp = sortslices(tsupp, dims=2)
     tsupp = unique(tsupp, dims=2)
     if TS != false && QUIET == false
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,cl,blocksize,sb,numb,_ = get_cblocks(m, tsupp, supp[2:end], basis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
+    blocks,eblocks,cl,blocksize,sb,numb,_ = get_cblocks(m-neq, neq, tsupp, supp[2:end], basis, hbasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
     if reducebasis == true && quotient == false
-        gsupp = get_gsupp(n, m, supp, basis[2:end], blocks[2:end], cl[2:end], blocksize[2:end], nb=nb)
+        gsupp = get_gsupp(n, m, numeq, supp, basis[2:end], hbasis, blocks[2:end], eblocks, cl[2:end], blocksize[2:end], nb=nb)
         psupp = [supp[1] zeros(UInt8,n)]
         psupp = [psupp gsupp]
         basis[1],flag = reducebasis!(psupp, basis[1], blocks[1], cl[1], blocksize[1], nb=nb)
@@ -132,7 +139,7 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
             tsupp = [isupp bin_add(basis[1], basis[1], nb)]
             tsupp = sortslices(tsupp, dims=2)
             tsupp = unique(tsupp, dims=2)
-            blocks,cl,blocksize,sb,numb,_ = get_cblocks(m, tsupp, supp[2:end], basis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
+            blocks,eblocks,cl,blocksize,sb,numb,_ = get_cblocks(m-numeq, numeq, tsupp, supp[2:end], basis, hbasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
         end
     end
     end
@@ -140,10 +147,10 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,momone,GramMat,SDP_status = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, dualize=dualize, TS=TS,
+    opt,ksupp,moment,momone,GramMat,SDP_status = blockcpop(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, dualize=dualize, TS=TS,
     lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, signsymmetry=ss, 
     normality=normality, NormalSparse=NormalSparse)
-    data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, ksupp, sb, numb, blocks, cl, blocksize, GramMat, moment, solver, SDP_status, tol, 1)
+    data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, hbasis, ksupp, sb, numb, cl, blocksize, blocks, eblocks, GramMat, moment, solver, SDP_status, tol, 1)
     sol = nothing
     if solution == true
         sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, tol=tol)
@@ -168,10 +175,12 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
     supp = data.supp
     coe = data.coe
     basis = data.basis
+    hbasis = data.hbasis
     ksupp = data.ksupp
     sb = data.sb
     numb = data.numb
     blocks = data.blocks
+    eblocks = data.eblocks
     cl = data.cl
     blocksize = data.blocksize
     solver = data.solver
@@ -182,7 +191,8 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,cl,blocksize,sb,numb,status = get_cblocks(m, ksupp, supp[2:end], basis, blocks=blocks, cl=cl, blocksize=blocksize, sb=sb, numb=numb, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
+    neq = isempty(gb) ? numeq : 0
+    blocks,eblocks,cl,blocksize,sb,numb,status = get_cblocks(m-neq, neq, ksupp, supp[2:end], basis, hbasis, blocks=blocks, eblocks=eblocks, cl=cl, blocksize=blocksize, sb=sb, numb=numb, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
     end
     opt = nothing
     sol = nothing
@@ -191,7 +201,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
             mb = maximum(maximum.(sb))
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,momone,GramMat,SDP_status = blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, TS=TS,
+        opt,ksupp,moment,momone,GramMat,SDP_status = blockcpop(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, TS=TS,
         solver=solver, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, normality=normality, NormalSparse=NormalSparse)
         if solution == true
             sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, tol=tol)
@@ -204,6 +214,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
         data.sb = sb
         data.numb = numb
         data.blocks = blocks
+        data.eblocks = eblocks
         data.cl = cl
         data.blocksize = blocksize
         data.GramMat = GramMat
@@ -213,12 +224,24 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
     return opt,sol,data
 end
 
-function get_gsupp(n, m, supp, gbasis, blocks, cl, blocksize; nb=0)
-    gsupp = zeros(UInt8, n, sum(size(supp[k+1],2)*Int(sum(Int.(blocksize[k]).^2+blocksize[k])/2) for k=1:m))
+function get_gsupp(n, m, numeq, supp, gbasis, hbasis, blocks, eblocks, cl, blocksize; nb=0)
+    s = 0
+    if m > numeq
+        s += sum(size(supp[k+1],2)*Int(sum(Int.(blocksize[k]).^2+blocksize[k])/2) for k=1:m-numeq)
+    end
+    if numeq > 0
+        s += sum(size(supp[k+m-numeq+1],2)*length(eblocks[k]) for k=1:numeq)
+    end
+    gsupp = zeros(UInt8, n, s)
     l = 1
-    for k = 1:m, i = 1:cl[k], j = 1:blocksize[k][i], r = j:blocksize[k][i], s = 1:size(supp[k+1],2)
+    for k = 1:m-numeq, i = 1:cl[k], j = 1:blocksize[k][i], r = j:blocksize[k][i], s = 1:size(supp[k+1],2)
         @inbounds bi = bin_add(gbasis[k][:,blocks[k][i][j]], gbasis[k][:,blocks[k][i][r]], nb)
         @inbounds bi = bin_add(bi, supp[k+1][:,s], nb)
+        @inbounds gsupp[:,l] = bi
+        l += 1
+    end
+    for k = 1:numeq, i in eblocks[k], s = 1:size(supp[k+1],2)
+        @inbounds bi = bin_add(hbasis[k][:,i], supp[k+m-numeq+1][:,s], nb)
         @inbounds gsupp[:,l] = bi
         l += 1
     end
@@ -287,19 +310,36 @@ function get_cgraph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{
     return G
 end
 
-function get_cblocks(m, tsupp, supp, basis; blocks=[], cl=[], blocksize=[], sb=[], numb=[], nb=0,
+function get_eblock(tsupp::Array{UInt8, 2}, hsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=nb)
+    ltsupp = size(tsupp, 2)
+    hlt = size(hsupp, 2)
+    eblock = UInt16[]
+    for i = 1:size(basis, 2)
+        if findfirst(x -> bfind(tsupp, ltsupp, bin_add(basis[:,i], hsupp[:,x], nb)) !== nothing, 1:hlt) !== nothing
+           push!(eblock, i)
+        end
+    end
+    return eblock
+end
+
+function get_cblocks(m, l, tsupp, supp, basis, hbasis; blocks=[], eblocks=[], cl=[], blocksize=[], sb=[], numb=[], nb=0,
     TS="block", QUIET=true, merge=false, md=3)
     if isempty(blocks)
         blocks = Vector{Vector{Vector{UInt16}}}(undef, m+1)
+        eblocks = Vector{Vector{UInt16}}(undef, l)
         blocksize = Vector{Vector{UInt16}}(undef, m+1)
         cl = Vector{UInt16}(undef, m+1)
     end
     if TS == false
         for k = 1:m+1
-            lb = ndims(basis[k])==1 ? length(basis[k]) : size(basis[k],2)
-            blocks[k] = [[i for i=1:lb]]
+            lb = ndims(basis[k])==1 ? length(basis[k]) : size(basis[k], 2)
+            blocks[k] = [Vector(1:lb)]
             blocksize[k] = [lb]
             cl[k] = 1
+        end
+        for k = 1:l
+            lb = ndims(hbasis[k])==1 ? length(hbasis[k]) : size(hbasis[k], 2)
+            eblocks[k] = Vector(1:lb)
         end
         status = 1
         nsb = Int.(blocksize[1])
@@ -338,6 +378,9 @@ function get_cblocks(m, tsupp, supp, basis; blocks=[], cl=[], blocksize=[], sb=[
                     end
                 end
             end
+            for k = 1:l
+                eblocks[k] = get_eblock(tsupp, supp[k+m], hbasis[k], nb=nb)
+            end
         else
             status = 0
             if QUIET == false
@@ -345,12 +388,12 @@ function get_cblocks(m, tsupp, supp, basis; blocks=[], cl=[], blocksize=[], sb=[
             end
         end
     end
-    return blocks,cl,blocksize,nsb,nnumb,status
+    return blocks,eblocks,cl,blocksize,nsb,nnumb,status
 end
 
-function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0, gb=[], x=[], lead=[], solver="Mosek", TS="block",
-    QUIET=true, solve=true, dualize=false, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), signsymmetry=false, 
-    normality=false, NormalSparse=false)
+function blockcpop(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize; nb=0, numeq=0, gb=[], x=[], lead=[], solver="Mosek", TS="block",
+    QUIET=true, solve=true, dualize=false, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), signsymmetry=false, normality=false, 
+    NormalSparse=false)
     ksupp = zeros(UInt8, n, Int(sum(Int.(blocksize[1]).^2+blocksize[1])/2))
     k = 1
     for i = 1:cl[1], j = 1:blocksize[1][i], r = j:blocksize[1][i]
@@ -358,65 +401,66 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
         @inbounds ksupp[:,k] = bi
         k += 1
     end
-    if normality == true
-        wbasis = basis[1]
-        bs = size(wbasis, 2)  
-        if NormalSparse == true
-            hyblocks = Vector{Vector{Vector{UInt16}}}(undef, n)
-            for i = 1:n
-                G = SimpleGraph(2bs)
-                for j = 1:bs, k = j:bs
-                    bi = bin_add(wbasis[:, j], wbasis[:, k], nb)
-                    if all(transpose(signsymmetry)*bi .== 0)
-                        add_edge!(G, j, k)
-                    end
-                    temp = zeros(UInt8, n)
-                    temp[i] = 2
-                    bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
-                    if all(transpose(signsymmetry)*bi .== 0)
-                        add_edge!(G, j+bs, k+bs)
-                    end
-                    temp[i] = 1
-                    bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
-                    if all(transpose(signsymmetry)*bi .== 0)
-                        add_edge!(G, j, k+bs)
-                    end
-                end
-                hyblocks[i] = connected_components(G)
-                for l = 1:length(hyblocks[i])
-                    for j = 1:length(hyblocks[i][l]), k = j:length(hyblocks[i][l])
-                        if hyblocks[i][l][j] <= bs && hyblocks[i][l][k] > bs
-                            temp = zeros(UInt8, n)
-                            temp[i] = 1
-                            bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
-                            ksupp = [ksupp bi]
-                        elseif hyblocks[i][l][j] > bs
-                            temp = zeros(UInt8, n)
-                            temp[i] = 2
-                            bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]-bs], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
-                            ksupp = [ksupp bi]
-                        end
-                    end
-                end
-            end
-        else
-            for i = 1:n, j = 1:bs, k = j:bs
-                temp = zeros(UInt8, n)
-                temp[i] = 1
-                bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
-                ksupp = [ksupp bi]
-                temp[i] = 2
-                bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
-                ksupp = [ksupp bi]
-            end
-        end
+    neq = isempty(gb) ? numeq : 0
+    if TS != false
+        gsupp = get_gsupp(n, m, neq, supp, basis[2:end], hbasis, blocks[2:end], eblocks, cl[2:end], blocksize[2:end], nb=nb)
+        ksupp = [ksupp gsupp]
     end
     objv = moment = momone = GramMat = SDP_status = nothing
     if solve == true
         tsupp = ksupp
-        if m > 0
-            gsupp = get_gsupp(n, m, supp, basis[2:end], blocks[2:end], cl[2:end], blocksize[2:end], nb=nb)
-            tsupp = [tsupp gsupp]
+        if normality == true
+            wbasis = basis[1]
+            bs = size(wbasis, 2)  
+            if NormalSparse == true
+                hyblocks = Vector{Vector{Vector{UInt16}}}(undef, n)
+                for i = 1:n
+                    G = SimpleGraph(2bs)
+                    for j = 1:bs, k = j:bs
+                        bi = bin_add(wbasis[:, j], wbasis[:, k], nb)
+                        if all(transpose(signsymmetry)*bi .== 0)
+                            add_edge!(G, j, k)
+                        end
+                        temp = zeros(UInt8, n)
+                        temp[i] = 2
+                        bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
+                        if all(transpose(signsymmetry)*bi .== 0)
+                            add_edge!(G, j+bs, k+bs)
+                        end
+                        temp[i] = 1
+                        bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
+                        if all(transpose(signsymmetry)*bi .== 0)
+                            add_edge!(G, j, k+bs)
+                        end
+                    end
+                    hyblocks[i] = connected_components(G)
+                    for l = 1:length(hyblocks[i])
+                        for j = 1:length(hyblocks[i][l]), k = j:length(hyblocks[i][l])
+                            if hyblocks[i][l][j] <= bs && hyblocks[i][l][k] > bs
+                                temp = zeros(UInt8, n)
+                                temp[i] = 1
+                                bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
+                                tsupp = [tsupp bi]
+                            elseif hyblocks[i][l][j] > bs
+                                temp = zeros(UInt8, n)
+                                temp[i] = 2
+                                bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]-bs], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
+                                tsupp = [tsupp bi]
+                            end
+                        end
+                    end
+                end
+            else
+                for i = 1:n, j = 1:bs, k = j:bs
+                    temp = zeros(UInt8, n)
+                    temp[i] = 1
+                    bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
+                    tsupp = [tsupp bi]
+                    temp[i] = 2
+                    bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
+                    tsupp = [tsupp bi]
+                end
+            end
         end
         if (MomentOne == true || solution == true) && TS != false
             tsupp = [tsupp get_basis(n, 2, nb=nb, lead=lead)]
@@ -631,17 +675,15 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
                end
             end
         end
-        gpos = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, m)
-        for k = 1:m
+        if m > neq
+            gpos = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, m-neq)
+        end
+        for k = 1:m-neq
             gpos[k] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[k+1])
             for i = 1:cl[k+1]
                 bs = blocksize[k+1][i]
                 if bs == 1
-                    if !isempty(gb) || k <= m-numeq
-                        gpos[k][i] = @variable(model, lower_bound=0)
-                    else
-                        gpos[k][i] = @variable(model)
-                    end
+                    gpos[k][i] = @variable(model, lower_bound=0)
                     for s = 1:size(supp[k+1],2)
                         @inbounds bi = bin_add(basis[k+1][:,blocks[k+1][i][1]], basis[k+1][:,blocks[k+1][i][1]], nb)
                         @inbounds bi = bin_add(bi, supp[k+1][:,s], nb)
@@ -657,14 +699,10 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
                         end
                     end
                 else
-                    if !isempty(gb) || k <= m-numeq
-                       gpos[k][i] = @variable(model, [1:bs, 1:bs], PSD)
-                    else
-                       gpos[k][i] = @variable(model, [1:bs, 1:bs], Symmetric)
-                    end
+                    gpos[k][i] = @variable(model, [1:bs, 1:bs], PSD)
                     for j = 1:bs, r = j:bs, s = 1:size(supp[k+1],2)
                         @inbounds bi = bin_add(basis[k+1][:,blocks[k+1][i][j]], basis[k+1][:,blocks[k+1][i][r]], nb)
-                        @inbounds bi = bin_add(bi,supp[k+1][:,s], nb)
+                        @inbounds bi = bin_add(bi, supp[k+1][:,s], nb)
                         if !isempty(gb) && divide(bi, lead, n, llead)
                             bi_lm,bi_supp,bi_coe = reminder(bi, x, gb, n)
                             for l = 1:bi_lm
@@ -684,6 +722,17 @@ function blockcpop(n, m, supp, coe, basis, blocks, cl, blocksize; nb=0, numeq=0,
                             end
                         end
                     end
+                end
+            end
+        end
+        if isempty(gb) && numeq > 0
+            free = Vector{Vector{VariableRef}}(undef, numeq)
+            for k = 1:numeq
+                free[k] = @variable(model, [1:length(eblocks[k])])
+                for (i,j) in enumerate(eblocks[k]), s = 1:size(supp[k+m-numeq+1], 2)
+                    @inbounds bi = bin_add(hbasis[k][:,j], supp[k+m-numeq+1][:,s], nb)
+                    Locb = bfind(tsupp, ltsupp, bi)
+                    @inbounds add_to_expression!(cons[Locb], coe[k+m-numeq+1][s], free[k][i])
                 end
             end
         end

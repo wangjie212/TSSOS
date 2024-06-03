@@ -16,12 +16,12 @@ mutable struct mpop_data
     basis # monomial basis
     gbasis
     ksupp # extended support at the k-th step
-    blocks # block structrue
     cl
     blocksize
-    cliques
+    blocks # block structrue
     cql
     cliquesize
+    cliques
     I
     sb # sizes of different blocks
     numb # numbers of different blocks
@@ -38,7 +38,6 @@ end
 
 function cs_tssos_first(F::Matrix{Polynomial{true, T}}, G, x, d; CS="MF", TS="block", QUIET=false, solve=true) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.1.3, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     n = length(x)
     m = length(G)
@@ -92,7 +91,7 @@ function cs_tssos_first(F::Matrix{Polynomial{true, T}}, G, x, d; CS="MF", TS="bl
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
     opt,ksupp,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, QUIET=QUIET, solve=solve)
-    data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocks, cl, blocksize, cliques, cql, cliquesize, I, sb, numb, SDP_status)
+    data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, cl, blocksize, blocks, cql, cliquesize, cliques, I, sb, numb, SDP_status)
     return opt,data
 end
 
@@ -228,7 +227,7 @@ function get_mblocks(om, cons_matrix, tsupp, basis, gbasis; TS="block", blocks=[
     if TS == false
         for i = 1:length(cons_matrix) + 1
             lb = i == 1 ? om*length(basis) : om*cons_matrix[i-1].m*length(gbasis[i-1])
-            blocks[i] = [[j for j=1:lb]]
+            blocks[i] = [Vector(1:lb)]
             blocksize[i] = [lb]
             cl[i] = 1
         end
@@ -447,7 +446,6 @@ end
 
 function LinearPMI_first(b, F::Vector{Matrix{Polynomial{true, T}}}, G, x, d; TS="block", QUIET=false, solve=true) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
-    println("Version 1.1.3, developed by Jie Wang, 2020--2024")
     println("TSSOS is launching...")
     n = length(x)
     s = length(F)
@@ -497,7 +495,7 @@ function LinearPMI_first(b, F::Vector{Matrix{Polynomial{true, T}}}, G, x, d; TS=
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
     opt,ksupp,SDP_status = LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, QUIET=QUIET, solve=solve)
-    data = mpop_data(b, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocks, cl, blocksize, sb, numb, SDP_status)
+    data = mpop_data(b, obj_matrix, cons_matrix, basis, gbasis, ksupp, cl, blocksize, blocks, nothing, nothing, nothing, nothing, sb, numb, SDP_status)
     return opt,data
 end
 

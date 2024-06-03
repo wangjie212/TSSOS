@@ -28,6 +28,7 @@ F[2] = sum(x.^2)*[0 x[1]^2*x[2]^2 0; x[1]^2*x[2]^2 0 0; 0 0 0]
 F[3] = sum(x.^2)*[x[1]^4 0 0; 0 x[2]^4 x[2]^2*x[3]^2; 0 x[2]^2*x[3]^2 x[3]^4]
 G = [1 - sum(x.^2)]
 @time opt,data = LinearPMI_first([-10, 1], F, [G], x, 3, TS="block", QUIET=true)
+@time opt,data = LinearPMI_higher!(data, TS="block", QUIET=true)
 
 ## polynomial matrix optimization with correlative sparsity
 @polyvar x[1:3]
