@@ -29,7 +29,7 @@ Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP 
 - `order`: relaxation order
 - `CS`: method of chordal extension for correlative sparsity (`"MF"`, `"MD"`, `"NC"`, `false`)
 - `cliques`: the set of cliques used in correlative sparsity
-- `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
+- `TS`: type of term sparsity (`"block"`, `"signsymmetry"`, `"MD"`, `"MF"`, `false`)
 - `SO`: sparse order
 - `Groebnerbasis`: exploit the quotient ring structure or not (`true`, `false`)
 - `QUIET`: run in the quiet mode (`true`, `false`)
@@ -80,6 +80,17 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
     else
         cliques,cql,cliquesize = [Vector(1:n)],1,[n]
     end
+    ss = nothing
+    if TS == "signsymmetry"
+        temp = fsupp
+        if ineq_cons != []
+            temp = [temp reduce(hcat, gsupp)]
+        end
+        if eq_cons != []
+            temp = [temp reduce(hcat, hsupp)]
+        end
+        ss = get_signsymmetry(permutedims(temp, [2,1]))
+    end
     dmin = ceil(Int, maximum([maxdegree(nonneg); dg; dh])/2)
     order = order < dmin ? dmin : order
     I,J = assign_constraint(m, l, gsupp, hsupp, cliques, cql)
@@ -94,7 +105,7 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
             basis[t][s+length(I[t])+1] = get_nbasis(n, 2*order-dh[J[t][s]], var=cliques[t])
         end
     end
-    blocks,cl,blocksize,eblocks,_,_,_ = get_cblocks_mix(n, I, J, m, l, fsupp, gsupp, glt, hsupp, hlt, basis, cliques, cql, tsupp=[], TS=TS, SO=SO, QUIET=QUIET)
+    blocks,cl,blocksize,eblocks,_,_,_ = get_cblocks_mix(n, I, J, m, l, fsupp, gsupp, glt, hsupp, basis, cliques, cql, tsupp=[], TS=TS, SO=SO, QUIET=QUIET, nv=n, signsymmetry=ss)
     ne = 0
     for t = 1:cql
         ne += sum(numele(blocksize[t][1]))
@@ -113,17 +124,19 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
             tsupp[:, q] = bi
             q += 1
         end
-        for (j, w) in enumerate(I[i]), p = 1:cl[i][j+1], t = 1:blocksize[i][j+1][p], r = t:blocksize[i][j+1][p], s = 1:glt[w]
-            ind1 = blocks[i][j+1][p][t]
-            ind2 = blocks[i][j+1][p][r]
-            @inbounds bi = basis[i][j+1][:, ind1] + basis[i][j+1][:, ind2] + gsupp[w][:, s]
-            tsupp[:, q] = bi
-            q += 1
-        end
-        for (j, w) in enumerate(J[i]), t in eblocks[i][j], s = 1:hlt[w]
-            @inbounds bi = basis[i][j+length(I[i])+1][:, t] + hsupp[w][:, s]
-            tsupp[:, q] = bi
-            q += 1
+        if TS != false && TS != "signsymmetry"
+            for (j, w) in enumerate(I[i]), p = 1:cl[i][j+1], t = 1:blocksize[i][j+1][p], r = t:blocksize[i][j+1][p], s = 1:glt[w]
+                ind1 = blocks[i][j+1][p][t]
+                ind2 = blocks[i][j+1][p][r]
+                @inbounds bi = basis[i][j+1][:, ind1] + basis[i][j+1][:, ind2] + gsupp[w][:, s]
+                tsupp[:, q] = bi
+                q += 1
+            end
+            for (j, w) in enumerate(J[i]), t in eblocks[i][j], s = 1:hlt[w]
+                @inbounds bi = basis[i][j+length(I[i])+1][:, t] + hsupp[w][:, s]
+                tsupp[:, q] = bi
+                q += 1
+            end
         end
     end
     if !isempty(gb)
@@ -325,7 +338,7 @@ function assign_constraint(m, l, gsupp::Vector{Matrix{UInt8}}, hsupp::Vector{Mat
     return I,J
 end
 
-function get_cblocks_mix(n, I, J, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matrix{UInt8}}, glt, hsupp::Vector{Matrix{UInt8}}, hlt, basis, cliques, cql; tsupp=[], TS="block", SO=1, QUIET=false)
+function get_cblocks_mix(n, I, J, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matrix{UInt8}}, glt, hsupp::Vector{Matrix{UInt8}}, basis, cliques, cql; tsupp=[], TS="block", SO=1, QUIET=false, nv=0, signsymmetry=nothing)
     blocks = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
     eblocks = Vector{Vector{Vector{UInt16}}}(undef, cql)
     cl = Vector{Vector{Int}}(undef, cql)
@@ -356,37 +369,12 @@ function get_cblocks_mix(n, I, J, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matr
         blocksize[i] = Vector{Vector{Int}}(undef, lc+1)
         sb[i] = Vector{Int}(undef, lc+1)
         numb[i] = Vector{Int}(undef, lc+1)
-        blocks[i],cl[i],blocksize[i],eblocks[i],sb[i],numb[i],status[i] = get_blocks(n, lc, length(J[i]), supp, [gsupp[I[i]]; hsupp[J[i]]], [glt[I[i]]; hlt[J[i]]], basis[i], TS=TS, SO=SO, QUIET=QUIET)
+        blocks[i],cl[i],blocksize[i],eblocks[i],sb[i],numb[i],status[i] = get_blocks(n, lc, length(J[i]), supp, [gsupp[I[i]]; hsupp[J[i]]], basis[i], TS=TS, SO=SO, QUIET=QUIET, nv=nv, signsymmetry=signsymmetry)
     end
     return blocks,cl,blocksize,eblocks,sb,numb,maximum(status)
 end
 
-function get_cgraph(tsupp::Array{UInt8, 2}, gsupp::Array{UInt8, 2}, glt, basis::Array{UInt8, 2})
-    lb = size(basis, 2)
-    G = SimpleGraph(lb)
-    ltsupp = size(tsupp, 2)
-    for i = 1:lb, j = i+1:lb
-        ind = findfirst(x -> bfind(tsupp, ltsupp, basis[:,i] + basis[:,j] + gsupp[:,x]) !== nothing, 1:glt)
-        if ind !== nothing
-           add_edge!(G, i, j)
-        end
-    end
-    return G
-end
-
-function get_eblock(tsupp::Array{UInt8, 2}, hsupp::Array{UInt8, 2}, hlt, basis::Array{UInt8, 2})
-    ltsupp = size(tsupp, 2)
-    eblock = UInt16[]
-    for i = 1:size(basis, 2)
-        ind = findfirst(x -> bfind(tsupp, ltsupp, basis[:,i] + hsupp[:,x]) !== nothing, 1:hlt)
-        if ind !== nothing
-           push!(eblock, i)
-        end
-    end
-    return eblock
-end
-
-function get_blocks(n::Int, m::Int, l::Int, tsupp, supp::Vector{Array{UInt8, 2}}, lt, basis::Vector{Array{UInt8, 2}}; TS="block", SO=1, merge=false, md=3, QUIET=false)
+function get_blocks(n::Int, m::Int, l::Int, tsupp, supp::Vector{Array{UInt8, 2}}, basis::Vector{Array{UInt8, 2}}; TS="block", SO=1, merge=false, md=3, QUIET=false, nv=0, signsymmetry=nothing)
     blocks = Vector{Vector{Vector{UInt16}}}(undef, m+1)
     eblocks = Vector{Vector{UInt16}}(undef, l)
     blocksize = Vector{Vector{Int}}(undef, m+1)
@@ -407,7 +395,7 @@ function get_blocks(n::Int, m::Int, l::Int, tsupp, supp::Vector{Array{UInt8, 2}}
         status = 1
         blocks[1] = Vector{UInt16}[]
         for i = 1:SO
-            G = get_graph(tsupp, basis[1])
+            G = get_graph(tsupp, basis[1], nv=nv, signsymmetry=signsymmetry)
             if TS == "block"
                 nblock = connected_components(G)
             else
@@ -448,13 +436,13 @@ function get_blocks(n::Int, m::Int, l::Int, tsupp, supp::Vector{Array{UInt8, 2}}
                 println("------------------------------------------------------")
             end
             for k = 1:m
-                G = get_cgraph(tsupp, supp[k], lt[k], basis[k+1])
+                G = get_cgraph(tsupp, supp[k], basis[k+1], nv=nv, signsymmetry=signsymmetry)
                 blocks[k+1] = connected_components(G)
                 blocksize[k+1] = length.(blocks[k+1])
                 cl[k+1] = length(blocksize[k+1])
             end
             for k = 1:l
-                eblocks[k] = get_eblock(tsupp, supp[k+m], lt[k+m], basis[k+m+1])
+                eblocks[k] = get_eblock(tsupp, supp[k+m], basis[k+m+1], nv=nv, signsymmetry=signsymmetry)
             end
         end
     end

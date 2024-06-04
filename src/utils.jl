@@ -47,6 +47,27 @@ function get_signsymmetry(polys::Vector{Polynomial{true, T}}, x) where {T<:Numbe
         end
         supp = [supp; temp]
     end
+    supp = unique(supp, dims=1)
+    supp = matrix(GF(2), supp)
+    return nullspace(supp)[2]
+end
+
+function get_signsymmetry(supp::Vector{Vector{Vector{UInt16}}}, n)
+    nsupp = zeros(UInt8, sum(length.(supp)), n)
+    l = 1
+    for item in supp, bi in item
+        for i in bi
+            nsupp[l, i] += 1
+        end
+        l += 1
+    end
+    nsupp = unique(nsupp, dims=1)
+    nsupp = matrix(GF(2), nsupp)
+    return nullspace(nsupp)[2]
+end
+
+function get_signsymmetry(supp::Matrix{UInt8})
+    supp = unique(supp, dims=1)
     supp = matrix(GF(2), supp)
     return nullspace(supp)[2]
 end
@@ -373,4 +394,15 @@ function show_blocks(data::mcpop_data)
         print("clique $l, block $j: ")
         println([prod(data.x[data.basis[l][1][data.blocks[l][1][j][k]]]) for k = 1:length(data.blocks[l][1][j])])
     end
+end
+
+function complex_to_real(cpop, z)
+    n = Int(length(z)/2)
+    @polyvar x[1:2n]
+    pop = Vector{Polynomial}(undef, length(cpop))
+    for (i,cp) in enumerate(cpop)
+        temp = cp(z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
+        pop[i] = real.(MultivariatePolynomials.coefficients(temp))'*MultivariatePolynomials.monomials(temp)
+    end
+    return pop,x
 end

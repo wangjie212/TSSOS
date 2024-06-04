@@ -133,18 +133,3 @@ if length(ind) > 1
     obj = f(z[1:n]=>sol[:,1]+im*sol[:,2], z[n+1:2n]=>sol[:,1]-im*sol[:,2])
     println([rank(M, 1e-4), abs(opt-obj)])
 end
-
-n = 20
-@polyvar x[1:n]
-Q = rand(n+1, n+1)
-Q = (Q+Q')/2
-f = [1; x]'*Q*[1; x]
-@time begin
-opt,sol,data = cs_tssos_first([f], x, 1, nb=n, QUIET=true, CS=false, TS=false, hyponomality=false)
-end
-@time begin
-opt,sol,data = cs_tssos_first([f], x, 2, nb=n, QUIET=true, CS=false, TS=false, hyponomality=false)
-end
-@time begin
-opt,sol,data = cs_tssos_first([f], x, 1, nb=n, QUIET=true, CS=false, TS=false, hyponomality=true)
-end

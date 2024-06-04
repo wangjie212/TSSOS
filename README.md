@@ -47,7 +47,7 @@ opt,sol,data = tssos_higher!(data, TS="MD")
 Options  
 **nb**: specify the first nb variables to be binary variables (satisfying $x_i^2=1$)  
 **newton**: true (using the monomial basis computed by the Newton polytope method), false  
-**TS (term sparsity)**: "block" (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
+**TS**: "block" by default (using the maximal chordal extension), "signsymmetry" (using sign symmetries), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
 **solution**: true (extracting an (approximate optimal) solution), false  
 
 Output  
@@ -85,7 +85,7 @@ opt,sol,data = tssos_higher!(data, TS="MD")
 
 Options  
 **nb**: specify the first nb variables to be binary variables (satisfying $x_i^2=1$)  
-**TS**: "block" by default (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
+**TS**: "block" by default (using the maximal chordal extension), "signsymmetry" (using sign symmetries), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
 **normality**: true (imposing the normality condtions), false  
 **NormalSparse**: true (using sparsity for the normality conditions), false  
 **quotient**: true (working in the quotient ring by computing Gröbner basis), false  
@@ -105,8 +105,8 @@ opt,sol,data = cs_tssos_higher!(data, TS="MD")
 ```
 Options  
 **nb**: specify the first nb variables to be binary variables (satisfying $x_i^2=1$)  
-**CS (correlative sparsity)**: "MF" by default (generating an approximately smallest chordal extension), "NC" (without chordal extension), false (without correlative sparsity)   
-**TS**: "block" (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
+**CS**: "MF" by default (generating an approximately smallest chordal extension), "NC" (without chordal extension), false (without correlative sparsity)   
+**TS**: "block" by default (using the maximal chordal extension), "signsymmetry" (using sign symmetries), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
 **order**: d (relaxation order), "min" (using the lowest relaxation order for each variable clique)  
 **normality**: true (imposing the normality condtions), false  
 **NormalSparse**: true (using sparsity for the normality conditions), false  
@@ -122,8 +122,20 @@ settings = cosmo_para()
 settings.eps_abs = 1e-5 # absolute residual tolerance
 settings.eps_rel = 1e-5 # relative residual tolerance
 settings.max_iter = 1e4 # maximum number of iterations
+settings.time_limit = 1e4 # limit of running time
 ```
 and run for instance tssos_first(..., cosmo_setting=settings)
+
+You can tune the parameters of Mosek via
+
+```
+settings = mosek_para()
+settings.tol_pfeas = 1e-8 # primal feasibility tolerance
+settings.tol_dfeas = 1e-8 # dual feasibility tolerance
+settings.tol_relgap = 1e-8 # relative primal-dual gap tolerance
+settings.time_limit = 1e4 # limit of running time
+```
+and run for instance tssos_first(..., mosek_setting=settings)
 
 Output  
 **basis**: monomial basis  
@@ -214,7 +226,7 @@ opt,sol,data = cs_tssos_first(pop, x, n, order, numeq=3, TS="block")
 Options  
 **nb**: specify the first nb complex variables to be of unit norm (satisfying $|z_i|=1$)  
 **CS (correlative sparsity)**: "MF" by default (generating an approximately smallest chordal extension), "NC" (without chordal extension), false (without correlative sparsity)   
-**TS**: "block" (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
+**TS**: "block" by default (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
 **order**: d (relaxation order), "min" (using the lowest relaxation order for each variable clique)  
 **normality**: specify the normal order  
 **NormalSparse**: true (using sparsity for the normality conditions), false  

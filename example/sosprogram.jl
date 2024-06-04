@@ -29,6 +29,7 @@ if status != MOI.OPTIMAL
     println("solution status: $status")
 end
 objv = objective_value(model)
+@show objv
 
 # retrieve Gram matrices
 GramMat = Vector{Vector{Vector{Union{Float64,Matrix{Float64}}}}}(undef, info1.cql)

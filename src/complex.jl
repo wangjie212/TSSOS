@@ -1,4 +1,6 @@
 mutable struct ccpop_data
+    cpop # complex polynomial optimiztion problem
+    z # complex variables
     n # number of all variables
     nb # number of binary variables
     m # number of all constraints
@@ -50,18 +52,20 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 - `numeq`: number of equality constraints
 - `CS`: method of chordal extension for correlative sparsity (`"MF"`, `"MD"`, `false`)
 - `cliques`: the set of cliques used in correlative sparsity
-- `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
+- `TS`: type of term sparsity (`"block"`, `"signsymmetry"`, `"MD"`, `"MF"`, `false`)
 - `md`: tunable parameter for merging blocks
 - `normality`: normal order
 - `QUIET`: run in the quiet mode (`true`, `false`)
 
 # Output arguments
 - `opt`: optimum
+- `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
 function cs_tssos_first(pop::Vector{Polynomial{true, T}}, z, n, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], minimize=false, 
-    TS="block", merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, tune=false, solution=false, ipart=true, dualize=false, 
-    balanced=false, MomentOne=false, Gram=false, Mommat=false, cosmo_setting=cosmo_para(), writetofile=false, normality=0, NormalSparse=false) where {T<:Number}
+    TS="block", merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, tune=false, solution=false, ipart=true, 
+    dualize=false, balanced=false, MomentOne=false, Gram=false, Mommat=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
+    writetofile=false, normality=0, NormalSparse=false) where {T<:Number}
     ctype = ipart==true ? ComplexF64 : Float64
     supp,coe = polys_info(pop, z, n, ctype=ctype)
     if NormalSparse == true
@@ -72,7 +76,7 @@ function cs_tssos_first(pop::Vector{Polynomial{true, T}}, z, n, d; numeq=0, RemS
     opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, RemSig=RemSig, nb=nb, CS=CS, cliques=cliques, minimize=minimize,
     TS=TS, merge=merge, md=md, solver=solver, reducebasis=reducebasis, QUIET=QUIET, solve=solve, tune=tune, signsymmetry=ss, 
     solution=solution, ipart=ipart, dualize=dualize, balanced=balanced, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, 
-    cosmo_setting=cosmo_setting, writetofile=writetofile, normality=normality, NormalSparse=NormalSparse)
+    cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile, normality=normality, NormalSparse=NormalSparse, cpop=pop, z=z)
     return opt,sol,data
 end
 
@@ -86,8 +90,8 @@ Here the complex polynomial optimization problem is defined by `supp` and `coe`,
 """
 function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], 
     minimize=false, TS="block", merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, tune=false, solution=false, 
-    ipart=true, dualize=false, balanced=false, MomentOne=false, Gram=false, Mommat=false, cosmo_setting=cosmo_para(), writetofile=false, 
-    signsymmetry=false, normality=0, NormalSparse=false)
+    ipart=true, dualize=false, balanced=false, MomentOne=false, Gram=false, Mommat=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
+    writetofile=false, signsymmetry=false, normality=0, NormalSparse=false, cpop=nothing, z=nothing)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     if nb > 0
@@ -207,10 +211,26 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
     end
     opt,ksupp,moment,GramMat,SDP_status = blockcpop_mix(n, m, rlorder, supp, coe, basis, hbasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize,
     numeq=numeq, QUIET=QUIET, TS=TS, solver=solver, solve=solve, tune=tune, solution=solution, ipart=ipart, MomentOne=MomentOne, signsymmetry=signsymmetry,
-    Gram=Gram, Mommat=Mommat, nb=nb, cosmo_setting=cosmo_setting, dualize=dualize, writetofile=writetofile, normality=normality, NormalSparse=NormalSparse)
-    data = ccpop_data(n, nb, m, numeq, supp, coe, basis, hbasis, rlorder, ksupp, cql, cliquesize, cliques, I, J, ncc, sb, numb, cl, blocksize, blocks, eblocks, 
-    GramMat, moment, solver, SDP_status, 1e-4, 1)
-    return opt,nothing,data
+    Gram=Gram, Mommat=Mommat, nb=nb, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, dualize=dualize, writetofile=writetofile, normality=normality, NormalSparse=NormalSparse)
+    sol = nothing
+    flag = 1
+    if solution == true
+        pop,x = complex_to_real(cpop, z)
+        _,rsupp,rcoe = polys_info(pop, x)
+        ub,sol,status = local_solution(2n, m, rsupp, rcoe, numeq=numeq, startpoint=rand(2n), QUIET=true)
+        if status == MOI.LOCALLY_SOLVED
+            gap = abs(opt-ub)/max(1, abs(ub))
+            if gap < 1e-4
+                flag = 0
+                @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+            else
+                @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
+            end
+        end
+    end
+    data = ccpop_data(cpop, z, n, nb, m, numeq, supp, coe, basis, hbasis, rlorder, ksupp, cql, cliquesize, cliques, I, J, ncc, sb, numb, cl, blocksize, blocks, eblocks, 
+    GramMat, moment, solver, SDP_status, 1e-4, flag)
+    return opt,sol,data
 end
 
 """
@@ -220,7 +240,7 @@ end
 Compute higher TS steps of the CS-TSSOS hierarchy.
 """
 function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false, solution=false, Gram=false, ipart=true, dualize=false, 
-    balanced=false, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para(), normality=0, NormalSparse=false)
+    balanced=false, MomentOne=false, Mommat=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=0, NormalSparse=false)
     n = data.n
     nb = data.nb
     m = data.m
@@ -260,12 +280,19 @@ function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET
         end
         opt,ksupp,moment,GramMat,SDP_status = blockcpop_mix(n, m, rlorder, supp, coe, basis, hbasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl,
         blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution, dualize=dualize, ipart=ipart, MomentOne=MomentOne, 
-        Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting, balanced=balanced, normality=normality, NormalSparse=NormalSparse)
+        Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, balanced=balanced, normality=normality, NormalSparse=NormalSparse)
         if solution == true
-            sol,gap,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
-            if data.flag == 1
-                sol = gap > 0.5 ? randn(n) : sol
-                sol,data.flag = refine_sol(opt, sol, data, QUIET=true, tol=tol)
+            pop,x = complex_to_real(data.cpop, data.z)
+            _,rsupp,rcoe = polys_info(pop, x)
+            ub,sol,status = local_solution(2n, m, rsupp, rcoe, numeq=numeq, startpoint=rand(2n), QUIET=true)
+            if status == MOI.LOCALLY_SOLVED
+                gap = abs(opt-ub)/max(1, abs(ub))
+                if gap < tol
+                    data.flag = 0
+                    @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+                else
+                    @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
+                end
             end
         end
         data.ksupp = ksupp
@@ -390,8 +417,8 @@ function get_gsupp(basis, hbasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blo
 end
 
 function blockcpop_mix(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, basis, hbasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize; 
-    numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", tune=false, solve=true, dualize=false, solution=false, Gram=false, MomentOne=false, 
-    ipart=true, Mommat=false, cosmo_setting=cosmo_para(), writetofile=false, signsymmetry=false, balanced=false, normality=0, NormalSparse=false)
+    numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", tune=false, solve=true, dualize=false, solution=false, Gram=false, MomentOne=false, ipart=true, Mommat=false, 
+    cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, signsymmetry=false, balanced=false, normality=0, NormalSparse=false)
     tsupp = Vector{Vector{UInt16}}[]
     for i = 1:cql, j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
         @inbounds bi = [basis[i][1][blocks[i][1][j][k]], basis[i][1][blocks[i][1][j][r]]]
@@ -532,7 +559,8 @@ function blockcpop_mix(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}
         end
         if solver == "Mosek"
             if dualize == false
-                model = Model(optimizer_with_attributes(Mosek.Optimizer))
+                model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
+                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit))
             else
                 model = Model(dual_optimizer(Mosek.Optimizer))
             end
@@ -550,7 +578,7 @@ function blockcpop_mix(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}
                 "MSK_DPAR_BASIS_REL_TOL_S" => 1e-5)
             end
         elseif solver == "COSMO"
-            model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter))
+            model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter, "time_limit" => cosmo_setting.time_limit))
         elseif solver == "SDPT3"
             model = Model(optimizer_with_attributes(SDPT3.Optimizer))
         elseif solver == "SDPNAL"

@@ -44,7 +44,7 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 - `d`: relaxation order
 - `nb`: number of binary variables in `x`
 - `numeq`: number of equality constraints
-- `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
+- `TS`: type of term sparsity (`"block"`, `"signsymmetry"`, `"MD"`, `"MF"`, `false`)
 - `md`: tunable parameter for merging blocks
 - `normality`: impose the normality condtions (`true`, `false`)
 - `QUIET`: run in the quiet mode (`true`, `false`)
@@ -56,7 +56,8 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 - `data`: other auxiliary data 
 """
 function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quotient=true, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
-    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para(), normality=0, NormalSparse=false) where {T<:Number}
+    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=0, 
+    NormalSparse=false) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     n = length(x)
@@ -87,12 +88,11 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
         gb = []
         leadsupp = []
     end
-    if NormalSparse == true
+    ss = nothing
+    if NormalSparse == true || TS == "signsymmetry"
         ss = get_signsymmetry(pop, x)
-    else
-        ss = false
     end
-    m = length(cpop)-1
+    m = length(cpop) - 1
     coe = Vector{Vector{Float64}}(undef, m+1)
     supp = Vector{Array{UInt8,2}}(undef, m+1)
     for k = 1:m+1
@@ -103,10 +103,7 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
             @inbounds supp[k][j,i] = MultivariatePolynomials.degree(mons[i], x[j])
         end
     end
-    isupp = supp[1]
-    for i = 2:m+1
-        isupp = [isupp supp[i]]
-    end
+    isupp = reduce(hcat, supp)
     neq = isempty(gb) ? numeq : 0
     if basis == []
         basis = Vector{Array{UInt8,2}}(undef, m-neq+1)
@@ -129,7 +126,7 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,eblocks,cl,blocksize,sb,numb,_ = get_cblocks(m-neq, neq, tsupp, supp[2:end], basis, hbasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
+    blocks,eblocks,cl,blocksize,sb,numb,_ = get_cblocks(m-neq, neq, tsupp, supp[2:end], basis, hbasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, nv=n, signsymmetry=ss)
     if reducebasis == true && quotient == false
         gsupp = get_gsupp(n, m, numeq, supp, basis[2:end], hbasis, blocks[2:end], eblocks, cl[2:end], blocksize[2:end], nb=nb)
         psupp = [supp[1] zeros(UInt8,n)]
@@ -139,7 +136,7 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
             tsupp = [isupp bin_add(basis[1], basis[1], nb)]
             tsupp = sortslices(tsupp, dims=2)
             tsupp = unique(tsupp, dims=2)
-            blocks,eblocks,cl,blocksize,sb,numb,_ = get_cblocks(m-numeq, numeq, tsupp, supp[2:end], basis, hbasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
+            blocks,eblocks,cl,blocksize,sb,numb,_ = get_cblocks(m-numeq, numeq, tsupp, supp[2:end], basis, hbasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, nv=n, signsymmetry=ss)
         end
     end
     end
@@ -148,8 +145,8 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
     opt,ksupp,moment,momone,GramMat,SDP_status = blockcpop(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, dualize=dualize, TS=TS,
-    lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, signsymmetry=ss, 
-    normality=normality, NormalSparse=NormalSparse)
+    lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
+    signsymmetry=ss, normality=normality, NormalSparse=NormalSparse)
     data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, hbasis, ksupp, sb, numb, cl, blocksize, blocks, eblocks, GramMat, moment, solver, SDP_status, tol, 1)
     sol = nothing
     if solution == true
@@ -163,7 +160,7 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
 end
 
 function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false,
-    solution=false, cosmo_setting=cosmo_para(), normality=false, NormalSparse=false)
+    solution=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=false, NormalSparse=false)
     n = data.n
     nb = data.nb
     m = data.m
@@ -192,7 +189,8 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
     end
     time = @elapsed begin
     neq = isempty(gb) ? numeq : 0
-    blocks,eblocks,cl,blocksize,sb,numb,status = get_cblocks(m-neq, neq, ksupp, supp[2:end], basis, hbasis, blocks=blocks, eblocks=eblocks, cl=cl, blocksize=blocksize, sb=sb, numb=numb, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
+    blocks,eblocks,cl,blocksize,sb,numb,status = get_cblocks(m-neq, neq, ksupp, supp[2:end], basis, hbasis, blocks=blocks, eblocks=eblocks, cl=cl, 
+    blocksize=blocksize, sb=sb, numb=numb, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
     end
     opt = nothing
     sol = nothing
@@ -202,7 +200,8 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
         opt,ksupp,moment,momone,GramMat,SDP_status = blockcpop(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, TS=TS,
-        solver=solver, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, normality=normality, NormalSparse=NormalSparse)
+        solver=solver, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
+        normality=normality, NormalSparse=NormalSparse)
         if solution == true
             sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, tol=tol)
             if data.flag == 1
@@ -297,33 +296,47 @@ function reducebasis!(supp, basis, blocks, cl, blocksize; nb=0)
     end
 end
 
-function get_cgraph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0)
+function get_cgraph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nv=0, signsymmetry=nothing)
     lb = size(basis, 2)
     G = SimpleGraph(lb)
     ltsupp = size(tsupp, 2)
     for i = 1:lb, j = i+1:lb
-        ind = findfirst(x -> bfind(tsupp, ltsupp, bin_add(bin_add(basis[:,i], basis[:,j], nb), supp[:,x], nb)) !== nothing, size(supp, 2))
-        if ind !== nothing
-           add_edge!(G, i, j)
+        if signsymmetry === nothing
+            ind = findfirst(x -> bfind(tsupp, ltsupp, bin_add(bin_add(basis[:,i], basis[:,j], nb), supp[:,x], nb)) !== nothing, size(supp, 2))
+            if ind !== nothing
+                add_edge!(G, i, j)
+            end
+        else
+            bi = bin_add(bin_add(basis[:,i], basis[:,j], nb), supp[:,1], nb)
+            if all(transpose(signsymmetry)*bi .== 0)
+                add_edge!(G, i, j)
+            end
         end
     end
     return G
 end
 
-function get_eblock(tsupp::Array{UInt8, 2}, hsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=nb)
+function get_eblock(tsupp::Array{UInt8, 2}, hsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=nb, nv=0, signsymmetry=nothing)
     ltsupp = size(tsupp, 2)
     hlt = size(hsupp, 2)
     eblock = UInt16[]
     for i = 1:size(basis, 2)
-        if findfirst(x -> bfind(tsupp, ltsupp, bin_add(basis[:,i], hsupp[:,x], nb)) !== nothing, 1:hlt) !== nothing
-           push!(eblock, i)
+        if signsymmetry === nothing
+            if findfirst(x -> bfind(tsupp, ltsupp, bin_add(basis[:,i], hsupp[:,x], nb)) !== nothing, 1:hlt) !== nothing
+                push!(eblock, i)
+            end
+        else
+            bi = bin_add(basis[:,i], hsupp[:,1], nb)
+            if all(transpose(signsymmetry)*bi .== 0)
+                push!(eblock, i)
+            end
         end
     end
     return eblock
 end
 
 function get_cblocks(m, l, tsupp, supp, basis, hbasis; blocks=[], eblocks=[], cl=[], blocksize=[], sb=[], numb=[], nb=0,
-    TS="block", QUIET=true, merge=false, md=3)
+    TS="block", QUIET=true, merge=false, md=3, nv=0, signsymmetry=nothing)
     if isempty(blocks)
         blocks = Vector{Vector{Vector{UInt16}}}(undef, m+1)
         eblocks = Vector{Vector{UInt16}}(undef, l)
@@ -345,7 +358,7 @@ function get_cblocks(m, l, tsupp, supp, basis, hbasis; blocks=[], eblocks=[], cl
         nsb = Int.(blocksize[1])
         nnumb = [1]
     else
-        G = get_graph(tsupp, basis[1], nb=nb)
+        G = get_graph(tsupp, basis[1], nb=nb, nv=nv, signsymmetry=signsymmetry)
         if TS == "block"
             blocks[1] = connected_components(G)
             blocksize[1] = length.(blocks[1])
@@ -366,7 +379,7 @@ function get_cblocks(m, l, tsupp, supp, basis, hbasis; blocks=[], eblocks=[], cl
                 println("-----------------------------------------------------------------------------")
             end
             for k = 1:m
-                G = get_cgraph(tsupp, supp[k], basis[k+1], nb=nb)
+                G = get_cgraph(tsupp, supp[k], basis[k+1], nb=nb, nv=nv, signsymmetry=signsymmetry)
                 if TS == "block"
                     blocks[k+1] = connected_components(G)
                     blocksize[k+1] = length.(blocks[k+1])
@@ -379,7 +392,7 @@ function get_cblocks(m, l, tsupp, supp, basis, hbasis; blocks=[], eblocks=[], cl
                 end
             end
             for k = 1:l
-                eblocks[k] = get_eblock(tsupp, supp[k+m], hbasis[k], nb=nb)
+                eblocks[k] = get_eblock(tsupp, supp[k+m], hbasis[k], nb=nb, nv=nv, signsymmetry=signsymmetry)
             end
         else
             status = 0
@@ -392,8 +405,8 @@ function get_cblocks(m, l, tsupp, supp, basis, hbasis; blocks=[], eblocks=[], cl
 end
 
 function blockcpop(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize; nb=0, numeq=0, gb=[], x=[], lead=[], solver="Mosek", TS="block",
-    QUIET=true, solve=true, dualize=false, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), signsymmetry=false, normality=false, 
-    NormalSparse=false)
+    QUIET=true, solve=true, dualize=false, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
+    signsymmetry=false, normality=false, NormalSparse=false)
     ksupp = zeros(UInt8, n, Int(sum(Int.(blocksize[1]).^2+blocksize[1])/2))
     k = 1
     for i = 1:cl[1], j = 1:blocksize[1][i], r = j:blocksize[1][i]
@@ -402,7 +415,7 @@ function blockcpop(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksiz
         k += 1
     end
     neq = isempty(gb) ? numeq : 0
-    if TS != false
+    if TS != false && TS != "signsymmetry"
         gsupp = get_gsupp(n, m, neq, supp, basis[2:end], hbasis, blocks[2:end], eblocks, cl[2:end], blocksize[2:end], nb=nb)
         ksupp = [ksupp gsupp]
     end
@@ -488,12 +501,13 @@ function blockcpop(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksiz
         end
         if solver == "Mosek"
             if dualize == false
-                model = Model(optimizer_with_attributes(Mosek.Optimizer))
+                model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
+                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit))
             else
                 model = Model(dual_optimizer(Mosek.Optimizer))
             end
         elseif solver == "COSMO"
-            model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter))
+            model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter, "time_limit" => cosmo_setting.time_limit))
         elseif solver == "SDPT3"
             model = Model(optimizer_with_attributes(SDPT3.Optimizer))
         elseif solver == "SDPNAL"

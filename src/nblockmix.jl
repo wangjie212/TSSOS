@@ -3,7 +3,6 @@ mutable struct mcpop_data
     nb # number of binary variables
     m # number of all constraints
     numeq # number of equality constraints
-    x # set of variables
     supp # support data
     coe # coefficient data
     basis # monomial bases
@@ -48,7 +47,7 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 - `numeq`: number of equality constraints
 - `CS`: method of chordal extension for correlative sparsity (`"MF"`, `"MD"`, `"NC"`, `false`)
 - `cliques`: the set of cliques used in correlative sparsity
-- `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
+- `TS`: type of term sparsity (`"block"`, `"signsymmetry"`, `"MD"`, `"MF"`, `false`)
 - `md`: tunable parameter for merging blocks
 - `normality`: impose the normality condtions (`true`, `false`)
 - `QUIET`: run in the quiet mode (`true`, `false`)
@@ -60,16 +59,12 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 - `data`: other auxiliary data 
 """
 function cs_tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], hbasis=[], minimize=false, TS="block", merge=false, md=3, solver="Mosek", 
-    tune=false, dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para(), normality=false, NormalSparse=false) where {T<:Number}
+    tune=false, dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, Mommat=false, tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
+    normality=false, NormalSparse=false) where {T<:Number}
     n,supp,coe = polys_info(pop, x, nb=nb)
-    if NormalSparse == true
-        ss = get_signsymmetry(pop, x)
-    else
-        ss = false
-    end
-    opt,sol,data = cs_tssos_first(supp, coe, n, d, vars=x, numeq=numeq, nb=nb, CS=CS, cliques=cliques, basis=basis, hbasis=hbasis, minimize=minimize, TS=TS,
+    opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, CS=CS, cliques=cliques, basis=basis, hbasis=hbasis, minimize=minimize, TS=TS,
     merge=merge, md=md, QUIET=QUIET, solver=solver, tune=tune, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
-    Mommat=Mommat, signsymmetry=ss, tol=tol, cosmo_setting=cosmo_setting, normality=normality, NormalSparse=NormalSparse)
+    Mommat=Mommat, tol=tol, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, normality=normality, NormalSparse=NormalSparse)
     return opt,sol,data
 end
 
@@ -80,9 +75,9 @@ end
 Compute the first TS step of the CS-TSSOS hierarchy for constrained polynomial optimization. 
 Here the polynomial optimization problem is defined by `supp` and `coe`, corresponding to the supports and coeffients of `pop` respectively.
 """
-function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; vars=nothing, numeq=0, nb=0, CS="MF", cliques=[], basis=[], hbasis=[], minimize=false, 
+function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, CS="MF", cliques=[], basis=[], hbasis=[], minimize=false, 
     TS="block", merge=false, md=3, QUIET=false, solver="Mosek", tune=false, dualize=false, solve=true, solution=false, MomentOne=false, Gram=false, 
-    Mommat=false, signsymmetry=false, tol=1e-4, cosmo_setting=cosmo_para(), normality=false, NormalSparse=false)
+    Mommat=false, tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=false, NormalSparse=false)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     m = length(supp) - 1
@@ -134,15 +129,20 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; vars=no
         unique!(ksupp)
     end    
     time = @elapsed begin
-    blocks,eblocks,cl,blocksize,sb,numb,_ = get_cblocks_mix(I, J, supp, cliques, cql, ksupp, basis, hbasis, nb=nb, TS=TS, merge=merge, md=md)
+    ss = nothing
+    if NormalSparse == true || TS == "signsymmetry"
+        ss = get_signsymmetry(supp, n)
+    end
+    blocks,eblocks,cl,blocksize,sb,numb,_ = get_cblocks_mix(I, J, supp, cliques, cql, ksupp, basis, hbasis, nb=nb, TS=TS, merge=merge, md=md, nv=n, signsymmetry=ss)
     end
     if TS != false && QUIET == false
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,GramMat,SDP_status = blockcpop_mix(n, m, supp, coe, basis, hbasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, signsymmetry=signsymmetry,
-    TS=TS, solver=solver, tune=tune, dualize=dualize, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting, normality=normality, NormalSparse=NormalSparse)
-    data = mcpop_data(n, nb, m, numeq, vars, supp, coe, basis, hbasis, ksupp, cql, cliquesize, cliques, I, J, ncc, sb, numb, cl, blocksize, blocks, eblocks, GramMat, moment, solver, SDP_status, tol, 1)
+    opt,ksupp,moment,GramMat,SDP_status = blockcpop_mix(n, m, supp, coe, basis, hbasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize, numeq=numeq, 
+    nb=nb, QUIET=QUIET, signsymmetry=ss, TS=TS, solver=solver, tune=tune, dualize=dualize, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, 
+    cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, normality=normality, NormalSparse=NormalSparse)
+    data = mcpop_data(n, nb, m, numeq, supp, coe, basis, hbasis, ksupp, cql, cliquesize, cliques, I, J, ncc, sb, numb, cl, blocksize, blocks, eblocks, GramMat, moment, solver, SDP_status, tol, 1)
     sol = nothing
     if solution == true
         sol,gap,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
@@ -161,7 +161,7 @@ end
 Compute higher TS steps of the CS-TSSOS hierarchy.
 """
 function cs_tssos_higher!(data::mcpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, tune=false, solution=false, Gram=false, dualize=false, 
-    MomentOne=false, Mommat=false, cosmo_setting=cosmo_para(), normality=false, NormalSparse=false)
+    MomentOne=false, Mommat=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=false, NormalSparse=false)
     n = data.n
     nb = data.nb
     m = data.m
@@ -189,8 +189,8 @@ function cs_tssos_higher!(data::mcpop_data; TS="block", merge=false, md=3, QUIET
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,eblocks,cl,blocksize,sb,numb,status = get_cblocks_mix(I, J, supp, cliques, cql, ksupp, basis, hbasis, blocks=blocks, eblocks=eblocks, cl=cl, blocksize=blocksize, sb=sb, numb=numb,
-    nb=nb, TS=TS, merge=merge, md=md)
+    blocks,eblocks,cl,blocksize,sb,numb,status = get_cblocks_mix(I, J, supp, cliques, cql, ksupp, basis, hbasis, blocks=blocks, eblocks=eblocks, cl=cl, 
+    blocksize=blocksize, sb=sb, numb=numb, nb=nb, TS=TS, merge=merge, md=md)
     end
     opt = sol = nothing
     if status == 1
@@ -200,7 +200,7 @@ function cs_tssos_higher!(data::mcpop_data; TS="block", merge=false, md=3, QUIET
         end
         opt,ksupp,moment,GramMat,SDP_status = blockcpop_mix(n, m, supp, coe, basis, hbasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl,
         blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution, dualize=dualize, MomentOne=MomentOne, 
-        Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting, normality=normality, NormalSparse=NormalSparse)
+        Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, normality=normality, NormalSparse=NormalSparse)
         if solution == true
             sol,gap,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
             if data.flag == 1
@@ -225,14 +225,14 @@ function cs_tssos_higher!(data::mcpop_data; TS="block", merge=false, md=3, QUIET
 end
 
 function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, hbasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize; 
-    numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", tune=false, solve=true, solution=false, Gram=false, MomentOne=false, 
-    signsymmetry=false, Mommat=false, cosmo_setting=cosmo_para(), dualize=false, normality=false, NormalSparse=false)
+    numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", tune=false, solve=true, solution=false, Gram=false, MomentOne=false, signsymmetry=nothing, 
+    Mommat=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), dualize=false, normality=false, NormalSparse=false)
     tsupp = Vector{UInt16}[]
     for i = 1:cql, j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
         @inbounds bi = sadd(basis[i][1][blocks[i][1][j][k]], basis[i][1][blocks[i][1][j][r]], nb=nb)
         push!(tsupp, bi)
     end
-    if TS != false
+    if TS != false && TS != "signsymmetry"
         for i = 1:cql 
             for (j, w) in enumerate(I[i]), l = 1:cl[i][j+1], t = 1:blocksize[i][j+1][l], r = t:blocksize[i][j+1][l], s = 1:length(supp[w+1])
                 ind1 = blocks[i][j+1][l][t]
@@ -340,7 +340,8 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, h
         end
         if solver == "Mosek"
             if dualize == false
-                model = Model(optimizer_with_attributes(Mosek.Optimizer))
+                model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
+                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit))
             else
                 model = Model(dual_optimizer(Mosek.Optimizer))
             end
@@ -358,7 +359,7 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, h
                 "MSK_DPAR_BASIS_REL_TOL_S" => 1e-5)
             end
         elseif solver == "COSMO"
-            model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter))
+            model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter, "time_limit" => cosmo_setting.time_limit))
         elseif solver == "SDPT3"
             model = Model(optimizer_with_attributes(SDPT3.Optimizer))
         elseif solver == "SDPNAL"
@@ -587,20 +588,30 @@ function blockcpop_mix(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, h
     return objv,ksupp,moment,GramMat,SDP_status
 end
 
-function get_eblock(tsupp::Vector{Vector{UInt16}}, hsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=nb)
+function get_eblock(tsupp::Vector{Vector{UInt16}}, hsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=nb, nv=0, signsymmetry=nothing)
     ltsupp = length(tsupp)
     hlt = length(hsupp)
     eblock = UInt16[]
     for (i,item) in enumerate(basis)
-        if findfirst(x -> bfind(tsupp, ltsupp, sadd(item, hsupp[x], nb=nb)) !== nothing, 1:hlt) !== nothing
-           push!(eblock, i)
+        if signsymmetry === nothing
+            if findfirst(x -> bfind(tsupp, ltsupp, sadd(item, hsupp[x], nb=nb)) !== nothing, 1:hlt) !== nothing
+                push!(eblock, i)
+            end
+        else
+            bi = sadd(item, hsupp[1], nb=nb)
+            sp = zeros(Int, nv)
+            st = sign_type(bi)
+            sp[st] = ones(Int, length(st))
+            if all(transpose(signsymmetry)*sp .== 0)
+                push!(eblock, i)
+            end
         end
     end
     return eblock
 end
 
 function get_cblocks_mix(I, J, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql, tsupp, basis, hbasis; blocks=[], eblocks=[], cl=[], blocksize=[], sb=[], numb=[], TS="block",
-    nb=0, merge=false, md=3)
+    nb=0, merge=false, md=3, nv=0, signsymmetry=nothing)
     status = ones(Int, cql)
     if isempty(blocks)
         blocks = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
@@ -618,13 +629,14 @@ function get_cblocks_mix(I, J, supp::Vector{Vector{Vector{UInt16}}}, cliques, cq
             numb[i] = Vector{UInt16}(undef, length(I[i])+1)
             ksupp = TS == false ? nothing : tsupp[[issubset(tsupp[j], cliques[i]) for j in eachindex(tsupp)]]
             blocks[i],eblocks[i],cl[i],blocksize[i],sb[i],numb[i],status[i] = get_cblocks(length(I[i]), length(J[i]), ksupp, supp[[I[i]; J[i]].+1], basis[i],
-            hbasis[i], TS=TS, nb=nb, QUIET=true, merge=merge, md=md)
+            hbasis[i], TS=TS, nb=nb, QUIET=true, merge=merge, md=md, nv=nv, signsymmetry=signsymmetry)
         end
     else
         for i = 1:cql
             ind = [issubset(tsupp[j], cliques[i]) for j in eachindex(tsupp)]
             blocks[i],eblocks[i],cl[i],blocksize[i],sb[i],numb[i],status[i] = get_cblocks(length(I[i]), length(J[i]), tsupp[ind], supp[[I[i]; J[i]].+1], basis[i], 
-            hbasis[i], blocks=blocks[i], eblocks=eblocks[i], cl=cl[i], blocksize=blocksize[i], sb=sb[i], numb=numb[i], TS=TS, nb=nb, QUIET=true, merge=merge, md=md)
+            hbasis[i], blocks=blocks[i], eblocks=eblocks[i], cl=cl[i], blocksize=blocksize[i], sb=sb[i], numb=numb[i], TS=TS, nb=nb, QUIET=true, merge=merge, md=md, 
+            nv=nv, signsymmetry=signsymmetry)
         end
     end
     return blocks,eblocks,cl,blocksize,sb,numb,maximum(status)
@@ -647,27 +659,46 @@ function assign_constraint(m, numeq, supp::Vector{Vector{Vector{UInt16}}}, cliqu
     return I,J,ncc
 end
 
-function get_graph(tsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0)
+function get_graph(tsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0, nv=0, signsymmetry=nothing)
     lb = length(basis)
     G = SimpleGraph(lb)
     ltsupp = length(tsupp)
     for i = 1:lb, j = i+1:lb
         bi = sadd(basis[i], basis[j], nb=nb)
-        if bfind(tsupp, ltsupp, bi) !== nothing
-            add_edge!(G, i, j)
+        if signsymmetry === nothing
+            if bfind(tsupp, ltsupp, bi) !== nothing
+                add_edge!(G, i, j)
+            end
+        else
+            sp = zeros(Int, nv)
+            st = sign_type(bi)
+            sp[st] = ones(Int, length(st))
+            if all(transpose(signsymmetry)*sp .== 0)
+                add_edge!(G, i, j)
+            end
         end
     end
     return G
 end
 
-function get_cgraph(tsupp::Vector{Vector{UInt16}}, supp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0)
+function get_cgraph(tsupp::Vector{Vector{UInt16}}, supp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0, nv=0, signsymmetry=nothing)
     lb = length(basis)
     ltsupp = length(tsupp)
     G = SimpleGraph(lb)
     for i = 1:lb, j = i+1:lb
-        ind = findfirst(x -> bfind(tsupp, ltsupp, sadd(sadd(basis[i], x, nb=nb), basis[j], nb=nb)) !== nothing, supp)
-        if ind !== nothing
-            add_edge!(G, i, j)
+        if signsymmetry === nothing
+            ind = findfirst(x -> bfind(tsupp, ltsupp, sadd(sadd(basis[i], x, nb=nb), basis[j], nb=nb)) !== nothing, supp)
+            if ind !== nothing
+                add_edge!(G, i, j)
+            end
+        else
+            bi = sadd(sadd(basis[i], supp[1], nb=nb), basis[j], nb=nb)
+            sp = zeros(Int, nv)
+            st = sign_type(bi)
+            sp[st] = ones(Int, length(st))
+            if all(transpose(signsymmetry)*sp .== 0)
+                add_edge!(G, i, j)
+            end
         end
     end
     return G

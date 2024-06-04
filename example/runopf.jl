@@ -40,7 +40,7 @@ mc = maximum(abs.(coe[1]))
 coe[1] = coe[1]./mc
 
 time = @elapsed begin
-opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, tune=true, CS="MF", TS="block", MomentOne=true)
+opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, tune=true, CS="MF", TS="block", MomentOne=false)
 end
 opt *= mc
 maxc = maximum(popd.cliquesize) # maximal clique size

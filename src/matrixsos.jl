@@ -90,7 +90,7 @@ function cs_tssos_first(F::Matrix{Polynomial{true, T}}, G, x, d; CS="MF", TS="bl
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, QUIET=QUIET, solve=solve)
+    opt,ksupp,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, TS=TS, QUIET=QUIET, solve=solve)
     data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, cl, blocksize, blocks, cql, cliquesize, cliques, I, sb, numb, SDP_status)
     return opt,data
 end
@@ -119,7 +119,7 @@ function cs_tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
             mb = maximum(maximum.(data.sb))
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
-        opt,ksupp,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, data.cql, data.I, QUIET=QUIET, solve=solve)
+        opt,ksupp,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, data.cql, data.I, TS=TS, QUIET=QUIET, solve=solve)
         data.ksupp = ksupp
         data.blocks = blocks
         data.cl = cl
@@ -304,7 +304,7 @@ function get_cmblocks_mix(I, om, cons_matrix, cliques, cql, tsupp, basis, gbasis
     return blocks,cl,blocksize,sb,numb,maximum(status)
 end
 
-function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I; solve=true, QUIET=false)
+function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I; TS="block", solve=true, QUIET=false)
     om = obj_matrix.m
     ksupp = [Vector{UInt16}[] for i = 1:length(obj_matrix.poly)]
     for u = 1:cql, i = 1:cl[u][1], j = 1:blocksize[u][1][i], k = j:blocksize[u][1][i]
@@ -315,24 +315,26 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
         ind2 = ind2 != 0 ? ind2 : om
         push!(ksupp[ind1+Int(ind2*(ind2-1)/2)], bi)
     end
-    for u = 1:cql, (s,v) = enumerate(I[u])
-        com = cons_matrix[v].m*om
-        for i = 1:cl[u][s+1], j = 1:blocksize[u][s+1][i], k = j:blocksize[u][s+1][i]
-            p = mod(blocks[u][s+1][i][j], com)
-            p = p != 0 ? p : com
-            q = mod(blocks[u][s+1][i][k], com)
-            q = q != 0 ? q : com
-            p1 = ceil(Int, p/cons_matrix[v].m)
-            q1 = ceil(Int, q/cons_matrix[v].m)
-            ind = p1 <= q1 ? p1 + Int(q1*(q1-1)/2) : q1 + Int(p1*(p1-1)/2)
-            t = mod(blocks[u][s+1][i][j], cons_matrix[v].m)
-            t = t != 0 ? t : cons_matrix[v].m
-            r = mod(blocks[u][s+1][i][k], cons_matrix[v].m)
-            r = r != 0 ? r : cons_matrix[v].m
-            loc = t <= r ? t + Int(r*(r-1)/2) : r + Int(t*(t-1)/2)
-            for w = 1:length(cons_matrix[v].poly[loc].supp)
-                bi = sadd(sadd(gbasis[u][s][ceil(Int, blocks[u][s+1][i][j]/com)], gbasis[u][s][ceil(Int, blocks[u][s+1][i][k]/com)]), cons_matrix[v].poly[loc].supp[w])
-                push!(ksupp[ind], bi)
+    if TS != false
+        for u = 1:cql, (s,v) = enumerate(I[u])
+            com = cons_matrix[v].m*om
+            for i = 1:cl[u][s+1], j = 1:blocksize[u][s+1][i], k = j:blocksize[u][s+1][i]
+                p = mod(blocks[u][s+1][i][j], com)
+                p = p != 0 ? p : com
+                q = mod(blocks[u][s+1][i][k], com)
+                q = q != 0 ? q : com
+                p1 = ceil(Int, p/cons_matrix[v].m)
+                q1 = ceil(Int, q/cons_matrix[v].m)
+                ind = p1 <= q1 ? p1 + Int(q1*(q1-1)/2) : q1 + Int(p1*(p1-1)/2)
+                t = mod(blocks[u][s+1][i][j], cons_matrix[v].m)
+                t = t != 0 ? t : cons_matrix[v].m
+                r = mod(blocks[u][s+1][i][k], cons_matrix[v].m)
+                r = r != 0 ? r : cons_matrix[v].m
+                loc = t <= r ? t + Int(r*(r-1)/2) : r + Int(t*(t-1)/2)
+                for w = 1:length(cons_matrix[v].poly[loc].supp)
+                    bi = sadd(sadd(gbasis[u][s][ceil(Int, blocks[u][s+1][i][j]/com)], gbasis[u][s][ceil(Int, blocks[u][s+1][i][k]/com)]), cons_matrix[v].poly[loc].supp[w])
+                    push!(ksupp[ind], bi)
+                end
             end
         end
     end
@@ -494,7 +496,7 @@ function LinearPMI_first(b, F::Vector{Matrix{Polynomial{true, T}}}, G, x, d; TS=
         mb = maximum(maximum.(sb))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,SDP_status = LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, QUIET=QUIET, solve=solve)
+    opt,ksupp,SDP_status = LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, TS=TS, QUIET=QUIET, solve=solve)
     data = mpop_data(b, obj_matrix, cons_matrix, basis, gbasis, ksupp, cl, blocksize, blocks, nothing, nothing, nothing, nothing, sb, numb, SDP_status)
     return opt,data
 end
@@ -522,7 +524,7 @@ function LinearPMI_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
             mb = maximum(maximum.(data.sb))
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
-        opt,ksupp,SDP_status = LinearPMI_sdp(data.b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, QUIET=QUIET, solve=solve)
+        opt,ksupp,SDP_status = LinearPMI_sdp(data.b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, TS=TS, QUIET=QUIET, solve=solve)
         data.ksupp = ksupp
         data.blocks = blocks
         data.cl = cl
@@ -532,7 +534,7 @@ function LinearPMI_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
     return opt,data
 end
 
-function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize; solve=true, QUIET=false)
+function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize; TS="block", solve=true, QUIET=false)
     om = obj_matrix[1].m
     ksupp = [Vector{UInt16}[] for i = 1:length(obj_matrix[1].poly)]
     for i = 1:cl[1], j = 1:blocksize[1][i], k = j:blocksize[1][i]
@@ -543,24 +545,26 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
         ind2 = ind2 != 0 ? ind2 : om
         push!(ksupp[ind1+Int(ind2*(ind2-1)/2)], bi)
     end
-    for s = 1:length(cons_matrix)
-        com = cons_matrix[s].m*om
-        for i = 1:cl[s+1], j = 1:blocksize[s+1][i], k = j:blocksize[s+1][i]
-            p = mod(blocks[s+1][i][j], com)
-            p = p != 0 ? p : com
-            q = mod(blocks[s+1][i][k], com)
-            q = q != 0 ? q : com
-            p1 = ceil(Int, p/cons_matrix[s].m)
-            q1 = ceil(Int, q/cons_matrix[s].m)
-            ind = p1 <= q1 ? p1 + Int(q1*(q1-1)/2) : q1 + Int(p1*(p1-1)/2)
-            t = mod(blocks[s+1][i][j], cons_matrix[s].m)
-            t = t != 0 ? t : cons_matrix[s].m
-            r = mod(blocks[s+1][i][k], cons_matrix[s].m)
-            r = r != 0 ? r : cons_matrix[s].m
-            loc = t <= r ? t + Int(r*(r-1)/2) : r + Int(t*(t-1)/2)
-            for w = 1:length(cons_matrix[s].poly[loc].supp)
-                bi = sadd(sadd(gbasis[s][ceil(Int, blocks[s+1][i][j]/com)], gbasis[s][ceil(Int, blocks[s+1][i][k]/com)]), cons_matrix[s].poly[loc].supp[w])
-                push!(ksupp[ind], bi)
+    if TS != false
+        for s = 1:length(cons_matrix)
+            com = cons_matrix[s].m*om
+            for i = 1:cl[s+1], j = 1:blocksize[s+1][i], k = j:blocksize[s+1][i]
+                p = mod(blocks[s+1][i][j], com)
+                p = p != 0 ? p : com
+                q = mod(blocks[s+1][i][k], com)
+                q = q != 0 ? q : com
+                p1 = ceil(Int, p/cons_matrix[s].m)
+                q1 = ceil(Int, q/cons_matrix[s].m)
+                ind = p1 <= q1 ? p1 + Int(q1*(q1-1)/2) : q1 + Int(p1*(p1-1)/2)
+                t = mod(blocks[s+1][i][j], cons_matrix[s].m)
+                t = t != 0 ? t : cons_matrix[s].m
+                r = mod(blocks[s+1][i][k], cons_matrix[s].m)
+                r = r != 0 ? r : cons_matrix[s].m
+                loc = t <= r ? t + Int(r*(r-1)/2) : r + Int(t*(t-1)/2)
+                for w = 1:length(cons_matrix[s].poly[loc].supp)
+                    bi = sadd(sadd(gbasis[s][ceil(Int, blocks[s+1][i][j]/com)], gbasis[s][ceil(Int, blocks[s+1][i][k]/com)]), cons_matrix[s].poly[loc].supp[w])
+                    push!(ksupp[ind], bi)
+                end
             end
         end
     end
