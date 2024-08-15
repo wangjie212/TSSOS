@@ -5,7 +5,7 @@ function homogenize(f, z)
     return sum(ts)
 end
 
-function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF", type=3, ε=0, TS="block", SO=1, nnhomovar=false, Groebnerbasis=false, Mommat=false)
+function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF", type=2, ε=0, TS="block", SO=1, nnhomovar=false, Groebnerbasis=false, Mommat=false)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     if CS != false
@@ -49,12 +49,6 @@ function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF",
                 freq[clique] .+= 1
             end
             if type == 2
-                @polyvar y[1:cql]
-                for i = 1:cql
-                    push!(eq_cons, sum(1 ./ freq[cliques[i]] .* vars[cliques[i]].^2) + 1/cql*z^2 + y[i]^2 - 1)
-                end
-                push!(eq_cons, sum(y.^2) - cql + 1)
-            else
                 @polyvar y[1:cql-1]
                 push!(ineq_cons, 2 - sum(vars[cliques[1]].^2) - z^2 - y[1]^2)
                 push!(eq_cons, sum(1 ./ freq[cliques[1]] .* vars[cliques[1]].^2) + 1/cql*z^2 - y[1]^2)
@@ -64,6 +58,12 @@ function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF",
                 end
                 push!(ineq_cons, 2 - sum(vars[cliques[end]].^2) - z^2 - y[end]^2)
                 push!(eq_cons, sum(1 ./ freq[cliques[end]] .* vars[cliques[end]].^2) + 1/cql*z^2 + y[end]^2 - 1)
+            else
+                @polyvar y[1:cql]
+                for i = 1:cql
+                    push!(eq_cons, sum(1 ./ freq[cliques[i]] .* vars[cliques[i]].^2) + 1/cql*z^2 + y[i]^2 - 1)
+                end
+                push!(eq_cons, sum(y.^2) - cql + 1)
             end
             # append!(ineq_cons, 1 .- vars.^2)
             # push!(ineq_cons, 1 - z^2)

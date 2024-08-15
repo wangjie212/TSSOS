@@ -316,7 +316,7 @@ function get_cgraph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{
     return G
 end
 
-function get_eblock(tsupp::Array{UInt8, 2}, hsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=nb, nv=0, signsymmetry=nothing)
+function get_eblock(tsupp::Array{UInt8, 2}, hsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nv=0, signsymmetry=nothing)
     ltsupp = size(tsupp, 2)
     hlt = size(hsupp, 2)
     eblock = UInt16[]

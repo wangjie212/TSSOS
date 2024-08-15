@@ -19,7 +19,9 @@ TSSOS has been tested on Ubuntu and Windows.
 ## Usage
 ### Unconstrained polynomial optimization
 The unconstrained polynomial optimization problem formulizes as
+
 $$\mathrm{inf}_{\mathbf{x}\in\mathbb{R}^n}\ f(\mathbf{x}),$$
+
 where $f\in\mathbb{R}[\mathbf{x}]$ is a polynomial.
 
 Taking $f=1+x_1^4+x_2^4+x_3^4+x_1x_2x_3+x_2$ as an example, to compute the first TS step of the TSSOS hierarchy, run
@@ -60,12 +62,16 @@ Output
 
 ### Constrained polynomial optimization
 The constrained polynomial optimization problem formulizes as
+
 $$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ f(\mathbf{x}),$$
+
 where $f\in\mathbb{R}[\mathbf{x}]$ is a polynomial and $\mathbf{K}$ is the basic semialgebraic set
-$$\mathbf{K}=\lbrace \mathbf{x}\in\mathbb{R}^n \mid g_j(\mathbf{x})\ge0, j=1,\ldots,m-numeq,\ g_j(\mathbf{x})=0, j=m-numeq+1,\ldots,m\rbrace,$$
+
+$$\mathbf{K}\coloneqq\lbrace \mathbf{x}\in\mathbb{R}^n \mid g_j(\mathbf{x})\ge0, j=1,\ldots,m-numeq,\ g_j(\mathbf{x})=0, j=m-numeq+1,\ldots,m\rbrace,$$
+
 for some polynomials $g_j\in\mathbb{R}[\mathbf{x}], j=1,\ldots,m$.
 
-Taking $f=1+x_1^4+x_2^4+x_3^4+x_1x_2x_3+x_2$ and $\mathbf{K}=\lbrace \mathbf{x}\in\mathbb{R}^2 \mid g_1=1-x_1^2-2x_2^2\ge0, g_2=x_2^2+x_3^2-1=0\rbrace$ as an example, to compute the first TS step of the TSSOS hierarchy, run
+Taking $f=1+x_1^4+x_2^4+x_3^4+x_1x_2x_3+x_2$ and $\mathbf{K}\coloneqq\lbrace \mathbf{x}\in\mathbb{R}^2 \mid g_1=1-x_1^2-2x_2^2\ge0, g_2=x_2^2+x_3^2-1=0\rbrace$ as an example, to compute the first TS step of the TSSOS hierarchy, run
 
 ```Julia
 @polyvar x[1:3]
@@ -147,13 +153,15 @@ Output
 **flag**: 0 if global optimality is certified; 1 otherwise  
 
 ## The AC-OPF problem
-See the file runopf.jl as well as modelopf.jl in example.
+Check out `example/runopf.jl` and `example/modelopf.jl`.
 
 ## Sum-of-squares optimization
 TSSOS supports more general [sum-of-squares optimization](https://en.wikipedia.org/wiki/Sum-of-squares_optimization) (including polynomial optimization as a special case):
+
 $$\mathrm{inf}_{\mathbf{y}\in\mathbb{R}^n}\ \mathbf{c}^{\intercal}\mathbf{y}$$
 
 $$\mathrm{s.t.}\ a_{k0}+y_1a_{k1}+\cdots+y_na_{kn}\in\mathrm{SOS},\ k=1,\ldots,m.$$
+
 where $\mathbf{c}\in\mathbb{R}^n$ and $a_{ki}\in\mathbb{R}[\mathbf{x}]$ are polynomials. The SOS constraints can be handled with the routine **add_psatz!**:
 
 ```Julia
@@ -162,8 +170,11 @@ model,info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order, TS="bloc
 where **nonneg** is a nonnegative polynomial constrained to be a Putinar's style SOS on the semialgebraic set defined by **ineq_cons** and **eq_cons**, and **SO** is the sparse order.
 
 The following is a simple exmaple.
+
 $$\mathrm{sup}\ \lambda$$
+
 $$\mathrm{s.t.}\ x_1^2 + x_1x_2 + x_2^2 + x_2x_3 + x_3^2 - \lambda(x_1^2+x_2^2+x_3^2)=\sigma+\tau_1(x_1^2+x_2^2+y_1^2-1)+\tau_2(x_2^2+x_3^2+y_2^2-1),$$
+
 $$\sigma\in\mathrm{SOS},\deg(\sigma)\le2d,\ \tau_1,\tau_2\in\mathbb{R}[\mathbf{x}],\deg(\tau_1),\deg(\tau_2)\le2d-2.$$
 
 ```Julia
@@ -185,7 +196,7 @@ model,info = add_psatz!(model, nonne, [x; y], [], h, d, TS="block", Groebnerbasi
 @objective(model, Max, lower)
 optimize!(model)
 ```
-See the file example/sosprogram.jl for a more complicated example.
+Check out `example/sosprogram.jl` for a more complicated example.
 
 ## Compute a local solution
 It is possible to compute a local solution of the polynomial optimization problem in TSSOS by [Ipopt](https://github.com/jump-dev/Ipopt.jl):
@@ -198,9 +209,13 @@ obj,sol,status = local_solution(data.n, data.m, data.supp, data.coe, numeq=data.
 TSSOS also supports solving complex polynomial optimization via the sparsity adapted complex moment-HSOS hierarchies. See [Exploiting Sparsity in Complex Polynomial Optimization](https://arxiv.org/abs/2103.12444) for more details.
 
 The complex polynomial optimization problem formulizes as
+
 $$\mathrm{inf}_{\mathbf{z}\in\mathbf{K}}\ f(\mathbf{z},\bar{\mathbf{z}}),$$
+
 with
-$$\mathbf{K}=\lbrace \mathbf{z}\in\mathbb{C}^n \mid g_j(\mathbf{z},\bar{\mathbf{z}})\ge0, j=1,\ldots,m-numeq,\ g_j(\mathbf{z},\bar{\mathbf{z}})=0, j=m-numeq+1,\ldots,m\rbrace,$$
+
+$$\mathbf{K}\coloneqq\lbrace \mathbf{z}\in\mathbb{C}^n \mid g_j(\mathbf{z},\bar{\mathbf{z}})\ge0, j=1,\ldots,m-numeq,\ g_j(\mathbf{z},\bar{\mathbf{z}})=0, j=m-numeq+1,\ldots,m\rbrace,$$
+
 where $\bar{\mathbf{z}}$ stands for the conjugate of $\mathbf{z}:=(z_1,\ldots,z_n)$, and $f, g_j, j=1,\ldots,m$ are real-valued polynomials satisfying $\bar{f}=f$ and $\bar{g}_j=g_j$.
 
 In TSSOS, we use $x_i$ to represent the complex variable $z_i$ and use $x_{n+i}$ to represent its conjugate $\bar{z}_i$. Consider the example
@@ -235,12 +250,16 @@ Options
 
 ## Sums of rational functions optimization
 The sum of rational functions optimization problem formulizes as
+
 $$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ \sum_{i=1}^N\frac{p_i(\mathbf{x})}{q_i(\mathbf{x})},$$
+
 where $p_i,q_i\in\mathbb{R}[\mathbf{x}]$ are polynomials and $\mathbf{K}$ is the basic semialgebraic set
-$$\mathbf{K}=\lbrace \mathbf{x}\in\mathbb{R}^n \mid g_j(\mathbf{x})\ge0, j=1,\ldots,m-numeq,\ g_j(\mathbf{x})=0, j=m-numeq+1,\ldots,m\rbrace,$$
+
+$$\mathbf{K}\coloneqq\lbrace \mathbf{x}\in\mathbb{R}^n \mid g_j(\mathbf{x})\ge0, j=1,\ldots,m-numeq,\ g_j(\mathbf{x})=0, j=m-numeq+1,\ldots,m\rbrace,$$
+
 for some polynomials $g_j\in\mathbb{R}[\mathbf{x}], j=1,\ldots,m$.
 
-Taking $\frac{p_1}{q_1}=\frac{x^2+y^2-y*z}{1+2x^2+y^2+z^2}$, $\frac{p_2}{q_2}=\frac{y^2+x^2*z}{1+x^2+2y^2+z^2}$, $\frac{p_3}{q_3}=\frac{z^2-x+y}{1+x^2+y^2+2z^2}$, and $\mathbf{K}=\lbrace \mathbf{x}\in\mathbb{R}^2 \mid g=1-x^2-y^2-z^2\ge0\rbrace$ as an example, run
+Taking $\frac{p_1}{q_1}=\frac{x^2+y^2-y*z}{1+2x^2+y^2+z^2}$, $\frac{p_2}{q_2}=\frac{y^2+x^2*z}{1+x^2+2y^2+z^2}$, $\frac{p_3}{q_3}=\frac{z^2-x+y}{1+x^2+y^2+2z^2}$, and $\mathbf{K}\coloneqq\lbrace \mathbf{x}\in\mathbb{R}^2 \mid g=1-x^2-y^2-z^2\ge0\rbrace$ as an example, run
 
 ```Julia
 @polyvar x y z
@@ -253,6 +272,25 @@ opt = SparseSumOfRatios(p, q, g, [], [x;y;z], d, QUIET=true, SignSymmetry=true) 
 ```
 Options  
 **SignSymmetry**: true, false
+
+## Polynomial matrix optimization
+The polynomial matrix optimization aims to minimize the smallest eigenvalue of a polynomial matrix subject to a tuple of polynomial matrix inequalties (PMIs), which can be formulized as
+
+$$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ \lambda_{\min}(F(\mathbf{x})),$$
+
+where $F\in\mathbb{S}[\mathbf{x}]^p$ is a $p\times p$ symmetric polynomial matrix and $\mathbf{K}$ is the basic semialgebraic set
+
+$$\mathbf{K}\coloneqq\lbrace \mathbf{x}\in\mathbb{R}^n \mid G_j(\mathbf{x})\succeq0, j=1,\ldots,m\rbrace,$$
+
+for some symmetric polynomial matrices $G_j\in\mathbb{S}[\mathbf{x}]^{q_j}, j=1,\ldots,m$. Note that when $p=1$, $\lambda_{\min}(F(\mathbf{x}))=F(\mathbf{x})$. More generally, one may consider
+
+$$\mathrm{inf}_{\mathbf{y}\in\mathbb{R}^t}\ \mathbf{c}^{\intercal}\mathbf{y}$$
+
+$$\mathrm{s.t.}\ F_{0}(\mathbf{x})+y_1F_{1}(\mathbf{x})+\cdots+y_tF_{t}(\mathbf{x})\succeq0 \textrm{ on } K,$$
+
+where $F_i\in\mathbb{S}[\mathbf{x}]^{p}, j=1,\ldots,m$ are a tuple of symmetric polynomial matrices.
+
+In TSSOS, you can solve such polynomial matrix optimization problems by a matrix version of the moment-SOS hierarchy. Both correlative and term sparsities are supported. For concrete examples, please check out `example/pmi.jl`.
 
 ## Tips for modelling polynomial optimization problem
 - When possible, explictly include a sphere/ball constraint (or multi-sphere/multi-ball constraints).

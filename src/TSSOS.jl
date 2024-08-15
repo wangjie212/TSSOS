@@ -14,6 +14,7 @@ using COSMO
 using Dualization
 using Printf
 using AbstractAlgebra
+# using Hypatia
 # using SDPT3
 # using SDPNAL
 
@@ -27,6 +28,7 @@ include("blockpop_uncons.jl")
 include("blockpop_cons.jl")
 include("nblockmix.jl")
 include("complex.jl")
+# include("cpop_csdp.jl")
 include("local_solution.jl")
 include("add_psatz.jl")
 include("homogenize.jl")

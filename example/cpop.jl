@@ -26,15 +26,15 @@ h = sum(z[i]*z[i+n] for i = 1:n) - 1
 @time begin
 opt,sol,data = cs_tssos_first([f; h], z, n, 2, numeq=1, QUIET=false, solve=true, CS=false, TS=false)
 end
-println(length(data.basis[1][1]))
+# println(length(data.basis[1][1]))
 @time begin
 opt,sol,data = cs_tssos_first([f; h], z, n, 3, numeq=1, QUIET=false, solve=true, CS=false, TS=false)
 end
-println(length(data.basis[1][1]))
+# println(length(data.basis[1][1]))
 
 # minimizing a random complex quartic polynomial with unit-norm variables
 Random.seed!(1)
-n = 5
+n = 15
 @polyvar z[1:2n]
 basis1 = cbasis(z[1:n])
 basis2 = cbasis(z[n+1:2n])
@@ -44,16 +44,16 @@ pop = [basis2'*((P+P')/2+im*(Q-Q')/2)*basis1]
 @time begin
 opt,sol,data = cs_tssos_first(pop, z, n, 2, nb=n, QUIET=false, CS=false, TS=false)
 end
-println(length(data.basis[1][1]))
+# println(length(data.basis[1][1]))
 @time begin
 opt,sol,data = cs_tssos_first(pop, z, n, 3, nb=n, QUIET=false, solve=true, CS=false, TS=false)
 end
-println(length(data.basis[1][1]))
+# println(length(data.basis[1][1]))
 
 # minimizing large-scale randomly generated complex QCQPs
 Random.seed!(1)
 b = 10
-l = 400
+l = 120
 n = (b-5)*l + 5
 supp = Vector{Vector{Vector{Vector{UInt16}}}}(undef, l+1)
 coe = Vector{Vector{ComplexF64}}(undef, l+1)
@@ -86,15 +86,15 @@ for i = 1:l
     coe[i+1] = [1; -ones(b)]
 end
 
-time = @elapsed begin
+@time begin
 opt,sol,data = cs_tssos_first(supp, coe, n, 2, numeq=l, TS="MD")
 end
-mb = 2*maximum(maximum.(data.sb)) # maximal block size
-println("n = $n, time = $time, mb = $mb")
+# mb = 2*maximum(maximum.(data.sb)) # maximal block size
+# println("n = $n, time = $time, mb = $mb")
 
 # AC-OPF problem
-include("D:\\Programs\\TSSOS\\example\\modelopf.jl")
-cd("D:\\Programs\\PolyOPF\\pglib")
+include("D:/Programs/TSSOS/example/modelopf.jl")
+cd("D:/Programs/PolyOPF/pglib")
 silence()
 
 case = "pglib_opf_case14_ieee"

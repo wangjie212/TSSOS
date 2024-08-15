@@ -17,7 +17,7 @@ solve_hpop(f, x, [], [], 5, QUIET=true, type=3, TS="block")
 opt,sol,data = cs_tssos_first([f], x, 5, TS="block", solution=true, QUIET=true)
 
 #######################################################################
-# Example 5.2
+# Example 5.0
 @polyvar x[1:6]
 f = x[1]^6 + x[2]^6 + 1 + 3*x[1]^2*x[2]^2 - x[1]^4*(x[2]^2 + 1) - x[2]^4*(x[1]^2 + 1) - (x[1]^2 + x[2]^2) + x[3]^2*(x[1]^2 + x[5]^2 - 2)^2 +
 (x[4] + x[5] + 1)^2*x[6]^2 + (x[6] - 1)^6
@@ -37,7 +37,7 @@ end
 obj,sol,status = local_solution(data.n, data.m, data.supp, data.coe, startpoint=rand(data.n))
 
 #######################################################################
-# Example 5.3
+# Example 5.2
 @polyvar x[1:10]
 f1 = sum(x[1:4].^4) + (1-x[1])*(1-x[2])*(1-x[3])*(1-x[4]) + (x[1]-1)*(x[1]-x[2])*(x[1]-x[3])*(x[1]-x[4]) + (x[2]-1)*(x[2]-x[1])*(x[2]-x[3])*(x[2]-x[4]) + (x[3]-1)*(x[3]-x[1])*(x[3]-x[2])*(x[3]-x[4]) + (x[4]-1)*(x[4]-x[1])*(x[4]-x[2])*(x[4]-x[3])
 f2 = sum(x[4:7].^4) + (1-x[4])*(1-x[5])*(1-x[6])*(1-x[7]) + (x[4]-1)*(x[4]-x[5])*(x[4]-x[6])*(x[4]-x[7]) + (x[5]-1)*(x[5]-x[4])*(x[5]-x[6])*(x[5]-x[7]) + (x[6]-1)*(x[6]-x[4])*(x[6]-x[5])*(x[6]-x[7]) + (x[7]-1)*(x[7]-x[4])*(x[7]-x[5])*(x[7]-x[6])
@@ -57,7 +57,7 @@ opt,sol,data = cs_tssos_first([f], x, 4, TS="block", solution=true, QUIET=true)
 end
 
 #######################################################################
-# Example 5.4
+# Example 5.3
 @polyvar x[1:20]
 f1 = x[1]^2*(x[1]-1)^2 + x[2]^2*(x[2]-1)^2 + x[3]^2*(x[3]-1)^2 + 2*x[1]*x[2]*x[3]*(sum(x[1:3])-2) + 0.25*((x[1]-1)^2+(x[2]-1)^2+(x[3]-1)^2+(x[4]-1)^2) + (x[4]*x[5]-1)^2
 f2 = x[1]^2*(x[1]-1)^2 + x[2]^2*(x[2]-1)^2 + x[6]^2*(x[6]-1)^2 + 2*x[1]*x[2]*x[6]*(sum(x[1:2])+x[6]-2) + 0.25*((x[1]-1)^2+(x[2]-1)^2+(x[6]-1)^2+(x[7]-1)^2) + (x[7]*x[8]-1)^2
@@ -80,27 +80,27 @@ opt,sol,data = cs_tssos_first([f], x, 2, TS="block", solution=false, QUIET=true)
 end
 
 #######################################################################
-# Example 5.5
+# Example 5.4
 @polyvar x[1:5]
 f = x[1]^2 + 3x[2]^2 - 2x[2]*x[3]^2 + x[3]^4 - x[2]*(x[4]^2 + x[5]^2)
-g = [x[2]^2-1; x[1]^2-2*x[1]*x[2]-1; x[1]^2+2*x[1]*x[2]-1; x[2]-x[4]^2-x[5]^2]
+g = [x[2]-1; x[1]^2-2*x[1]*x[2]-1; x[1]^2+2*x[1]*x[2]-1; x[2]-x[4]^2-x[5]^2]
 # Homogenization without CS
-solve_hpop(f, x, g, [], 2, QUIET=true, CS=false, TS="block")
+solve_hpop(f, x, g, [], 2, QUIET=true, CS=false, TS="block", SO=2)
 # Homogenization with CS type 1
-solve_hpop(f, x, g, [], 4, QUIET=true, type=1, ε=1e-4, TS="block")
+solve_hpop(f, x, g, [], 2, QUIET=true, type=1, ε=1e-4, TS="block", SO=2)
 # Homogenization with CS type 2
-solve_hpop(f, x, g, [], 4, QUIET=true, type=2, TS="block")
+solve_hpop(f, x, g, [], 2, QUIET=true, type=2, TS="block", SO=2)
 # Homogenization with CS type 3
-solve_hpop(f, x, g, [], 4, QUIET=true, type=3, TS="block")
+solve_hpop(f, x, g, [], 2, QUIET=true, type=3, TS="block", SO=2)
 # No homogenization with CS
 @time begin
-opt,sol,data = cs_tssos_first([f; g], x, 4, TS="block", solution=true, QUIET=true)
+opt,sol,data = cs_tssos_first([f; g], x, 2, TS="block", solution=false, QUIET=true)
 end
 # Find a local solution
-obj,sol,status = local_solution(data.n, data.m, data.supp, data.coe, startpoint=rand(data.n))
+# obj,sol,status = local_solution(data.n, data.m, data.supp, data.coe, startpoint=rand(data.n))
 
 #######################################################################
-# Example 5.6
+# Example 5.5
 @polyvar x[1:7]
 f = x[1]^4*x[2]^2 + x[2]^4*x[3]^2 + x[1]^2*x[3]^4 - 3*(x[1]*x[2]*x[3])^2 + x[2]^2 + x[7]^2*(sum(x[1:3].^2)) + 
 x[4]^2*x[5]^2*(10 - x[6]^2) + x[7]^2*(x[4]^2 + 2x[5]^2 + 3x[6]^2)
@@ -119,7 +119,7 @@ opt,sol,data = cs_tssos_first([f; g], x, 3, TS="block", solution=true, QUIET=tru
 end
 
 #######################################################################
-# Example 5.7
+# Example 5.6
 p = 3
 @polyvar x[1:8*p+2]
 f = 0
@@ -141,7 +141,7 @@ opt,sol,data = cs_tssos_first([f; g], x, 4, TS="block", solution=true, QUIET=tru
 end
 
 #######################################################################
-# Example 5.8
+# Example 5.7
 Random.seed!(0)
 n = 40
 u = 3
