@@ -219,10 +219,15 @@ $$\mathbf{K}\coloneqq\lbrace \mathbf{z}\in\mathbb{C}^n \mid g_j(\mathbf{z},\bar{
 where $\bar{\mathbf{z}}$ stands for the conjugate of $\mathbf{z}:=(z_1,\ldots,z_n)$, and $f, g_j, j=1,\ldots,m$ are real-valued polynomials satisfying $\bar{f}=f$ and $\bar{g}_j=g_j$.
 
 In TSSOS, we use $x_i$ to represent the complex variable $z_i$ and use $x_{n+i}$ to represent its conjugate $\bar{z}_i$. Consider the example
+
 $$\mathrm{inf}\ 3-|z_1|^2-0.5\mathbf{i}z_1\bar{z}_2^2+0.5\mathbf{i}z_2^2\bar{z}_1$$
+
 $$\mathrm{s.t.}\ z_2+\bar{z}_2\ge0,|z_1|^2-0.25z_1^2-0.25\bar{z}_1^2=1,|z_1|^2+|z_2|^2=3,\mathbf{i}z_2-\mathbf{i}\bar{z}_2=0.$$
+
 It can be represented as
+
 $$\mathrm{inf}\ 3-x_1x_3-0.5\mathbf{i}x_1x_4^2+0.5\mathbf{i}x_2^2x_3$$
+
 $$\mathrm{s.t.}\ x_2+x_4\ge0,x_1x_3-0.25x_1^2-0.25x_3^2=1,x_1x_3+x_2x_4=3,\mathbf{i}x_2-\mathbf{i}x_4=0.$$
 
 ```Julia
@@ -251,7 +256,7 @@ Options
 ## Sums of rational functions optimization
 The sum of rational functions optimization problem formulizes as
 
-$$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ \sum_{i=1}^N\frac{p_i(\mathbf{x})}{q_i(\mathbf{x})},$$
+$$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ \sum\_{i=1}^N\frac{p_i(\mathbf{x})}{q_i(\mathbf{x})},$$
 
 where $p_i,q_i\in\mathbb{R}[\mathbf{x}]$ are polynomials and $\mathbf{K}$ is the basic semialgebraic set
 
@@ -259,7 +264,7 @@ $$\mathbf{K}\coloneqq\lbrace \mathbf{x}\in\mathbb{R}^n \mid g_j(\mathbf{x})\ge0,
 
 for some polynomials $g_j\in\mathbb{R}[\mathbf{x}], j=1,\ldots,m$.
 
-Taking $\frac{p_1}{q_1}=\frac{x^2+y^2-y*z}{1+2x^2+y^2+z^2}$, $\frac{p_2}{q_2}=\frac{y^2+x^2*z}{1+x^2+2y^2+z^2}$, $\frac{p_3}{q_3}=\frac{z^2-x+y}{1+x^2+y^2+2z^2}$, and $\mathbf{K}\coloneqq\lbrace \mathbf{x}\in\mathbb{R}^2 \mid g=1-x^2-y^2-z^2\ge0\rbrace$ as an example, run
+Taking $\frac{p_1}{q_1}=\frac{x^2+y^2-yz}{1+2x^2+y^2+z^2}$, $\frac{p_2}{q_2}=\frac{y^2+x^2z}{1+x^2+2y^2+z^2}$, $\frac{p_3}{q_3}=\frac{z^2-x+y}{1+x^2+y^2+2z^2}$, and $\mathbf{K}\coloneqq\lbrace \mathbf{x}\in\mathbb{R}^2 \mid g=1-x^2-y^2-z^2\ge0\rbrace$ as an example, run
 
 ```Julia
 @polyvar x y z
@@ -276,7 +281,7 @@ Options
 ## Polynomial matrix optimization
 The polynomial matrix optimization aims to minimize the smallest eigenvalue of a polynomial matrix subject to a tuple of polynomial matrix inequalties (PMIs), which can be formulized as
 
-$$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ \lambda_{\min}(F(\mathbf{x})),$$
+$$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ \lambda_{\mathrm{min}}(F(\mathbf{x})),$$
 
 where $F\in\mathbb{S}[\mathbf{x}]^p$ is a $p\times p$ symmetric polynomial matrix and $\mathbf{K}$ is the basic semialgebraic set
 
