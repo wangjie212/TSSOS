@@ -281,7 +281,7 @@ Options
 ## Polynomial matrix optimization
 The polynomial matrix optimization aims to minimize the smallest eigenvalue of a polynomial matrix subject to a tuple of polynomial matrix inequalties (PMIs), which can be formulized as
 
-$$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ \lambda_{\mathrm{min}}(F(\mathbf{x})),$$
+$$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ \lambda\_{\mathrm{min}}(F(\mathbf{x})),$$
 
 where $F\in\mathbb{S}[\mathbf{x}]^p$ is a $p\times p$ symmetric polynomial matrix and $\mathbf{K}$ is the basic semialgebraic set
 
