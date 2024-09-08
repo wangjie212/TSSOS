@@ -24,7 +24,7 @@ time = @elapsed begin
 opt,sol,popd = cs_tssos_first(supp, coe, n, 1, numeq=numeq, tune=true, CS=false, TS="MF", MomentOne=false)
 end
 opt *= mc
-mb = maximum(maximum.(popd.sb)) # maximal block size
+mb = maximum(maximum.([maximum.(popd.blocksize[i]) for i = 1:popd.cql])) # maximal block size
 gap = (AC-opt)*100/AC # optimality gap
 println("n = $n, m = $m")
 println("opt = $opt, time = $time, mb = $mb, gap = $gap%")
@@ -44,7 +44,7 @@ opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, tune=true, CS="M
 end
 opt *= mc
 maxc = maximum(popd.cliquesize) # maximal clique size
-mb = maximum(maximum.(popd.sb)) # maximal block size
+mb = maximum(maximum.([maximum.(popd.blocksize[i]) for i = 1:popd.cql])) # maximal block size
 gap = 100*(AC-opt)/AC # optimality gap
 println("n = $n, m = $m")
 println("mc = $maxc, opt = $opt, time = $time, mb = $mb, gap = $gap%")

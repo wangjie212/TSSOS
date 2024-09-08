@@ -114,7 +114,7 @@ opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, tune=true, CS="M
 end
 opt *= mc
 maxc = maximum(popd.cliquesize) # maximal clique size
-mb = 2*maximum(maximum.(popd.sb)) # maximal block size
+mb = 2*maximum(maximum.([maximum.(popd.blocksize[i]) for i = 1:popd.cql])) # maximal block size
 gap = 100*(AC-opt)/AC # optimality gap
 println("n = $n, m = $m")
 println("mc = $maxc, opt = $opt, time = $time, mb = $mb, gap = $gap%")

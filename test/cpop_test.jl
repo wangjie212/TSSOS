@@ -20,11 +20,11 @@ pop = [z[1]+z[2]+z[3]+z[4], (1+im)*z[1]^2*z[4]+(1-im)*z[2]*z[3]^2, 1-z[1]*z[3]-z
 opt,sol,data = cs_tssos_first(pop, z, 2, 4, numeq=1, QUIET=true, CS=false, TS="block", solution=true)
 # optimum = -2.8284270957706616
 opt,sol,data = cs_tssos_higher!(data, QUIET=true, TS="block", solution=true)
-# optimum = -2.748735909698819
+# optimum = -2.7464051301364734
 
 @polyvar z[1:4]
 pop = [z[1]*z[2] + z[3]*z[4], 1 - z[1]*z[3] - z[2]*z[4]]
-opt,sol,data = cs_tssos_first(pop, z, 2, 7, ipart=false, numeq=1, QUIET=true, CS=false, TS=false, solution=true)
+opt,sol,data = cs_tssos_first(pop, z, 2, 5, ipart=false, numeq=1, QUIET=true, CS=false, TS=false, solution=true)
 # optimum = -1.072774066479055
 
 println("Run successfully!")

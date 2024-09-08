@@ -12,8 +12,6 @@ mutable struct cpop_data
     basis # monomial bases
     hbasis # monomial bases for equality constraints
     ksupp # extended support at the k-th step
-    sb # sizes of different blocks
-    numb # numbers of different blocks
     cl # numbers of blocks
     blocksize # sizes of blocks
     blocks # block structure for inequality constraints
@@ -105,7 +103,7 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
     end
     isupp = reduce(hcat, supp)
     neq = isempty(gb) ? numeq : 0
-    if basis == []
+    if isempty(basis)
         basis = Vector{Array{UInt8,2}}(undef, m-neq+1)
         basis[1] = get_basis(n, d, nb=nb, lead=leadsupp)
         for k = 1:m-neq
@@ -126,7 +124,7 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,eblocks,cl,blocksize,sb,numb,_ = get_cblocks(m-neq, neq, tsupp, supp[2:end], basis, hbasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, nv=n, signsymmetry=ss)
+    blocks,eblocks,cl,blocksize = get_blocks(m-neq, neq, tsupp, supp[2:end], basis, hbasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, signsymmetry=ss)
     if reducebasis == true && quotient == false
         gsupp = get_gsupp(n, m, numeq, supp, basis[2:end], hbasis, blocks[2:end], eblocks, cl[2:end], blocksize[2:end], nb=nb)
         psupp = [supp[1] zeros(UInt8,n)]
@@ -136,18 +134,18 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
             tsupp = [isupp bin_add(basis[1], basis[1], nb)]
             tsupp = sortslices(tsupp, dims=2)
             tsupp = unique(tsupp, dims=2)
-            blocks,eblocks,cl,blocksize,sb,numb,_ = get_cblocks(m-numeq, numeq, tsupp, supp[2:end], basis, hbasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, nv=n, signsymmetry=ss)
+            blocks,eblocks,cl,blocksize = get_blocks(m-numeq, numeq, tsupp, supp[2:end], basis, hbasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, signsymmetry=ss)
         end
     end
     end
     if TS != false && QUIET == false
-        mb = maximum(maximum.(sb))
+        mb = maximum(maximum.(blocksize))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,momone,GramMat,SDP_status = blockcpop(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, dualize=dualize, TS=TS,
+    opt,ksupp,moment,momone,GramMat,SDP_status = solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, dualize=dualize, TS=TS,
     lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
     signsymmetry=ss, normality=normality, NormalSparse=NormalSparse)
-    data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, hbasis, ksupp, sb, numb, cl, blocksize, blocks, eblocks, GramMat, moment, solver, SDP_status, tol, 1)
+    data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, hbasis, ksupp, cl, blocksize, blocks, eblocks, GramMat, moment, solver, SDP_status, tol, 1)
     sol = nothing
     if solution == true
         sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, tol=tol)
@@ -174,8 +172,6 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
     basis = data.basis
     hbasis = data.hbasis
     ksupp = data.ksupp
-    sb = data.sb
-    numb = data.numb
     blocks = data.blocks
     eblocks = data.eblocks
     cl = data.cl
@@ -187,19 +183,22 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
     if QUIET == false
         println("Starting to compute the block structure...")
     end
+    oblocksize = deepcopy(data.blocksize)
+    oeblocks = deepcopy(eblocks)
     time = @elapsed begin
     neq = isempty(gb) ? numeq : 0
-    blocks,eblocks,cl,blocksize,sb,numb,status = get_cblocks(m-neq, neq, ksupp, supp[2:end], basis, hbasis, blocks=blocks, eblocks=eblocks, cl=cl, 
-    blocksize=blocksize, sb=sb, numb=numb, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
+    blocks,eblocks,cl,blocksize = get_blocks(m-neq, neq, ksupp, supp[2:end], basis, hbasis, blocks=blocks, eblocks=eblocks, cl=cl, 
+    blocksize=blocksize, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
     end
-    opt = nothing
-    sol = nothing
-    if status == 1
+    if blocksize == oblocksize && eblocks == oeblocks
+        println("No higher TS step of the TSSOS hierarchy!")
+        opt = sol = nothing
+    else
         if QUIET == false
-            mb = maximum(maximum.(sb))
+            mb = maximum(maximum.(blocksize))
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,momone,GramMat,SDP_status = blockcpop(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, TS=TS,
+        opt,ksupp,moment,momone,GramMat,SDP_status = solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, TS=TS,
         solver=solver, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
         normality=normality, NormalSparse=NormalSparse)
         if solution == true
@@ -210,12 +209,6 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
             end
         end
         data.ksupp = ksupp
-        data.sb = sb
-        data.numb = numb
-        data.blocks = blocks
-        data.eblocks = eblocks
-        data.cl = cl
-        data.blocksize = blocksize
         data.GramMat = GramMat
         data.moment = moment
         data.SDP_status = SDP_status
@@ -296,7 +289,7 @@ function reducebasis!(supp, basis, blocks, cl, blocksize; nb=0)
     end
 end
 
-function get_cgraph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nv=0, signsymmetry=nothing)
+function get_graph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nv=0, signsymmetry=nothing)
     lb = size(basis, 2)
     G = SimpleGraph(lb)
     ltsupp = size(tsupp, 2)
@@ -335,7 +328,7 @@ function get_eblock(tsupp::Array{UInt8, 2}, hsupp::Array{UInt8, 2}, basis::Array
     return eblock
 end
 
-function get_cblocks(m, l, tsupp, supp, basis, hbasis; blocks=[], eblocks=[], cl=[], blocksize=[], sb=[], numb=[], nb=0,
+function get_blocks(m, l, tsupp, supp, basis, hbasis; blocks=[], eblocks=[], cl=[], blocksize=[], nb=0,
     TS="block", QUIET=true, merge=false, md=3, nv=0, signsymmetry=nothing)
     if isempty(blocks)
         blocks = Vector{Vector{Vector{UInt16}}}(undef, m+1)
@@ -346,68 +339,48 @@ function get_cblocks(m, l, tsupp, supp, basis, hbasis; blocks=[], eblocks=[], cl
     if TS == false
         for k = 1:m+1
             lb = ndims(basis[k])==1 ? length(basis[k]) : size(basis[k], 2)
-            blocks[k] = [Vector(1:lb)]
-            blocksize[k] = [lb]
-            cl[k] = 1
+            blocks[k],blocksize[k],cl[k] = [Vector(1:lb)],[lb],1
         end
         for k = 1:l
             lb = ndims(hbasis[k])==1 ? length(hbasis[k]) : size(hbasis[k], 2)
             eblocks[k] = Vector(1:lb)
         end
-        status = 1
-        nsb = Int.(blocksize[1])
-        nnumb = [1]
     else
-        G = get_graph(tsupp, basis[1], nb=nb, nv=nv, signsymmetry=signsymmetry)
-        if TS == "block"
-            blocks[1] = connected_components(G)
-            blocksize[1] = length.(blocks[1])
-            cl[1] = length(blocksize[1])
-        else
-            blocks[1],cl[1],blocksize[1] = chordal_cliques!(G, method=TS, minimize=false)
-            if merge == true
-                blocks[1],cl[1],blocksize[1] = clique_merge!(blocks[1], d=md, QUIET=true)
+        for k = 1:m+1
+            if k == 1
+                G = get_graph(tsupp, basis[1], nb=nb, nv=nv, signsymmetry=signsymmetry)
+            else
+                G = get_graph(tsupp, supp[k-1], basis[k], nb=nb, nv=nv, signsymmetry=signsymmetry)
             end
-        end
-        nsb = sort(Int.(unique(blocksize[1])), rev=true)
-        nnumb = [sum(blocksize[1].== i) for i in nsb]
-        if isempty(sb) || nsb!=sb || nnumb!=numb
-            status = 1
-            if QUIET == false
-                println("-----------------------------------------------------------------------------")
-                println("The sizes of PSD blocks:\n$nsb\n$nnumb")
-                println("-----------------------------------------------------------------------------")
-            end
-            for k = 1:m
-                G = get_cgraph(tsupp, supp[k], basis[k+1], nb=nb, nv=nv, signsymmetry=signsymmetry)
-                if TS == "block"
-                    blocks[k+1] = connected_components(G)
-                    blocksize[k+1] = length.(blocks[k+1])
-                    cl[k+1] = length(blocksize[k+1])
-                else
-                    blocks[k+1],cl[k+1],blocksize[k+1] = chordal_cliques!(G, method=TS, minimize=false)
-                    if merge == true
-                        blocks[k+1],cl[k+1],blocksize[k+1] = clique_merge!(blocks[k+1], d=md, QUIET=true)
-                    end
+            if TS == "block"
+                blocks[k] = connected_components(G)
+                blocksize[k] = length.(blocks[k])
+                cl[k] = length(blocksize[k])
+            else
+                blocks[k],cl[k],blocksize[k] = chordal_cliques!(G, method=TS, minimize=false)
+                if merge == true
+                    blocks[k],cl[k],blocksize[k] = clique_merge!(blocks[k], d=md, QUIET=true)
                 end
             end
-            for k = 1:l
-                eblocks[k] = get_eblock(tsupp, supp[k+m], hbasis[k], nb=nb, nv=nv, signsymmetry=signsymmetry)
-            end
-        else
-            status = 0
             if QUIET == false
-                println("No higher TS step of the TSSOS hierarchy!")
+                sb = sort(Int.(unique(blocksize[k])), rev=true)
+                numb = [sum(blocksize[k].== i) for i in sb]
+                println("-----------------------------------------------------------------------------")
+                println("The sizes of PSD blocks for the $k-th SOS multiplier:\n$sb\n$numb")
+                println("-----------------------------------------------------------------------------")
             end
         end
+        for k = 1:l
+            eblocks[k] = get_eblock(tsupp, supp[k+m], hbasis[k], nb=nb, nv=nv, signsymmetry=signsymmetry)
+        end
     end
-    return blocks,eblocks,cl,blocksize,nsb,nnumb,status
+    return blocks,eblocks,cl,blocksize
 end
 
-function blockcpop(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize; nb=0, numeq=0, gb=[], x=[], lead=[], solver="Mosek", TS="block",
+function solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize; nb=0, numeq=0, gb=[], x=[], lead=[], solver="Mosek", TS="block",
     QUIET=true, solve=true, dualize=false, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
     signsymmetry=false, normality=false, NormalSparse=false)
-    ksupp = zeros(UInt8, n, Int(sum(Int.(blocksize[1]).^2+blocksize[1])/2))
+    ksupp = zeros(UInt8, n, numele(blocksize[1]))
     k = 1
     for i = 1:cl[1], j = 1:blocksize[1][i], r = j:blocksize[1][i]
         @inbounds bi = bin_add(basis[1][:,blocks[1][i][j]], basis[1][:,blocks[1][i][r]], nb)

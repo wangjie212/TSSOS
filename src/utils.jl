@@ -274,7 +274,7 @@ end
 
 function polys_info(pop, x; nb=0)
     n = length(x)
-    m = length(pop)-1
+    m = length(pop) - 1
     if nb > 0
         gb = x[1:nb].^2 .- 1
         for i in eachindex(pop)

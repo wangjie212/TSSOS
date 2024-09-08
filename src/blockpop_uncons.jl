@@ -7,9 +7,9 @@ mutable struct upop_data
     coe # coefficient data
     basis # monomial basis
     ksupp # extended support at the k-th step
+    cl # numbers of blocks
+    blocksize # sizes of blocks
     blocks # block structrue
-    sb # sizes of different blocks
-    numb # numbers of different blocks
     GramMat # Gram matrix
     moment # Moment matrix
     solver # SDP solver
@@ -103,7 +103,8 @@ function tssos_first(f::Polynomial{true, T}, x; nb=0, order=0, newton=true, redu
     if TS != false && QUIET == false
         println("Starting to compute the block structure...")
     end
-    blocks,cl,blocksize,sb,numb,_ = get_blocks(tsupp, basis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, nv=n, signsymmetry=ss)
+    time = @elapsed begin
+    blocks,cl,blocksize = get_blocks(tsupp, basis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, signsymmetry=ss)
     if reducebasis == true
         psupp = [supp zeros(UInt8, n)]
         basis,flag = reducebasis!(psupp, basis, blocks, cl, blocksize, nb=nb)
@@ -111,16 +112,17 @@ function tssos_first(f::Polynomial{true, T}, x; nb=0, order=0, newton=true, redu
             tsupp = [supp bin_add(basis, basis, nb)]
             tsupp = sortslices(tsupp, dims=2)
             tsupp = unique(tsupp, dims=2)
-            blocks,cl,blocksize,sb,numb,_ = get_blocks(tsupp, basis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, nv=n, signsymmetry=ss)
+            blocks,cl,blocksize = get_blocks(tsupp, basis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, signsymmetry=ss)
         end
     end
-    if TS != false && QUIET == false
-        mb = maximum(maximum.(sb))
-        println("Obtained the block structure. The maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,momone,GramMat,SDP_status = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, feasible=feasible,
+    if TS != false && QUIET == false
+        mb = maximum(blocksize)
+        println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
+    end
+    opt,ksupp,moment,momone,GramMat,SDP_status = solvesdp(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, feasible=feasible,
     TS=TS, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
-    data = upop_data(n, nb, x, f, supp, coe, basis, ksupp, blocks, sb, numb, GramMat, moment, solver, SDP_status, tol, 1)
+    data = upop_data(n, nb, x, f, supp, coe, basis, ksupp, cl, blocksize, blocks, GramMat, moment, solver, SDP_status, tol, 1)
     sol = nothing
     if solution == true
         sol,gap,data.flag = extract_solution(momone, opt, [f], x, tol=tol)
@@ -148,22 +150,22 @@ function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=fal
     coe = data.coe
     basis = data.basis
     ksupp = data.ksupp
-    sb = data.sb
-    numb = data.numb
     solver = data.solver
     tol = data.tol
     if QUIET == false
         println("Starting to compute the block structure...")
     end
-    blocks,cl,blocksize,sb,numb,status = get_blocks(ksupp, basis, sb=sb, numb=numb, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
-    opt = nothing
-    sol = nothing
-    if status == 1
+    oblocksize = deepcopy(data.blocksize)
+    time = @elapsed data.blocks,data.cl,data.blocksize = get_blocks(ksupp, basis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
+    if data.blocksize == oblocksize
+        println("No higher TS step of the TSSOS hierarchy!")
+        opt = sol = nothing
+    else    
         if QUIET == false
-            mb = maximum(maximum.(sb))
-            println("Obtained the block structure. The maximal size of blocks is $mb.")
+            mb = maximum(blocksize)
+            println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,momone,GramMat,SDP_status = blockupop(n, supp, coe, basis, blocks, cl, blocksize, nb=nb, solver=solver, feasible=feasible, 
+        opt,ksupp,moment,momone,GramMat,SDP_status = solvesdp(n, supp, coe, basis, data.blocks, data.cl, data.blocksize, nb=nb, solver=solver, feasible=feasible, 
         TS=TS, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
         if solution == true
             sol,gap,data.flag = extract_solution(momone, opt, [f], x, tol=tol)
@@ -174,9 +176,6 @@ function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=fal
         end
         data.ksupp = ksupp
         data.GramMat = GramMat
-        data.sb = sb
-        data.numb = numb
-        data.blocks = blocks
         data.moment = moment
         data.SDP_status = SDP_status
     end
@@ -289,13 +288,13 @@ function get_graph(tsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nv=0, s
     return G
 end
 
-function get_blocks(tsupp, basis; sb=[], numb=[], nb=0, TS="block", minimize=false, QUIET=true, merge=false, md=3, nv=0, signsymmetry=nothing)
+function get_blocks(tsupp, basis; nb=0, TS="block", minimize=false, QUIET=true, merge=false, md=3, signsymmetry=nothing)
     if TS == false
         blocksize = [size(basis,2)]
         blocks = [[i for i=1:size(basis,2)]]
         cl = 1
     else
-        G = get_graph(tsupp, basis, nb=nb, nv=nv, signsymmetry=signsymmetry)
+        G = get_graph(tsupp, basis, nb=nb, signsymmetry=signsymmetry)
         if TS == "block"
             blocks = connected_components(G)
             blocksize = length.(blocks)
@@ -307,23 +306,17 @@ function get_blocks(tsupp, basis; sb=[], numb=[], nb=0, TS="block", minimize=fal
             end
         end
     end
-    nsb = sort(unique(blocksize), rev=true)
-    nnumb = [sum(blocksize.== i) for i in nsb]
-    if isempty(sb) || nsb!=sb || nnumb!=numb
-        status = 1
-        if QUIET == false
-            println("-----------------------------------------------------------------------------")
-            println("The sizes of PSD blocks:\n$nsb\n$nnumb")
-            println("-----------------------------------------------------------------------------")
-        end
-    else
-        status = 0
-        println("No higher TS step of the TSSOS hierarchy!")
+    if QUIET == false
+        sb = sort(unique(blocksize), rev=true)
+        numb = [sum(blocksize.== i) for i in sb]
+        println("-----------------------------------------------------------------------------")
+        println("The sizes of PSD blocks:\n$sb\n$numb")
+        println("-----------------------------------------------------------------------------")
     end
-    return blocks,cl,blocksize,nsb,nnumb,status
+    return blocks,cl,blocksize
 end
 
-function blockupop(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mosek", feasible=false, QUIET=true, solve=true, 
+function solvesdp(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mosek", feasible=false, QUIET=true, solve=true, 
     TS="block", solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), dualize=false)
     tsupp = zeros(UInt8, n, Int(sum(Int.(blocksize).^2+blocksize)/2))
     k = 1

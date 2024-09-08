@@ -105,7 +105,7 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
             basis[t][s+length(I[t])+1] = get_nbasis(n, 2*order-dh[J[t][s]], var=cliques[t])
         end
     end
-    blocks,cl,blocksize,eblocks,_,_,_ = get_cblocks_mix(n, I, J, m, l, fsupp, gsupp, glt, hsupp, basis, cliques, cql, tsupp=[], TS=TS, SO=SO, QUIET=QUIET, nv=n, signsymmetry=ss)
+    blocks,cl,blocksize,eblocks = get_blocks(n, I, J, m, l, fsupp, gsupp, hsupp, basis, cliques, cql, tsupp=[], TS=TS, SO=SO, QUIET=QUIET, signsymmetry=ss)
     ne = 0
     for t = 1:cql
         ne += sum(numele(blocksize[t][1]))
@@ -338,13 +338,12 @@ function assign_constraint(m, l, gsupp::Vector{Matrix{UInt8}}, hsupp::Vector{Mat
     return I,J
 end
 
-function get_cblocks_mix(n, I, J, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matrix{UInt8}}, glt, hsupp::Vector{Matrix{UInt8}}, basis, cliques, cql; tsupp=[], TS="block", SO=1, QUIET=false, nv=0, signsymmetry=nothing)
+function get_blocks(n, I, J, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matrix{UInt8}}, hsupp::Vector{Matrix{UInt8}}, basis, cliques, cql; tsupp=[], TS="block", SO=1, QUIET=false, signsymmetry=nothing)
     blocks = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
     eblocks = Vector{Vector{Vector{UInt16}}}(undef, cql)
     cl = Vector{Vector{Int}}(undef, cql)
     blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
-    sb = Vector{Vector{Int}}(undef, cql)
-    numb = Vector{Vector{Int}}(undef, cql)
+    status = ones(Int, cql)
     if isempty(tsupp)
         tsupp = copy(fsupp)
         for i = 1:m
@@ -356,7 +355,6 @@ function get_cblocks_mix(n, I, J, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matr
         tsupp = sortslices(tsupp, dims=2)
         tsupp = unique(tsupp, dims=2)
     end
-    status = ones(Int, cql)
     for i = 1:cql
         lc = length(I[i])
         ind = [issubset(findall(item .!= 0), cliques[i]) for item in eachcol(tsupp)]
@@ -367,86 +365,70 @@ function get_cblocks_mix(n, I, J, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matr
         eblocks[i] = Vector{Vector{UInt16}}(undef, length(J[i]))
         cl[i] = Vector{Int}(undef, lc+1)
         blocksize[i] = Vector{Vector{Int}}(undef, lc+1)
-        sb[i] = Vector{Int}(undef, lc+1)
-        numb[i] = Vector{Int}(undef, lc+1)
-        blocks[i],cl[i],blocksize[i],eblocks[i],sb[i],numb[i],status[i] = get_blocks(n, lc, length(J[i]), supp, [gsupp[I[i]]; hsupp[J[i]]], basis[i], TS=TS, SO=SO, QUIET=QUIET, nv=nv, signsymmetry=signsymmetry)
+        blocks[i],cl[i],blocksize[i],eblocks[i],status[i] = get_blocks(n, lc, length(J[i]), supp, [gsupp[I[i]]; hsupp[J[i]]], basis[i], TS=TS, SO=SO, signsymmetry=signsymmetry)
     end
-    return blocks,cl,blocksize,eblocks,sb,numb,maximum(status)
+    if minimum(status) == 1
+        println("No higher TS step of the CS-TSSOS hierarchy!")
+    end
+    return blocks,cl,blocksize,eblocks
 end
 
-function get_blocks(n::Int, m::Int, l::Int, tsupp, supp::Vector{Array{UInt8, 2}}, basis::Vector{Array{UInt8, 2}}; TS="block", SO=1, merge=false, md=3, QUIET=false, nv=0, signsymmetry=nothing)
+function get_blocks(n::Int, m::Int, l::Int, tsupp, supp::Vector{Array{UInt8, 2}}, basis::Vector{Array{UInt8, 2}}; TS="block", SO=1, merge=false, md=3, signsymmetry=nothing)
     blocks = Vector{Vector{Vector{UInt16}}}(undef, m+1)
     eblocks = Vector{Vector{UInt16}}(undef, l)
     blocksize = Vector{Vector{Int}}(undef, m+1)
     cl = Vector{Int}(undef, m+1)
+    status = 0
     if TS == false
         for k = 1:m+1
-            blocks[k] = [[i for i=1:size(basis[k],2)]]
-            blocksize[k] = [size(basis[k],2)]
-            cl[k] = 1          
+            blocks[k],blocksize[k],cl[k] = [[i for i=1:size(basis[k],2)]],[size(basis[k],2)],1       
         end
         for k = 1:l
             eblocks[k] = [i for i=1:size(basis[k+m+1],2)]
         end
-        sb = blocksize[1]
-        numb = [1]
-        status = 1
-    else
-        status = 1
-        blocks[1] = Vector{UInt16}[]
+    else       
         for i = 1:SO
-            G = get_graph(tsupp, basis[1], nv=nv, signsymmetry=signsymmetry)
-            if TS == "block"
-                nblock = connected_components(G)
-            else
-                nblock = chordal_cliques!(G, method=TS)[1]
-                if merge == true
-                    nblock = clique_merge!(nblock, QUIET=true, d=md)[1]
-                end
+            if i > 1
+                oblocksize = deepcopy(blocksize)
+                oeblocks = deepcopy(eblocks)
             end
-            if nblock != blocks[1]
-                blocks[1] = nblock
-                if i < SO
-                    blocksize[1] = length.(blocks[1])
-                    tsupp = zeros(UInt8, n, numele(blocksize[1]))
-                    k = 1
-                    for i = 1:length(blocks[1]), j = 1:blocksize[1][i], r = j:blocksize[1][i]
-                        tsupp[:,k] = basis[1][:,blocks[1][i][j]] + basis[1][:,blocks[1][i][r]]
-                        k += 1
+            for k = 1:m+1
+                if k == 1
+                    G = get_graph(tsupp, basis[1], signsymmetry=signsymmetry)
+                else
+                    G = get_graph(tsupp, supp[k-1], basis[k], signsymmetry=signsymmetry)
+                end
+                if TS == "block"
+                    blocks[k] = connected_components(G)
+                    blocksize[k] = length.(blocks[k])
+                    cl[k] = length(blocksize[k])
+                else
+                    blocks[k],cl[k],blocksize[k] = chordal_cliques!(G, method=TS)
+                    if merge == true
+                        blocks[k],cl[k],blocksize[k] = clique_merge!(blocks[k], d=md, QUIET=true)
                     end
-                    tsupp = sortslices(tsupp, dims=2)
-                    tsupp = unique(tsupp, dims=2)
                 end
-            else
-                println("No higher TS step of the TSSOS hierarchy!")
-                status = 0
-                sb = numb = nothing
-                break
-            end
-        end
-        if status == 1
-            blocksize[1] = length.(blocks[1])
-            cl[1] = length(blocksize[1])
-            bz = sort(blocksize[1], rev=true)
-            sb = unique(bz)
-            numb = [sum(bz.== i) for i in sb]
-            if QUIET == false
-                println("------------------------------------------------------")
-                println("The sizes of PSD blocks:\n$sb\n$numb")
-                println("------------------------------------------------------")
-            end
-            for k = 1:m
-                G = get_cgraph(tsupp, supp[k], basis[k+1], nv=nv, signsymmetry=signsymmetry)
-                blocks[k+1] = connected_components(G)
-                blocksize[k+1] = length.(blocks[k+1])
-                cl[k+1] = length(blocksize[k+1])
             end
             for k = 1:l
-                eblocks[k] = get_eblock(tsupp, supp[k+m], basis[k+m+1], nv=nv, signsymmetry=signsymmetry)
+                eblocks[k] = get_eblock(tsupp, supp[k+m], basis[k+m+1], signsymmetry=signsymmetry)
+            end
+            if i > 1 && blocksize == oblocksize && eblocks == oeblocks
+                status = 1
+                break
+            end
+            if i < SO
+                tsupp = zeros(UInt8, n, numele(blocksize[1]))
+                k = 1
+                for t = 1:length(blocks[1]), j = 1:blocksize[1][t], r = j:blocksize[1][t]
+                    tsupp[:,k] = basis[1][:,blocks[1][t][j]] + basis[1][:,blocks[1][t][r]]
+                    k += 1
+                end
+                tsupp = sortslices(tsupp, dims=2)
+                tsupp = unique(tsupp, dims=2)
             end
         end
     end
-    return blocks,cl,blocksize,eblocks,sb,numb,status
+    return blocks,cl,blocksize,eblocks,status
 end
 
 function get_moment(n, tsupp, lb, ub)

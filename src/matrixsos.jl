@@ -23,8 +23,6 @@ mutable struct mpop_data
     cliquesize
     cliques
     I
-    sb # sizes of different blocks
-    numb # numbers of different blocks
     SDP_status
 end
 
@@ -48,13 +46,17 @@ function cs_tssos_first(F::Matrix{Polynomial{true, T}}, G, x, d; CS="MF", TS="bl
         obj_matrix.poly[i+Int(j*(j-1)/2)] = poly_data(n, supp[1], coe[1])
     end
     cons_matrix = Vector{poly_matrix}(undef, m)
+    csupp = Vector{UInt16}[]
     for k = 1:m
         cons_matrix[k] = poly_matrix(size(G[k],1), Vector{poly_data}(undef, Int((size(G[k],1)+1)*size(G[k],1)/2)))
         for i = 1:cons_matrix[k].m, j = i:cons_matrix[k].m
             _,supp,coe = polys_info([G[k][i,j]], x)
+            csupp = [csupp; supp[1]]
             cons_matrix[k].poly[i+Int(j*(j-1)/2)] = poly_data(n, supp[1], coe[1])
         end
     end
+    unique!(csupp)
+    sort!(csupp)
     cliques,cql,cliquesize = clique_decomp(n, m, d, dG, obj_matrix, cons_matrix, alg=CS, minimize=true)
     I,ncc = assign_constraint(m, cons_matrix, cliques, cql)
     basis = Vector{Vector{Vector{UInt16}}}(undef, cql)
@@ -70,28 +72,20 @@ function cs_tssos_first(F::Matrix{Polynomial{true, T}}, G, x, d; CS="MF", TS="bl
     if TS != false
         for i = 1:obj_matrix.m, j = i:obj_matrix.m
             ind = i + Int(j*(j-1)/2)
-            ksupp[ind] = copy(obj_matrix.poly[ind].supp)
-            if i == j
-                for k = 1:cql, item in basis[k]
-                    push!(ksupp[ind], sadd(item, item))
-                end
-            end
+            # ksupp[ind] = copy(obj_matrix.poly[ind].supp)
+            ksupp[ind] = [obj_matrix.poly[ind].supp; csupp]
+            # if i == j
+            #     for k = 1:cql, item in basis[k]
+            #         push!(ksupp[ind], sadd(item, item))
+            #     end
+            # end
         end
         unique!.(ksupp)
         sort!.(ksupp)
-        if QUIET == false
-            println("Starting to compute the block structure...")
-        end
     end
-    time = @elapsed begin
-    blocks,cl,blocksize,sb,numb,_ = get_cmblocks_mix(I, obj_matrix.m, cons_matrix, cliques, cql, ksupp, basis, gbasis, blocks=[], cl=[], blocksize=[], sb=[], numb=[], TS=TS)
-    end
-    if TS != false && QUIET == false
-        mb = maximum(maximum.(sb))
-        println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
-    end
+    blocks,cl,blocksize = get_mblocks(I, obj_matrix.m, cons_matrix, cliques, cql, ksupp, basis, gbasis, QUIET=QUIET, blocks=[], cl=[], blocksize=[], TS=TS)
     opt,ksupp,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, TS=TS, QUIET=QUIET, solve=solve)
-    data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, cl, blocksize, blocks, cql, cliquesize, cliques, I, sb, numb, SDP_status)
+    data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, cl, blocksize, blocks, cql, cliquesize, cliques, I, SDP_status)
     return opt,data
 end
 
@@ -103,27 +97,15 @@ function cs_tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
     cons_matrix = data.cons_matrix
     blocks = data.blocks
     cl = data.cl
-    blocksize = data.blocksize
-    sb = data.sb
-    numb = data.numb
-    if TS != false && QUIET == false
-        println("Starting to compute the block structure...")
-    end
-    time = @elapsed begin
-    blocks,cl,blocksize,data.sb,data.numb,status = get_cmblocks_mix(data.I, obj_matrix.m, cons_matrix, data.cliques, data.cql, ksupp, basis, gbasis, blocks=blocks, 
-    cl=cl, blocksize=blocksize, sb=sb, numb=numb, TS=TS, QUIET=QUIET)
-    end
-    opt = nothing
-    if status == 1
-        if TS != false && QUIET == false
-            mb = maximum(maximum.(data.sb))
-            println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
-        end
+    oblocksize = deepcopy(data.blocksize)
+    blocks,cl,blocksize = get_mblocks(data.I, obj_matrix.m, cons_matrix, data.cliques, data.cql, ksupp, basis, gbasis, blocks=blocks, 
+    cl=cl, blocksize=data.blocksize, TS=TS, QUIET=QUIET)
+    if blocksize == oblocksize
+        opt = nothing
+        println("No higher TS step of the CS-TSSOS hierarchy!")
+    else
         opt,ksupp,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, data.cql, data.I, TS=TS, QUIET=QUIET, solve=solve)
         data.ksupp = ksupp
-        data.blocks = blocks
-        data.cl = cl
-        data.blocksize = blocksize
         data.SDP_status = SDP_status
     end
     return opt,data
@@ -143,9 +125,7 @@ function clique_decomp(n, m, d, dG, obj_matrix, cons_matrix; alg="MF", minimize=
                     foreach(x -> add_clique!(G, unique(x)), cons_matrix[k].poly[i].supp)
                 end
             else
-                for i = 1:Int((cons_matrix[k].m + 1)*cons_matrix[k].m/2)
-                    add_clique!(G, unique(reduce(vcat, cons_matrix[k].poly[i].supp)))
-                end
+                add_clique!(G, unique(vcat([isempty(cons_matrix[k].poly[s].supp) ? UInt16[] : reduce(vcat, cons_matrix[k].poly[s].supp) for s=1:Int((cons_matrix[k].m + 1)*cons_matrix[k].m/2)]...)))
             end
         end
         if alg == "NC"
@@ -155,7 +135,7 @@ function clique_decomp(n, m, d, dG, obj_matrix, cons_matrix; alg="MF", minimize=
         end
     end
     uc = unique(cliquesize)
-    sizes=[sum(cliquesize.== i) for i in uc]
+    sizes = [sum(cliquesize.== i) for i in uc]
     println("-----------------------------------------------------------------------------")
     println("The clique sizes of varibles:\n$uc\n$sizes")
     println("-----------------------------------------------------------------------------")
@@ -166,7 +146,7 @@ function assign_constraint(m, cons_matrix, cliques, cql)
     I = [UInt16[] for i=1:cql]
     ncc = UInt16[]
     for i = 1:m
-        ind = findall(k->issubset(unique(vcat([reduce(vcat, cons_matrix[i].poly[s].supp) for s=1:Int((cons_matrix[i].m + 1)*cons_matrix[i].m/2)]...)), cliques[k]), 1:cql)
+        ind = findall(k->issubset(unique(vcat([isempty(cons_matrix[i].poly[s].supp) ? UInt16[] : reduce(vcat, cons_matrix[i].poly[s].supp) for s=1:Int((cons_matrix[i].m + 1)*cons_matrix[i].m/2)]...)), cliques[k]), 1:cql)
         isempty(ind) ? push!(ncc, i) : push!.(I[ind], i)
     end
     return I,ncc
@@ -187,7 +167,7 @@ function get_mgraph(tsupp, basis, om)
     return G
 end
 
-function get_cmgraph(tsupp, cons_matrix, gbasis, om)
+function get_mgraph(tsupp, cons_matrix, gbasis, om)
     com = cons_matrix.m*om
     lb = length(gbasis)*com
     G = SimpleGraph(lb)
@@ -218,90 +198,75 @@ function get_cmgraph(tsupp, cons_matrix, gbasis, om)
     return G
 end
 
-function get_mblocks(om, cons_matrix, tsupp, basis, gbasis; TS="block", blocks=[], cl=[], blocksize=[], sb=[], numb=[], QUIET=false)
+function get_mblocks(om, cons_matrix, tsupp, basis, gbasis; TS="block", blocks=[], cl=[], blocksize=[], QUIET=false)
     if isempty(blocks)
         blocks = Vector{Vector{Vector{UInt16}}}(undef, length(cons_matrix)+1)
         blocksize = Vector{Vector{UInt16}}(undef, length(cons_matrix)+1)
         cl = Vector{UInt16}(undef, length(cons_matrix)+1)
     end
     if TS == false
-        for i = 1:length(cons_matrix) + 1
-            lb = i == 1 ? om*length(basis) : om*cons_matrix[i-1].m*length(gbasis[i-1])
-            blocks[i] = [Vector(1:lb)]
-            blocksize[i] = [lb]
-            cl[i] = 1
+        for k = 1:length(cons_matrix) + 1
+            lb = k == 1 ? om*length(basis) : om*cons_matrix[k-1].m*length(gbasis[k-1])
+            blocks[k],blocksize[k],cl[k] = [Vector(1:lb)],[lb],1
         end
-        status = 1
-        nsb = [om*length(basis)]
-        nnumb = [1]
     else
-        G = get_mgraph(tsupp, basis, om)
-        if TS == "block"
-            blocks[1] = connected_components(G)
-            blocksize[1] = length.(blocks[1])
-            cl[1] = length(blocksize[1])
-        else
-            blocks[1],cl[1],blocksize[1] = chordal_cliques!(G, method=TS, minimize=false)
-        end
-        nsb = sort(Int.(unique(blocksize[1])), rev=true)
-        nnumb = [sum(blocksize[1].== i) for i in nsb]
-        if isempty(sb) || nsb!=sb || nnumb!=numb
-            status = 1
-            for k = 1:length(cons_matrix)
-                G = get_cmgraph(tsupp, cons_matrix[k], gbasis[k],om)
-                if TS == "block"
-                    blocks[k+1] = connected_components(G)
-                    blocksize[k+1] = length.(blocks[k+1])
-                    cl[k+1] = length(blocksize[k+1])
-                else
-                    blocks[k+1],cl[k+1],blocksize[k+1] = chordal_cliques!(G, method=TS, minimize=false)
-                end
+        for k = 1:length(cons_matrix) + 1
+            if k == 1
+                G = get_mgraph(tsupp, basis, om)
+            else
+                G = get_mgraph(tsupp, cons_matrix[k-1], gbasis[k-1], om)
             end
-        else
-            status = 0
-            if QUIET == false
-                println("No higher TS step of the TSSOS hierarchy!")
+            if TS == "block"
+                blocks[k] = connected_components(G)
+                blocksize[k] = length.(blocks[k])
+                cl[k] = length(blocksize[k])            
+            else
+                blocks[k],cl[k],blocksize[k] = chordal_cliques!(G, method=TS, minimize=false)
             end
+            # sb = sort(Int.(unique(blocksize[k])), rev=true)
+            # numb = [sum(blocksize[k].== i) for i in sb]
+            # println("-----------------------------------------------------------------------------")
+            # println("The sizes of PSD blocks for the $k-th SOS multiplier:\n$sb\n$numb")
+            # println("-----------------------------------------------------------------------------")
         end
     end
-    if status == 1 && QUIET == false
-        println("-----------------------------------------------------------------------------")
-        println("The sizes of PSD blocks:\n$nsb\n$nnumb")
-        println("-----------------------------------------------------------------------------")
-    end
-    return blocks,cl,blocksize,nsb,nnumb,status
+    return blocks,cl,blocksize
 end
 
-function get_cmblocks_mix(I, om, cons_matrix, cliques, cql, tsupp, basis, gbasis; blocks=[], cl=[], blocksize=[], sb=[], numb=[], TS="block", QUIET=true)
-    status = ones(Int, cql)
+function get_mblocks(I, om, cons_matrix, cliques, cql, tsupp, basis, gbasis; blocks=[], cl=[], blocksize=[], TS="block", QUIET=true)
+    if TS != false && QUIET == false
+        println("Starting to compute the block structure...")
+    end
+    time = @elapsed begin
     if isempty(blocks)
         blocks = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
         cl = Vector{Vector{UInt16}}(undef, cql)
         blocksize = Vector{Vector{Vector{UInt16}}}(undef, cql)
-        sb = Vector{Vector{UInt16}}(undef, cql)
-        numb = Vector{Vector{UInt16}}(undef, cql)
         for i = 1:cql
             blocks[i] = Vector{Vector{Vector{UInt16}}}(undef, length(I[i])+1)
             cl[i] = Vector{UInt16}(undef, length(I[i])+1)
             blocksize[i] = Vector{Vector{UInt16}}(undef, length(I[i])+1)
-            sb[i] = Vector{UInt16}(undef, length(I[i])+1)
-            numb[i] = Vector{UInt16}(undef, length(I[i])+1)
             nsupp = nothing
             if TS != false
                 ind = [[issubset(item[j], cliques[i]) for j in eachindex(item)] for item in tsupp]
                 nsupp = [tsupp[k][ind[k]] for k = 1:length(tsupp)]
             end
-            blocks[i],cl[i],blocksize[i],sb[i],numb[i],status[i] = get_mblocks(om, cons_matrix[I[i]], nsupp, basis[i], gbasis[i], TS=TS, QUIET=true)
+            blocks[i],cl[i],blocksize[i] = get_mblocks(om, cons_matrix[I[i]], nsupp, basis[i], gbasis[i], TS=TS, QUIET=QUIET)
         end
     else
         for i = 1:cql
             ind = [[issubset(item[j], cliques[i]) for j in eachindex(item)] for item in tsupp]
             nsupp = [tsupp[k][ind[k]] for k = 1:length(tsupp)]
-            blocks[i],cl[i],blocksize[i],sb[i],numb[i],status[i] = get_mblocks(om, cons_matrix[I[i]], nsupp, basis[i], gbasis[i], blocks=blocks[i], 
-            cl=cl[i], blocksize=blocksize[i], sb=sb[i], numb=numb[i], TS=TS, QUIET=true)
+            blocks[i],cl[i],blocksize[i] = get_mblocks(om, cons_matrix[I[i]], nsupp, basis[i], gbasis[i], blocks=blocks[i], 
+            cl=cl[i], blocksize=blocksize[i], TS=TS, QUIET=QUIET)
         end
     end
-    return blocks,cl,blocksize,sb,numb,maximum(status)
+    end
+    if QUIET == false
+        mb = maximum(maximum.([maximum.(blocksize[i]) for i = 1:cql]))
+        println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
+    end
+    return blocks,cl,blocksize
 end
 
 function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I; TS="block", solve=true, QUIET=false)
@@ -309,14 +274,15 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
     ksupp = [Vector{UInt16}[] for i = 1:length(obj_matrix.poly)]
     for u = 1:cql, i = 1:cl[u][1], j = 1:blocksize[u][1][i], k = j:blocksize[u][1][i]
         bi = sadd(basis[u][ceil(Int, blocks[u][1][i][j]/om)], basis[u][ceil(Int, blocks[u][1][i][k]/om)])
-        ind1 = mod(blocks[u][1][i][j], om)
-        ind1 = ind1 != 0 ? ind1 : om
-        ind2 = mod(blocks[u][1][i][k], om)
-        ind2 = ind2 != 0 ? ind2 : om
-        push!(ksupp[ind1+Int(ind2*(ind2-1)/2)], bi)
+        p = mod(blocks[u][1][i][j], om)
+        p = p != 0 ? p : om
+        q = mod(blocks[u][1][i][k], om)
+        q = q != 0 ? q : om
+        ind = p <= q ? p + Int(q*(q-1)/2) : q + Int(p*(p-1)/2)
+        push!(ksupp[ind], bi)
     end
     if TS != false
-        for u = 1:cql, (s,v) = enumerate(I[u])
+        for u = 1:cql, (s,v) in enumerate(I[u])
             com = cons_matrix[v].m*om
             for i = 1:cl[u][s+1], j = 1:blocksize[u][s+1][i], k = j:blocksize[u][s+1][i]
                 p = mod(blocks[u][s+1][i][j], com)
@@ -373,7 +339,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
                 end
             end
             gpos = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, length(I[u]))
-            for (s,v) = enumerate(I[u])
+            for (s,v) in enumerate(I[u])
                 gpos[s] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[u][s+1])
                 com = cons_matrix[v].m*om
                 for i = 1:cl[u][s+1]
@@ -397,7 +363,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
                             if p != q || j == k
                                 @inbounds add_to_expression!(cons[ind][Locb], cons_matrix[v].poly[loc].coe[w], gpos[s][i][j,k])
                             else
-                                @inbounds add_to_expression!(cons[ind][Locb], 2*cons_matrix[s].poly[loc].coe[w], gpos[s][i][j,k])
+                                @inbounds add_to_expression!(cons[ind][Locb], 2*cons_matrix[v].poly[loc].coe[w], gpos[s][i][j,k])
                             end
                         end
                     end
@@ -463,12 +429,14 @@ function LinearPMI_first(b, F::Vector{Matrix{Polynomial{true, T}}}, G, x, d; TS=
     end
     basis = get_sbasis(Vector(1:n), d)
     cons_matrix = Vector{poly_matrix}(undef, m)
+    csupp = Vector{UInt16}[]
     gbasis = Vector{Vector{Vector{UInt16}}}(undef, m)
     for k = 1:m
         gbasis[k] = get_sbasis(Vector(1:n), d-Int(ceil(dG[k]/2)))
         cons_matrix[k] = poly_matrix(size(G[k],1), Vector{poly_data}(undef, Int((size(G[k],1)+1)*size(G[k],1)/2)))
         for i = 1:cons_matrix[k].m, j = i:cons_matrix[k].m
             _,supp,coe = polys_info([G[k][i,j]], x)
+            csupp = [csupp; supp[1]]
             cons_matrix[k].poly[i+Int(j*(j-1)/2)] = poly_data(n, supp[1], coe[1])
         end
     end
@@ -476,7 +444,8 @@ function LinearPMI_first(b, F::Vector{Matrix{Polynomial{true, T}}}, G, x, d; TS=
     if TS != false
         for i = 1:obj_matrix[1].m, j = i:obj_matrix[1].m
             ind = i + Int(j*(j-1)/2)
-            ksupp[ind] = reduce(vcat, [obj_matrix[k].poly[ind].supp for k=1:s])
+            # ksupp[ind] = reduce(vcat, [obj_matrix[k].poly[ind].supp for k=1:s])
+            ksupp[ind] = [reduce(vcat, [obj_matrix[k].poly[ind].supp for k=1:s]); csupp]
             if i == j
                 for item in basis
                     push!(ksupp[ind], sadd(item, item))
@@ -490,14 +459,14 @@ function LinearPMI_first(b, F::Vector{Matrix{Polynomial{true, T}}}, G, x, d; TS=
         end
     end
     time = @elapsed begin
-    blocks,cl,blocksize,sb,numb,_ = get_mblocks(obj_matrix[1].m, cons_matrix, ksupp, basis, gbasis, TS=TS, QUIET=QUIET)
+    blocks,cl,blocksize = get_mblocks(obj_matrix[1].m, cons_matrix, ksupp, basis, gbasis, TS=TS, QUIET=QUIET)
     end
-    if TS != false && QUIET == false
-        mb = maximum(maximum.(sb))
+    if QUIET == false
+        mb = maximum(maximum.(blocksize))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
     opt,ksupp,SDP_status = LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, TS=TS, QUIET=QUIET, solve=solve)
-    data = mpop_data(b, obj_matrix, cons_matrix, basis, gbasis, ksupp, cl, blocksize, blocks, nothing, nothing, nothing, nothing, sb, numb, SDP_status)
+    data = mpop_data(b, obj_matrix, cons_matrix, basis, gbasis, ksupp, cl, blocksize, blocks, nothing, nothing, nothing, nothing, SDP_status)
     return opt,data
 end
 
@@ -509,26 +478,23 @@ function LinearPMI_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
     cons_matrix = data.cons_matrix
     blocks = data.blocks
     cl = data.cl
-    blocksize = data.blocksize
-    sb = data.sb
-    numb = data.numb
+    oblocksize = deepcopy(data.blocksize)
     if TS != false && QUIET == false
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,cl,blocksize,data.sb,data.numb,status = get_mblocks(obj_matrix[1].m, cons_matrix, ksupp, basis, gbasis, blocks=blocks, cl=cl, blocksize=blocksize, sb=sb, numb=numb, TS=TS, QUIET=QUIET)
+    blocks,cl,blocksize = get_mblocks(obj_matrix[1].m, cons_matrix, ksupp, basis, gbasis, blocks=blocks, cl=cl, blocksize=data.blocksize, TS=TS, QUIET=QUIET)
     end
-    opt = nothing
-    if status == 1
-        if TS != false && QUIET == false
-            mb = maximum(maximum.(data.sb))
-            println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
-        end
+    if QUIET == false
+        mb = maximum(maximum.(blocksize))
+        println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
+    end
+    if blocksize == oblocksize
+        opt = nothing
+        println("No higher TS step of the TSSOS hierarchy!")
+    else
         opt,ksupp,SDP_status = LinearPMI_sdp(data.b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, TS=TS, QUIET=QUIET, solve=solve)
         data.ksupp = ksupp
-        data.blocks = blocks
-        data.cl = cl
-        data.blocksize = blocksize
         data.SDP_status = SDP_status
     end
     return opt,data
@@ -539,11 +505,12 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
     ksupp = [Vector{UInt16}[] for i = 1:length(obj_matrix[1].poly)]
     for i = 1:cl[1], j = 1:blocksize[1][i], k = j:blocksize[1][i]
         bi = sadd(basis[ceil(Int, blocks[1][i][j]/om)], basis[ceil(Int, blocks[1][i][k]/om)])
-        ind1 = mod(blocks[1][i][j], om)
-        ind1 = ind1 != 0 ? ind1 : om
-        ind2 = mod(blocks[1][i][k], om)
-        ind2 = ind2 != 0 ? ind2 : om
-        push!(ksupp[ind1+Int(ind2*(ind2-1)/2)], bi)
+        p = mod(blocks[1][i][j], om)
+        p = p != 0 ? p : om
+        q = mod(blocks[1][i][k], om)
+        q = q != 0 ? q : om
+        ind = p <= q ? p + Int(q*(q-1)/2) : q + Int(p*(p-1)/2)
+        push!(ksupp[ind], bi)
     end
     if TS != false
         for s = 1:length(cons_matrix)

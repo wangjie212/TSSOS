@@ -24,11 +24,11 @@ f = x[1]^6 + x[2]^6 + 1 + 3*x[1]^2*x[2]^2 - x[1]^4*(x[2]^2 + 1) - x[2]^4*(x[1]^2
 # Homogenization without CS
 solve_hpop(f, x, [], [], 4, QUIET=true, CS=false, TS="block", SO=2, nnhomovar=true)
 # Homogenization with CS type 1
-solve_hpop(f, x, [], [], 3, QUIET=true, type=1, ε=1e-4, TS="block", SO=2, nnhomovar=true)
+solve_hpop(f, x, [], [], 5, QUIET=true, type=1, ε=1e-4, TS="block", SO=2, nnhomovar=true)
 # Homogenization with CS type 2
 solve_hpop(f, x, [], [], 5, QUIET=true, type=2, TS="block", SO=2, nnhomovar=true)
 # Homogenization with CS type 3
-solve_hpop(f, x, [], [], 3, QUIET=true, type=3, TS="block", SO=2, nnhomovar=true)
+solve_hpop(f, x, [], [], 5, QUIET=true, type=3, TS="block", SO=2, nnhomovar=true)
 # No homogenization with CS
 @time begin
 opt,sol,data = cs_tssos_first([f], x, 7, TS="block", solution=true, QUIET=true)
@@ -85,13 +85,13 @@ end
 f = x[1]^2 + 3x[2]^2 - 2x[2]*x[3]^2 + x[3]^4 - x[2]*(x[4]^2 + x[5]^2)
 g = [x[2]-1; x[1]^2-2*x[1]*x[2]-1; x[1]^2+2*x[1]*x[2]-1; x[2]-x[4]^2-x[5]^2]
 # Homogenization without CS
-solve_hpop(f, x, g, [], 2, QUIET=true, CS=false, TS="block", SO=2)
+solve_hpop(f, x, g, [], 4, QUIET=true, CS=false, TS="block", SO=2)
 # Homogenization with CS type 1
-solve_hpop(f, x, g, [], 2, QUIET=true, type=1, ε=1e-4, TS="block", SO=2)
+solve_hpop(f, x, g, [], 4, QUIET=true, type=1, ε=1e-4, TS="block", SO=2)
 # Homogenization with CS type 2
-solve_hpop(f, x, g, [], 2, QUIET=true, type=2, TS="block", SO=2)
+solve_hpop(f, x, g, [], 4, QUIET=true, type=2, TS="block", SO=2)
 # Homogenization with CS type 3
-solve_hpop(f, x, g, [], 2, QUIET=true, type=3, TS="block", SO=2)
+solve_hpop(f, x, g, [], 4, QUIET=true, type=3, TS="block", SO=2)
 # No homogenization with CS
 @time begin
 opt,sol,data = cs_tssos_first([f; g], x, 2, TS="block", solution=false, QUIET=true)
