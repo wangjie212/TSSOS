@@ -88,7 +88,7 @@ function tssos_first(f::Polynomial{true, T}, x; nb=0, order=0, newton=true, redu
     else
         d = order
     end
-    if order == 0 && newton == true
+    if nb == 0 && newton == true
        if sum(supp[:,end]) != 0 && feasible == false
           supp = [supp zeros(UInt8, n)]
           coe = [coe; 0]
@@ -167,6 +167,7 @@ function tssos_higher!(data::upop_data; TS="block", merge=false, md=3, QUIET=fal
         end
         opt,ksupp,moment,momone,GramMat,SDP_status = solvesdp(n, supp, coe, basis, data.blocks, data.cl, data.blocksize, nb=nb, solver=solver, feasible=feasible, 
         TS=TS, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
+        sol = nothing
         if solution == true
             sol,gap,data.flag = extract_solution(momone, opt, [f], x, tol=tol)
             if data.flag == 1

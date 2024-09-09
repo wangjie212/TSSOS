@@ -280,6 +280,7 @@ function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET
         opt,ksupp,moment,GramMat,SDP_status = solvesdp(n, m, rlorder, supp, coe, basis, hbasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl,
         blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution, dualize=dualize, ipart=ipart, MomentOne=MomentOne, 
         Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, balanced=balanced, normality=normality, NormalSparse=NormalSparse)
+        sol = nothing
         if solution == true
             pop,x = complex_to_real(data.cpop, data.z)
             _,rsupp,rcoe = polys_info(pop, x)

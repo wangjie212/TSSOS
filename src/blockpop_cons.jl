@@ -201,6 +201,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
         opt,ksupp,moment,momone,GramMat,SDP_status = solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, TS=TS,
         solver=solver, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
         normality=normality, NormalSparse=NormalSparse)
+        sol = nothing
         if solution == true
             sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, tol=tol)
             if data.flag == 1
