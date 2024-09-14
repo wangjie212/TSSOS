@@ -9,14 +9,14 @@ mutable struct mcpop_data
     hbasis # monomial bases for equality constraints
     ksupp # extended support at the k-th step
     cql # number of cliques
-    cliquesize # numbers of cliques
+    cliquesize # sizes of cliques
     cliques # cliques of variables
     I # index sets of inequality constraints
     J # index sets of equality constraints
     ncc # constraints associated to no clique
     cl # numbers of blocks
     blocksize # sizes of blocks
-    blocks # block structure for inequality constraints
+    blocks # block structure
     eblocks # block structrue for equality constraints
     GramMat # Gram matrix
     moment # Moment matrix

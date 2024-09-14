@@ -21,7 +21,8 @@ using AbstractAlgebra
 export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, local_solution, refine_sol,
 cs_nctssos_first, cs_nctssos_higher!, cosmo_para, mosek_para, add_psatz!, add_poly!, get_nbasis, get_moment, 
 get_moment_matrix, homogenize, solve_hpop, get_signsymmetry, SumOfRatios, SparseSumOfRatios,
-LinearPMI_first, LinearPMI_higher!, show_blocks, complex_to_real
+LinearPMI_first, LinearPMI_higher!, show_blocks, complex_to_real, add_SOSMatrix!, sparseobj, get_mmoment,
+extract_solutions, extract_solutions_pmo
 
 include("clique_merge.jl")
 include("blockpop_uncons.jl")
@@ -30,6 +31,7 @@ include("nblockmix.jl")
 include("complex.jl")
 # include("cpop_csdp.jl")
 include("local_solution.jl")
+include("extract_solutions.jl")
 include("add_psatz.jl")
 include("homogenize.jl")
 include("matrixsos.jl")

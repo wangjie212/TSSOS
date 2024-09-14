@@ -20,6 +20,9 @@ opt,sol,data = tssos_first(pop, x, 2, numeq=1, quotient=false, TS="block", solut
 opt,sol,data = tssos_first(pop, x, 2, numeq=1, quotient=true, TS="block", solution=true, QUIET=true)
 # optimum = 0.6861925732538557
 
+opt,sol,data = tssos_first(pop, x, 2, numeq=1, quotient=false, TS=false, solution=true, QUIET=true)
+sol = extract_solutions(pop, x, 2, opt, data.moment[1], numeq=1)
+
 opt,sol,data = tssos_higher!(data, TS="MD", solution=true, QUIET=true)
 # optimum = 0.6861925611033903
 

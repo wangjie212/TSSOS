@@ -12,7 +12,7 @@ mutable struct ccpop_data
     rlorder # relaxation order
     ksupp # extended support at the k-th step
     cql # number of cliques
-    cliquesize # numbers of cliques
+    cliquesize # sizes of cliques
     cliques # cliques of variables
     I # index sets of inequality constraints
     J # index sets of equality constraints

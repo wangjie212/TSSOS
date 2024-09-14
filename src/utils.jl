@@ -406,3 +406,8 @@ function complex_to_real(cpop, z)
     end
     return pop,x
 end
+
+function cmod(a, m)
+    s = mod(a, m)
+    return s == 0 ? m : s
+end

@@ -14,7 +14,7 @@ mutable struct cpop_data
     ksupp # extended support at the k-th step
     cl # numbers of blocks
     blocksize # sizes of blocks
-    blocks # block structure for inequality constraints
+    blocks # block structure
     eblocks # block structrue for equality constraints
     GramMat # Gram matrix
     moment # Moment matrix

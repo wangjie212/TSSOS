@@ -5,7 +5,7 @@ mutable struct struct_data
     basis # monomial basis
     cl # number of blocks
     blocksize # size of blocks
-    blocks # block structrue for inequality constraints
+    blocks # block structrue
     eblocks # block structrue for equality constraints
     tsupp # total support
     I # index sets of inequality constraints
