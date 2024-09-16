@@ -797,7 +797,17 @@ function sparseobj(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polynomial{
         temp[blocks[i][j], blocks[i][k]] -= sos[1][i][j,k]
         for l = 1:length(G)
             sG = size(G[l],1)
-            temp[blocks[i][j], blocks[i][k]] -= sum(sos[l+1][i][(j-1)*sG+1:j*sG,(k-1)*sG+1:k*sG].*G[l])
+            if j != k
+                temp[blocks[i][j], blocks[i][k]] -= sum(sos[l+1][i][(j-1)*sG+1:j*sG,(k-1)*sG+1:k*sG].*G[l])
+            else
+                for s = (j-1)*sG+1:j*sG, t = s:j*sG
+                    if s == t
+                        temp[blocks[i][j], blocks[i][k]] -= sum(sos[l+1][i][s,t]*G[l][s-((j-1)*sG),t-((j-1)*sG)])
+                    else
+                        temp[blocks[i][j], blocks[i][k]] -= 2*sum(sos[l+1][i][s,t]*G[l][s-((j-1)*sG),t-((j-1)*sG)])
+                    end
+                end
+            end
         end
     end
     for i = 1:m, j = i:m
