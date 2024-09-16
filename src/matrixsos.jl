@@ -32,6 +32,10 @@ function tssos_first(F::Matrix{Polynomial{true, T}}, G, x, d; TS="block", QUIET=
     return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Mommat=Mommat)
 end
 
+function tssos_first(F::Polynomial{true, T1}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; TS="block", QUIET=false, solve=true, Mommat=false) where {T1,T2<:Number}
+    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Mommat=Mommat)
+end
+
 function tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
     return cs_tssos_higher!(data, TS=TS, QUIET=QUIET, solve=solve)
 end
@@ -43,6 +47,12 @@ function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Polynomial{tr
         nG[i][1,1] = G[i]
     end
     return cs_tssos_first(F, nG, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Mommat=Mommat)
+end
+
+function cs_tssos_first(F::Polynomial{true, T1}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Mommat=false) where {T1,T2<:Number}
+    nF = Matrix{Polynomial{true, T1}}(undef, 1, 1)
+    nF[1,1] = F
+    return cs_tssos_first(nF, G, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Mommat=Mommat)
 end
 
 function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Mommat=false) where {T1,T2<:Number}
@@ -347,13 +357,14 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
                         p1 = ceil(Int, p/cons_matrix[v].m)
                         q1 = ceil(Int, q/cons_matrix[v].m)
                         ind = p1 <= q1 ? p1 + Int(q1*(q1-1)/2) : q1 + Int(p1*(p1-1)/2)
+                        p2 = ceil(Int, blocks[u][s+1][i][j]/com)
+                        q2 = ceil(Int, blocks[u][s+1][i][k]/com)
                         t = cmod(blocks[u][s+1][i][j], cons_matrix[v].m)
                         r = cmod(blocks[u][s+1][i][k], cons_matrix[v].m)
                         loc = t <= r ? t + Int(r*(r-1)/2) : r + Int(t*(t-1)/2)
                         for w = 1:length(cons_matrix[v].poly[loc].supp)
-                            Locb = bfind(ksupp[ind], length(ksupp[ind]), sadd(sadd(gbasis[u][s][ceil(Int, blocks[u][s+1][i][j]/com)], 
-                            gbasis[u][s][ceil(Int, blocks[u][s+1][i][k]/com)]), cons_matrix[v].poly[loc].supp[w]))
-                            if p != q || j == k
+                            Locb = bfind(ksupp[ind], length(ksupp[ind]), sadd(sadd(gbasis[u][s][p2], gbasis[u][s][q2]), cons_matrix[v].poly[loc].supp[w]))
+                            if p1 != q1 || (p2 == q2 && t == r)
                                 @inbounds add_to_expression!(cons[ind][Locb], cons_matrix[v].poly[loc].coe[w], gpos[s][i][j,k])
                             else
                                 @inbounds add_to_expression!(cons[ind][Locb], 2*cons_matrix[v].poly[loc].coe[w], gpos[s][i][j,k])
@@ -367,17 +378,15 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
             com = cons_matrix[i].m*om
             lpos = @variable(model, [1:com, 1:com], PSD)
             for j = 1:com, k = j:com
-                p = cmod(j, com)
-                q = cmod(k, com)
-                p1 = ceil(Int, p/cons_matrix[i].m)
-                q1 = ceil(Int, q/cons_matrix[i].m)
+                p1 = ceil(Int, j/cons_matrix[i].m)
+                q1 = ceil(Int, k/cons_matrix[i].m)
                 ind = p1 <= q1 ? p1 + Int(q1*(q1-1)/2) : q1 + Int(p1*(p1-1)/2)
                 t = cmod(j, cons_matrix[i].m)
                 r = cmod(k, cons_matrix[i].m)
                 loc = t <= r ? t + Int(r*(r-1)/2) : r + Int(t*(t-1)/2)
                 for w = 1:length(cons_matrix[i].poly[loc].supp)
                     Locb = bfind(ksupp[ind], length(ksupp[ind]), cons_matrix[i].poly[loc].supp[w])
-                    if p != q || j == k
+                    if p1 != q1 || t == r
                         @inbounds add_to_expression!(cons[ind][Locb], cons_matrix[i].poly[loc].coe[w], lpos[j,k])
                     else
                         @inbounds add_to_expression!(cons[ind][Locb], 2*cons_matrix[i].poly[loc].coe[w], lpos[j,k])
@@ -600,13 +609,14 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
                     p1 = ceil(Int, p/cons_matrix[s].m)
                     q1 = ceil(Int, q/cons_matrix[s].m)
                     ind = p1 <= q1 ? p1 + Int(q1*(q1-1)/2) : q1 + Int(p1*(p1-1)/2)
+                    p2 = ceil(Int, blocks[s+1][i][j]/com)
+                    q2 = ceil(Int, blocks[s+1][i][k]/com)
                     t = cmod(blocks[s+1][i][j], cons_matrix[s].m)
                     r = cmod(blocks[s+1][i][k], cons_matrix[s].m)
                     loc = t <= r ? t + Int(r*(r-1)/2) : r + Int(t*(t-1)/2)
                     for w = 1:length(cons_matrix[s].poly[loc].supp)
-                        Locb = bfind(ksupp[ind], length(ksupp[ind]), sadd(sadd(gbasis[s][ceil(Int, blocks[s+1][i][j]/com)], 
-                        gbasis[s][ceil(Int, blocks[s+1][i][k]/com)]), cons_matrix[s].poly[loc].supp[w]))
-                        if p != q || j == k
+                        Locb = bfind(ksupp[ind], length(ksupp[ind]), sadd(sadd(gbasis[s][p2], gbasis[s][q2]), cons_matrix[s].poly[loc].supp[w]))
+                        if p1 != q1 || (p2 == q2 && t == r)
                             @inbounds add_to_expression!(cons[ind][Locb], cons_matrix[s].poly[loc].coe[w], gpos[s][i][j,k])
                         else
                             @inbounds add_to_expression!(cons[ind][Locb], 2*cons_matrix[s].poly[loc].coe[w], gpos[s][i][j,k])
@@ -797,7 +807,9 @@ function sparseobj(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polynomial{
     end
     @objective(model, Max, lower)
     println("Solving the SDP...")
+    time = @elapsed begin
     optimize!(model)
+    end
     println("SDP solving time: $time seconds.")
     SDP_status = termination_status(model)
     optimum = objective_value(model)
