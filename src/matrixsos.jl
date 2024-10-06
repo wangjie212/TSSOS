@@ -176,7 +176,7 @@ function get_mgraph(tsupp, basis, om)
     G = SimpleGraph(lb*om)
     for i = 1:om, j = i:om
         lt = length(tsupp[i+Int(j*(j-1)/2)])
-        for k = 1:lb, l = k:lb
+        for k = 1:lb, l = 1:lb
             bi = sadd(basis[k], basis[l])
             if bfind(tsupp[i+Int(j*(j-1)/2)], lt, bi) !== nothing
                add_edge!(G, i+(k-1)*om, j+(l-1)*om)
@@ -678,7 +678,7 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
 end
 
 function add_SOSMatrix!(model, vars, m, d; constraint=nothing, TS=false, QUIET=true, tsupp=[])
-    mons = reverse(MultivariatePolynomials.monomials(vars, 0:d))
+    mons = vcat([MultivariatePolynomials.monomials(vars, i) for i = 0:d]...)
     if TS == false
         lb = m*length(mons)
         blocks,blocksize,cl = [Vector(1:lb)],[lb],1

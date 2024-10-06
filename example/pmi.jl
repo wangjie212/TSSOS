@@ -22,9 +22,9 @@ x[1]*x[5] x[2]*x[5] x[5]^2-x[3]*x[5] x[4]^2-x[1]*x[3] x[5]^4]
 G = Vector{Matrix{Polynomial{true, Int}}}(undef, 2)
 G[1] = [1-x[1]^2-x[2]^2 x[2]*x[3]; x[2]*x[3] 1-x[3]^2]
 G[2] = [1-x[4]^2 x[4]*x[5]; x[4]*x[5] 1-x[5]^2]
-@time opt,data = tssos_first(F, G, x, 3, TS="block", QUIET=true, Mommat=false)
-@time opt,data = tssos_higher!(data, TS="block", QUIET=true)
-# println(maximum(maximum.([maximum.(data.blocksize[i]) for i = 1:data.cql])))
+@time opt,data = tssos_first(F, G, x, 3, TS="MD", QUIET=true, Mommat=false)
+@time opt,data = tssos_higher!(data, TS="MD", QUIET=true)
+println(maximum(maximum.([maximum.(data.blocksize[i]) for i = 1:data.cql])))
 
 
 ## polynomial matrix optimization with term sparsity
@@ -60,10 +60,28 @@ G = [1 - sum(x.^2)]
 
 ## polynomial matrix optimization with correlative sparsity
 @polyvar x[1:3]
-F = [x[1]*x[2] + x[2]*x[3] 2 + x[1] + x[3]; 2 + x[1] + x[3] 2*x[2]^2]
-G = [[1 - x[1]^2 - x[2]^2], [1 - x[2]^2 - x[3]^2]]
-@time opt,data = cs_tssos_first(F, G, x, 1, TS=false)
-# @time opt,data = cs_tssos_higher!(data)
+F = [x[1]^2 1 + x[2] + x[3]^2; 1 + x[2] + x[3]^2 x[3]^4]
+G = [1 - x[1]^2 - x[2]^2, 1 - x[2]^2 - x[3]^2]
+opt,data = cs_tssos_first(F, G, x, 2, TS=false, QUIET=true, Mommat=true)
+sol = extract_solutions_pmo(2, 2, 2, data.moment[2])
+W = extract_weight_matrix(2, 2, 2, sol, data.moment[2])
+
+@polyvar x[1:2]
+F = [2 0; 0 0]*(x[1]-1)^2 + [0 0; 0 2]*(x[1]-2)^2 + [1 -1; -1 1]*(x[2]-1)^2 + [1 1; 1 1]*(x[2]-2)^2
+G = [4 - x[1]^2, 4 - x[2]^2, (x[1] - 3/2)^2 - 1/4, x[1]^2 - 2.25]
+d = 3
+opt,data = cs_tssos_first(F, G, x, d, TS=false, QUIET=true, Mommat=true)
+sol = extract_solutions_pmo(1, d, 2, data.moment[1])
+W = extract_weight_matrix(1, d, 2, sol, data.moment[2])
+# sol = extract_solutions_robust_pmo(2, d, 2, data.moment[1])
+
+@polyvar x[1:3]
+Q = [1/sqrt(2) -1/sqrt(3) 1/sqrt(6); 0 1/sqrt(3) 2/sqrt(6); 1/sqrt(2) 1/sqrt(3) -1/sqrt(6)]
+F = (-x[1]^2 + x[2])*(Q[:,1]*Q[:,1]'+Q[:,2]*Q[:,2]') + (x[2]+x[3]^2)*Q[:,3]*Q[:,3]'
+G = [1 - x[1]^2 - x[2]^2, 1 - x[2]^2 - x[3]^2, -1 + x[2]^2 + x[3]^2]
+opt,data = cs_tssos_first(F, G, x, 2, TS=false, QUIET=true, Mommat=true)
+sol = extract_solutions_pmo(2, 2, 3, data.moment[2])
+W = extract_weight_matrix(2, 2, 3, sol, data.moment[2])
 
 
 ## polynomial matrix optimization with correlative sparsity
@@ -76,16 +94,17 @@ x[3]^2-x[4]*x[5] x[2]^2-x[3]*x[4] x[3]^4 x[4]^2-x[1]*x[2] x[5]^2-x[3]*x[4];
 G = Vector{Matrix{Polynomial{true, Int}}}(undef, 2)
 G[1] = [1-x[1]^2-x[2]^2 x[2]*x[3]; x[2]*x[3] 1-x[3]^2]
 G[2] = [1-x[4]^2 x[4]*x[5]; x[4]*x[5] 1-x[5]^2]
-r = 4
-@time opt,data = tssos_first(F, G, x, r, TS=false, QUIET=true, Mommat=false)
-@time opt,data = cs_tssos_first(F, G, x, r, TS=false, QUIET=true, Mommat=false)
+r = 2
+@time opt,data = tssos_first(F, G, x, r, TS=false, QUIET=true, Mommat=true)
+@time opt,data = cs_tssos_first(F, G, x, r, TS=false, QUIET=true, Mommat=true)
 @time opt,data = cs_tssos_first(F, G, x, r, TS="block", QUIET=true, Mommat=false)
+@time opt,data = cs_tssos_higher!(data, TS="block", QUIET=true)
 @time opt,data = cs_tssos_first(F, G, x, r, TS="MD", QUIET=true, Mommat=false)
 println(maximum(maximum.([maximum.(data.blocksize[i]) for i = 1:data.cql])))
 
 
 ## polynomial matrix optimization with correlative sparsity
-n = 13
+n = 5
 r = 2
 @polyvar x[1:n]
 F = [sum(x[k]^2 for k = 1:n-2) sum(x[k]*x[k+1] for k = 1:n-1) 1.0;
@@ -95,8 +114,8 @@ G = Vector{Matrix{Polynomial{true, Float64}}}(undef, n-2)
 for k = 1:n-2
     G[k] = [1-x[k]^2-x[k+1]^2 x[k+1]+0.5; x[k+1]+0.5 1-x[k+2]^2]
 end
-@time opt,data = tssos_first(F, G, x, r, TS=false, QUIET=true, Mommat=false)
-@time opt,data = cs_tssos_first(F, G, x, r, TS=false, QUIET=true, Mommat=false)
+@time opt,data = tssos_first(F, G, x, r, TS=false, QUIET=true, Mommat=true)
+@time opt,data = cs_tssos_first(F, G, x, r, TS=false, QUIET=true, Mommat=true)
 @time opt,data = cs_tssos_first(F, G, x, r, TS="block", QUIET=true, Mommat=false)
 @time opt,data = cs_tssos_first(F, G, x, r, TS="MD", QUIET=true, Mommat=false)
 # println(maximum(maximum.([maximum.(data.blocksize[i]) for i = 1:data.cql])))
@@ -113,7 +132,7 @@ G = Vector{Matrix{Polynomial{true, Float64}}}(undef, 2)
 G[1] = [1-x[1]^2-x[2]^2 x[2]*x[3]; x[2]*x[3] 1-x[3]^2]
 G[2] = [1-x[4]^2 x[4]*x[5]; x[4]*x[5] 1-x[5]^2]
 @time opt,data = tssos_first(F, G, x, 4, TS=false, QUIET=true)
-r = 4
+r = 2
 @time opt,mb = sparseobj(F, G, x, r, TS=false, QUIET=true)
 @time opt,mb = sparseobj(F, G, x, r, TS="block", QUIET=true)
 @time opt,mb = sparseobj(F, G, x, r, TS="MD", QUIET=true)

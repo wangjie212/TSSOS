@@ -22,7 +22,7 @@ mutable struct cosmo_para
     eps_abs::Float64
     eps_rel::Float64
     max_iter::Int64
-    time_limit::Int64
+    time_limit::Float64
 end
 
 cosmo_para() = cosmo_para(1e-5, 1e-5, 1e4, 0)

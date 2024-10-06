@@ -356,7 +356,7 @@ Generate an unknown polynomial of given degree whose coefficients are from the J
 - `mon`: monomials of the unknown polynomial 
 """
 function add_poly!(model, vars, degree; signsymmetry=false)
-    mon = reverse(MultivariatePolynomials.monomials(vars, 0:degree))
+    mon = vcat([MultivariatePolynomials.monomials(vars, i) for i = 0:degree]...)
     if signsymmetry != false
         ind = [all(transpose(signsymmetry)*exponents(item) .== 0) for item in mon]
         mon = mon[ind]
