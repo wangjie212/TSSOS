@@ -218,6 +218,8 @@ function newton_basis(n, d, supp; e=1e-5, solver="Mosek")
                 model = Model(optimizer_with_attributes(SDPT3.Optimizer))
              elseif solver == "SDPNAL"
                 model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
+             elseif solver == "COSMO"
+                model = Model(optimizer_with_attributes(COSMO.Optimizer))
              else
                 @error "The solver is currently not supported!"
                 return nothing
