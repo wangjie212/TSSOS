@@ -18,9 +18,9 @@ Extract a set of solutions for polynomial optimization.
 # Output arguments
 - `sol`: a set of solutions
 """
-function extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-4)
+function extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-2)
     n = length(x)
-    if rank(moment, 1e-3) == 1
+    if rank(moment, tol) == 1
         sol = moment[2:n+1, 1]
         println("------------------------------------------------")
         println("Global optimality certified!")
@@ -54,12 +54,7 @@ function extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-4)
         end
         rands = rand(n)
         rands = rands/sum(rands)
-        M = zeros(lw, lw)
-        for i in 1:n
-            M += rands[i]*N[i]
-        end
-        F = schur(M)
-        L = F.Z
+        L = schur(sum(rands[i]*N[i] for i in 1:n)).Z
         sol = Vector{Float64}[]
         m = length(pop) - 1
         for i = 1:lw
@@ -107,6 +102,33 @@ function extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-4)
     return sol
 end
 
+function extract_solutions_robust(n, d, moment; tol=1e-2)
+    basis = get_basis(n, d)
+    ls = binomial(n+d-1, n)
+    N = Vector{Matrix{Float64}}(undef, n)
+    for i = 1:n
+        N[i] = zeros(Float64, ls, ls)
+        temp = zeros(UInt8, n)
+        temp[i] = 1
+        for j = 1:ls, k = j:ls
+            loc = bfind_to(basis, size(basis, 2), basis[:,k] + temp, n)
+            N[i][j,k] = moment[j, loc]
+        end
+        N[i] = Symmetric(N[i],:U)
+    end
+    F = svd(moment[1:ls, 1:ls])
+    S = F.S[F.S .> tol]
+    S = sqrt.(S).^(-1)
+    for i = 1:n
+        N[i] = Diagonal(S)*F.Vt[1:length(S),:]*N[i]*F.U[:,1:length(S)]*Diagonal(S)
+    end
+    rands = rand(n)
+    rands = rands/sum(rands)
+    L = schur(sum(rands[i]*N[i] for i in 1:n)).Z
+    sol = [[L[:,i]'*N[j]*L[:,i] for j = 1:n] for i = 1:length(S)]
+    return sol
+end
+
 """
     sol = extract_solutions_pmo(n, d, p, moment; tol=1e-4)
 
@@ -122,7 +144,7 @@ Extract a set of solutions for polynomial matrix optimization.
 # Output arguments
 - `sol`: a set of solutions
 """
-function extract_solutions_pmo(n, d, p, moment; tol=1e-4)
+function extract_solutions_pmo(n, d, p, moment; tol=1e-2)
     U,pivots = rref_with_pivots!(Matrix(moment), tol)
     U = U[1:length(pivots), :]'
     basis = get_basis(n, d)
@@ -146,14 +168,51 @@ function extract_solutions_pmo(n, d, p, moment; tol=1e-4)
     end
     rands = rand(n)
     rands = rands/sum(rands)
-    M = zeros(lw, lw)
-    for i in 1:n
-        M += rands[i]*N[i]
-    end
-    F = schur(M)
-    L = F.Z
+    L = schur(sum(rands[i]*N[i] for i in 1:n)).Z
     sol = [[L[:,i]'*N[j]*L[:,i] for j = 1:n] for i = 1:lw]
     return sol
+end
+
+function extract_solutions_robust_pmo(n, d, p, moment; tol=1e-2)
+    basis = get_basis(n, d)
+    ls = p*binomial(n+d-1, n)
+    N = Vector{Matrix{Float64}}(undef, n)
+    for i = 1:n
+        N[i] = zeros(Float64, ls, ls)
+        temp = zeros(UInt8, n)
+        temp[i] = 1
+        for j = 1:ls, k = j:ls
+            loc = bfind_to(basis, size(basis, 2), basis[:,ceil(Int, k/p)] + temp, n)
+            N[i][j,k] = moment[j, (loc-1)*p + cmod(k, p)]
+        end
+        N[i] = Symmetric(N[i],:U)
+    end
+    F = svd(moment[1:ls, 1:ls])
+    S = F.S[F.S .> tol]
+    S = sqrt.(S).^(-1)
+    for i = 1:n
+        N[i] = Diagonal(S)*F.Vt[1:length(S),:]*N[i]*F.U[:,1:length(S)]*Diagonal(S)
+    end
+    rands = rand(n)
+    rands = rands/sum(rands)
+    L = schur(sum(rands[i]*N[i] for i in 1:n)).Z
+    sol = [[L[:,i]'*N[j]*L[:,i] for j = 1:n] for i = 1:length(S)]
+    return sol
+end
+
+function extract_weight_matrix(n, d, q, sol, moment; tol=1e-2)
+    ind = [1]
+    for i = 2:length(sol)
+        if abs(norm(sol[i]-sol[i-1])) > tol
+            push!(ind, i)
+        end
+    end
+    sol = sol[ind]
+    basis = get_basis(n, d)
+    A = kron([prod(v.^item) for item in eachcol(basis), v in sol], Diagonal(ones(q)))
+    ind = rref_with_pivots!(Matrix(A'), tol)[2]
+    W = A[ind, :]^(-1)*moment[ind, 1:q]
+    return [W[(i-1)*q+1:i*q, :] for i = 1:length(sol)]
 end
 
 function bfind_to(A, l, a, n)

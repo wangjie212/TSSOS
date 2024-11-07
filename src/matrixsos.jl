@@ -678,7 +678,7 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
 end
 
 function add_SOSMatrix!(model, vars, m, d; constraint=nothing, TS=false, QUIET=true, tsupp=[])
-    mons = reverse(MultivariatePolynomials.monomials(vars, 0:d))
+    mons = vcat([MultivariatePolynomials.monomials(vars, i) for i = 0:d]...)
     if TS == false
         lb = m*length(mons)
         blocks,blocksize,cl = [Vector(1:lb)],[lb],1

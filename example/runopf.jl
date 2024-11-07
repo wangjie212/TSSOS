@@ -18,7 +18,7 @@ numeq = model.numeq
 supp = model.supp
 coe = model.coe
 mc = maximum(abs.(coe[1]))
-coe[1]=coe[1]./mc
+coe[1] = coe[1]./mc
 
 time = @elapsed begin
 opt,sol,popd = cs_tssos_first(supp, coe, n, 1, numeq=numeq, tune=true, CS=false, TS="MF", MomentOne=false)

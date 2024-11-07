@@ -22,7 +22,7 @@ mutable struct cosmo_para
     eps_abs::Float64
     eps_rel::Float64
     max_iter::Int64
-    time_limit::Int64
+    time_limit::Float64
 end
 
 cosmo_para() = cosmo_para(1e-5, 1e-5, 1e4, 0)
@@ -32,9 +32,10 @@ mutable struct mosek_para
     tol_dfeas::Float64
     tol_relgap::Float64
     time_limit::Int64
+    num_threads::Int64
 end
 
-mosek_para() = mosek_para(1e-8, 1e-8, 1e-8, -1)
+mosek_para() = mosek_para(1e-8, 1e-8, 1e-8, -1, 0)
 
 """
     opt,sol,data = tssos_first(f, x; nb=0, newton=true, reducebasis=false, TS="block", merge=false,
@@ -348,7 +349,7 @@ function solvesdp(n, supp, coe, basis, blocks, cl, blocksize; nb=0, solver="Mose
         if solver == "Mosek"
             if dualize == false
                 model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
-                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit))
+                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
             else
                 model = Model(dual_optimizer(Mosek.Optimizer))
             end
