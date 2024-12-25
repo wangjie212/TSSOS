@@ -17,6 +17,7 @@ mutable struct cpop_data
     blocks # block structure
     eblocks # block structrue for equality constraints
     GramMat # Gram matrix
+    multiplier_equality # multiplier coefficients for equality constraints
     moment # Moment matrix
     solver # SDP solver
     SDP_status
@@ -142,16 +143,49 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
         mb = maximum(maximum.(blocksize))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,momone,GramMat,SDP_status = solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, dualize=dualize, TS=TS,
+    opt,ksupp,moment,momone,GramMat,multiplier_equality,SDP_status = solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, dualize=dualize, TS=TS,
     lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
     signsymmetry=ss, normality=normality, NormalSparse=NormalSparse)
-    data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, hbasis, ksupp, cl, blocksize, blocks, eblocks, GramMat, moment, solver, SDP_status, tol, 1)
+    data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, hbasis, ksupp, cl, blocksize, blocks, eblocks, GramMat, multiplier_equality, moment, solver, SDP_status, tol, 1)
     sol = nothing
     if solution == true
-        sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, tol=tol)
-        if data.flag == 1
-            sol = gap > 0.5 ? randn(n) : sol
-            sol,data.flag = refine_sol(opt, sol, data, QUIET=true, tol=tol)
+        if TS != false
+            sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, tol=tol)
+            if data.flag == 1
+                sol = gap > 0.5 ? randn(n) : sol
+                sol,data.flag = refine_sol(opt, sol, data, QUIET=true, tol=tol)
+            end
+        else
+            sol = extract_solutions_robust(n, d, moment[1])
+            ind = Int[]
+            for (i, atom) in enumerate(sol)
+                flag = 1
+                if abs(pop[1](x => atom) - opt) > tol
+                    flag = 0
+                end
+                if m - neq > 0
+                    vio = [pop[j](x => atom) for j = 2:m+1-neq]
+                    if max(-minimum(vio), 0) > tol
+                        flag = 0
+                    end
+                end
+                if neq > 0
+                    vio = [pop[j](x => atom) for j = m-neq+2:m+1]
+                    if maximum(abs.(vio)) > tol
+                        flag = 0
+                    end
+                end
+                if flag == 1
+                    push!(ind, i)
+                end
+            end
+            if !isempty(ind)
+                data.flag = 0
+                nsol = length(ind)
+                println("Global optimality certified!")
+                println("Successfully extracted ", nsol, " globally optimal solutions.")
+                sol = sol[ind]
+            end
         end
     end
     return opt,sol,data
@@ -198,7 +232,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
             mb = maximum(maximum.(blocksize))
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,momone,GramMat,SDP_status = solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, TS=TS,
+        opt,ksupp,moment,momone,GramMat,multiplier_equality,SDP_status = solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, TS=TS,
         solver=solver, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
         normality=normality, NormalSparse=NormalSparse)
         sol = nothing
@@ -211,6 +245,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
         end
         data.ksupp = ksupp
         data.GramMat = GramMat
+        data.multiplier_equality = multiplier_equality
         data.moment = moment
         data.SDP_status = SDP_status
     end
@@ -296,7 +331,7 @@ function get_graph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{U
     ltsupp = size(tsupp, 2)
     for i = 1:lb, j = i+1:lb
         if signsymmetry === nothing
-            ind = findfirst(x -> bfind(tsupp, ltsupp, bin_add(bin_add(basis[:,i], basis[:,j], nb), supp[:,x], nb)) !== nothing, size(supp, 2))
+            ind = findfirst(x -> bfind(tsupp, ltsupp, bin_add(bin_add(basis[:,i], basis[:,j], nb), supp[:,x], nb)) !== nothing, 1:size(supp, 2))
             if ind !== nothing
                 add_edge!(G, i, j)
             end
@@ -393,7 +428,7 @@ function solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize
         gsupp = get_gsupp(n, m, neq, supp, basis[2:end], hbasis, blocks[2:end], eblocks, cl[2:end], blocksize[2:end], nb=nb)
         ksupp = [ksupp gsupp]
     end
-    objv = moment = momone = GramMat = SDP_status = nothing
+    objv = moment = momone = GramMat = multiplier_equality = SDP_status = nothing
     if solve == true
         tsupp = ksupp
         if normality == true
@@ -758,10 +793,13 @@ function solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize
         end
         println("optimum = $objv")
         if Gram == true
-            GramMat = Vector{Vector{Union{Float64,Matrix{Float64}}}}(undef, m+1)
+            GramMat = Vector{Vector{Union{Float64,Matrix{Float64}}}}(undef, m-neq+1)
             GramMat[1] = [value.(pos[i]) for i = 1:cl[1]]
-            for k = 1:m
+            for k = 1:m-neq
                 GramMat[k+1] = [value.(gpos[k][i]) for i = 1:cl[k+1]]
+            end
+            if neq > 0
+                multiplier_equality = [value.(free[j]) for j = 1:neq]
             end
         end
         dual_var = -dual.(con)
@@ -803,5 +841,5 @@ function solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize
             momone = Symmetric(momone,:U)
         end
     end
-    return objv,ksupp,moment,momone,GramMat,SDP_status
+    return objv,ksupp,moment,momone,GramMat,multiplier_equality,SDP_status
 end

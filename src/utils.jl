@@ -399,7 +399,7 @@ end
 function complex_to_real(cpop, z)
     n = Int(length(z)/2)
     @polyvar x[1:2n]
-    pop = Vector{Polynomial}(undef, length(cpop))
+    pop = Vector{Polynomial{true, Float64}}(undef, length(cpop))
     for (i,cp) in enumerate(cpop)
         temp = cp(z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
         pop[i] = real.(MultivariatePolynomials.coefficients(temp))'*MultivariatePolynomials.monomials(temp)
@@ -410,4 +410,19 @@ end
 function cmod(a, m)
     s = mod(a, m)
     return s == 0 ? m : s
+end
+
+# generate an SOS polynomial with variables vars and degree 2d
+function add_SOS!(model, vars, d)
+    basis = vcat([MultivariatePolynomials.monomials(vars, i) for i = 0:d]...)
+    sos = 0
+    pos = @variable(model, [1:length(basis), 1:length(basis)], PSD)
+    for j = 1:length(basis), k = j:length(basis)
+        if j == k
+            @inbounds sos += pos[j,k]*basis[j]*basis[k]
+        else
+            @inbounds sos += 2*pos[j,k]*basis[j]*basis[k]
+        end
+    end
+    return sos
 end

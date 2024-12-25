@@ -11,6 +11,7 @@ mutable struct struct_data
     I # index sets of inequality constraints
     J # index sets of equality constraints
     gram # Gram variables
+    multiplier_equality # multiplier variables for equality constraints
     constrs # constraint name
 end
 
@@ -276,7 +277,7 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
     else
         @constraint(model, cons.==bc)
     end
-    info = struct_data(cql,cliquesize,cliques,basis,cl,blocksize,blocks,eblocks,tsupp,I,J,pos,constrs)
+    info = struct_data(cql,cliquesize,cliques,basis,cl,blocksize,blocks,eblocks,tsupp,I,J,pos,mul,constrs)
     return model,info
 end
 

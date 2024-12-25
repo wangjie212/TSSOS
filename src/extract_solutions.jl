@@ -24,7 +24,7 @@ function extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-2)
         sol = moment[2:n+1, 1]
         println("------------------------------------------------")
         println("Global optimality certified!")
-        println("Successfully extracted ", 1, " global solution.")
+        println("Successfully extracted ", 1 ," globally optimal solution.")
         println("------------------------------------------------")
     else
         U,pivots = rref_with_pivots!(Matrix(moment), tol)
@@ -60,30 +60,28 @@ function extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-2)
         for i = 1:lw
             atom = [L[:,i]'*N[j]*L[:,i] for j = 1:n]
             flag = 1
-            if m > 0
-                println("------------------------------------------------")
-                println("Check atom ", i)
-                gap = pop[1](x => atom) - opt
-                println("Global optimality gap = ", gap)
-                if abs(gap) > 1e-4
+            println("------------------------------------------------")
+            println("Check atom ", i)
+            gap = pop[1](x => atom) - opt
+            println("Global optimality gap = ", gap)
+            if abs(gap) > 1e-4
+                flag = 0
+            end
+            if m - numeq > 0
+                vio = [pop[j](x => atom) for j = 2:m+1-numeq]
+                mvio = max(-minimum(vio), 0)
+                if mvio > 1e-3
                     flag = 0
                 end
-                if m - numeq > 0
-                    vio = [pop[j](x => atom) for j = 2:m+1-numeq]
-                    mvio = max(-minimum(vio), 0)
-                    if mvio > 1e-3
-                        flag = 0
-                    end
-                    println("Maximal inequality violation = ", mvio)
+                println("Maximal inequality violation = ", mvio)
+            end
+            if numeq > 0
+                vio = [pop[j](x => atom) for j = m-numeq+2:m+1]
+                mvio = maximum(abs.(vio))
+                if mvio > 1e-3
+                    flag = 0
                 end
-                if numeq > 0
-                    vio = [pop[j](x => atom) for j = m-numeq+2:m+1]
-                    mvio = maximum(abs.(vio))
-                    if mvio > 1e-3
-                        flag = 0
-                    end
-                    println("Maximal equality violation = ", mvio)
-                end
+                println("Maximal equality violation = ", mvio)
             end
             if flag == 1
                 push!(sol, atom)
@@ -93,7 +91,7 @@ function extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-2)
         if nsol > 0
             println("------------------------------------------------")
             println("Global optimality certified!")
-            println("Successfully extracted ", nsol, " global solutions.")
+            println("Successfully extracted ", nsol, " globally optimal solutions.")
             println("------------------------------------------------")
         else
             sol = nothing

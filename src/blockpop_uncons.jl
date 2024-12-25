@@ -85,7 +85,7 @@ function tssos_first(f::Polynomial{true, T}, x; nb=0, order=0, newton=true, redu
         ss = get_signsymmetry([f], x)
     end
     if order == 0
-        d = Int(maxdegree(f)/2)
+        d = Int(ceil(maxdegree(f)/2))
     else
         d = order
     end

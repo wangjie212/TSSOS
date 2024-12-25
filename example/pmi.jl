@@ -11,6 +11,10 @@ G = [1-4x[1]*x[2] x[1]; x[1] 4-x[1]^2-x[2]^2]
 opt,data = tssos_first(F, [G], x, 3, TS=false, QUIET=true)
 # opt,data = tssos_higher!(data)
 
+@polyvar x[1:2]
+F = [x[1]^2 x[1]+x[2]; x[1]+x[2] x[2]^2]
+G = [1-x[1]^2-x[2]^2]
+opt,data = tssos_first(F, G, x, 2, TS=false, Gram=true, Mommat=true, QUIET=true)
 
 ## polynomial matrix optimization with term sparsity
 @polyvar x[1:5]
@@ -151,7 +155,7 @@ r = 4
 
 
 ## polynomial matrix optimization with matrix sparsity
-n = 13
+n = 5
 @polyvar x[1:2n-2]
 F = [1 x[1]*x[2]; x[1]*x[2] 1+x[n]^2]
 G = Vector{Matrix{Polynomial{true, Float64}}}(undef, n-1)
@@ -159,7 +163,7 @@ G[1] = [1-x[1]^4 x[1]*x[2]; x[1]*x[2] x[n+1]^2]
 for k = 2:n-2
     G[k] = [1-x[k]^4 x[k]*x[k+1]; x[k]*x[k+1] x[n+k]^2-x[n+k-1]^2]
 end
-G[n-1] = [1-x[n-1]^4 x[n-1]*x[n]; x[n-1]*x[n] 1-x[n]^2-x[2n-2]^2]
+G[n-1] = [1-x[n-1]^4 x[n-1]*x[n]; x[n-1]*x[n] 1-x[n]^4-x[2n-2]^2]
 @time opt,data = cs_tssos_first(F, G, x, 4, TS=false, QUIET=true)
 @time opt,data = cs_tssos_first(F, G, x, 4, TS="block", QUIET=true)
 @time opt,data = cs_tssos_first(F, G, x, 4, TS="MD", QUIET=true)

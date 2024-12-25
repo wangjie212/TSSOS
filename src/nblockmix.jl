@@ -19,6 +19,7 @@ mutable struct mcpop_data
     blocks # block structure
     eblocks # block structrue for equality constraints
     GramMat # Gram matrix
+    multiplier_equality # multiplier coefficients for equality constraints
     moment # Moment matrix
     solver # SDP solver
     SDP_status
@@ -137,10 +138,10 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
         mb = maximum(maximum.([maximum.(blocksize[i]) for i = 1:cql]))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,GramMat,SDP_status = solvesdp(n, m, supp, coe, basis, hbasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize, numeq=numeq, 
+    opt,ksupp,moment,GramMat,multiplier_equality,SDP_status = solvesdp(n, m, supp, coe, basis, hbasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize, numeq=numeq, 
     nb=nb, QUIET=QUIET, signsymmetry=ss, TS=TS, solver=solver, tune=tune, dualize=dualize, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, Mommat=Mommat, 
     cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, normality=normality, NormalSparse=NormalSparse)
-    data = mcpop_data(n, nb, m, numeq, supp, coe, basis, hbasis, ksupp, cql, cliquesize, cliques, I, J, ncc, cl, blocksize, blocks, eblocks, GramMat, moment, solver, SDP_status, tol, 1)
+    data = mcpop_data(n, nb, m, numeq, supp, coe, basis, hbasis, ksupp, cql, cliquesize, cliques, I, J, ncc, cl, blocksize, blocks, eblocks, GramMat, multiplier_equality, moment, solver, SDP_status, tol, 1)
     sol = nothing
     if solution == true
         sol,gap,data.flag = approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, tol=tol)
@@ -198,7 +199,7 @@ function cs_tssos_higher!(data::mcpop_data; TS="block", merge=false, md=3, QUIET
             mb = maximum(maximum.([maximum.(blocksize[i]) for i = 1:cql]))
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,GramMat,SDP_status = solvesdp(n, m, supp, coe, basis, hbasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl,
+        opt,ksupp,moment,GramMat,multiplier_equality,SDP_status = solvesdp(n, m, supp, coe, basis, hbasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl,
         blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, tune=tune, solution=solution, dualize=dualize, MomentOne=MomentOne, 
         Gram=Gram, Mommat=Mommat, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, normality=normality, NormalSparse=NormalSparse)
         sol = nothing
@@ -211,6 +212,7 @@ function cs_tssos_higher!(data::mcpop_data; TS="block", merge=false, md=3, QUIET
         end
         data.ksupp = ksupp
         data.GramMat = GramMat
+        data.multiplier_equality = multiplier_equality
         data.moment = moment
         data.SDP_status = SDP_status
     end
@@ -324,7 +326,7 @@ function solvesdp(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, hbasis
     else
         ksupp = tsupp
     end
-    objv = moment = GramMat = SDP_status = nothing
+    objv = moment = GramMat = multiplier_equality = SDP_status = nothing
     if solve == true
         ltsupp = length(tsupp)
         if QUIET == false
@@ -568,6 +570,12 @@ function solvesdp(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, hbasis
                     GramMat[i][j] = [value.(pos[i][j][l]) for l = 1:cl[i][j]]
                 end
             end
+            multiplier_equality = Vector{Vector{Vector{Float64}}}(undef, cql)
+            for i = 1:cql
+                if !isempty(J[i])
+                    multiplier_equality[i] = [value.(free[i][j]) for j = 1:length(J[i])]
+                end
+            end
         end
         if solution == true
             measure = -dual.(con)
@@ -578,7 +586,7 @@ function solvesdp(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, hbasis
             moment = get_moment(measure, tsupp, cliques, cql, cliquesize, basis=basis, nb=nb)
         end
     end
-    return objv,ksupp,moment,GramMat,SDP_status
+    return objv,ksupp,moment,GramMat,multiplier_equality,SDP_status
 end
 
 function get_eblock(tsupp::Vector{Vector{UInt16}}, hsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=nb, nv=0, signsymmetry=nothing)

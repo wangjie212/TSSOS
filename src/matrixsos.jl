@@ -24,38 +24,39 @@ mutable struct mpop_data
     cliques # cliques of variables
     I # index sets of inequality constraints
     ncc # constraints associated to no clique
+    GramMat # Gram matrix
     moment # Moment matrix
     SDP_status
 end
 
-function tssos_first(F::Matrix{Polynomial{true, T}}, G, x, d; TS="block", QUIET=false, solve=true, Mommat=false) where {T<:Number}
-    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Mommat=Mommat)
+function tssos_first(F::Matrix{Polynomial{true, T}}, G, x, d; TS="block", QUIET=false, solve=true, Gram=false, Mommat=false) where {T<:Number}
+    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Mommat=Mommat)
 end
 
-function tssos_first(F::Polynomial{true, T1}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; TS="block", QUIET=false, solve=true, Mommat=false) where {T1,T2<:Number}
-    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Mommat=Mommat)
+function tssos_first(F::Polynomial{true, T1}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; TS="block", QUIET=false, solve=true, Gram=false, Mommat=false) where {T1,T2<:Number}
+    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Mommat=Mommat)
 end
 
 function tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
     return cs_tssos_higher!(data, TS=TS, QUIET=QUIET, solve=solve)
 end
 
-function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Polynomial{true, T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Mommat=false) where {T1,T2<:Number}
+function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Polynomial{true, T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Mommat=false) where {T1,T2<:Number}
     nG = Vector{Matrix{Polynomial{true, T2}}}(undef, length(G))
     for i = 1:length(G)
         nG[i] = Matrix{Polynomial{true, T2}}(undef, 1, 1)
         nG[i][1,1] = G[i]
     end
-    return cs_tssos_first(F, nG, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Mommat=Mommat)
+    return cs_tssos_first(F, nG, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Mommat=Mommat)
 end
 
-function cs_tssos_first(F::Polynomial{true, T1}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Mommat=false) where {T1,T2<:Number}
+function cs_tssos_first(F::Polynomial{true, T1}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Mommat=false) where {T1,T2<:Number}
     nF = Matrix{Polynomial{true, T1}}(undef, 1, 1)
     nF[1,1] = F
-    return cs_tssos_first(nF, G, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Mommat=Mommat)
+    return cs_tssos_first(nF, G, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Mommat=Mommat)
 end
 
-function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Mommat=false) where {T1,T2<:Number}
+function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Mommat=false) where {T1,T2<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     n = length(x)
@@ -103,8 +104,8 @@ function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polyno
         sort!.(ksupp)
     end
     blocks,cl,blocksize = get_mblocks(I, obj_matrix.m, cons_matrix, cliques, cql, ksupp, basis, gbasis, QUIET=QUIET, blocks=[], cl=[], blocksize=[], TS=TS)
-    opt,ksupp,moment,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc, TS=TS, QUIET=QUIET, solve=solve, Mommat=Mommat)
-    data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, cl, blocksize, blocks, cql, cliquesize, cliques, I, ncc, moment, SDP_status)
+    opt,ksupp,GramMat,moment,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Mommat=Mommat)
+    data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, cl, blocksize, blocks, cql, cliquesize, cliques, I, ncc, GramMat, moment, SDP_status)
     return opt,data
 end
 
@@ -284,7 +285,7 @@ function get_mblocks(I, om, cons_matrix, cliques, cql, tsupp, basis, gbasis; blo
     return blocks,cl,blocksize
 end
 
-function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc; TS="block", solve=true, QUIET=false, Mommat=false)
+function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc; TS="block", solve=true, QUIET=false, Gram=false, Mommat=false)
     om = obj_matrix.m
     ksupp = [Vector{UInt16}[] for i = 1:length(obj_matrix.poly)]
     for u = 1:cql, i = 1:cl[u][1], j = 1:blocksize[u][1][i], k = j:blocksize[u][1][i]
@@ -315,7 +316,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
     end
     sort!.(ksupp)
     unique!.(ksupp)
-    objv = SDP_status = moment = nothing
+    objv = SDP_status = GramMat = moment = nothing
     if solve == true
         if QUIET == false
             ncons = sum(length.(ksupp))
@@ -329,28 +330,30 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
         for i = 1:length(obj_matrix.poly)
             cons[i] = [AffExpr(0) for j=1:length(ksupp[i])]
         end
+        pos = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, cql)
+        gpos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, cql)
         for u = 1:cql
-            pos = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[u][1])
+            pos[u] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[u][1])
             for i = 1:cl[u][1]
-                pos[i] = @variable(model, [1:blocksize[u][1][i], 1:blocksize[u][1][i]], PSD)
+                pos[u][i] = @variable(model, [1:blocksize[u][1][i], 1:blocksize[u][1][i]], PSD)
                 for j = 1:blocksize[u][1][i], k = j:blocksize[u][1][i]
                     p = cmod(blocks[u][1][i][j], om)
                     q = cmod(blocks[u][1][i][k], om)
                     ind = p <= q ? p + Int(q*(q-1)/2) : q + Int(p*(p-1)/2)
                     Locb = bfind(ksupp[ind], length(ksupp[ind]), sadd(basis[u][ceil(Int, blocks[u][1][i][j]/om)], basis[u][ceil(Int, blocks[u][1][i][k]/om)]))
                     if p != q || j == k
-                        @inbounds add_to_expression!(cons[ind][Locb], pos[i][j,k])
+                        @inbounds add_to_expression!(cons[ind][Locb], pos[u][i][j,k])
                     else
-                        @inbounds add_to_expression!(cons[ind][Locb], 2, pos[i][j,k])
+                        @inbounds add_to_expression!(cons[ind][Locb], 2, pos[u][i][j,k])
                     end
                 end
             end
-            gpos = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, length(I[u]))
+            gpos[u] = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, length(I[u]))
             for (s,v) in enumerate(I[u])
-                gpos[s] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[u][s+1])
+                gpos[u][s] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[u][s+1])
                 com = cons_matrix[v].m*om
                 for i = 1:cl[u][s+1]
-                    gpos[s][i] = @variable(model, [1:blocksize[u][s+1][i], 1:blocksize[u][s+1][i]], PSD)
+                    gpos[u][s][i] = @variable(model, [1:blocksize[u][s+1][i], 1:blocksize[u][s+1][i]], PSD)
                     for j = 1:blocksize[u][s+1][i], k = j:blocksize[u][s+1][i]
                         p = cmod(blocks[u][s+1][i][j], com)
                         q = cmod(blocks[u][s+1][i][k], com)
@@ -365,9 +368,9 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
                         for w = 1:length(cons_matrix[v].poly[loc].supp)
                             Locb = bfind(ksupp[ind], length(ksupp[ind]), sadd(sadd(gbasis[u][s][p2], gbasis[u][s][q2]), cons_matrix[v].poly[loc].supp[w]))
                             if p1 != q1 || (p2 == q2 && t == r)
-                                @inbounds add_to_expression!(cons[ind][Locb], cons_matrix[v].poly[loc].coe[w], gpos[s][i][j,k])
+                                @inbounds add_to_expression!(cons[ind][Locb], cons_matrix[v].poly[loc].coe[w], gpos[u][s][i][j,k])
                             else
-                                @inbounds add_to_expression!(cons[ind][Locb], 2*cons_matrix[v].poly[loc].coe[w], gpos[s][i][j,k])
+                                @inbounds add_to_expression!(cons[ind][Locb], 2*cons_matrix[v].poly[loc].coe[w], gpos[u][s][i][j,k])
                             end
                         end
                     end
@@ -432,12 +435,22 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
             println("solution status: $status")
         end
         println("optimum = $objv")
+        if Gram == true
+            GramMat = Vector{Vector{Vector{Union{Float64,Matrix{Float64}}}}}(undef, cql)
+            for i = 1:cql
+                GramMat[i] = Vector{Vector{Union{Float64,Matrix{Float64}}}}(undef, 1+length(I[i]))
+                GramMat[i][1] = [value.(pos[i][l]) for l = 1:cl[i][1]]
+                for j = 1:length(I[i])
+                    GramMat[i][j+1] = [value.(gpos[i][j][l]) for l = 1:cl[i][j+1]]
+                end
+            end
+        end
         if Mommat == true
             measure = [[-dual(constraint_by_name(model, "con$i[$j]")) for j = 1:length(ksupp[i])] for i = 1:length(ksupp)]
             moment = get_mmoment(measure, ksupp[1], cql, basis, om)
         end
     end 
-    return objv,ksupp,moment,SDP_status
+    return objv,ksupp,GramMat,moment,SDP_status
 end
 
 function LinearPMI_first(b, F::Vector{Matrix{Polynomial{true, T1}}}, G::Vector{Polynomial{true, T2}}, x, d; TS="block", QUIET=false, solve=true, Mommat=false) where {T1,T2<:Number}
