@@ -1,3 +1,5 @@
+using Random
+
 function get_basis_indices(n::Int64, d::Int64) 
     """
         get_basis_indices(n::Int64, d::Int64) -> Matrix{Int64}
