@@ -6,7 +6,7 @@
 ## Christoffel-Darboux Kernels
 
 
-## Methods
+### Methods
 ```@docs
 run_H1
 run_H1CS
