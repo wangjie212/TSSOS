@@ -19,11 +19,10 @@ using AbstractAlgebra
 # using SDPNAL
 
 export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, local_solution, refine_sol,
-cs_nctssos_first, cs_nctssos_higher!, cosmo_para, mosek_para, add_psatz!, add_poly!, get_nbasis, get_moment, 
-get_moment_matrix, homogenize, solve_hpop, get_signsymmetry, SumOfRatios, SparseSumOfRatios,
-LinearPMI_first, LinearPMI_higher!, show_blocks, complex_to_real, add_SOSMatrix!, sparseobj, get_mmoment,
-extract_solutions, extract_solutions_robust, extract_solutions_pmo, extract_solutions_robust_pmo,
-extract_weight_matrix, add_SOS!
+cosmo_para, mosek_para, add_psatz!, add_poly!, get_nbasis, get_moment, get_moment_matrix, get_cmoment, homogenize, 
+solve_hpop, get_signsymmetry, SumOfRatios, SparseSumOfRatios, LinearPMI_first, LinearPMI_higher!, 
+show_blocks, complex_to_real, add_SOSMatrix!, sparseobj, get_mmoment, extract_solutions, extract_solutions_robust, 
+extract_solutions_pmo, extract_solutions_robust_pmo, extract_weight_matrix, add_SOS!
 
 include("clique_merge.jl")
 include("blockpop_uncons.jl")

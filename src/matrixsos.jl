@@ -516,7 +516,7 @@ function LinearPMI_first(b, F::Vector{Matrix{Polynomial{true, T1}}}, G::Vector{M
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
     opt,ksupp,moment,SDP_status = LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, TS=TS, QUIET=QUIET, solve=solve, Mommat=Mommat)
-    data = mpop_data(b, obj_matrix, cons_matrix, basis, gbasis, ksupp, cl, blocksize, blocks, nothing, nothing, nothing, nothing, nothing, moment, SDP_status)
+    data = mpop_data(b, obj_matrix, cons_matrix, basis, gbasis, ksupp, cl, blocksize, blocks, nothing, nothing, nothing, nothing, nothing, nothing, moment, SDP_status)
     return opt,data
 end
 
@@ -543,8 +543,9 @@ function LinearPMI_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
         opt = nothing
         println("No higher TS step of the TSSOS hierarchy!")
     else
-        opt,ksupp,SDP_status = LinearPMI_sdp(data.b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, TS=TS, QUIET=QUIET, solve=solve)
+        opt,ksupp,moment,SDP_status = LinearPMI_sdp(data.b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, TS=TS, QUIET=QUIET, solve=solve)
         data.ksupp = ksupp
+        data.moment = moment
         data.SDP_status = SDP_status
     end
     return opt,data
@@ -646,7 +647,7 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
                 Locb = bfind(ksupp[ind], length(ksupp[ind]), obj_matrix[1].poly[ind].supp[k])
                 if Locb === nothing
                     @error "The monomial basis is not enough!"
-                    return nothing,nothing,nothing
+                    return nothing,nothing,nothing,nothing
                 else
                     @inbounds add_to_expression!(bc[Locb], obj_matrix[1].poly[ind].coe[k])
                 end
@@ -655,7 +656,7 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
                 Locb = bfind(ksupp[ind], length(ksupp[ind]), obj_matrix[t].poly[ind].supp[k])
                 if Locb === nothing
                     @error "The monomial basis is not enough!"
-                    return nothing,nothing,nothing
+                    return nothing,nothing,nothing,nothing
                 else
                     @inbounds add_to_expression!(bc[Locb], λ[t-1], obj_matrix[t].poly[ind].coe[k])
                 end

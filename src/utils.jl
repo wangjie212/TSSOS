@@ -347,13 +347,13 @@ Generate an unknown polynomial of given degree whose coefficients are from the J
 
 # Input arguments
 - `model`: a JuMP optimization model
-- `vars`: the set of POP variables
-- `degree`: polynomial degree
+- `vars`: set of variables
+- `degree`: degree of the polynomial
 
 # Output arguments
-- `p`: the unknown polynomial 
-- `coe`: coefficients of the unknown polynomial 
-- `mon`: monomials of the unknown polynomial 
+- `p`: the polynomial 
+- `coe`: coefficients of the polynomial 
+- `mon`: monomials of the polynomial 
 """
 function add_poly!(model, vars, degree; signsymmetry=false)
     mon = vcat([MultivariatePolynomials.monomials(vars, i) for i = 0:degree]...)
@@ -413,6 +413,19 @@ function cmod(a, m)
 end
 
 # generate an SOS polynomial with variables vars and degree 2d
+"""
+sos = add_SOS!(model, vars, d)
+
+Generate an SOS polynomial of degree 2d whose coefficients are from the JuMP `model`.
+
+# Input arguments
+- `model`: a JuMP optimization model
+- `vars`: set of variables
+- `d`: half degree of the SOS polynomial
+
+# Output arguments
+- `sos`: the sos polynomial 
+"""
 function add_SOS!(model, vars, d)
     basis = vcat([MultivariatePolynomials.monomials(vars, i) for i = 0:d]...)
     sos = 0

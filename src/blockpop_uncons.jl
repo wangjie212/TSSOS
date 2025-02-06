@@ -49,7 +49,7 @@ If `merge=true`, perform the PSD block merging.
 If `feasible=true`, then solve the feasibility problem.
 If `solve=false`, then do not solve the SDP.
 If `Gram=true`, then output the Gram matrix.
-If `MomentOne=true`, add an extra first order moment matrix to the moment relaxation.
+If `MomentOne=true`, add an extra first-order moment PSD constraint to the moment relaxation.
 
 # Input arguments
 - `f`: objective

@@ -4,7 +4,7 @@ using TSSOS
 # unconstrained optimization using the TSSOS hierarchy
 @polyvar x[1:3]
 f = 1+x[1]^4+x[2]^4+x[3]^4+x[1]*x[2]*x[3]+x[2]
-opt,sol,data = tssos_first(f, x, newton=true, reducebasis=true, TS="MD", solution=false, QUIET=true)
+opt,sol,data = tssos_first(f, x, newton=true, reducebasis=true, TS="block", solution=false, QUIET=true)
 # optimum = 0.475274778453039
 
 opt,sol,data = tssos_higher!(data, TS="MD", solution=true, QUIET=true)

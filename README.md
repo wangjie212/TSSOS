@@ -1,5 +1,5 @@
 # TSSOS
-TSSOS is a polynomial optimization tool based on the sparsity adapted moment-SOS hierarchies. To use TSSOS in Julia, run
+TSSOS aims to provide a user-friendly and efficient tool for solving optimization problems with polynomials, which is based on the structured moment-SOS hierarchy. To use TSSOS in Julia, run
 ```Julia
 pkg> add https://github.com/wangjie212/TSSOS
  ```
@@ -18,13 +18,14 @@ TSSOS has been tested on Ubuntu and Windows.
 
 ## Usage
 ### Unconstrained polynomial optimization
-The unconstrained polynomial optimization problem formulizes as
+An unconstrained polynomial optimization problem could be formulized as
 
 $$\mathrm{inf}_{\mathbf{x}\in\mathbb{R}^n}\ f(\mathbf{x}),$$
 
 where $f\in\mathbb{R}[\mathbf{x}]$ is a polynomial.
 
 Taking $f=1+x_1^4+x_2^4+x_3^4+x_1x_2x_3+x_2$ as an example, to compute the first TS step of the TSSOS hierarchy, run
+
 ```Julia
 using TSSOS
 using DynamicPolynomials
@@ -32,13 +33,12 @@ using DynamicPolynomials
 f = 1 + x[1]^4 + x[2]^4 + x[3]^4 + x[1]*x[2]*x[3] + x[2]
 opt,sol,data = tssos_first(f, x, TS="MD")
 ```
-By default, the monomial basis computed by the Newton polytope method is used. If one sets newton=false in the input,
+By default, the monomial basis computed by the Newton polytope method is used. If one sets newton=false:
+
 ```Julia
 opt,sol,data = tssos_first(f, x, newton=false, TS="MD")
 ```
 then the standard monomial basis will be used.
-
-Two vectors will be output. The first vector includes the sizes of PSD blocks and the second vector includes the number of PSD blocks with sizes corresponding to the first vector.
 
 To compute higher TS steps of the TSSOS hierarchy, repeatedly run
 
@@ -47,38 +47,37 @@ opt,sol,data = tssos_higher!(data, TS="MD")
 ```
 
 Options  
-**nb**: specify the first nb variables to be binary variables (satisfying $x_i^2=1$)  
-**newton**: true (using the monomial basis computed by the Newton polytope method), false  
-**TS**: "block" by default (using the maximal chordal extension), "signsymmetry" (using sign symmetries), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
-**solution**: true (extracting an (approximate optimal) solution), false  
+**nb**: specify the first nb variables to be $\pm1$ binary variables   
+**TS**: "block" by default (maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)  
+**solution**: true (extract optimal solutions), false  
 
 Output  
 **basis**: monomial basis  
 **cl**: numbers of blocks  
 **blocksize**: sizes of blocks  
 **blocks**: block structrue  
-**GramMat**: Gram matrices (you need to set Gram=true)  
+**GramMat**: Gram matrices (set Gram=true)  
 **flag**: 0 if global optimality is certified; 1 otherwise  
 
 ### Constrained polynomial optimization
-The constrained polynomial optimization problem formulizes as
+A constrained polynomial optimization problem could be formulized as
 
 $$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ f(\mathbf{x}),$$
 
 where $f\in\mathbb{R}[\mathbf{x}]$ is a polynomial and $\mathbf{K}$ is the basic semialgebraic set
 
-$$\mathbf{K}\coloneqq\lbrace \mathbf{x}\in\mathbb{R}^n \mid g_j(\mathbf{x})\ge0, j=1,\ldots,m-numeq,\ g_j(\mathbf{x})=0, j=m-numeq+1,\ldots,m\rbrace,$$
+$$\mathbf{K}\coloneqq\lbrace \mathbf{x}\in\mathbb{R}^n \mid g_i(\mathbf{x})\ge0, i=1,\ldots,m,\ h_j(\mathbf{x})=0, j=1,\ldots,\ell\rbrace,$$
 
-for some polynomials $g_j\in\mathbb{R}[\mathbf{x}], j=1,\ldots,m$.
+for some polynomials $g_i,h_j\in\mathbb{R}[\mathbf{x}]$.
 
-Taking $f=1+x_1^4+x_2^4+x_3^4+x_1x_2x_3+x_2$ and $\mathbf{K}\coloneqq\lbrace \mathbf{x}\in\mathbb{R}^2 \mid g_1=1-x_1^2-2x_2^2\ge0, g_2=x_2^2+x_3^2-1=0\rbrace$ as an example, to compute the first TS step of the TSSOS hierarchy, run
+Taking $f=1+x_1^4+x_2^4+x_3^4+x_1x_2x_3+x_2$ and $\mathbf{K}\coloneqq\lbrace \mathbf{x}\in\mathbb{R}^2 \mid g(\mathbf{x})=1-x_1^2-2x_2^2\ge0, h(\mathbf{x})=x_2^2+x_3^2-1=0\rbrace$ as an example, to compute the first TS step of the TSSOS hierarchy, run
 
 ```Julia
 @polyvar x[1:3]
-f = 1+x[1]^4+x[2]^4+x[3]^4+x[1]*x[2]*x[3]+x[2]
-g_1 = 1-x[1]^2-2*x[2]^2
-g_2 = x[2]^2+x[3]^2-1
-pop = [f, g_1, g_2]
+f = 1 + x[1]^4 + x[2]^4 + x[3]^4 + x[1]*x[2]*x[3] + x[2]
+g = 1 - x[1]^2 - 2*x[2]^2
+h = x[2]^2 + x[3]^2 - 1
+pop = [f, g, h]
 d = 2 # set the relaxation order
 opt,sol,data = tssos_first(pop, x, d, numeq=1, TS="MD")
 ```
@@ -90,38 +89,38 @@ opt,sol,data = tssos_higher!(data, TS="MD")
 ```
 
 Options  
-**nb**: specify the first nb variables to be binary variables (satisfying $x_i^2=1$)  
-**TS**: "block" by default (using the maximal chordal extension), "signsymmetry" (using sign symmetries), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
-**normality**: true (imposing the normality condtions), false  
-**NormalSparse**: true (using sparsity for the normality conditions), false  
-**quotient**: true (working in the quotient ring by computing Gröbner basis), false  
-**solution**: true (extracting an (approximate optimal) solution), false  
+**nb**: specify the first nb variables to be $\pm1$ binary variables  
+**TS**: "block" by default (maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)  
+**normality**: true (impose normality condtions), false  
+**NormalSparse**: true (exploit sparsity when imposing normality conditions), false  
+**quotient**: true (work in the quotient ring by computing a Gröbner basis), false  
+**solution**: true (extract optimal solutions), false  
 
-One can also exploit correlative sparsity and term sparsity simultaneously, which is called the CS-TSSOS hierarchy.
+One could also exploit correlative sparsity and term sparsity simultaneously.
 
 ```Julia
 using DynamicPolynomials
 n = 6
 @polyvar x[1:n]
-f = 1+sum(x.^4)+x[1]*x[2]*x[3]+x[3]*x[4]*x[5]+x[3]*x[4]*x[6]+x[3]*x[5]*x[6]+x[4]*x[5]*x[6]
-pop = [f, 1-sum(x[1:3].^2), 1-sum(x[3:6].^2)]
+f = 1 + sum(x.^4) + x[1]*x[2]*x[3] + x[3]*x[4]*x[5] + x[3]*x[4]*x[6] + x[3]*x[5]*x[6] + x[4]*x[5]*x[6]
+pop = [f, 1 - sum(x[1:3].^2), 1 - sum(x[3:6].^2)]
 order = 2 # set the relaxation order
-opt,sol,data = cs_tssos_first(pop, x, order, numeq=0, TS="MD")
-opt,sol,data = cs_tssos_higher!(data, TS="MD")
+opt,sol,data = cs_tssos_first(pop, x, order, numeq=0, TS="MD") # compute the first TS step of the CS-TSSOS hierarchy
+opt,sol,data = cs_tssos_higher!(data, TS="MD") # compute higher TS steps of the CS-TSSOS hierarchy
 ```
+
 Options  
-**nb**: specify the first nb variables to be binary variables (satisfying $x_i^2=1$)  
-**CS**: "MF" by default (generating an approximately smallest chordal extension), "NC" (without chordal extension), false (without correlative sparsity)   
-**TS**: "block" by default (using the maximal chordal extension), "signsymmetry" (using sign symmetries), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
-**order**: d (relaxation order), "min" (using the lowest relaxation order for each variable clique)  
-**normality**: true (imposing the normality condtions), false  
-**NormalSparse**: true (using sparsity for the normality conditions), false  
-**MomentOne**: true (adding a first-order moment matrix for each variable clique), false  
-**solution**: true (extracting an (approximate optimal) solution), false  
+**nb**: specify the first nb variables to be $\pm1$ binary variables  
+**CS**: "MF" by default (approximately smallest chordal extension), "NC" (not performing chordal extension), false (invalidating correlative sparsity exploitation)   
+**TS**: "block" by default (maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)    
+**normality**: true (impose normality condtions), false  
+**NormalSparse**: true (exploit sparsity when imposing normality conditions), false  
+**MomentOne**: true (add a first-order moment PSD constraint for each variable clique), false  
+**solution**: true (extract an approximately optimal solution), false  
 
-You may set solver="Mosek" or solver="COSMO" to specify the SDP solver invoked by TSSOS. By default, the solver is Mosek.
+One may set solver="Mosek" or solver="COSMO" to specify the SDP solver invoked by TSSOS. By default, the solver is Mosek.
 
-You can tune the parameters of COSMO via
+The parameters of COSMO could be tuned by
 
 ```
 settings = cosmo_para()
@@ -132,7 +131,7 @@ settings.time_limit = 1e4 # limit of running time
 ```
 and run for instance tssos_first(..., cosmo_setting=settings)
 
-You can tune the parameters of Mosek via
+The parameters of Mosek could be tuned by
 
 ```
 settings = mosek_para()
@@ -148,8 +147,8 @@ Output
 **cl**: numbers of blocks  
 **blocksize**: sizes of blocks  
 **blocks**: block structrue  
-**GramMat**: Gram matrices (you need to set Gram=true)  
-**moment**: moment matrices (you need to set Mommat=true)  
+**GramMat**: Gram matrices (set Gram=true)  
+**moment**: moment matrices (set Mommat=true)  
 **flag**: 0 if global optimality is certified; 1 otherwise  
 
 ## The AC-OPF problem
@@ -162,12 +161,12 @@ $$\mathrm{inf}_{\mathbf{y}\in\mathbb{R}^n}\ \mathbf{c}^{\intercal}\mathbf{y}$$
 
 $$\mathrm{s.t.}\ a_{k0}+y_1a_{k1}+\cdots+y_na_{kn}\in\mathrm{SOS},\ k=1,\ldots,m.$$
 
-where $\mathbf{c}\in\mathbb{R}^n$ and $a_{ki}\in\mathbb{R}[\mathbf{x}]$ are polynomials. The SOS constraints can be handled with the routine **add_psatz!**:
+where $\mathbf{c}\in\mathbb{R}^n$ and $a_{ki}\in\mathbb{R}[\mathbf{x}]$ are polynomials. SOS constraints could be handled with the routine **add_psatz!**:
 
 ```Julia
 model,info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order, TS="block", SO=1, Groebnerbasis=false)
 ```
-where **nonneg** is a nonnegative polynomial constrained to be a Putinar's style SOS on the semialgebraic set defined by **ineq_cons** and **eq_cons**, and **SO** is the sparse order.
+where **nonneg** is a nonnegative polynomial constrained to admit a Putinar's style SOS representation on the semialgebraic set defined by **ineq_cons** and **eq_cons**, and **SO** is the sparse order.
 
 The following is a simple exmaple.
 
@@ -188,43 +187,43 @@ using TSSOS
 f = x[1]^2 + x[1]*x[2] + x[2]^2 + x[2]*x[3] + x[3]^2
 d = 2 # set the relaxation order
 @polyvar y[1:2]
-h = [x[1]^2+x[2]^2+y[1]^2-1, x[2]^2+x[3]^2+y[2]^2-1]
+h = [x[1]^2 + x[2]^2 + y[1]^2-1, x[2]^2 + x[3]^2 + y[2]^2 - 1]
 model = Model(optimizer_with_attributes(Mosek.Optimizer))
 @variable(model, lower)
-nonne = f - lower*sum(x.^2)
-model,info = add_psatz!(model, nonne, [x; y], [], h, d, TS="block", Groebnerbasis=true)
+nonneg = f - lower*sum(x.^2)
+model,info = add_psatz!(model, nonneg, [x; y], [], h, d, TS="block", Groebnerbasis=true)
 @objective(model, Max, lower)
 optimize!(model)
 ```
 Check out `example/sosprogram.jl` for a more complicated example.
 
-## Compute a local solution
-It is possible to compute a local solution of the polynomial optimization problem in TSSOS by [Ipopt](https://github.com/jump-dev/Ipopt.jl):
+## Compute a locally optimal solution
+Moment-SOS relaxations provide lower bounds on the optimum of the polynomial optimization problem. As the complementary side, one could compute a locally optimal solution which provides an upper bound on the optimum of the polynomial optimization problem. The upper bound is useful in evaluating the quality (tightness) of those lower bounds provided by moment-SOS relaxations. In TSSOS, for a given polynomial optimization problem, a locally optimal solution could be obtained via the nonlinear programming solver [Ipopt](https://github.com/jump-dev/Ipopt.jl):
 
 ```Julia
 obj,sol,status = local_solution(data.n, data.m, data.supp, data.coe, numeq=data.numeq, startpoint=rand(data.n))
 ```
 
 ## Complex polynomial optimization
-TSSOS also supports solving complex polynomial optimization via the sparsity adapted complex moment-HSOS hierarchies. See [Exploiting Sparsity in Complex Polynomial Optimization](https://arxiv.org/abs/2103.12444) for more details.
+TSSOS also supports solving complex polynomial optimization. See [Exploiting Sparsity in Complex Polynomial Optimization](https://arxiv.org/abs/2103.12444) for more details.
 
-The complex polynomial optimization problem formulizes as
+A general complex polynomial optimization problem could be formulized as
 
 $$\mathrm{inf}_{\mathbf{z}\in\mathbf{K}}\ f(\mathbf{z},\bar{\mathbf{z}}),$$
 
 with
 
-$$\mathbf{K}\coloneqq\lbrace \mathbf{z}\in\mathbb{C}^n \mid g_j(\mathbf{z},\bar{\mathbf{z}})\ge0, j=1,\ldots,m-numeq,\ g_j(\mathbf{z},\bar{\mathbf{z}})=0, j=m-numeq+1,\ldots,m\rbrace,$$
+$$\mathbf{K}\coloneqq\lbrace \mathbf{z}\in\mathbb{C}^n \mid g_i(\mathbf{z},\bar{\mathbf{z}})\ge0, i=1,\ldots,m,\ h_j(\mathbf{z},\bar{\mathbf{z}})=0, j=1,\ldots,\ell\rbrace,$$
 
-where $\bar{\mathbf{z}}$ stands for the conjugate of $\mathbf{z}:=(z_1,\ldots,z_n)$, and $f, g_j, j=1,\ldots,m$ are real-valued polynomials satisfying $\bar{f}=f$ and $\bar{g}_j=g_j$.
+where $\bar{\mathbf{z}}$ stands for the conjugate of $\mathbf{z}:=(z_1,\ldots,z_n)$, and $f, g_i, i=1,\ldots,m, h_j, j=1,\ldots,\ell$ are real-valued complex polynomials satisfying $\bar{f}=f$ and $\bar{g}_j=g_j$.
 
 In TSSOS, we use $x_i$ to represent the complex variable $z_i$ and use $x_{n+i}$ to represent its conjugate $\bar{z}_i$. Consider the example
 
 $$\mathrm{inf}\ 3-|z_1|^2-0.5\mathbf{i}z_1\bar{z}_2^2+0.5\mathbf{i}z_2^2\bar{z}_1$$
 
-$$\mathrm{s.t.}\ z_2+\bar{z}_2\ge0,|z_1|^2-0.25z_1^2-0.25\bar{z}_1^2=1,|z_1|^2+|z_2|^2=3,\mathbf{i}z_2-\mathbf{i}\bar{z}_2=0.$$
+$$\mathrm{s.t.}\ z_2+\bar{z}_2\ge0,|z_1|^2-0.25z_1^2-0.25\bar{z}_1^2=1,|z_1|^2+|z_2|^2=3,\mathbf{i}z_2-\mathbf{i}\bar{z}_2=0,$$
 
-It can be represented as
+which is represented in TSSOS as
 
 $$\mathrm{inf}\ 3-x_1x_3-0.5\mathbf{i}x_1x_4^2+0.5\mathbf{i}x_2^2x_3$$
 
@@ -245,41 +244,42 @@ opt,sol,data = cs_tssos_first(pop, x, n, order, numeq=3, TS="block")
 ```
 Options  
 **nb**: specify the first nb complex variables to be of unit norm (satisfying $|z_i|=1$)  
-**CS (correlative sparsity)**: "MF" by default (generating an approximately smallest chordal extension), "NC" (without chordal extension), false (without correlative sparsity)   
-**TS**: "block" by default (using the maximal chordal extension), "MD" (using approximately smallest chordal extensions), false (without term sparsity)  
-**order**: d (relaxation order), "min" (using the lowest relaxation order for each variable clique)  
+**CS**: "MF" by default (approximately smallest chordal extension), "NC" (not performing chordal extension), false (invalidating correlative sparsity exploitation)   
+**TS**: "block" by default (maximal chordal extension), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)   
 **normality**: specify the normal order  
-**NormalSparse**: true (using sparsity for the normality conditions), false  
-**MomentOne**: true (adding a first-order moment matrix for each variable clique), false  
-**ipart**: true (with complex moment matrices), false (with real moment matrices)
+**NormalSparse**: true (exploit sparsity when imposing normality conditions), false  
+**MomentOne**: true (add a first-order moment PSD constraint for each variable clique), false  
+**ipart**: true (use complex moment matrices), false (use real moment matrices)
 
 ## Sums of rational functions optimization
-The sum of rational functions optimization problem formulizes as
+The sum-of-rational-functions optimization problem could be formulized as
 
 $$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ \sum\_{i=1}^N\frac{p_i(\mathbf{x})}{q_i(\mathbf{x})},$$
 
 where $p_i,q_i\in\mathbb{R}[\mathbf{x}]$ are polynomials and $\mathbf{K}$ is the basic semialgebraic set
 
-$$\mathbf{K}\coloneqq\lbrace \mathbf{x}\in\mathbb{R}^n \mid g_j(\mathbf{x})\ge0, j=1,\ldots,m-numeq,\ g_j(\mathbf{x})=0, j=m-numeq+1,\ldots,m\rbrace,$$
+$$\mathbf{K}\coloneqq\lbrace \mathbf{x}\in\mathbb{R}^n \mid g_i(\mathbf{x})\ge0, i=1,\ldots,m,\ h_j(\mathbf{x})=0, j=1,\ldots,\ell\rbrace,$$
 
-for some polynomials $g_j\in\mathbb{R}[\mathbf{x}], j=1,\ldots,m$.
+for some polynomials $g_i,h_j\in\mathbb{R}[\mathbf{x}]$.
 
 Taking $\frac{p_1}{q_1}=\frac{x^2+y^2-yz}{1+2x^2+y^2+z^2}$, $\frac{p_2}{q_2}=\frac{y^2+x^2z}{1+x^2+2y^2+z^2}$, $\frac{p_3}{q_3}=\frac{z^2-x+y}{1+x^2+y^2+2z^2}$, and $\mathbf{K}\coloneqq\lbrace \mathbf{x}\in\mathbb{R}^2 \mid g=1-x^2-y^2-z^2\ge0\rbrace$ as an example, run
 
 ```Julia
 @polyvar x y z
-p = [x^2+y^2-y*z, y^2+x^2*z, z^2-x+y]
-q = [1+2x^2+y^2+z^2, 1+x^2+2y^2+z^2, 1+x^2+y^2+2z^2]
-g = [1-x^2-y^2-z^2]
+p = [x^2 + y^2 - y*z, y^2 + x^2*z, z^2 - x + y] # define the vector of denominators
+q = [1 + 2x^2 + y^2 + z^2, 1 + x^2 + 2y^2 + z^2, 1 + x^2 + y^2 + 2z^2] # define the vector of numerator
+g = [1 - x^2 - y^2 - z^2]
 d = 2 # set the relaxation order
-opt = SumOfRatios(p, q, g, [], [x;y;z], d, QUIET=true, SignSymmetry=true) # No correlative sparsity
-opt = SparseSumOfRatios(p, q, g, [], [x;y;z], d, QUIET=true, SignSymmetry=true) # Exploiting correlative sparsity
+opt = SumOfRatios(p, q, g, [], [x;y;z], d, QUIET=true, SignSymmetry=true) # Without correlative sparsity
+opt = SparseSumOfRatios(p, q, g, [], [x;y;z], d, QUIET=true, SignSymmetry=true) # With correlative sparsity
 ```
+
 Options  
-**SignSymmetry**: true, false
+**SignSymmetry**: true (exploit sign symmetries), false
+**Groebnerbasis**: true (work in the quotient ring by computing a Gröbner basis), false
 
 ## Polynomial matrix optimization
-The polynomial matrix optimization aims to minimize the smallest eigenvalue of a polynomial matrix subject to a tuple of polynomial matrix inequalties (PMIs), which can be formulized as
+The polynomial matrix optimization problem aims to minimize the smallest eigenvalue of a polynomial matrix subject to a tuple of polynomial matrix inequalties (PMIs), which could be formulized as
 
 $$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ \lambda\_{\mathrm{min}}(F(\mathbf{x})),$$
 
@@ -293,9 +293,32 @@ $$\mathrm{inf}_{\mathbf{y}\in\mathbb{R}^t}\ \mathbf{c}^{\intercal}\mathbf{y}$$
 
 $$\mathrm{s.t.}\ F_{0}(\mathbf{x})+y_1F_{1}(\mathbf{x})+\cdots+y_tF_{t}(\mathbf{x})\succeq0 \textrm{ on } K,$$
 
-where $F_i\in\mathbb{S}[\mathbf{x}]^{p}, j=1,\ldots,m$ are a tuple of symmetric polynomial matrices.
+where $F_i\in\mathbb{S}[\mathbf{x}]^{p}, i=0,1,\ldots,t$ are a tuple of symmetric polynomial matrices.
 
-In TSSOS, you can solve such polynomial matrix optimization problems by a matrix version of the moment-SOS hierarchy. Both correlative and term sparsities are supported. For concrete examples, please check out `example/pmi.jl`.
+The following is a simple exmaple.
+
+```Julia
+using DynamicPolynomials
+using TSSOS
+
+@polyvar x[1:5]
+F = [x[1]^4 x[1]^2 - x[2]*x[3] x[3]^2 - x[4]*x[5] x[1]*x[4] x[1]*x[5];
+x[1]^2 - x[2]*x[3] x[2]^4 x[2]^2 - x[3]*x[4] x[2]*x[4] x[2]*x[5];
+x[3]^2 - x[4]*x[5] x[2]^2 - x[3]*x[4] x[3]^4 x[4]^2 - x[1]*x[2] x[5]^2 - x[3]*x[5];
+x[1]*x[4] x[2]*x[4] x[4]^2 - x[1]*x[2] x[4]^4 x[4]^2 - x[1]*x[3];
+x[1]*x[5] x[2]*x[5] x[5]^2 - x[3]*x[5] x[4]^2 - x[1]*x[3] x[5]^4]
+G = Vector{Matrix{Polynomial{true, Int}}}(undef, 2)
+G[1] = [1 - x[1]^2 - x[2]^2 x[2]*x[3]; x[2]*x[3] 1 - x[3]^2]
+G[2] = [1 - x[4]^2 x[4]*x[5]; x[4]*x[5] 1 - x[5]^2]
+@time opt,data = tssos_first(F, G, x, 3, TS="MD") # compute the first TS step of the TSSOS hierarchy
+@time opt,data = tssos_higher!(data, TS="MD") # compute higher TS steps of the TSSOS hierarchy
+```
+
+Options  
+**CS**: "MF" by default (approximately smallest chordal extension), "NC" (not performing chordal extension), false (invalidating correlative sparsity exploitation)   
+**TS**: "block" by default (maximal chordal extension), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)  
+
+For more examples, please check out `example/pmi.jl`.
 
 ## Tips for modelling polynomial optimization problem
 - When possible, explictly include a sphere/ball constraint (or multi-sphere/multi-ball constraints).

@@ -35,7 +35,7 @@ If `quotient=true`, then exploit the quotient ring structure defined by the equa
 If `merge=true`, perform the PSD block merging. 
 If `solve=false`, then do not solve the SDP.
 If `Gram=true`, then output the Gram matrix.
-If `MomentOne=true`, add an extra first order moment matrix to the moment relaxation.
+If `MomentOne=true`, add an extra first-order moment PSD constraint to the moment relaxation.
 
 # Input arguments
 - `pop`: vector of the objective, inequality constraints, and equality constraints

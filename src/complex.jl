@@ -39,7 +39,7 @@ If `ipart=false`, then use the real moment-HSOS hierarchy.
 If `solve=false`, then do not solve the SDP.
 If `Gram=true`, then output the Gram matrix.
 If `Mommat=true`, then output the moment matrix.
-If `MomentOne=true`, add an extra first order moment matrix to the moment relaxation.
+If `MomentOne=true`, add an extra first-order moment PSD constraint to the moment relaxation.
 
 # Input arguments
 - `pop`: vector of the objective, inequality constraints, and equality constraints
@@ -50,7 +50,7 @@ If `MomentOne=true`, add an extra first order moment matrix to the moment relaxa
 - `numeq`: number of equality constraints
 - `CS`: method of chordal extension for correlative sparsity (`"MF"`, `"MD"`, `false`)
 - `cliques`: the set of cliques used in correlative sparsity
-- `TS`: type of term sparsity (`"block"`, `"signsymmetry"`, `"MD"`, `"MF"`, `false`)
+- `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
 - `md`: tunable parameter for merging blocks
 - `normality`: normal order
 - `QUIET`: run in the quiet mode (`true`, `false`)
@@ -1057,7 +1057,6 @@ end
 
 function get_blocks(I, J, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques, cql, tsupp, basis, hbasis; blocks=[], eblocks=[], cl=[], 
     blocksize=[], TS="block", balanced=false, nb=0, merge=false, md=3)
-    status = ones(Int, cql)
     if isempty(blocks)
         blocks = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
         eblocks = Vector{Vector{Vector{UInt16}}}(undef, cql)

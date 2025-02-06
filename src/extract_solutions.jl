@@ -3,7 +3,7 @@ using RowEchelon
 """
     sol = extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-4)
 
-Extract a set of solutions for polynomial optimization.
+Extract a set of solutions for the polynomial optimization problem.
 
 # Input arguments
 - `pop`: polynomial optimization problem
@@ -100,6 +100,20 @@ function extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-2)
     return sol
 end
 
+"""
+    sol = extract_solutions_robust(n, d, moment; tol=1e-2)
+
+Extract a set of solutions for the polynomial optimization problem.
+
+# Input arguments
+- `n`: number of variables
+- `d`: relaxation order
+- `moment`: moment matrix
+- `tol`: tolerance to obtain the column echelon form
+
+# Output arguments
+- `sol`: a set of solutions
+"""
 function extract_solutions_robust(n, d, moment; tol=1e-2)
     basis = get_basis(n, d)
     ls = binomial(n+d-1, n)
@@ -130,7 +144,7 @@ end
 """
     sol = extract_solutions_pmo(n, d, p, moment; tol=1e-4)
 
-Extract a set of solutions for polynomial matrix optimization.
+Extract a set of solutions for the polynomial matrix optimization problem.
 
 # Input arguments
 - `n`: number of variables
