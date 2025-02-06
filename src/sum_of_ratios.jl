@@ -1,5 +1,5 @@
 """
-optimum = SumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, Groebnerbasis=false)
+    optimum = SumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, Groebnerbasis=false)
 
 Minimizing the sum of ratios p1/q1 + ... + pN/qN on the set defined by g >= 0 and h == 0.
 
@@ -59,7 +59,7 @@ function SumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, Groebnerb
 end
 
 """
-optimum = SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, Groebnerbasis=false)
+    optimum = SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, Groebnerbasis=false)
 
 Minimizing the sum of sparse ratios p1/q1 + ... + pN/qN on the set defined by g >= 0 and h == 0.
 

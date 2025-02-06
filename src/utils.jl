@@ -341,7 +341,7 @@ function sign_type(a::Vector{UInt16})
 end
 
 """
-p,coe,mon = add_poly!(model, vars, degree)
+    p,coe,mon = add_poly!(model, vars, degree)
 
 Generate an unknown polynomial of given degree whose coefficients are from the JuMP `model`.
 
@@ -371,7 +371,7 @@ function numele(a)
 end
 
 """
-show_blocks(data)
+    show_blocks(data)
 
 Display the block structure
 """
@@ -414,7 +414,7 @@ end
 
 # generate an SOS polynomial with variables vars and degree 2d
 """
-sos = add_SOS!(model, vars, d)
+    sos = add_SOS!(model, vars, d)
 
 Generate an SOS polynomial of degree 2d whose coefficients are from the JuMP `model`.
 

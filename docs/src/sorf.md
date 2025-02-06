@@ -28,6 +28,7 @@ Argument | Description | Default value
 SignSymmetry | Exploit sign symmetries | true
 Groebnerbasis | Work in the quotient ring by computing a Gröbner basis | false
 
+## Methods
 ```@docs
 SumOfRatios
 SparseSumOfRatios

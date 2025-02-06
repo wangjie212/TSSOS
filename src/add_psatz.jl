@@ -16,8 +16,8 @@ mutable struct struct_data
 end
 
 """
-model,info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], TS="block", 
-SO=1, Groebnerbasis=false, QUIET=false, constrs=nothing)
+    model,info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], TS="block", 
+    SO=1, Groebnerbasis=false, QUIET=false, constrs=nothing)
 
 Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP `model`.
 

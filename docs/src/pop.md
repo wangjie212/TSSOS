@@ -90,6 +90,7 @@ Moment-SOS relaxations provide lower bounds on the optimum of the polynomial opt
 obj,sol,status = local_solution(data.n, data.m, data.supp, data.coe, numeq=data.numeq, startpoint=rand(data.n))
 ```
 
+## Methods
 ```@docs
 tssos_first
 tssos_higher!

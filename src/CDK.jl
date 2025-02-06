@@ -1,6 +1,6 @@
 function get_basis_indices(n::Int64, d::Int64) 
-"""
-    get_basis_indices(n::Int64, d::Int64) -> Matrix{Int64}
+    """
+        get_basis_indices(n::Int64, d::Int64) -> Matrix{Int64}
 
     Generate the multi-index representation of the monomial basis for `n` variables 
     of degree `d`.
@@ -14,7 +14,7 @@ function get_basis_indices(n::Int64, d::Int64)
       monomial. The rows correspond to the variables, and the columns correspond 
       to the exponents in each monomial. The total degree of each column sums to is always smaller or equal to d. 
     
-""" 
+    """ 
     
     sd = binomial(n + d, d)
     basis = zeros(Int64, n, sd)  
@@ -58,7 +58,7 @@ function get_basis_indices(n::Int64, d::Int64)
     return basis
 end
 
-function get_basis(vars, d::Int64)
+function get_basis(vars::Vector{PolyVar{true}}, d::Int64)
 
     """
     Generate the monomial basis of degree `d` for a given set of variables.
@@ -71,19 +71,17 @@ function get_basis(vars, d::Int64)
     - `Vector`: A vector containing the monomial basis of degree `d` of size binomial(length(vars)+d,d). 
                 Each monomial is represented as a product of the variables raised to their corresponding powers.
     """
-    b_indices=get_basis_indices(length(vars),d)
+    b_indices = get_basis_indices(length(vars),d)
 
     monomial_basis = [] 
     for col in 1:size(b_indices, 2)
-        monomials = vars .^ (b_indices[:, col])
+        monomials = vars .^ b_indices[:, col]
         push!(monomial_basis, monomials)
     end
     
-    monob=prod.(monomial_basis)
+    monob = prod.(monomial_basis)
     return monob
 end
-
-
 
 function get_monomial_exponents(monomial, vars)
 
@@ -108,7 +106,6 @@ function get_monomial_exponents(monomial, vars)
     
     return exponents
 end
-
 
 function find_moment_matrix_entry(vars, d, target_exponents)
 
@@ -181,10 +178,6 @@ function extract_moment_vector(vars, d, monomials, Mm)
     
     return momemnt_vec_2d
 end
-        
-        
-
-
 
 function construct_CDK(vars, dc, Mm, threshold=0.001)
 
@@ -216,7 +209,7 @@ function construct_CDK(vars, dc, Mm, threshold=0.001)
     p_alpha_squared=[]   #Vector of orhonormal polynomials 
     
     for i=1:length(Qval)
-        push!(p_alpha_squared, (get_basis(vars,length(vars),dc)'*Qvec[:,i])^2)
+        push!(p_alpha_squared, (get_basis(vars, dc)'*Qvec[:,i])^2)
     end
 
     threshold=0.001
@@ -266,7 +259,7 @@ function construct_CDK_cs(x, dc, Mm, cliques, threshold=0.001)
     cliques_basis = [x[cliques[i]] for i=1:length(cliques)] 
     local_basis = []
     for i in 1:length(cliques)
-        push!(local_basis, get_basis(cliques_basis[i],length(cliques_basis[i]),dc))
+        push!(local_basis, get_basis(cliques_basis[i], dc))
     end
 
     for i = 1:length(cliques)
@@ -798,7 +791,6 @@ function find_clique_and_local_index(k, cliques)
     error("The index k=$k does not belong to any clique!")
 end
 
-
 function construct_marginal_CDK(vars, k, dc, Mm, threshold=0.001)
 
     """
@@ -829,7 +821,7 @@ function construct_marginal_CDK(vars, k, dc, Mm, threshold=0.001)
     p_alpha_squared=[]   #Vector of orhonormal polynomials 
     
     for j=1:length(Qval)
-        push!(p_alpha_squared, (get_basis([vars[k]],dc)'*Qvec[:,j])^2)
+        push!(p_alpha_squared, (get_basis([vars[k]], dc)'*Qvec[:,j])^2)
     end
 
     positiveEV = count(x -> abs(x) > threshold, Qval)
@@ -879,7 +871,7 @@ function construct_marginal_CDK_cs(vars, k, dc, Mm, cliques, threshold=0.001)
     p_alpha_squared=[]   #Vector of orhonormal polynomials 
     
     for j=1:length(Qval)
-        push!(p_alpha_squared, (get_basis([vars[k]],dc)'*Qvec[:,j])^2)
+        push!(p_alpha_squared, (get_basis([vars[k]], dc)'*Qvec[:,j])^2)
     end
 
     positiveEV = count(x -> abs(x) > threshold, Qval)
@@ -897,7 +889,7 @@ end
 
 function run_H2(pop,x,d,dc,local_sol,tau,beta=0.001)          
 
-    """`
+    """
     Applies H2 algorithm to a given POP instance
     
     # Arguments
@@ -997,9 +989,7 @@ function run_H2(pop,x,d,dc,local_sol,tau,beta=0.001)
     return [opt,optcdk],[initial_gap,gapcdk],Gammas,[ubRef,f(solcdk)],data.moment[1]
 end 
 
-
-
- function run_H2CS(pop,x,d,dc,local_sol,tau,beta=0.001)
+function run_H2CS(pop,x,d,dc,local_sol,tau,beta=0.001)
 
     """
     Applies H2CS algorithm to a given POP instance
