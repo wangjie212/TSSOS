@@ -46,6 +46,6 @@ solve | Solve the SDP relaxation | true
 Gram | Output Gram matrices | false
 Mommat | Output moment matrices | false
 
-## References
+### References
 
 1. [Sparse Polynomial Matrix Optimization](https://arxiv.org/abs/2411.15479), Jared Miller, Jie Wang, and Feng Guo, 2024.

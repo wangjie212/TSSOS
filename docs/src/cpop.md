@@ -63,6 +63,6 @@ Mommat | Output moment matrices | false
 solution | Extract an approximately optimal solution | false
 tol | Tolerance for certifying global optimality | 1e-4
 
-## References
+### References
 
 1. [Exploiting Sparsity in Complex Polynomial Optimization](https://link.springer.com/article/10.1007/s10957-021-01975-z), Jie Wang and Victor Magron, 2021.

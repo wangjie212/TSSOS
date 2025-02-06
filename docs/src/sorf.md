@@ -33,6 +33,6 @@ SumOfRatios
 SparseSumOfRatios
 ```
 
-## References
+### References
 
 1. [Exploiting Sign Symmetries in Minimizing Sums of Rational Functions](https://arxiv.org/abs/2405.09419), Feng Guo, Jie Wang, and Jianhao Zheng, 2024.

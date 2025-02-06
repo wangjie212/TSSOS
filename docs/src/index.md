@@ -1,7 +1,6 @@
 # TSSOS
 
 [TSSOS](https://github.com/wangjie212/TSSOS) aims to provide a user-friendly and efficient tool for solving optimization problems with polynomials, which is based on the structured moment-SOS hierarchy.
----
 
 ### Authors
 
