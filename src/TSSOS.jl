@@ -14,6 +14,7 @@ using COSMO
 using Dualization
 using Printf
 using AbstractAlgebra
+using Random
 # using Hypatia
 # using SDPT3
 # using SDPNAL

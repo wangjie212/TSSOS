@@ -336,6 +336,22 @@ Visit [SparseDynamicSystem](https://github.com/wangjie212/SparseDynamicSystem)
 ## Joint spetral radii
 Visit [SparseJSR](https://github.com/wangjie212/SparseJSR)
 
+## Christoffel-Darboux Kernels 
+Given a measure $\mu$ supported on $\Omega \in \mathbb{R}^n$, and a degree $d \in \mathbb{N}^{*}$, one can define, whenever the moment matrix $M_d^{\mu}$ is invertible,  the Christoffel-Darboux kernel of order $d$:
+
+$$
+K_d^\mu: \mathbb{R}^n\times\mathbb{R}^n \to \mathbb{R}, \quad (x,y)\mapsto v_d(x)^\top (M_d^{\mu})^{-1} v_d(y),
+$$
+
+where $v_d$ is the standard monomial basis of order $d$.
+
+Then, for any $\mathbf{x} \in \mathbf{R}^n$, the Christoffel polynomial $\Lambda_d^{\mu}$ is an SOS polynomial of degree $2d$ defined as $\Lambda_d^{\mu}(\mathbf{x}):=K_d^\mu(x,x)$.
+
+In practice, when solving a particular POP instance via moment-SOS relaxations, we have access to a sequence of pseudo-moments $y$, to which we can associate the Christoffel polynomial $\Lambda_d^{y}$. 
+The sublevel sets of $\Lambda_d^{y}$ provide an approximation of the support of a measure that is concentrated on the global minimizers of the original POP.
+
+For more information on how to construct Christoffel polynomials and how to use them to strengthen the bounds from (correlatively-sparse) Moment-SOS relaxations, visit [CDK_Bound_Strengthening](https://github.com/SoDvc2226/CDK_Bound_Strengthening).
+
 ## References
 [1] [TSSOS: A Moment-SOS hierarchy that exploits term sparsity](https://arxiv.org/abs/1912.08899)  
 [2] [Chordal-TSSOS: a moment-SOS hierarchy that exploits term sparsity with chordal extension](https://arxiv.org/abs/2003.03210)  
@@ -344,7 +360,11 @@ Visit [SparseJSR](https://github.com/wangjie212/SparseJSR)
 [5] [Sparse polynomial optimization: theory and practice](https://arxiv.org/abs/2208.11158)  
 [6] [Strengthening Lasserre's Hierarchy in Real and Complex Polynomial Optimization](https://arxiv.org/abs/2404.07125)  
 [7] [Exploiting Sign Symmetries in Minimizing Sums of Rational Functions](https://arxiv.org/abs/2405.09419)  
+[8] [Leveraging Christoffel-Darboux Kernels to Strenghten Moment-SOS Relaxations](https://arxiv.org/pdf/2501.14281)
 
 ## Contact
 [Jie Wang](https://wangjie212.github.io/jiewang/): wangjie212@amss.ac.cn  
+
 [Victor Magron](https://homepages.laas.fr/vmagron/): vmagron@laas.fr
+
+[Srećko Ðurašinović](https://github.com/SoDvc2226): srecko001@e.ntu.edu.sg
