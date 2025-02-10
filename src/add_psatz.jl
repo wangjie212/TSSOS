@@ -158,6 +158,7 @@ function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cl
     ltsupp = size(tsupp, 2)
     cons = [AffExpr(0) for i=1:ltsupp]
     pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, cql)
+    mul = nothing
     if l > 0
         mul = Vector{Vector{Vector{VariableRef}}}(undef, cql)
     end

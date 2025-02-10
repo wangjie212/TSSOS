@@ -22,12 +22,6 @@ supp = get_nbasis(n, 2d, var=Vector(n:-1:1))
 moment = get_moment(n, supp, -ones(n), ones(n))
 @objective(model, Min, sum(moment.*wc))
 optimize!(model)
-status = termination_status(model)
-if status != MOI.OPTIMAL
-    println("termination status: $status")
-    status = primal_status(model)
-    println("solution status: $status")
-end
 objv = objective_value(model)
 @show objv
 

@@ -39,4 +39,22 @@ opt,sol,data = cs_tssos_first(pop, x, d, numeq=1, TS="block", Gram=true, solutio
 opt,sol,data = cs_tssos_higher!(data, TS="MD", solution=true, QUIET=true)
 # optimum = 0.7174253409780793
 
+using JuMP
+using MosekTools
+
+@polyvar x[1:3]
+f = x[1]^2 + x[1]*x[2] + x[2]^2 + x[2]*x[3] + x[3]^2
+d = 2 # set the relaxation order
+@polyvar y[1:2]
+h = [x[1]^2 + x[2]^2 + y[1]^2-1, x[2]^2 + x[3]^2 + y[2]^2 - 1]
+model = Model(optimizer_with_attributes(Mosek.Optimizer))
+@variable(model, lower)
+nonneg = f - lower*sum(x.^2)
+model,info = add_psatz!(model, nonneg, [x; y], [], h, d, TS="block", Groebnerbasis=true)
+@objective(model, Max, lower)
+optimize!(model)
+optimum = objective_value(model)
+@show optimum
+# optimum = 0.29289321228548393
+
 println("Run successfully!")
