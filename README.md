@@ -350,7 +350,7 @@ Then, for any $\mathbf{x} \in \mathbf{R}^n$, the Christoffel polynomial $\Lambda
 In practice, when solving a particular POP instance via moment-SOS relaxations, we have access to a sequence of pseudo-moments $y$, to which we can associate the Christoffel polynomial $\Lambda_d^{y}$. 
 The sublevel sets of $\Lambda_d^{y}$ provide an approximation of the support of a measure that is concentrated on the global minimizers of the original POP.
 
-For more information on how to construct Christoffel polynomials and how to use them to strengthen the bounds from (correlatively-sparse) Moment-SOS relaxations, visit [CDK_Bound_Strengthening](https://github.com/SoDvc2226/CDK_Bound_Strengthening).
+For more information on how to construct Christoffel polynomials and how to use them to strengthen the bounds from (correlatively-sparse) Moment-SOS relaxations, visit [CDK_Bound_Strengthening](https://github.com/SoDvc2226/CDK_Bound_Strengthening) or `docs/src/technique.md`.
 
 ## References
 [1] [TSSOS: A Moment-SOS hierarchy that exploits term sparsity](https://arxiv.org/abs/1912.08899)  
