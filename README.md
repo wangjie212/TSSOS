@@ -151,6 +151,27 @@ Output
 **moment**: moment matrices (set Mommat=true)  
 **flag**: 0 if global optimality is certified; 1 otherwise  
 
+### Exploiting symmetries
+TSSOS also supports exploiting symmetries for polynomial optimization problems (thanks to [SymbolicWedderburn.jl](https://github.com/kalmarek/SymbolicWedderburn.jl)).
+
+```Julia
+using DynamicPolynomials
+using PermutationGroups
+@polyvar x[1:3]
+f = sum(x) + sum(x.^4)
+pop = [f, 1 - sum(x.^2)]
+order = 2 # set the relaxation order
+G = PermGroup([perm"(1,2,3)", perm"(1,2)"]) # define the permutation group acting on variables
+opt,basis,Gram = tssos_symmetry(pop, x, order, G)
+```
+
+Options  
+**numeq**: number of equality constraints  
+
+Output  
+**basis**: symmetry adapted basis
+**Gram**: Gram matrices
+
 ## The AC-OPF problem
 Check out `example/runopf.jl` and `example/modelopf.jl`.
 

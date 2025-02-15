@@ -1,4 +1,4 @@
-# find the position of an entry a in a sorted sequence A
+# find the location of an entry a in a sorted sequence A
 function bfind(A, l, a)
     low = 1
     high = l
@@ -428,6 +428,32 @@ Generate an SOS polynomial of degree 2d whose coefficients are from the JuMP `mo
 """
 function add_SOS!(model, vars, d)
     basis = vcat([MultivariatePolynomials.monomials(vars, i) for i = 0:d]...)
+    sos = 0
+    pos = @variable(model, [1:length(basis), 1:length(basis)], PSD)
+    for j = 1:length(basis), k = j:length(basis)
+        if j == k
+            @inbounds sos += pos[j,k]*basis[j]*basis[k]
+        else
+            @inbounds sos += 2*pos[j,k]*basis[j]*basis[k]
+        end
+    end
+    return sos
+end
+
+# generate an SOS polynomial with monomial `basis`
+"""
+    sos = add_SOS!(model, basis)
+
+Generate an SOS polynomial with monomial `basis` whose coefficients are from the JuMP `model`.
+
+# Input arguments
+- `model`: a JuMP optimization model
+- `basis`: monomial basis
+
+# Output arguments
+- `sos`: the sos polynomial 
+"""
+function add_SOS!(model, basis)
     sos = 0
     pos = @variable(model, [1:length(basis), 1:length(basis)], PSD)
     for j = 1:length(basis), k = j:length(basis)
