@@ -24,7 +24,7 @@ cosmo_para, mosek_para, add_psatz!, add_poly!, get_nbasis, get_moment, get_momen
 solve_hpop, get_signsymmetry, SumOfRatios, SparseSumOfRatios, LinearPMI_first, LinearPMI_higher!, 
 show_blocks, complex_to_real, add_SOSMatrix!, sparseobj, get_mmoment, extract_solutions, extract_solutions_robust, 
 extract_solutions_pmo, extract_solutions_robust_pmo, extract_weight_matrix, add_SOS!, tssos_symmetry,
-run_H1, run_H1CS, run_H2, run_H2CS
+run_H1, run_H1CS, run_H2, run_H2CS, construct_CDK, construct_marginal_CDK, construct_CDK_cs, construct_marginal_CDK_cs
 
 include("clique_merge.jl")
 include("blockpop_uncons.jl")
