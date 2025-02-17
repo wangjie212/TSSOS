@@ -7,3 +7,7 @@
 ## Term Sparsity
 
 ## Symmetry
+
+```@docs
+tssos_symmetry
+```

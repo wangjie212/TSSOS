@@ -122,7 +122,7 @@ One may set solver="Mosek" or solver="COSMO" to specify the SDP solver invoked b
 
 The parameters of COSMO could be tuned by
 
-```
+```Julia
 settings = cosmo_para()
 settings.eps_abs = 1e-5 # absolute residual tolerance
 settings.eps_rel = 1e-5 # relative residual tolerance
@@ -133,7 +133,7 @@ and run for instance tssos_first(..., cosmo_setting=settings)
 
 The parameters of Mosek could be tuned by
 
-```
+```Julia
 settings = mosek_para()
 settings.tol_pfeas = 1e-8 # primal feasibility tolerance
 settings.tol_dfeas = 1e-8 # dual feasibility tolerance

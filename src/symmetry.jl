@@ -1,21 +1,21 @@
-function poly_norm(p, group, action)
-    supp = MultivariatePolynomials.monomials(p)
-    coe = MultivariatePolynomials.coefficients(p)
-    nsupp = [normalform(mon, group, action) for mon in supp]
-    supp = copy(nsupp)
-    sort!(supp)
-    unique!(supp)
-    ncoe = zeros(length(supp))
-    for i = 1:length(nsupp)
-        @inbounds ind = bfind(supp, length(supp), nsupp[i])
-        @inbounds ncoe[ind] += coe[i]
-    end
-    return supp, ncoe
-end
+"""
+    opt,basis,Gram = tssos_symmetry(pop, x, d, group; numeq=0, QUIET=false)
 
-function normalform(mon, group, action)
-    return minimum([SymbolicWedderburn.action(action, g, mon) for g in group])
-end
+Compute the symmetry adapted moment-SOS relaxation for polynomial optimization problems.
+
+# Input arguments
+- `pop`: polynomial optimization problem
+- `x`: POP variables
+- `d`: relaxation order
+- `group`: permutation group acting on POP variables 
+- `numeq`: number of equality constraints
+- `QUIET`: run in the quiet mode (`true`, `false`)
+
+# Output arguments
+- `opt`: optimum
+- `basis`: symmetry adapted basis
+- `Gram`: Gram matrix
+"""
 
 function tssos_symmetry(pop, x, d, group; numeq=0, QUIET=false)
     println("*********************************** TSSOS ***********************************")
@@ -29,13 +29,13 @@ function tssos_symmetry(pop, x, d, group; numeq=0, QUIET=false)
     basis_full = MultivariatePolynomials.monomials(x, 0:2d)
     basis_half = MultivariatePolynomials.monomials(x, 0:d)
     wedderburn = WedderburnDecomposition(Float64, group, action, basis_full, basis_half)
-    basis = [[wedderburn.Uπs[i].basis[j,:]'*basis_half for j=1:size(wedderburn.Uπs[i].basis, 1)] for i = 1:length(wedderburn.Uπs)]
+    basis = [[wedderburn.Uπs[i].basis[j,:]'*basis_half for j=1:size(wedderburn.Uπs[i].basis, 1)] for i = 1:length(wedderburn.Uπs)] # This is the symmetry adapted basis
     end
     if QUIET == false
         mb = maximum(length.(basis))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    tsupp = [minimum(basis_full[item.nzind]) for item in wedderburn.invariants]
+    tsupp = [minimum(basis_full[item.nzind]) for item in wedderburn.invariants] # This is the basis for the invariant ring
     sort!(tsupp)
     ltsupp = length(tsupp)
     if QUIET == false
@@ -119,4 +119,50 @@ function tssos_symmetry(pop, x, d, group; numeq=0, QUIET=false)
     @show optimum
     GramMat = [value.(pos[i]) for i = 1:length(wedderburn.Uπs)]
     return optimum,basis,GramMat
+end
+
+"""
+    supp,coe = poly_norm(p, group, action)
+
+Compute the normal form of a polynomial under the action of a group.
+
+# Input arguments
+- `p`: polynomial
+- `group`: group
+- `action`: describing how the group acts on monomials
+
+# Output arguments
+- `supp`: support of the normal form
+- `coe`: coefficients of  the normal form
+"""
+function poly_norm(p, group, action)
+    supp = MultivariatePolynomials.monomials(p)
+    coe = MultivariatePolynomials.coefficients(p)
+    nsupp = [normalform(mon, group, action) for mon in supp]
+    supp = copy(nsupp)
+    sort!(supp)
+    unique!(supp)
+    ncoe = zeros(length(supp))
+    for i = 1:length(nsupp)
+        @inbounds ind = bfind(supp, length(supp), nsupp[i])
+        @inbounds ncoe[ind] += coe[i]
+    end
+    return supp, ncoe
+end
+
+"""
+    mon = normalform(mon, group, action)
+
+Compute the normal form of a monomial under the action of a group.
+
+# Input arguments
+- `mon`: monomial
+- `group`: group
+- `action`: describing how the group acts on monomials
+
+# Output arguments
+- `mon`: normal form of the monomial
+"""
+function normalform(mon, group, action)
+    return minimum([SymbolicWedderburn.action(action, g, mon) for g in group])
 end

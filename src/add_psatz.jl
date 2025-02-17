@@ -40,7 +40,7 @@ Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP 
 - `model`: the modified JuMP model
 - `info`: other auxiliary data
 """
-function add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], TS="block", SO=1, Groebnerbasis=false, QUIET=false, constrs=nothing)
+function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], TS="block", SO=1, Groebnerbasis=false, QUIET=false, constrs=nothing) where {T<:Union{Number,AffExpr}}
     n = length(vars)
     m = length(ineq_cons)
     if ineq_cons != []

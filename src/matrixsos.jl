@@ -1,7 +1,7 @@
 mutable struct poly_data
     n::Int
     supp::Vector{Vector{UInt16}}
-    coe::Vector{Number}
+    coe::Vector{Union{Number, AffExpr}}
 end
 
 mutable struct poly_matrix
@@ -103,7 +103,7 @@ function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polyno
         unique!.(ksupp)
         sort!.(ksupp)
     end
-    blocks,cl,blocksize = get_mblocks(I, obj_matrix.m, cons_matrix, cliques, cql, ksupp, basis, gbasis, QUIET=QUIET, blocks=[], cl=[], blocksize=[], TS=TS)
+    blocks,cl,blocksize = get_mblocks(I, obj_matrix.m, cons_matrix, cliques, cql, ksupp, basis, gbasis, QUIET=QUIET, TS=TS)
     opt,ksupp,GramMat,moment,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Mommat=Mommat)
     data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, cl, blocksize, blocks, cql, cliquesize, cliques, I, ncc, GramMat, moment, SDP_status)
     return opt,data
@@ -948,4 +948,49 @@ function get_mmoment(measure, tsupp, cql, basis, om)
         moment[i] = Symmetric(moment[i],:U)
     end
     return moment
+end
+
+function add_psatz!(model, nonneg::Matrix{Polynomial{true, T}}, vars, ineq_cons, eq_cons, order; TS="block", QUIET=false) where {T<:Union{Number,AffExpr}}
+    n = length(vars)
+    m = size(nonneg, 1)
+    obj_matrix = poly_matrix(m, Vector{poly_data}(undef, Int((m+1)*m/2)))
+    for i = 1:m, j = i:m
+        _,supp,coe = polys_info([nonneg[i,j]], vars)
+        obj_matrix.poly[i+Int(j*(j-1)/2)] = poly_data(n, supp[1], coe[1])
+    end
+    ksupp = Vector{Vector{Vector{UInt16}}}(undef, Int((m+1)*m/2))
+    if TS != false
+        basis = get_sbasis(Vector(1:n), order)
+        for i = 1:m, j = i:m
+            ind = i + Int(j*(j-1)/2)
+            ksupp[ind] = copy(obj_matrix.poly[ind].supp)
+            if i == j
+                for item in basis
+                    push!(ksupp[ind], sadd(item, item))
+                end
+            end
+        end
+        unique!.(ksupp)
+        sort!.(ksupp)
+    end
+    sos = add_SOSMatrix!(model, vars, m, order, TS=TS, QUIET=QUIET, tsupp=ksupp)[1]
+    # if QUIET == false
+    #     println("The maximal size of blocks is $mb.")
+    # end
+    for g in ineq_cons
+        G = Matrix{Polynomial{true, T}}(undef, 1, 1)
+        G[1,1] = g
+        sos += add_SOSMatrix!(model, vars, m, order - Int(ceil(maxdegree(g)/2)), constraint=G, TS=TS, QUIET=QUIET, tsupp=ksupp)[1]*g
+    end
+    for h in eq_cons
+        basis = MultivariatePolynomials.monomials(vars, 0:2*order-maxdegree(h))
+        for i = 1:m, j = i:m
+            free = @variable(model, [1:length(basis)])
+            sos[i,j] += free'*basis*h
+        end
+    end
+    for i = 1:m, j = i:m
+        @constraint(model, MultivariatePolynomials.coefficients(sos[i,j] - nonneg[i,j]) .== 0)
+    end
+    return model
 end

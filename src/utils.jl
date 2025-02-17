@@ -244,7 +244,7 @@ function npolys_info(p, x)
     m = length(p)
     n = length(x)
     dp = zeros(Int, m)
-    pcoe = Vector{Vector{Float64}}(undef, m)
+    pcoe = Vector{Vector{Union{Number, AffExpr}}}(undef, m)
     psupp = Vector{Matrix{UInt8}}(undef, m)
     plt = Vector{Int}(undef, m)
     for i = 1:m
@@ -281,7 +281,7 @@ function polys_info(pop, x; nb=0)
             pop[i] = rem(pop[i], gb)
         end
     end
-    coe = Vector{Vector{Float64}}(undef, m+1)
+    coe = Vector{Vector{Union{Number, AffExpr}}}(undef, m+1)
     supp = Vector{Vector{Vector{UInt16}}}(undef, m+1)
     for k = 1:m+1
         mon = MultivariatePolynomials.monomials(pop[k])
