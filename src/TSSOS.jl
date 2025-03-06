@@ -1,6 +1,6 @@
 module TSSOS
 
-using ChordalGraph
+# using ChordalGraph
 using MosekTools
 using JuMP
 using Graphs
@@ -30,8 +30,8 @@ run_H1, run_H1CS, run_H2, run_H2CS, construct_CDK, construct_marginal_CDK, const
 
 function chordal_cliques!(G; method="MF", minimize=false)
     # choose algorithm
-    alg = method == "MF" && minimize  ? CliqueTrees.MinimalChordal(CliqueTrees.MF())  :
-          method == "MD" && minimize  ? CliqueTrees.MinimalChordal(CliqueTrees.MMD()) :
+    alg = method == "MF" && minimize ? CliqueTrees.MinimalChordal(CliqueTrees.MF())  :
+          method == "MD" && minimize ? CliqueTrees.MinimalChordal(CliqueTrees.MMD()) :
           method == "MF" && !minimize ? CliqueTrees.MF()                              :
           method == "MD" && !minimize ? CliqueTrees.MMD()                             :
           error()
