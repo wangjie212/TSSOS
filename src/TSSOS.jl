@@ -58,6 +58,20 @@ function chordal_cliques!(G; method="MF", minimize=false)
     return maximal_cliques, cql, cliquesize
 end
 
+function add_clique!(G, nodes)
+    for i in 1:length(nodes)-1, j in i+1:length(nodes)
+        add_edge!(G, nodes[i], nodes[j])
+    end
+end
+
+function max_cliques(G)
+    cliques = convert(Vector{Vector{UInt16}}, maximal_cliques(G))
+    sort!.(cliques)
+    cliquesize = length.(cliques)
+    cql = length(cliquesize)
+    return cliques,cql,cliquesize
+end
+
 include("clique_merge.jl")
 include("blockpop_uncons.jl")
 include("blockpop_cons.jl")

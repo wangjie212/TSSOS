@@ -73,6 +73,7 @@ function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons
     fsupp,fcoe = poly_info(nonneg, vars)
     if CS != false
         if cliques == []
+            CS = CS == true ? "MF" : CS
             cliques,cql,cliquesize = clique_decomp(n, m, length(eq_cons), fsupp, gsupp, hsupp, alg=CS, QUIET=QUIET)
         else
             cql = length(cliques)

@@ -87,6 +87,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
         cliquesize = length.(cliques)
     else
         time = @elapsed begin
+        CS = CS == true ? "MF" : CS
         cliques,cql,cliquesize = clique_decomp(n, m, numeq, dc, supp, order=d, alg=CS, minimize=minimize)
         end
         if CS != false && QUIET == false

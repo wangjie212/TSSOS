@@ -2,7 +2,7 @@
 
 The sum-of-rational-functions optimization problem could be formulized as
 
-$$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ \sum\_{i=1}^N\frac{p_i(\mathbf{x})}{q_i(\mathbf{x})},$$
+$$\mathrm{inf}_{\mathbf{x}\in\mathbf{K}}\ \sum_{i=1}^N\frac{p_i(\mathbf{x})}{q_i(\mathbf{x})},$$
 
 where $p_i,q_i\in\mathbb{R}[\mathbf{x}]$ are polynomials and $\mathbf{K}$ is the basic semialgebraic set
 

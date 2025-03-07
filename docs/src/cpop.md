@@ -53,8 +53,8 @@ merge | Merge overlapping PSD blocks | false
 md | Parameter for tunning the merging strength | 3
 MomentOne | add a first-order moment PSD constraint for each variable clique | false
 solver | Specify an SDP solver: "Mosek" or "COSMO" | "Mosek"
-cosmo_setting | Parameters for the COSMO solver: cosmo_para(eps_abs, eps_rel, max_iter, time_limit) | cosmo_para(1e-5, 1e-5, 1e4, 0)
-mosek_setting | Parameters for the Mosek solver: cosmo_para(tol_pfeas, tol_dfeas, tol_relgap, time_limit, num_threads) | mosek_para(1e-8, 1e-8, 1e-8, -1, 0)
+cosmo\_setting | Parameters for the COSMO solver: cosmo\_para(eps\_abs, eps\_rel, max\_iter, time\_limit) | cosmo\_para(1e-5, 1e-5, 1e4, 0)
+mosek\_setting | Parameters for the Mosek solver: mosek\_para(tol\_pfeas, tol\_dfeas, tol\_relgap, time\_limit, num\_threads) | mosek\_para(1e-8, 1e-8, 1e-8, -1, 0)
 QUIET | Silence the output| false
 solve | Solve the SDP relaxation | true
 dualize | Solve the dual SDP problem | false

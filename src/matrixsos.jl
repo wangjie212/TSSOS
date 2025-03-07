@@ -77,6 +77,7 @@ function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polyno
             cons_matrix[k].poly[i+Int(j*(j-1)/2)] = poly_data(n, supp[1], coe[1])
         end
     end
+    CS = CS == true ? "MF" : CS
     cliques,cql,cliquesize = clique_decomp(n, m, d, dG, obj_matrix, cons_matrix, alg=CS, minimize=true)
     I,ncc = assign_constraint(m, cons_matrix, cliques, cql)
     basis = Vector{Vector{Vector{UInt16}}}(undef, cql)

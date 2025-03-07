@@ -20,7 +20,7 @@ opt,sol,data = tssos_first(pop, x, 2, numeq=1, quotient=false, TS="block", Gram=
 opt,sol,data = tssos_first(pop, x, 2, numeq=1, quotient=true, TS="block", solution=true, QUIET=true)
 # optimum = 0.68619257
 
-opt,sol,data = tssos_higher!(data, TS="MD", solution=true, QUIET=true)
+opt,sol,data = tssos_higher!(data, TS="MF", solution=true, QUIET=true)
 # optimum = 0.68619256
 
 opt,sol,data = tssos_first(pop, x, 2, numeq=1, quotient=false, TS=false, solution=true, QUIET=true)
