@@ -15,9 +15,9 @@ set_optimizer_attribute(model, MOI.Silent(), true)
 v, vc, vb = add_poly!(model, x, 2d-2)
 w, wc, wb = add_poly!(model, x, 2d)
 Lv = v - sum(f .* differentiate(v, x))
-model,info1 = add_psatz!(model, Lv, x, g, [], d, QUIET=true, CS=true, cliques=[[1;2;3]], TS="block", SO=1, Groebnerbasis=false, constrs="con1")
-model,info2 = add_psatz!(model, w, x, g, [], d, QUIET=true, CS=true, TS="block", SO=1, Groebnerbasis=false)
-model,info3 = add_psatz!(model, w-v-1, x, g, [], d, QUIET=true, CS=true, TS="block", SO=1, Groebnerbasis=false)
+info1 = add_psatz!(model, Lv, x, g, [], d, QUIET=true, CS=true, cliques=[[1;2;3]], TS="block", SO=1, Groebnerbasis=false, constrs="con1")
+info2 = add_psatz!(model, w, x, g, [], d, QUIET=true, CS=true, TS="block", SO=1, Groebnerbasis=false)
+info3 = add_psatz!(model, w-v-1, x, g, [], d, QUIET=true, CS=true, TS="block", SO=1, Groebnerbasis=false)
 supp = get_nbasis(n, 2d, var=Vector(n:-1:1))
 moment = get_moment(n, supp, -ones(n), ones(n))
 @objective(model, Min, sum(moment.*wc))
@@ -35,5 +35,4 @@ for i = 1:info1.cql
 end
 
 # retrieve moment matrices
-moment = [-dual(constraint_by_name(model, "con1[$i]")) for i=1:size(info1.tsupp, 2)]
-MomMat = get_moment_matrix(moment, info1.tsupp, info1.cql, info1.basis)
+MomMat = get_moment_matrix(-dual(constraint_by_name(model, "con1")), info1)

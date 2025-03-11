@@ -275,12 +275,12 @@ function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons
         end
     end
     if constrs !== nothing
-        @constraint(model, [i=1:ltsupp], cons[i]==bc[i], base_name=constrs)
+        @constraint(model, cons==bc, base_name=constrs)
     else
-        @constraint(model, cons.==bc)
+        @constraint(model, cons==bc)
     end
     info = struct_data(cql,cliquesize,cliques,basis,cl,blocksize,blocks,eblocks,tsupp,I,J,pos,mul,constrs)
-    return model,info
+    return info
 end
 
 function clique_decomp(n, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matrix{UInt8}}, hsupp::Vector{Matrix{UInt8}}; alg="MF", QUIET=false)
@@ -443,15 +443,15 @@ function get_moment(n, tsupp, lb, ub)
     return moment
 end
 
-function get_moment_matrix(moment, tsupp, cql, basis)
-    MomMat = Vector{Union{Float64, Symmetric{Float64}, Array{Float64,2}}}(undef, cql)
-    ltsupp = size(tsupp, 2)
-    for i = 1:cql
-        lb = size(basis[i][1], 2)
+function get_moment_matrix(moment, info)
+    MomMat = Vector{Union{Float64, Symmetric{Float64}, Array{Float64,2}}}(undef, info.cql)
+    ltsupp = size(info.tsupp, 2)
+    for i = 1:info.cql
+        lb = size(info.basis[i][1], 2)
         MomMat[i] = zeros(Float64, lb, lb)
         for j = 1:lb, k = j:lb
-            bi = basis[i][1][:, j] + basis[i][1][:, k]
-            Locb = bfind(tsupp, ltsupp, bi)
+            bi = info.basis[i][1][:, j] + info.basis[i][1][:, k]
+            Locb = bfind(info.tsupp, ltsupp, bi)
             if Locb !== nothing
                 MomMat[i][j,k] = moment[Locb]
             end
