@@ -16,7 +16,7 @@ mutable struct struct_data
 end
 
 """
-    model,info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], TS="block", 
+    info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], TS="block", 
     SO=1, Groebnerbasis=false, QUIET=false, constrs=nothing)
 
 Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP `model`.
@@ -37,7 +37,6 @@ Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP 
 - `constrs`: the constraint name used in the JuMP model
 
 # Output arguments
-- `model`: the modified JuMP model
 - `info`: other auxiliary data
 """
 function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], TS="block", SO=1, Groebnerbasis=false, QUIET=false, constrs=nothing) where {T<:Union{Number,AffExpr}}
