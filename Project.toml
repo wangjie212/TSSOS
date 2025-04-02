@@ -29,7 +29,6 @@ SemialgebraicSets = "8e049039-38e8-557d-ae3a-bc521ccf6204"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
-CliqueTrees = "0.5.1"
 DynamicPolynomials = "0.4.6"
 Mosek = "< 10.2.1"
 MosekTools = "< 0.15.2"
