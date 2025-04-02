@@ -12,7 +12,7 @@ pkg> add https://github.com/wangjie212/TSSOS
 - [Julia](https://julialang.org/)
 - [JuMP](https://github.com/jump-dev/JuMP.jl)
 - [Mosek](https://www.mosek.com/) or [COSMO](https://github.com/oxfordcontrol/COSMO.jl)
-- [ChordalGraph](https://github.com/wangjie212/ChordalGraph)
+- [CliqueTrees](https://github.com/AlgebraicJulia/CliqueTrees.jl)
 
 TSSOS has been tested on Ubuntu and Windows.
 
