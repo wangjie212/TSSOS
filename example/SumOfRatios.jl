@@ -61,16 +61,21 @@ opt,sol,data = cs_tssos_first(pop, [x;y;z;w], 3, numeq=3, TS=false, solution=fal
 # Example 5.1
 @polyvar x[1:3]
 @polyvar a
-d = 3
-M = 8
+d = 2
+M = 6
 p = [a^4*(x[1]^(6d) + x[2]^(6d) + x[3]^(6d)) + (x[1]^(4d)*x[2]^(2d) + x[2]^(4d)*x[3]^(2d) + x[3]^(4d)*x[1]^(2d)) +
 a^8*(x[1]^(2d)*x[2]^(4d) + x[2]^(2d)*x[3]^(4d) + x[3]^(2d)*x[1]^(4d)) for a in Vector(1:M-1)/M]
 q = [2*a^6*(x[1]^(4d)*x[2]^(2d) + x[2]^(4d)*x[3]^(2d) + x[3]^(4d)*x[1]^(2d)) + 2*a^2*(x[1]^(2d)*x[2]^(4d) + 
 x[2]^(2d)*x[3]^(4d) + x[3]^(2d)*x[1]^(4d)) + 3*(1-2*a^2+a^4-2*a^6+a^8)*x[1]^(2d)*x[2]^(2d)*x[3]^(2d) for a in Vector(1:M-1)/M]
 h = [3.0 - sum(x.^2)]
 
-@time opt = SumOfRatios(p, q, [], h, x, 3d, QUIET=true, SignSymmetry=false)
-@time opt = SumOfRatios(p, q, [], h, x, 3d, QUIET=true, SignSymmetry=true)
+@time opt = SumOfRatios(p, q, [], h, x, 3d, QUIET=false, SignSymmetry=true)
+@time opt = SumOfRatios(p, q, [], h, x, 3d, QUIET=false, SignSymmetry=false)
+@time opt = SumOfRatios(p, q, [], h, x, 3d, QUIET=false, dualize=true, SignSymmetry=false)
+
+@polyvar w[1:M-1]
+pop = [sum(w); h; [p[i]-w[i]*q[i] for i=1:M-1]]
+@time opt,sol,data = cs_tssos_first(pop, [x;w], 3d+1, numeq=M, TS="block", solution=false, QUIET=true)
 
 # Example 5.2
 c = [0.806; 0.517; 0.100; 0.908; 0.965; 0.669; 0.524; 0.902; 0.531; 0.876; 0.462; 0.491; 0.463; 0.714; 0.352; 
@@ -107,23 +112,29 @@ A = [9.681 0.667 4.783 9.095 3.517 9.325 6.544 0.211 5.122 2.020;
 4.138 2.562 2.532 9.661 5.611 5.500 6.886 2.341 9.699 6.500]
 
 N = 30
-n = 10
+n = 5
 @polyvar x[1:n]
 p = -ones(N)
 q = [sum((x[j]^2-A[i,j]/10)^2 for j=1:n) + c[i]/100 for i = 1:N]
 g = [0.6 - sum((x[i]^2-0.5)^2 for i=1:n)]
-@time opt = SumOfRatios(p, q, g, [], x, 2, QUIET=true, SignSymmetry=false)
-@time opt = SumOfRatios(p, q, g, [], x, 2, QUIET=true, SignSymmetry=true)
+k = 3
+@time opt = SumOfRatios(p, q, g, [], x, k, QUIET=true, dualize=true, SignSymmetry=false)
+@time opt = SumOfRatios(p, q, g, [], x, k, QUIET=true, SignSymmetry=false)
+@time opt = SumOfRatios(p, q, g, [], x, k, QUIET=true, SignSymmetry=true)
+
+@polyvar w[1:N]
+pop = [sum(w); g; [p[i]-w[i]*q[i] for i=1:N]]
+@time opt,sol,data = cs_tssos_first(pop, [x;w], 4, numeq=N, TS="block", solution=false, QUIET=true)
 
 # Example 5.3
 using MultivariatePolynomials
-Random.seed!(2)
-N = 12
-n = 7
-d = 5
+Random.seed!(1)
+N = 10
+n = 6
+d = 4
 pp = 0.05
 s = 3
-@polyvar x[1:n]	
+@polyvar x[1:n]
 p = -ones(N)
 mons = monomials(x, 0:d)
 ind = shuffle(Vector(1:length(mons)))[1:Int(floor(length(mons)*pp))]
@@ -133,22 +144,35 @@ for i = 1:N
 	q[i] = 1 + (rand(s)'*mons[ind[loc]])^2
 end
 g = [1 - sum(x.^2)]
+@time opt = SumOfRatios(p, q, g, [], x, d, QUIET=true, dualize=true, SignSymmetry=false)
 @time opt = SumOfRatios(p, q, g, [], x, d, QUIET=true, SignSymmetry=false)
 @time opt = SumOfRatios(p, q, g, [], x, d, QUIET=true, SignSymmetry=true)
 
+@polyvar w[1:N]
+pop = [sum(w); g; [p[i]-w[i]*q[i] for i=1:N]]
+@time opt,sol,data = cs_tssos_first(pop, [x;w], d+1, numeq=N, TS="block", solution=false, QUIET=true)
+
+
 # Example 5.4
-N = 60
+N = 20
 n = 2*N + 2
-d = 5
 @polyvar x[1:n]
 p = [sum(x[2*i-1:2*i+1].^2)*prod(x[2*i-1:2*i+1].^2) + x[2*i+2]^8 for i=1:N]
 q = [prod(x[2*i-1:2*i+2].^2) for i=1:N]
 h = [4 - sum(x[2*i-1:2*i+2].^2) for i=1:N]
+d = 5
+@time opt = SparseSumOfRatios(p, q, [], h, x, d, QUIET=true, dualize=true, SignSymmetry=false)
 @time opt = SparseSumOfRatios(p, q, [], h, x, d, QUIET=true, SignSymmetry=false)
 @time opt = SparseSumOfRatios(p, q, [], h, x, d, QUIET=true, SignSymmetry=true)
 
+@polyvar w[1:N]
+pop = [sum(w); h; [p[i]-w[i]*q[i] for i=1:N]]
+@time opt,sol,data = cs_tssos_first(pop, [x;w], d+1, numeq=2N, TS="block", solution=false, QUIET=true)
+@time opt,sol,data = cs_tssos_higher!(data, TS="block", solution=false, QUIET=true)
+
+
 # Example 5.5
-N = 10
+N = 5
 d = 2
 n = 2*N + 1	
 @polyvar x[1:n]
@@ -156,31 +180,40 @@ p = [x[2*i-1]^(6d) + x[2i]^(6d) + x[2i+1]^(6d) + 3*x[2i-1]^(2d)*x[2i]^(2d)*x[2i+
 q = [x[2i-1]^(4d)*x[2i]^(2d) + x[2i-1]^(2d)*x[2i]^(4d) + x[2i-1]^(4d)*x[2i+1]^(2d) + x[2i-1]^(2d)*x[2i+1]^(4d) + x[2i]^(4d)*x[2i+1]^(2d) + x[2i]^(2d)*x[2i+1]^(4d) for i = 1:N]
 h = [3 - sum(x[2*i-1:2*i+1].^2) for i = 1:N]
 
-@time opt = SparseSumOfRatios(p, q, [], h, x, 3d, QUIET=true, SignSymmetry=false)
 @time opt = SparseSumOfRatios(p, q, [], h, x, 3d, QUIET=true, SignSymmetry=true)
+@time opt = SparseSumOfRatios(p, q, [], h, x, 3d, QUIET=true, SignSymmetry=false)
+@time opt = SparseSumOfRatios(p, q, [], h, x, 3d, QUIET=true, dualize=true, SignSymmetry=false)
+
+@polyvar w[1:N]
+pop = [sum(w); h; [p[i]-w[i]*q[i] for i=1:N]]
+@time opt,sol,data = cs_tssos_first(pop, [x;w], 3d+1, numeq=2N, TS="block", solution=false, QUIET=true)
+@time opt,sol,data = cs_tssos_higher!(data, TS="block", solution=false, QUIET=true)
+
 
 # Example 5.6
-n = 401
+n = 51
 @polyvar x[1:n]
 p = ones(n-1)
 q = [100(x[i+1]^2-x[i]^2)^2 + (x[i]^2-1)^2 + 1 for i = 1:n-1]
 g = [16-x[i]^2 for i=1:n]
-@time opt = SparseSumOfRatios(-p, q, g, [], x, 2, QUIET=true, SignSymmetry=false)
 @time opt = SparseSumOfRatios(-p, q, g, [], x, 2, QUIET=true, SignSymmetry=true)
+@time opt = SparseSumOfRatios(-p, q, g, [], x, 2, QUIET=true, SignSymmetry=false)
+@time opt = SparseSumOfRatios(-p, q, g, [], x, 2, QUIET=true, dualize=true, SignSymmetry=false)
 @polyvar w[1:n-1]
 pop = [-sum(w); g; [p[i]-w[i]*q[i] for i=1:n-1]]
 @time opt,sol,data = cs_tssos_first(pop, [x;w], 4, numeq=n-1, TS="block", solution=false, QUIET=true)
 
 # Example 5.7
-N = 60
+N = 20
 s = 6
 n = N + s
 @polyvar x[1:n]
 p = [sum(x[i+j-1]*x[i+j] for j=1:s) for i=1:N]
 q = [1 + sum(j*x[i+j-1]^2 for j=1:s+1) for i = 1:N]
 g = [1 - x[i]^2 for i=1:n]
-@time opt = SparseSumOfRatios(p, q, g, [], x, 3, QUIET=true, SignSymmetry=false)
 @time opt = SparseSumOfRatios(p, q, g, [], x, 3, QUIET=true, SignSymmetry=true)
+@time opt = SparseSumOfRatios(p, q, g, [], x, 3, QUIET=true, SignSymmetry=false)
+@time opt = SparseSumOfRatios(p, q, g, [], x, 3, QUIET=true, dualize=true, SignSymmetry=false)
 
 @polyvar w[1:N]
 pop = [sum(w); g; [p[i]-w[i]*q[i] for i=1:N]]
@@ -190,9 +223,9 @@ opt,sol,data = cs_tssos_higher!(data, TS="block", solution=false, QUIET=true)
 end
 
 # Example 6.1
-Random.seed!(2)
-n = 5
-N = 5
+Random.seed!(0)
+n = 4
+N = 10
 @polyvar x[1:2*n]	
 p = Polynomial{true, Float64}[]
 q = Polynomial{true, Float64}[]
@@ -207,5 +240,6 @@ end
 h = [1.0 - sum(x.^2)]
 
 d = 2
-@time opt = SumOfRatios(-p, q, [], h, x, d, QUIET=true, SignSymmetry=false)
 @time opt = SumOfRatios(-p, q, [], h, x, d, QUIET=true, SignSymmetry=true)
+@time opt = SumOfRatios(-p, q, [], h, x, d, QUIET=true, SignSymmetry=false)
+@time opt = SumOfRatios(-p, q, [], h, x, d, QUIET=true, dualize=true, SignSymmetry=false)

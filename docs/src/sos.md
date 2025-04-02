@@ -9,7 +9,7 @@ $$\mathrm{s.t.}\ a_{k0}+y_1a_{k1}+\cdots+y_na_{kn}\in\mathrm{SOS},\ k=1,\ldots,m
 where $\mathbf{c}\in\mathbb{R}^n$ and $a_{ki}\in\mathbb{R}[\mathbf{x}]$ are polynomials. In TSSOS, SOS constraints could be handled with the routine **add_psatz!**:
 
 ```Julia
-model,info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order, TS="block", SO=1, Groebnerbasis=false)
+info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order, TS="block", SO=1, Groebnerbasis=false)
 ```
 where **nonneg** is a nonnegative polynomial constrained to admit a Putinar's style SOS representation on the semialgebraic set defined by **ineq_cons** and **eq_cons**, and **SO** is the sparse order.
 
@@ -36,7 +36,7 @@ h = [x[1]^2+x[2]^2+y[1]^2-1, x[2]^2+x[3]^2+y[2]^2-1]
 model = Model(optimizer_with_attributes(Mosek.Optimizer))
 @variable(model, lower)
 nonneg = f - lower*sum(x.^2)
-model,info = add_psatz!(model, nonneg, [x; y], [], h, d, TS="block", Groebnerbasis=true)
+info = add_psatz!(model, nonneg, [x; y], [], h, d, TS="block", Groebnerbasis=true)
 @objective(model, Max, lower)
 optimize!(model)
 ```

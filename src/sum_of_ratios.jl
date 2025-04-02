@@ -15,7 +15,7 @@ Minimizing the sum of ratios p1/q1 + ... + pN/qN on the set defined by g >= 0 an
 - `SignSymmetry`: exploit sign symmetries or not (`true`, `false`)
 - `Groebnerbasis`: exploit the quotient ring structure or not (`true`, `false`)
 """
-function SumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, Groebnerbasis=false)
+function SumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=true, mosek_setting=mosek_para(), Groebnerbasis=false)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     N = length(p)
@@ -34,7 +34,12 @@ function SumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, Groebnerb
     end
     dq = maxdegree.(q)
     time = @elapsed begin
-    model = Model(optimizer_with_attributes(Mosek.Optimizer))
+    if dualize == false
+        model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
+                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
+    else
+        model = Model(dual_optimizer(Mosek.Optimizer))
+    end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     hh = Vector{Polynomial{true, AffExpr}}(undef, N-1)
     for i = 1:N-1
@@ -75,7 +80,7 @@ Minimizing the sum of sparse ratios p1/q1 + ... + pN/qN on the set defined by g 
 - `SignSymmetry`: exploit sign symmetries or not (`true`, `false`)
 - `Groebnerbasis`: exploit the quotient ring structure or not (`true`, `false`)
 """
-function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, Groebnerbasis=false)
+function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=true, mosek_setting=mosek_para(), Groebnerbasis=false)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     N = length(p)
@@ -107,7 +112,12 @@ function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, Gro
     U = [findall(j->!isempty(intersect(I[i], I[j])), i+1:N) .+ i for i=1:N-1]
     V = [findall(j->!isempty(intersect(I[i], I[j])), 1:i-1) for i=2:N]
     time = @elapsed begin
-    model = Model(optimizer_with_attributes(Mosek.Optimizer))
+    if dualize == false
+        model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
+                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
+    else
+        model = Model(dual_optimizer(Mosek.Optimizer))
+    end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     hh = Vector{Vector{Polynomial{true, AffExpr}}}(undef, N)
     for i = 1:N-1

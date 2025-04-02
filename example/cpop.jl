@@ -7,9 +7,9 @@ function cbasis(z)
     for i = 1:length(z)
         push!(basis, z[i])
     end
-    for i = 1:length(z), j = i:length(z)
-        push!(basis, z[i]*z[j])
-    end
+    # for i = 1:length(z), j = i:length(z)
+    #     push!(basis, z[i]*z[j])
+    # end
     return basis
 end
 
@@ -33,20 +33,27 @@ end
 # println(length(data.basis[1][1]))
 
 # minimizing a random complex quartic polynomial with unit-norm variables
-Random.seed!(1)
-n = 15
+for i = 1:500
+Random.seed!(i)
+n = 3
 @polyvar z[1:2n]
 basis1 = cbasis(z[1:n])
 basis2 = cbasis(z[n+1:2n])
 P = rand(length(basis1), length(basis1))
 Q = rand(length(basis1), length(basis1))
 pop = [basis2'*((P+P')/2+im*(Q-Q')/2)*basis1]
+# pop = [basis2'*((P+P')/2)*basis1]
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 2, nb=n, QUIET=false, CS=false, TS=false)
+opt1,sol,data = cs_tssos_first(pop, z, n, 2, nb=n, QUIET=true, CS=false, TS=false)
 end
 # println(length(data.basis[1][1]))
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 3, nb=n, QUIET=false, solve=true, CS=false, TS=false)
+opt2,sol,data = cs_tssos_first(pop, z, n, 3, nb=n, QUIET=true, CS=false, TS=false)
+end
+if abs(opt1-opt2) > 1e-6
+    println(i)
+    break
+end
 end
 # println(length(data.basis[1][1]))
 

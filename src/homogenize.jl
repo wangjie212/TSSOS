@@ -97,8 +97,8 @@ function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF",
     println("POP solving time: $time seconds.")
     MomMat = nothing
     if Mommat == true
-        moment = [-dual(constraint_by_name(model, "con[$i]")) for i=1:size(info.tsupp, 2)]
-        MomMat = get_moment_matrix(moment, info.tsupp, info.cql, info.basis)
+        moment = -dual(constraint_by_name(model, "con"))
+        MomMat = get_moment_matrix(moment, info)
     end
     return optimum,MomMat,info
 end
