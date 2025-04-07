@@ -1,6 +1,7 @@
 # TSSOS
 TSSOS aims to provide a user-friendly and efficient tool for solving optimization problems with polynomials, which is based on the structured moment-SOS hierarchy. To use TSSOS in Julia, run
 ```Julia
+pkg> add StarAlgebras#main
 pkg> add https://github.com/wangjie212/TSSOS
  ```
 
