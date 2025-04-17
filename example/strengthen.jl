@@ -1,42 +1,35 @@
 using TSSOS
 using DynamicPolynomials
 using Random
-
-# Minimizing a random real quadratic polynomial with binary variables
-Random.seed!(1)
-n = 5
-@polyvar x[1:n]
-Q = rand(n+1, n+1)
-Q = (Q+Q')/2
-f = [1; x]'*Q*[1; x]
-@time begin
-opt,sol,data = cs_tssos_first([f], x, 1, nb=n, QUIET=true, CS=false, TS=false)
-end
-@time begin
-opt,sol,data = cs_tssos_first([f], x, 2, nb=n, QUIET=true, CS=false, TS=false)
-end
-@time begin
-opt,sol,data = cs_tssos_first([f], x, 1, nb=n, QUIET=true, CS=false, TS=false, normality=1)
-end
-@time begin
-opt,sol,data = tssos_first([f], x, 1, nb=n, QUIET=true, TS=false, normality=1)
-end
+using LinearAlgebra
 
 # Minimizing a random complex quadratic polynomial with unit-norm variables
-Random.seed!(1)
+Random.seed!(2)
 n = 10
 @polyvar z[1:2n]
 P = rand(n+1, n+1)
 Q = rand(n+1, n+1)
 pop = [[1; z[n+1:2n]]'*((P+P')/2+im*(Q-Q')/2)*[1; z[1:n]]]
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 1, nb=n, QUIET=true, CS=false, TS=false)
+opt,sol,data = cs_tssos_first(pop, z, n, 1, nb=n, Mommat=true, QUIET=true, CS=false, TS=false)
 end
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 2, nb=n, QUIET=true, CS=false, TS=false)
+opt,sol,data = cs_tssos_first(pop, z, n, 2, nb=n, Mommat=true, QUIET=true, CS=false, TS=false)
 end
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 1, nb=n, QUIET=true, CS=false, TS=false, normality=1)
+opt,sol,data = cs_tssos_first(pop, z, n, 1, nb=n, Mommat=true, QUIET=true, CS=false, TS=false, normality=1)
+end
+
+eigvals(convert.(ComplexF64, data.moment[1][1]))
+
+@polyvar x[1:2n]
+rf = pop[1](z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
+rpop = [real.(coefficients(rf))'*monomials(rf)]
+for i = 1:n
+    push!(rpop, 1 - x[i]^2 - x[i+n]^2)
+end
+@time begin
+opt,sol,data = tssos_first(rpop, x, 2, numeq=n, quotient=true, QUIET=true, TS=false)
 end
 
 function basis(x)
@@ -66,40 +59,20 @@ end
 opt,sol,data = cs_tssos_first(pop, z, n, 3, numeq=1, QUIET=true, CS=false, TS=false)
 end
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 2, numeq=1, QUIET=true, CS=false, TS=false, normality=1)
+opt,sol,data = cs_tssos_first(pop, z, n, 2, Mommat=true, numeq=1, QUIET=true, CS=false, TS=false, normality=2)
 end
 
-# Minimizing a random sparse complex quartic polynomial on a unit sphere
-function sbasis(x)
-    basis = Monomial{true}[1]
-    for i = 1:length(x), j = i:length(x)
-        push!(basis, x[i]*x[j])
-    end
-    return basis
-end
+eigvals(convert.(ComplexF64, data.moment[1][1]))
 
-Random.seed!(1)
-n = 6
-@polyvar z[1:2n]
-cb1 = sbasis(z[1:n])
-cb2 = sbasis(z[n+1:2n])
-P = rand(length(cb1), length(cb1))
-Q = rand(length(cb1), length(cb1))
-pop = [cb2'*((P+P')/2+im*(Q-Q')/2)*cb1]
-push!(pop, 1 - sum(z[1:n]'*z[n+1:2n]))
+@polyvar x[1:2n]
+rf = pop[1](z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
+rpop = [real.(coefficients(rf))'*monomials(rf), 1 - sum(x.^2)]
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 2, numeq=1, QUIET=true, CS=false, TS="block")
-end
-@time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 3, numeq=1, QUIET=true, CS=false, TS="block", solve=false)
-opt,sol,data = cs_tssos_higher!(data, QUIET=true, TS="block")
-end
-@time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 2, numeq=1, QUIET=true, CS=false, TS="block", normality=1, NormalSparse=true)
+opt,sol,data = tssos_first(rpop, x, 2, numeq=1, quotient=false, QUIET=true, TS=false)
 end
 
 # Minimizing a random complex quartic polynomial with CS on multi-spheres
-Random.seed!(1)
+Random.seed!(2)
 l = 5
 n = 4l + 2
 @polyvar z[1:2n]
@@ -123,7 +96,17 @@ end
 opt,sol,data = cs_tssos_first(pop, z, n, 3, numeq=l, QUIET=true, TS=false)
 end
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 2, numeq=l, QUIET=true, TS=false, normality=1)
+opt,sol,data = cs_tssos_first(pop, z, n, 2, numeq=l, QUIET=true, TS=false, normality=2)
+end
+
+@polyvar x[1:2n]
+rf = pop[1](z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
+rpop = [real.(coefficients(rf))'*monomials(rf)]
+for i = 1:l
+    push!(rpop, 1 - sum(x[4i-3:4i+2].^2) - sum(x[n+4i-3:n+4i+2].^2))
+end
+@time begin
+opt,sol,data = cs_tssos_first(rpop, x, 2, numeq=l, QUIET=true, TS=false, solution=false)
 end
 
 # The AC-OPF problem
