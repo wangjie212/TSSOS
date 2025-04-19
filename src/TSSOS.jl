@@ -105,7 +105,5 @@ include("matrixsos.jl")
 include("sum_of_ratios.jl")
 include("CDK.jl")
 include("symmetry.jl")
-# include("SymbolicWedderburn/SymbolicWedderburn.jl")
-# using .SymbolicWedderburn
 
 end

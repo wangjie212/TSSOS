@@ -1,7 +1,6 @@
 # TSSOS
 TSSOS aims to provide a user-friendly and efficient tool for solving optimization problems with polynomials, which is based on the structured moment-SOS hierarchy. To use TSSOS in Julia, run
 ```Julia
-pkg> add StarAlgebras#main
 pkg> add https://github.com/wangjie212/TSSOS
  ```
 
@@ -14,26 +13,6 @@ pkg> add https://github.com/wangjie212/TSSOS
 - [JuMP](https://github.com/jump-dev/JuMP.jl)
 - [Mosek](https://www.mosek.com/) or [COSMO](https://github.com/oxfordcontrol/COSMO.jl)
 - [CliqueTrees](https://github.com/AlgebraicJulia/CliqueTrees.jl)
-
-```
-NOTE: TSSOS requires StarAlgebras v0.3.0. A direct installation via
-
-add https://github.com/wangjie212/TSSOS
-
-will throw an error:
-
-ERROR: Unsatisfiable requirements detected for package StarAlgebras [0c0c59c1]:
- StarAlgebras [0c0c59c1] log:
-├─possible versions are: 0.1.0 - 0.2.1 or uninstalled
-└─restricted to versions 0.3 by TSSOS [81648402] — no versions left
- └─TSSOS [81648402] log:
-  ├─possible versions are: 1.3.2 or uninstalled
- └─TSSOS [81648402] is fixed to version 1.3.2
-
-This could be resolved by running
-
-add StarAlgebras#main
-```
 
 TSSOS has been tested on Ubuntu and Windows.
 

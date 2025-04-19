@@ -2,13 +2,13 @@ struct VariablePermutation{V} <: SymbolicWedderburn.ByPermutations
     variables::V
 end
 
-function action(
+function SymbolicWedderburn.action(
     a::VariablePermutation,
     g::AbstractPermutations.AbstractPermutation,
     m::AbstractMonomial,
 )
     v = a.variables
-    return m(v => action(a, g, v))
+    return m(v => SymbolicWedderburn.action(a, g, v))
 end
 
 """
