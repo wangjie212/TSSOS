@@ -374,6 +374,31 @@ function polys_info(pop, x; nb=0)
     return n,supp,coe
 end
 
+function polys_info(pop, z, n; ctype=ComplexF64)
+    coe = Vector{Vector{ctype}}(undef, length(pop))
+    supp = Vector{Vector{Vector{Vector{UInt16}}}}(undef, length(pop))
+    for k in eachindex(pop)
+        mon = MultivariatePolynomials.monomials(pop[k])
+        coe[k] = MultivariatePolynomials.coefficients(pop[k])
+        lm = length(mon)
+        supp[k] = [[[], []] for i=1:lm]
+        for i = 1:lm
+            ind = mon[i].z .> 0
+            vars = mon[i].vars[ind]
+            exp = mon[i].z[ind]
+            for j in eachindex(vars)
+                l = ncbfind(z, 2n, vars[j])
+                if l <= n
+                    append!(supp[k][i][1], l*ones(UInt16, exp[j]))
+                else
+                    append!(supp[k][i][2], (l-n)*ones(UInt16, exp[j]))
+                end
+            end
+        end
+    end
+    return supp,coe
+end
+
 function resort(supp, coe; nb=0)
     if nb > 0
         supp = reduce_unitnorm.(supp, nb=nb)

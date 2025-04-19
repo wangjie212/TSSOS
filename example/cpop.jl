@@ -96,8 +96,6 @@ end
 @time begin
 opt,sol,data = cs_tssos_first(supp, coe, n, 2, numeq=l, TS="MD")
 end
-# mb = 2*maximum(maximum.(data.sb)) # maximal block size
-# println("n = $n, time = $time, mb = $mb")
 
 # AC-OPF problem
 include("D:/Programs/TSSOS/example/modelopf.jl")
@@ -116,12 +114,12 @@ coe = model.coe
 mc = maximum(abs.(coe[1]))
 coe[1] = coe[1]./mc
 
-time = @elapsed begin
-opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, tune=true, CS="MF", TS="block", MomentOne=false)
+t = @elapsed begin
+opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, CS="MF", TS="block", MomentOne=false)
 end
 opt *= mc
 maxc = maximum(popd.cliquesize) # maximal clique size
 mb = 2*maximum(maximum.([maximum.(popd.blocksize[i]) for i = 1:popd.cql])) # maximal block size
 gap = 100*(AC-opt)/AC # optimality gap
 println("n = $n, m = $m")
-println("mc = $maxc, opt = $opt, time = $time, mb = $mb, gap = $gap%")
+println("mc = $maxc, opt = $opt, time = $t, mb = $mb, gap = $gap%")

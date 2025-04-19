@@ -78,7 +78,7 @@ function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polyno
         end
     end
     CS = CS == true ? "MF" : CS
-    cliques,cql,cliquesize = clique_decomp(n, m, d, dG, obj_matrix, cons_matrix, alg=CS, minimize=true)
+    cliques,cql,cliquesize = clique_decomp(n, m, d, dG, obj_matrix, cons_matrix, alg=CS)
     I,ncc = assign_constraint(m, cons_matrix, cliques, cql)
     basis = Vector{Vector{Vector{UInt16}}}(undef, cql)
     gbasis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
@@ -132,7 +132,7 @@ function cs_tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
     return opt,data
 end
 
-function clique_decomp(n, m, d, dG, obj_matrix, cons_matrix; alg="MF", minimize=false)
+function clique_decomp(n, m, d, dG, obj_matrix, cons_matrix; alg="MF")
     if alg == false
         cliques,cql,cliquesize = [UInt16[i for i=1:n]],1,[n]
     else
@@ -152,7 +152,7 @@ function clique_decomp(n, m, d, dG, obj_matrix, cons_matrix; alg="MF", minimize=
         if alg == "NC"
             cliques,cql,cliquesize = max_cliques(G)
         else
-            cliques,cql,cliquesize = chordal_cliques!(G, method=alg, minimize=minimize)
+            cliques,cql,cliquesize = chordal_cliques!(G, method=alg, minimize=true)
         end
     end
     uc = unique(cliquesize)
@@ -238,7 +238,7 @@ function get_mblocks(om, cons_matrix, tsupp, basis, gbasis; TS="block", blocks=[
                 blocksize[k] = length.(blocks[k])
                 cl[k] = length(blocksize[k])            
             else
-                blocks[k],cl[k],blocksize[k] = chordal_cliques!(G, method=TS, minimize=false)
+                blocks[k],cl[k],blocksize[k] = chordal_cliques!(G, method=TS)
             end
             # sb = sort(Int.(unique(blocksize[k])), rev=true)
             # numb = [sum(blocksize[k].== i) for i in sb]
@@ -414,7 +414,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
             if i == j
                 cons[ind][1] += lower
             end
-            @constraint(model, [i=1:length(ksupp[ind])], cons[ind][i]==bc[i], base_name="con$ind")
+            @constraint(model, cons[ind]==bc, base_name="con$ind")
         end
         @objective(model, Max, lower)
         end
@@ -446,7 +446,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
                 end
             end
         end
-        measure = [[-dual(constraint_by_name(model, "con$i[$j]")) for j = 1:length(ksupp[i])] for i = 1:length(ksupp)]
+        measure = [-dual(constraint_by_name(model, "con$i")) for i = 1:length(ksupp)]
         moment = get_mmoment(measure, ksupp[1], cql, basis, om)
     end 
     return objv,ksupp,GramMat,moment,SDP_status
@@ -660,7 +660,7 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
                     @inbounds add_to_expression!(bc[Locb], λ[t-1], obj_matrix[t].poly[ind].coe[k])
                 end
             end
-            @constraint(model, [i=1:length(ksupp[ind])], cons[ind][i]==bc[i], base_name="con$ind")
+            @constraint(model, cons[ind]==bc, base_name="con$ind")
         end
         @objective(model, Min, b'*λ)
         end
@@ -682,7 +682,7 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
             println("solution status: $status")
         end
         println("optimum = $objv")
-        measure = [[-dual(constraint_by_name(model, "con$i[$j]")) for j = 1:length(ksupp[i])] for i = 1:length(ksupp)]
+        measure = [-dual(constraint_by_name(model, "con$i")) for i = 1:length(ksupp)]
         moment = get_mmoment(measure, ksupp[1], 1, basis, om)
     end
     return objv,ksupp,moment,SDP_status
@@ -711,7 +711,7 @@ function add_SOSMatrix!(model, vars, m, d; constraint=nothing, TS=false, QUIET=t
             blocksize = length.(blocks)
             cl = length(blocksize)            
         else
-            blocks,cl,blocksize = chordal_cliques!(G, method=TS, minimize=false)
+            blocks,cl,blocksize = chordal_cliques!(G, method=TS)
         end
     end
     if QUIET == false
@@ -764,7 +764,7 @@ function sparseobj(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polynomial{
             add_edge!(K, i, j)
         end
     end
-    blocks,cl,blocksize = chordal_cliques!(K, method="MF", minimize=true)
+    blocks,cl,blocksize = chordal_cliques!(K, method="MF")
     tsupp = []
     if TS != false
         tsupp = Vector{Vector{Vector{UInt16}}}(undef, Int((m+1)*m/2))

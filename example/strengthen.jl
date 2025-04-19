@@ -126,20 +126,20 @@ coe = model.coe
 mc = maximum(abs.(coe[1]))
 coe[1] = coe[1]./mc
 
-time = @elapsed begin
-opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, QUIET=true, normality=0, tune=true, CS="MF", TS="block")
+t = @elapsed begin
+opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, QUIET=true, normality=0, CS="MF", TS="block")
 end
 opt *= mc
 mb = maximum(maximum.([maximum.(popd.blocksize[i]) for i = 1:popd.cql])) # maximal block size
 gap = (AC-opt)*100/AC # optimality gap
 println("n = $n, m = $m")
-println("opt = $opt, time = $time, mb = $mb, gap = $gap%")
+println("opt = $opt, time = $t, mb = $mb, gap = $gap%")
 
-time = @elapsed begin
-opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, QUIET=true, normality=1, tune=true, CS="MF", TS="block")
+t = @elapsed begin
+opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, QUIET=true, normality=1, CS="MF", TS="block")
 end
 opt *= mc
 mb = maximum(maximum.([maximum.(popd.blocksize[i]) for i = 1:popd.cql])) # maximal block size
 gap = (AC-opt)*100/AC # optimality gap
 println("n = $n, m = $m")
-println("opt = $opt, time = $time, mb = $mb, gap = $gap%")
+println("opt = $opt, time = $t, mb = $mb, gap = $gap%")

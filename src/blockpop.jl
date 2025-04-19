@@ -405,7 +405,7 @@ function get_graph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{U
     return G
 end
 
-function get_blocks(tsupp, basis; nb=0, TS="block", minimize=false, QUIET=true, merge=false, md=3, signsymmetry=nothing)
+function get_blocks(tsupp, basis; nb=0, TS="block", QUIET=true, merge=false, md=3, signsymmetry=nothing)
     if TS == false
         blocksize = [size(basis,2)]
         blocks = [[i for i=1:size(basis,2)]]
@@ -417,7 +417,7 @@ function get_blocks(tsupp, basis; nb=0, TS="block", minimize=false, QUIET=true, 
             blocksize = length.(blocks)
             cl = length(blocksize)
         else
-            blocks,cl,blocksize = chordal_cliques!(G, method=TS, minimize=minimize)
+            blocks,cl,blocksize = chordal_cliques!(G, method=TS)
             if merge == true
                 blocks,cl,blocksize = clique_merge!(blocks, d=md, QUIET=true)
             end
@@ -481,7 +481,7 @@ function get_blocks(m, l, tsupp, supp, basis, hbasis; blocks=[], eblocks=[], cl=
                 blocksize[k] = length.(blocks[k])
                 cl[k] = length(blocksize[k])
             else
-                blocks[k],cl[k],blocksize[k] = chordal_cliques!(G, method=TS, minimize=false)
+                blocks[k],cl[k],blocksize[k] = chordal_cliques!(G, method=TS)
                 if merge == true
                     blocks[k],cl[k],blocksize[k] = clique_merge!(blocks[k], d=md, QUIET=true)
                 end

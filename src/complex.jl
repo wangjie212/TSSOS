@@ -59,15 +59,14 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function cs_tssos_first(pop::Vector{Polynomial{true, T}}, z, n, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], minimize=false, 
-    TS="block", merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, ipart=true, 
-    dualize=false, balanced=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
-    writetofile=false, normality=1) where {T<:Number}
+function cs_tssos_first(pop::Vector{Polynomial{true, T}}, z, n, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], TS="block", 
+    merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, ipart=true, dualize=false, 
+    balanced=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=1) where {T<:Number}
     ctype = ipart==true ? ComplexF64 : Float64
     supp,coe = polys_info(pop, z, n, ctype=ctype)
     ss = get_signsymmetry([subs(poly, z[n+1:2n]=>z[1:n]) for poly in pop], z[1:n])
-    opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, RemSig=RemSig, nb=nb, CS=CS, cliques=cliques, minimize=minimize,
-    TS=TS, merge=merge, md=md, solver=solver, reducebasis=reducebasis, QUIET=QUIET, solve=solve, signsymmetry=ss, 
+    opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, RemSig=RemSig, nb=nb, CS=CS, cliques=cliques, TS=TS, 
+    merge=merge, md=md, solver=solver, reducebasis=reducebasis, QUIET=QUIET, solve=solve, signsymmetry=ss, 
     solution=solution, ipart=ipart, dualize=dualize, balanced=balanced, MomentOne=MomentOne, Gram=Gram, 
     cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile, normality=normality, NormalSparse=true, cpop=pop, z=z)
     return opt,sol,data
@@ -82,7 +81,7 @@ Compute the first TS step of the CS-TSSOS hierarchy for constrained complex poly
 Here the complex polynomial optimization problem is defined by `supp` and `coe`, corresponding to the supports and coeffients of `pop` respectively.
 """
 function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], 
-    minimize=false, TS="block", merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, 
+    TS="block", merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, 
     ipart=true, dualize=false, balanced=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
     writetofile=false, signsymmetry=false, normality=1, NormalSparse=false, cpop=nothing, z=nothing)
     println("*********************************** TSSOS ***********************************")
@@ -106,7 +105,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
     else
         time = @elapsed begin
         CS = CS == true ? "MF" : CS
-        cliques,cql,cliquesize = clique_decomp(n, m, dc, supp, order=d, alg=CS, minimize=minimize)
+        cliques,cql,cliquesize = clique_decomp(n, m, dc, supp, order=d, alg=CS)
         end
         if CS != false && QUIET == false
             mc = maximum(cliquesize)
@@ -297,31 +296,6 @@ function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET
         data.SDP_status = SDP_status
     end
     return opt,sol,data
-end
-
-function polys_info(pop, z, n; ctype=ComplexF64)
-    coe = Vector{Vector{ctype}}(undef, length(pop))
-    supp = Vector{Vector{Vector{Vector{UInt16}}}}(undef, length(pop))
-    for k in eachindex(pop)
-        mon = MultivariatePolynomials.monomials(pop[k])
-        coe[k] = MultivariatePolynomials.coefficients(pop[k])
-        lm = length(mon)
-        supp[k] = [[[], []] for i=1:lm]
-        for i = 1:lm
-            ind = mon[i].z .> 0
-            vars = mon[i].vars[ind]
-            exp = mon[i].z[ind]
-            for j in eachindex(vars)
-                l = ncbfind(z, 2n, vars[j])
-                if l <= n
-                    append!(supp[k][i][1], l*ones(UInt16, exp[j]))
-                else
-                    append!(supp[k][i][2], (l-n)*ones(UInt16, exp[j]))
-                end
-            end
-        end
-    end
-    return supp,coe
 end
 
 function reduce_unitnorm(a; nb=0)
@@ -917,9 +891,9 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
         end
         @variable(model, lower)
         rcons[1] += lower
-        @constraint(model, rcon[i=1:ltsupp], rcons[i]==rbc[i])
+        @constraint(model, rcon, rcons==rbc)
         if ipart == true
-            @constraint(model, icon[i=1:length(itsupp)], icons[i]==ibc[i])
+            @constraint(model, icon, icons==ibc)
         end
         @objective(model, Max, lower)
         end
@@ -963,10 +937,10 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                 end
             end
         end
-        rmeasure = -dual.(rcon)
+        rmeasure = -dual(rcon)
         imeasure = nothing
         if ipart == true
-            imeasure = -dual.(icon)
+            imeasure = -dual(icon)
         end
         moment = get_cmoment(rmeasure, imeasure, tsupp, itsupp, cql, blocks, cl, blocksize, basis, ipart=ipart, nb=nb)
     end
@@ -1023,7 +997,7 @@ function get_blocks(m, l, tsupp, supp::Vector{Vector{Vector{Vector{UInt16}}}}, b
                 blocksize[k] = length.(blocks[k])
                 cl[k] = length(blocksize[k])
             else
-                blocks[k],cl[k],blocksize[k] = chordal_cliques!(G, method=TS, minimize=false)
+                blocks[k],cl[k],blocksize[k] = chordal_cliques!(G, method=TS)
                 if merge == true
                     blocks[k],cl[k],blocksize[k] = clique_merge!(blocks[k], d=md, QUIET=true)
                 end
@@ -1130,7 +1104,7 @@ function get_graph(tsupp::Vector{Vector{Vector{UInt16}}}, supp, basis; nb=0, bal
     return G
 end
 
-function clique_decomp(n, m, dc, supp::Vector{Vector{Vector{Vector{UInt16}}}}; order="min", alg="MF", minimize=false)
+function clique_decomp(n, m, dc, supp::Vector{Vector{Vector{Vector{UInt16}}}}; order="min", alg="MF")
     if alg == false
         cliques = [UInt16[i for i=1:n]]
         cql = 1
@@ -1153,7 +1127,7 @@ function clique_decomp(n, m, dc, supp::Vector{Vector{Vector{Vector{UInt16}}}}; o
         if alg == "NC"
             cliques,cql,cliquesize = max_cliques(G)
         else
-            cliques,cql,cliquesize = chordal_cliques!(G, method=alg, minimize=minimize)
+            cliques,cql,cliquesize = chordal_cliques!(G, method=alg, minimize=true)
         end
     end
     uc = unique(cliquesize)

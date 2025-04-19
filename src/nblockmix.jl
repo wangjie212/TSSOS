@@ -55,10 +55,10 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function cs_tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], hbasis=[], minimize=false, TS="block", merge=false, md=3, solver="Mosek", 
+function cs_tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], hbasis=[], TS="block", merge=false, md=3, solver="Mosek", 
     dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para()) where {T<:Number}
     n,supp,coe = polys_info(pop, x, nb=nb)
-    opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, CS=CS, cliques=cliques, basis=basis, hbasis=hbasis, minimize=minimize, TS=TS,
+    opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, CS=CS, cliques=cliques, basis=basis, hbasis=hbasis, TS=TS,
     merge=merge, md=md, QUIET=QUIET, solver=solver, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
     tol=tol, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
     return opt,sol,data
@@ -71,8 +71,8 @@ end
 Compute the first TS step of the CS-TSSOS hierarchy for constrained polynomial optimization. 
 Here the polynomial optimization problem is defined by `supp` and `coe`, corresponding to the supports and coeffients of `pop` respectively.
 """
-function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, CS="MF", cliques=[], basis=[], hbasis=[], minimize=false, 
-    TS="block", merge=false, md=3, QUIET=false, solver="Mosek", dualize=false, solve=true, solution=false, MomentOne=false, Gram=false, 
+function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, CS="MF", cliques=[], basis=[], hbasis=[], TS="block", 
+    merge=false, md=3, QUIET=false, solver="Mosek", dualize=false, solve=true, solution=false, MomentOne=false, Gram=false, 
     tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
@@ -85,7 +85,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
     else
         time = @elapsed begin
         CS = CS == true ? "MF" : CS
-        cliques,cql,cliquesize = clique_decomp(n, m, numeq, dc, supp, order=d, alg=CS, minimize=minimize)
+        cliques,cql,cliquesize = clique_decomp(n, m, numeq, dc, supp, order=d, alg=CS)
         end
         if CS != false && QUIET == false
             mc = maximum(cliquesize)
@@ -406,7 +406,7 @@ function solvesdp(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, hbasis
         end
         @variable(model, lower)
         cons[1] += lower
-        @constraint(model, con[i=1:ltsupp], cons[i]==bc[i])
+        @constraint(model, con, cons==bc)
         @objective(model, Max, lower)
         end
         if QUIET == false
@@ -442,7 +442,7 @@ function solvesdp(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, hbasis
                 end
             end
         end
-        measure = -dual.(con)
+        measure = -dual(con)
         momone = nothing
         if solution == true  
             momone = get_moment(measure, tsupp, cliques, cql, cliquesize, nb=nb)
@@ -563,7 +563,7 @@ function get_graph(tsupp::Vector{Vector{UInt16}}, supp::Vector{Vector{UInt16}}, 
     return G
 end
 
-function clique_decomp(n, m, numeq, dc, supp::Vector{Vector{Vector{UInt16}}}; order="min", alg="MF", minimize=false)
+function clique_decomp(n, m, numeq, dc, supp::Vector{Vector{Vector{UInt16}}}; order="min", alg="MF")
     if alg == false
         cliques,cql,cliquesize = [UInt16[i for i=1:n]],1,[n]
     else
@@ -578,7 +578,7 @@ function clique_decomp(n, m, numeq, dc, supp::Vector{Vector{Vector{UInt16}}}; or
         if alg == "NC"
             cliques,cql,cliquesize = max_cliques(G)
         else
-            cliques,cql,cliquesize = chordal_cliques!(G, method=alg, minimize=minimize)
+            cliques,cql,cliquesize = chordal_cliques!(G, method=alg, minimize=true)
         end
     end
     uc = unique(cliquesize)
