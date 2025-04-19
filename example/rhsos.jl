@@ -7,7 +7,7 @@ using Random
 @polyvar x[1:4]
 pop = [3-x[1]^2-x[3]^2+x[1]*x[2]^2+2x[2]*x[3]*x[4]-x[1]*x[4]^2, x[2], x[1]^2+3x[3]^2-2, x[4], x[1]^2+x[2]^2+x[3]^2+x[4]^2-3]
 @time begin
-opt,sol,data = cs_tssos_first(pop, x, 2, numeq=3, CS=false, TS=false, QUIET=true, Mommat=true)
+opt,sol,data = cs_tssos_first(pop, x, 2, numeq=3, CS=false, TS=false, QUIET=true)
 end
 
 supp = Vector{Vector{Vector{UInt16}}}[[[[], []], [[1], [1]], [[1], [2;2]], [[2;2], [1]]],
@@ -16,7 +16,7 @@ supp = Vector{Vector{Vector{UInt16}}}[[[[], []], [[1], [1]], [[1], [2;2]], [[2;2
 coe = [[3;-1;0.5;0.5], [1;1], [-1;1;-0.25;-0.25], [1;1;-2], [-3;1;1]]
 
 @time begin
-opt,sol,data = cs_tssos_first(supp, coe, 2, 2, numeq=1, QUIET=false, CS=false, TS=false, ipart=false, Mommat=true)
+opt,sol,data = cs_tssos_first(supp, coe, 2, 2, numeq=1, QUIET=false, CS=false, TS=false, ipart=false)
 end
 
 function cbasis(z)

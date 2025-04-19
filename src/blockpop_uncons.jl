@@ -117,7 +117,7 @@ function tssos_first(f::Polynomial{true, T}, x; nb=0, order=0, newton=true, redu
         end
     end
     end
-    if TS != false && QUIET == false
+    if QUIET == false
         mb = maximum(blocksize)
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end

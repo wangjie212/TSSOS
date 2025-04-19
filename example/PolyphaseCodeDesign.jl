@@ -121,7 +121,7 @@ f = basis2'*Q*basis1
 # f = z[n+1:end]'*Q*z[1:n] + c'*(z[1:n]+z[n+1:2n])
 # f = (1+im)*z[1]*z[2]*z[3] + (1+im)*z[2]*z[3]*z[4] + (1-im)*z[4]*z[5]*z[6] + (1-im)*z[1]*z[5]*z[6]
 h = 1 - sum(z[i]*z[i+n] for i = 1:n)
-opt,sol,data = cs_tssos_first([f; h], z, n, 2, numeq=1, Mommat=true, QUIET=true, CS=false, TS=false, ipart=false)
+opt,sol,data = cs_tssos_first([f; h], z, n, 2, numeq=1, QUIET=true, CS=false, TS=false, ipart=false)
 M = Matrix{Float64}(data.moment[1][1][1:n+1,1:n+1])
 F = ldl(M)
 ind = findall(diag(F.D).>1e-4)

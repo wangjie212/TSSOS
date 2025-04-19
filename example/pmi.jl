@@ -14,7 +14,7 @@ opt,data = tssos_first(F, [G], x, 3, TS=false, QUIET=true)
 @polyvar x[1:2]
 F = [x[1]^2 x[1]+x[2]; x[1]+x[2] x[2]^2]
 G = [1-x[1]^2-x[2]^2]
-opt,data = tssos_first(F, G, x, 2, TS=false, Gram=true, Mommat=true, QUIET=true)
+opt,data = tssos_first(F, G, x, 2, TS=false, Gram=true, QUIET=true)
 
 ## polynomial matrix optimization with term sparsity
 @polyvar x[1:5]
@@ -26,7 +26,7 @@ x[1]*x[5] x[2]*x[5] x[5]^2-x[3]*x[5] x[4]^2-x[1]*x[3] x[5]^4]
 G = Vector{Matrix{Polynomial{true, Int}}}(undef, 2)
 G[1] = [1-x[1]^2-x[2]^2 x[2]*x[3]; x[2]*x[3] 1-x[3]^2]
 G[2] = [1-x[4]^2 x[4]*x[5]; x[4]*x[5] 1-x[5]^2]
-@time opt,data = tssos_first(F, G, x, 3, TS="MD", QUIET=true, Mommat=false)
+@time opt,data = tssos_first(F, G, x, 3, TS="MD", QUIET=true)
 @time opt,data = tssos_higher!(data, TS="MD", QUIET=true)
 println(maximum(maximum.([maximum.(data.blocksize[i]) for i = 1:data.cql])))
 
@@ -67,7 +67,7 @@ G = [1 - sum(x.^2)]
 F = [2 0; 0 0]*(x[1]-1)^2 + [0 0; 0 2]*(x[1]-2)^2 + [1 -1; -1 1]*(x[2]-1)^2 + [1 1; 1 1]*(x[2]-2)^2
 G = [4 - x[1]^2, 4 - x[2]^2, x[1]^2 - 2.25, 2.25 - x[1]^2]
 d = 2
-opt,data = cs_tssos_first(F, G, x, d, TS=false, QUIET=true, Mommat=true)
+opt,data = cs_tssos_first(F, G, x, d, TS=false, QUIET=true)
 sol = extract_solutions_pmo(1, 2, 2, data.moment[2])
 W = extract_weight_matrix(1, 2, 2, sol, data.moment[2])
 sol = extract_solutions_robust_pmo(2, d, 2, data.moment[1])
@@ -76,7 +76,7 @@ sol = extract_solutions_robust_pmo(2, d, 2, data.moment[1])
 Q = [1/sqrt(2) -1/sqrt(3) 1/sqrt(6); 0 1/sqrt(3) 2/sqrt(6); 1/sqrt(2) 1/sqrt(3) -1/sqrt(6)]
 F = (-x[1]^2 + x[2])*(Q[:,1]*Q[:,1]'+Q[:,2]*Q[:,2]') + (x[2]^2 + x[3]^2)*Q[:,3]*Q[:,3]'
 G = [1 - x[1]^2 - x[2]^2, 1 - x[2]^2 - x[3]^2, -1 + x[2]^2 + x[3]^2]
-opt,data = cs_tssos_first(F, G, x, 2, TS=false, QUIET=true, Mommat=true)
+opt,data = cs_tssos_first(F, G, x, 2, TS=false, QUIET=true)
 sol = extract_solutions_pmo(2, 2, 3, data.moment[2])
 W = extract_weight_matrix(2, 2, 3, sol, data.moment[2])
 sol = extract_solutions_robust_pmo(4, 3, 3, data.moment[1])
@@ -93,11 +93,11 @@ G = Vector{Matrix{Polynomial{true, Int}}}(undef, 2)
 G[1] = [1-x[1]^2-x[2]^2 x[2]*x[3]; x[2]*x[3] 1-x[3]^2]
 G[2] = [1-x[4]^2 x[4]*x[5]; x[4]*x[5] 1-x[5]^2]
 r = 2
-@time opt,data = tssos_first(F, G, x, r, TS=false, QUIET=true, Mommat=true)
-@time opt,data = cs_tssos_first(F, G, x, r, TS=false, QUIET=true, Mommat=true)
-@time opt,data = cs_tssos_first(F, G, x, r, TS="block", QUIET=true, Mommat=false)
+@time opt,data = tssos_first(F, G, x, r, TS=false, QUIET=true)
+@time opt,data = cs_tssos_first(F, G, x, r, TS=false, QUIET=true)
+@time opt,data = cs_tssos_first(F, G, x, r, TS="block", QUIET=true)
 @time opt,data = cs_tssos_higher!(data, TS="block", QUIET=true)
-@time opt,data = cs_tssos_first(F, G, x, r, TS="MD", QUIET=true, Mommat=false)
+@time opt,data = cs_tssos_first(F, G, x, r, TS="MD", QUIET=true)
 println(maximum(maximum.([maximum.(data.blocksize[i]) for i = 1:data.cql])))
 
 
@@ -112,10 +112,10 @@ G = Vector{Matrix{Polynomial{true, Float64}}}(undef, n-2)
 for k = 1:n-2
     G[k] = [1-x[k]^2-x[k+1]^2 x[k+1]+0.5; x[k+1]+0.5 1-x[k+2]^2]
 end
-@time opt,data = tssos_first(F, G, x, r, TS=false, QUIET=true, Mommat=true)
-@time opt,data = cs_tssos_first(F, G, x, r, TS=false, QUIET=true, Mommat=true)
-@time opt,data = cs_tssos_first(F, G, x, r, TS="block", QUIET=true, Mommat=false)
-@time opt,data = cs_tssos_first(F, G, x, r, TS="MD", QUIET=true, Mommat=false)
+@time opt,data = tssos_first(F, G, x, r, TS=false, QUIET=true)
+@time opt,data = cs_tssos_first(F, G, x, r, TS=false, QUIET=true)
+@time opt,data = cs_tssos_first(F, G, x, r, TS="block", QUIET=true)
+@time opt,data = cs_tssos_first(F, G, x, r, TS="MD", QUIET=true)
 # println(maximum(maximum.([maximum.(data.blocksize[i]) for i = 1:data.cql])))
 
 
@@ -230,7 +230,7 @@ f2 = sum((x[i]-x[i+1])^2 for i = 1:n-1) + 2
 f3 = sum((x[i]+x[i+1])^2 for i = 1:n-1) + 2 
 F = Q*Diagonal([f1, f2, f3])*Q'
 G = [[1-x[i]^2 x[i]*x[i+1]; x[i]*x[i+1] 1-x[i+1]^2] for i = 1:n-1]
-@time opt,data = cs_tssos_first(F, G, x, 1, TS=false, QUIET=true, Mommat=true)
+@time opt,data = cs_tssos_first(F, G, x, 1, TS=false, QUIET=true)
 sol = extract_solutions_pmo(n, 2, 3, data.moment[1])
 
 
@@ -239,5 +239,5 @@ n = 2
 @polyvar x[1:n]
 F = [x[1]^4+1 x[1]*x[2]; x[1]*x[2] x[2]^4+1]
 G = [1 - sum(x.^2)]
-@time opt,data = tssos_first(F, G, x, 2, TS=false, QUIET=true, Mommat=true)
+@time opt,data = tssos_first(F, G, x, 2, TS=false, QUIET=true)
 sol = extract_solutions_pmo(n, 2, 2, data.moment[1])

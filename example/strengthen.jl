@@ -11,13 +11,13 @@ P = rand(n+1, n+1)
 Q = rand(n+1, n+1)
 pop = [[1; z[n+1:2n]]'*((P+P')/2+im*(Q-Q')/2)*[1; z[1:n]]]
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 1, nb=n, Mommat=true, QUIET=true, CS=false, TS=false)
+opt,sol,data = cs_tssos_first(pop, z, n, 1, nb=n, QUIET=true, CS=false, TS=false)
 end
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 2, nb=n, Mommat=true, QUIET=true, CS=false, TS=false)
+opt,sol,data = cs_tssos_first(pop, z, n, 2, nb=n, QUIET=true, CS=false, TS=false)
 end
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 1, nb=n, Mommat=true, QUIET=true, CS=false, TS=false, normality=1)
+opt,sol,data = cs_tssos_first(pop, z, n, 1, nb=n, QUIET=true, CS=false, TS=false, normality=1)
 end
 
 eigvals(convert.(ComplexF64, data.moment[1][1]))
@@ -59,7 +59,7 @@ end
 opt,sol,data = cs_tssos_first(pop, z, n, 3, numeq=1, QUIET=true, CS=false, TS=false)
 end
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 2, Mommat=true, numeq=1, QUIET=true, CS=false, TS=false, normality=2)
+opt,sol,data = cs_tssos_first(pop, z, n, 2, numeq=1, QUIET=true, CS=false, TS=false, normality=2)
 end
 
 eigvals(convert.(ComplexF64, data.moment[1][1]))

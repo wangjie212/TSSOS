@@ -47,8 +47,7 @@ cliques | Use customized variable cliques | []
 TS | Types of chordal extensions used in term sparsity iterations: "block"(maximal chordal extension), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations) | "block"
 ipart | Use complex moment matrices | true
 balanced | Impose the balanced structure | false
-normality | Impose normality condtions of order **normality** | 0
-NormalSparse | Exploit sparsity when imposing normality conditions | false
+normality | Impose normality condtions of order **normality** | 1
 merge | Merge overlapping PSD blocks | false
 md | Parameter for tunning the merging strength | 3
 MomentOne | add a first-order moment PSD constraint for each variable clique | false
@@ -59,7 +58,6 @@ QUIET | Silence the output| false
 solve | Solve the SDP relaxation | true
 dualize | Solve the dual SDP problem | false
 Gram | Output Gram matrices | false
-Mommat | Output moment matrices | false
 solution | Extract an approximately optimal solution | false
 tol | Tolerance for certifying global optimality | 1e-4
 

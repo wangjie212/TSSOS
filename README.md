@@ -112,8 +112,7 @@ opt,sol,data = tssos_higher!(data, TS="MD")
 Options  
 **nb**: specify the first nb variables to be $\pm1$ binary variables  
 **TS**: "block" by default (maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)  
-**normality**: true (impose normality condtions), false  
-**NormalSparse**: true (exploit sparsity when imposing normality conditions), false  
+**normality**: true (impose normality condtions), false   
 **quotient**: true (work in the quotient ring by computing a Gröbner basis), false  
 **solution**: true (extract optimal solutions), false  
 
@@ -133,9 +132,7 @@ opt,sol,data = cs_tssos_higher!(data, TS="MD") # compute higher TS steps of the 
 Options  
 **nb**: specify the first nb variables to be $\pm1$ binary variables  
 **CS**: "MF" by default (approximately smallest chordal extension), "NC" (not performing chordal extension), false (invalidating correlative sparsity exploitation)   
-**TS**: "block" by default (maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)    
-**normality**: true (impose normality condtions), false  
-**NormalSparse**: true (exploit sparsity when imposing normality conditions), false  
+**TS**: "block" by default (maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)   
 **MomentOne**: true (add a first-order moment PSD constraint for each variable clique), false  
 **solution**: true (extract an approximately optimal solution), false  
 
@@ -160,6 +157,7 @@ settings.tol_pfeas = 1e-8 # primal feasibility tolerance
 settings.tol_dfeas = 1e-8 # dual feasibility tolerance
 settings.tol_relgap = 1e-8 # relative primal-dual gap tolerance
 settings.time_limit = 1e4 # limit of running time
+settings.num_threads = 0 # number of threads available for Mosek
 ```
 and run for instance tssos_first(..., mosek_setting=settings)
 
@@ -169,7 +167,7 @@ Output
 **blocksize**: sizes of blocks  
 **blocks**: block structrue  
 **GramMat**: Gram matrices (set Gram=true)  
-**moment**: moment matrices (set Mommat=true)  
+**moment**: moment matrices  
 **flag**: 0 if global optimality is certified; 1 otherwise  
 
 ### Exploiting symmetries
@@ -288,8 +286,7 @@ Options
 **nb**: specify the first nb complex variables to be of unit norm (satisfying $|z_i|=1$)  
 **CS**: "MF" by default (approximately smallest chordal extension), "NC" (not performing chordal extension), false (invalidating correlative sparsity exploitation)   
 **TS**: "block" by default (maximal chordal extension), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)   
-**normality**: specify the normal order  
-**NormalSparse**: true (exploit sparsity when imposing normality conditions), false  
+**normality**: specify the normal order   
 **MomentOne**: true (add a first-order moment PSD constraint for each variable clique), false  
 **ipart**: true (use complex moment matrices), false (use real moment matrices)
 

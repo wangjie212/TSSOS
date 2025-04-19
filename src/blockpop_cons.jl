@@ -55,8 +55,7 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `data`: other auxiliary data 
 """
 function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quotient=true, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
-    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=0, 
-    NormalSparse=false) where {T<:Number}
+    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=false) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     n = length(x)
@@ -88,7 +87,7 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
         leadsupp = []
     end
     ss = nothing
-    if NormalSparse == true || TS == "signsymmetry"
+    if normality == true || TS == "signsymmetry"
         ss = get_signsymmetry(pop, x)
     end
     m = length(cpop) - 1
@@ -139,13 +138,13 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
         end
     end
     end
-    if TS != false && QUIET == false
+    if QUIET == false
         mb = maximum(maximum.(blocksize))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
     opt,ksupp,moment,momone,GramMat,multiplier_equality,SDP_status = solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, dualize=dualize, TS=TS,
     lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
-    signsymmetry=ss, normality=normality, NormalSparse=NormalSparse)
+    signsymmetry=ss, normality=normality)
     data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, hbasis, ksupp, cl, blocksize, blocks, eblocks, GramMat, multiplier_equality, moment, solver, SDP_status, tol, 1)
     sol = nothing
     if solution == true
@@ -192,7 +191,7 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
 end
 
 function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false,
-    solution=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=false, NormalSparse=false)
+    solution=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=false)
     n = data.n
     nb = data.nb
     m = data.m
@@ -234,7 +233,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
         end
         opt,ksupp,moment,momone,GramMat,multiplier_equality,SDP_status = solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, TS=TS,
         solver=solver, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
-        normality=normality, NormalSparse=NormalSparse)
+        normality=normality)
         sol = nothing
         if solution == true
             sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, tol=tol)
@@ -415,7 +414,7 @@ end
 
 function solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize; nb=0, numeq=0, gb=[], x=[], lead=[], solver="Mosek", TS="block",
     QUIET=true, solve=true, dualize=false, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
-    signsymmetry=false, normality=false, NormalSparse=false)
+    signsymmetry=false, normality=false)
     ksupp = zeros(UInt8, n, numele(blocksize[1]))
     k = 1
     for i = 1:cl[1], j = 1:blocksize[1][i], r = j:blocksize[1][i]

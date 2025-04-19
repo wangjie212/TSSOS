@@ -44,7 +44,6 @@ TS | Types of chordal extensions used in term sparsity iterations: "block"(maxim
 QUIET | Silence the output| false
 solve | Solve the SDP relaxation | true
 Gram | Output Gram matrices | false
-Mommat | Output moment matrices | false
 
 ### References
 

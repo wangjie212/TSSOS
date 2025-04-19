@@ -29,7 +29,6 @@ basis | Use customized monomial bases | []
 reducebasis | Reduce the monomial bases | false
 TS | Types of chordal extensions used in term sparsity iterations: "block"(maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity exploitation) | "block"
 normality | Impose normality condtions | false
-NormalSparse | Exploit sparsity when imposing normality conditions | false
 merge | Merge overlapping PSD blocks | false
 md | Parameter for tunning the merging strength | 3
 MomentOne | add a first-order moment PSD constraint | false
@@ -67,8 +66,6 @@ basis | Use customized monomial bases | []
 hbasis | Use customized monomial bases associated with equality constraints | []
 cliques | Use customized variable cliques | []
 TS | Types of chordal extensions used in term sparsity iterations: "block"(maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations) | "block"
-normality | Impose normality condtions | false
-NormalSparse | Exploit sparsity when imposing normality conditions | false
 merge | Merge overlapping PSD blocks | false
 md | Parameter for tunning the merging strength | 3
 MomentOne | add a first-order moment PSD constraint for each variable clique | false
@@ -79,7 +76,6 @@ QUIET | Silence the output| false
 solve | Solve the SDP relaxation | true
 dualize | Solve the dual SDP problem | false
 Gram | Output Gram matrices | false
-Mommat | Output moment matrices | false
 solution | Extract an approximately optimal solution | false
 tol | Tolerance for certifying global optimality | 1e-4
 
