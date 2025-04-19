@@ -231,6 +231,79 @@ function get_nbasis(n, d; var=Vector(1:n))
     return basis
 end
 
+function newton_basis(n, d, supp; e=1e-5, solver="Mosek")
+    lsupp = size(supp,2)
+    basis = get_basis(n, d)
+    lb = size(basis,2)
+    A0 = [-1/2*supp' ones(lsupp,1)]
+    t = 1
+    indexb = [i for i=1:lb]
+    temp = sortslices(supp, dims=2)
+    while t <= lb
+          i = indexb[t]
+          if bfind(temp, lsupp, UInt8(2)*basis[:,i]) !== nothing
+             t += 1
+          else
+             if solver == "Mosek"
+                model = Model(optimizer_with_attributes(Mosek.Optimizer))
+             elseif solver == "SDPT3"
+                model = Model(optimizer_with_attributes(SDPT3.Optimizer))
+             elseif solver == "SDPNAL"
+                model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
+             elseif solver == "COSMO"
+                model = Model(optimizer_with_attributes(COSMO.Optimizer))
+             else
+                @error "The solver is currently not supported!"
+                return nothing
+             end
+             set_optimizer_attribute(model, MOI.Silent(), true)
+             @variable(model, x[1:n+1], lower_bound=-10, upper_bound=10)
+             @constraint(model, [A0; [basis[:,i]' -1]]*x .<= zeros(lsupp+1))
+             @objective(model, Min, [basis[:,i]' -1]*x)
+             optimize!(model)
+             vx = value.(x)
+             if abs(objective_value(model)) <= e && sum(abs.(vx)) <= e
+                t += 1
+             else
+                if abs(objective_value(model)) <= e && sum(abs.(vx)) > e
+                   t += 1
+                else
+                   lb -= 1
+                   indexb = deleteat!(indexb, t)
+                end
+                r = t
+                while lb >= r
+                      j = indexb[r]
+                      if [basis[:,j]' -1]*vx <= -e
+                         lb -= 1
+                         indexb = deleteat!(indexb, r)
+                      else
+                         r += 1
+                      end
+                end
+             end
+          end
+    end
+    return basis[:,indexb]
+end
+
+function generate_basis!(supp, basis)
+    supp = sortslices(supp, dims=2)
+    supp = unique(supp, dims=2)
+    lsupp = size(supp, 2)
+    lb = size(basis, 2)
+    indexb = UInt32[]
+    for i = 1:lb, j = i:lb
+        bi = basis[:,i] + basis[:,j]
+        if bfind(supp, lsupp, bi) !== nothing
+             push!(indexb, i, j)
+        end
+    end
+    sort!(indexb)
+    unique!(indexb)
+    return basis[:,indexb]
+end
+
 function seval(supp, coe, x)
     val = 0
     for i in eachindex(supp)
@@ -317,6 +390,22 @@ function resort(supp, coe; nb=0)
     return nsupp,ncoe
 end
 
+function divide(a, lead, n, llead)
+    return any(j->all(i->lead[i,j]<=a[i], 1:n), 1:llead)
+end
+
+function reminder(a, x, gb, n)
+    remind = rem(prod(x.^a), gb)
+    mon = MultivariatePolynomials.monomials(remind)
+    coe = MultivariatePolynomials.coefficients(remind)
+    lm = length(mon)
+    supp = zeros(UInt8,n,lm)
+    for i = 1:lm, j = 1:n
+        @inbounds supp[j,i]=MultivariatePolynomials.degree(mon[i],x[j])
+    end
+    return lm,supp,coe
+end
+
 function sign_type(a::Vector{UInt16})
     st = UInt16[]
     if length(a) == 1
@@ -375,13 +464,6 @@ end
 
 Display the block structure
 """
-function show_blocks(data::upop_data)
-    for j = 1:length(data.blocks)
-        print("block $j: ")
-        println([prod(data.x.^data.basis[:, data.blocks[j][k]]) for k = 1:length(data.blocks[j])])
-    end
-end
-
 function show_blocks(data::cpop_data)
     for j = 1:length(data.blocks[1])
         print("block $j: ")

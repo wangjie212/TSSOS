@@ -317,7 +317,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
     end
     sort!.(ksupp)
     unique!.(ksupp)
-    objv = SDP_status = GramMat = nothing
+    objv = moment = GramMat = SDP_status = nothing
     if solve == true
         if QUIET == false
             ncons = sum(length.(ksupp))
@@ -406,7 +406,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
                 Locb = bfind(ksupp[ind], length(ksupp[ind]), obj_matrix.poly[ind].supp[k])
                 if Locb === nothing
                    @error "The monomial basis is not enough!"
-                   return nothing,nothing,nothing
+                   return nothing,nothing,nothing,nothing,nothing
                 else
                    bc[Locb] = obj_matrix.poly[ind].coe[k]
                 end
@@ -581,7 +581,7 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
     end
     unique!.(ksupp)
     sort!.(ksupp)
-    objv = SDP_status = nothing
+    objv = moment = SDP_status = nothing
     if solve == true
         if QUIET == false
             ncons = sum(length.(ksupp))

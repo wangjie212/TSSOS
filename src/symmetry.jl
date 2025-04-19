@@ -1,3 +1,16 @@
+struct VariablePermutation{V} <: SymbolicWedderburn.ByPermutations
+    variables::V
+end
+
+function action(
+    a::VariablePermutation,
+    g::AbstractPermutations.AbstractPermutation,
+    m::AbstractMonomial,
+)
+    v = a.variables
+    return m(v => action(a, g, v))
+end
+
 """
     opt,basis,Gram = tssos_symmetry(pop, x, d, group; numeq=0, QUIET=false)
 

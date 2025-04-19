@@ -6,10 +6,18 @@
 ## Christoffel-Darboux Kernels
 
 Here is the list of functions implemented in TSSOS that are based on computing Christiffel-Darboux kernels associated to a given POP:
+
 ```@docs
-- run_H1 , run_H1CS , run_H2 , run_H2CS,
-- construct_CDK, construct_marginal_CDK, construct_CDK_cs, construct_marginal_CDK_cs
+run_H1
+run_H1CS
+run_H2
+run_H2CS
+construct_CDK
+construct_marginal_CDK
+construct_CDK_cs
+construct_marginal_CDK_cs
 ```
+
 We provide below some illustrations. 
 Let us consider the following POP (Example 3.2 from [[Sparse polynomial optimization: theory and practice]](https://arxiv.org/abs/2208.11158)):
 ```julia
@@ -60,10 +68,10 @@ resultH2CS = run_H2CS(pop,x,d,dc,local_sol,tau)
 ```
 
 Moreover, here is how different Christoffel polynomials can be constructed using the output of the: 
-- dense Moment-SOS hierarchy of order 2
+- dense Moment-SOS relaxation of order 2
 ```julia
 d = 2
-opt, sol, data = cs_tssos_first(pop, x, d, TS=false, CS=false, solution=true, Mommat=true);
+opt, sol, data = cs_tssos_first(pop, x, d, TS=false, CS=false, solution=true, Mommat=true)
 
 k = 4
 dc = 1
@@ -75,10 +83,10 @@ CDK_order2 = construct_CDK(x, dc, data.moment[1])  # Construct multivariate Chri
 CDK_4_order2 = construct_marginal_CDK(x, k, dc, data.moment[1])  # Constructs marginal Christoffel polynomial, associated to x_4, of order dc=2 
 
 ```
-- sparse Moment-SOS hierarchy of order 2
+- sparse Moment-SOS relaxation of order 2
 ```julia
 d = 2
-opt, sol, data = cs_tssos_first(pop, x, d, TS=false, solution=true, Mommat=true);
+opt, sol, data = cs_tssos_first(pop, x, d, TS=false, solution=true, Mommat=true)
 
 k = 4
 dc = 1

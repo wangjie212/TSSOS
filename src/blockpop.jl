@@ -26,12 +26,13 @@ mutable struct cpop_data
 end
 
 """
-    opt,sol,data = tssos_first(pop, x, d; nb=0, numeq=0, quotient=true, basis=[],
+    opt,sol,data = tssos_first(pop, x, d; nb=0, numeq=0, Groebnerbasis=true, basis=[],
     reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", QUIET=false, solve=true,
     MomentOne=false, Gram=false, solution=false, tol=1e-4)
 
 Compute the first TS step of the TSSOS hierarchy for constrained polynomial optimization.
-If `quotient=true`, then exploit the quotient ring structure defined by the equality constraints.
+If `reducebasis=true`, then remove monomials from the monomial basis by diagonal inconsistency.
+If `Groebnerbasis=true`, then exploit the quotient ring structure defined by the equality constraints.
 If `merge=true`, perform the PSD block merging. 
 If `solve=false`, then do not solve the SDP.
 If `Gram=true`, then output the Gram matrix.
@@ -54,7 +55,7 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quotient=true, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
+function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, newton=false, feasibility=false, Groebnerbasis=true, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
     QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=false) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
@@ -65,13 +66,13 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
             pop[i] = rem(pop[i], gb)
         end
     end
-    if numeq > 0 && quotient == true
+    if numeq > 0 && Groebnerbasis == true
         cpop = copy(pop)
         gb = convert.(Polynomial{true,Float64}, cpop[end-numeq+1:end])
         cpop = cpop[1:end-numeq]
         if QUIET == false
-            println("Starting to compute the Gröbner basis...")
-            println("This might take much time. You can set quotient=false to close it.")
+            println("Computing the Gröbner basis...")
+            println("This might be slow. You can set Groebnerbasis=false to close it.")
         end
         SemialgebraicSets.gröbnerbasis!(gb)
         cpop[1] = rem(cpop[1], gb)
@@ -105,7 +106,15 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
     neq = isempty(gb) ? numeq : 0
     if isempty(basis)
         basis = Vector{Array{UInt8,2}}(undef, m-neq+1)
-        basis[1] = get_basis(n, d, nb=nb, lead=leadsupp)
+        if newton == true
+            if sum(supp[1][:,end]) != 0 && feasibility == false
+               supp[1] = [supp[1] zeros(UInt8, n)]
+               coe[1] = [coe[1]; 0]
+            end
+            basis[1] = newton_basis(n, d, supp[1], solver=solver)
+        else
+            basis[1] = get_basis(n, d, nb=nb, lead=leadsupp)
+        end
         for k = 1:m-neq
             basis[k+1] = get_basis(n, d-Int(ceil(maxdegree(pop[k+1])/2)), nb=nb, lead=leadsupp)
         end
@@ -125,7 +134,7 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
     end
     time = @elapsed begin
     blocks,eblocks,cl,blocksize = get_blocks(m-neq, neq, tsupp, supp[2:end], basis, hbasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, signsymmetry=ss)
-    if reducebasis == true && quotient == false
+    if reducebasis == true && Groebnerbasis == false
         gsupp = get_gsupp(n, m, numeq, supp, basis[2:end], hbasis, blocks[2:end], eblocks, cl[2:end], blocksize[2:end], nb=nb)
         psupp = [supp[1] zeros(UInt8,n)]
         psupp = [psupp gsupp]
@@ -190,7 +199,40 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, quot
     return opt,sol,data
 end
 
-function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false,
+"""
+    opt,sol,data = tssos_first(f, x; newton=true, reducebasis=false, TS="block", merge=false,
+    md=3, feasibility=false, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-4)
+
+Compute the first TS step of the TSSOS hierarchy for unconstrained polynomial optimization.
+If `newton=true`, then compute a monomial basis by the Newton polytope method.
+If `reducebasis=true`, then remove monomials from the monomial basis by diagonal inconsistency.
+If `TS="block"`, use maximal chordal extensions; if `TS="MD"`, use approximately smallest chordal extensions. 
+If `merge=true`, perform the PSD block merging. 
+If `feasibility=true`, then solve the feasibility problem.
+If `solve=false`, then do not solve the SDP.
+If `Gram=true`, then output the Gram matrix.
+If `MomentOne=true`, add an extra first-order moment PSD constraint to the moment relaxation.
+
+# Input arguments
+- `f`: objective
+- `x`: POP variables
+- `TS`: type of term sparsity (`"block"`, `"signsymmetry"`, `"MD"`, `"MF"`, `false`)
+- `md`: tunable parameter for merging blocks
+- `QUIET`: run in the quiet mode (`true`, `false`)
+- `tol`: relative tolerance to certify global optimality
+
+# Output arguments
+- `opt`: optimum
+- `sol`: (near) optimal solution (if `solution=true`)
+- `data`: other auxiliary data 
+"""
+function tssos_first(f::Polynomial{true, T}, x; newton=true, reducebasis=false, TS="block", merge=false, md=3, feasibility=false, solver="Mosek", 
+    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para()) where {T<:Number}
+    return tssos_first([f], x, Int(ceil(maxdegree(f)/2)), newton=newton, feasibility=feasibility, Groebnerbasis=false, reducebasis=reducebasis, TS=TS, merge=merge, md=md, solver=solver, 
+    QUIET=QUIET, solve=solve, dualize=dualize, MomentOne=MomentOne, Gram=Gram, solution=solution, tol=tol, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
+end
+
+function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, feasibility=false, dualize=false, MomentOne=false, Gram=false,
     solution=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=false)
     n = data.n
     nb = data.nb
@@ -232,7 +274,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
         opt,ksupp,moment,momone,GramMat,multiplier_equality,SDP_status = solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, TS=TS,
-        solver=solver, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
+        solver=solver, feasibility=feasibility, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
         normality=normality)
         sol = nothing
         if solution == true
@@ -324,6 +366,25 @@ function reducebasis!(supp, basis, blocks, cl, blocksize; nb=0)
     end
 end
 
+function get_graph(tsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nv=0, signsymmetry=nothing)
+    lb = size(basis,2)
+    G = SimpleGraph(lb)
+    ltsupp = size(tsupp,2)
+    for i = 1:lb, j = i+1:lb
+        bi = bin_add(basis[:,i], basis[:,j], nb)
+        if signsymmetry === nothing
+            if bfind(tsupp, ltsupp, bi) !== nothing
+                add_edge!(G, i, j)
+            end
+        else
+            if all(transpose(signsymmetry)*bi .== 0)
+                add_edge!(G, i, j)
+            end
+        end
+    end
+    return G
+end
+
 function get_graph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nv=0, signsymmetry=nothing)
     lb = size(basis, 2)
     G = SimpleGraph(lb)
@@ -342,6 +403,34 @@ function get_graph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{U
         end
     end
     return G
+end
+
+function get_blocks(tsupp, basis; nb=0, TS="block", minimize=false, QUIET=true, merge=false, md=3, signsymmetry=nothing)
+    if TS == false
+        blocksize = [size(basis,2)]
+        blocks = [[i for i=1:size(basis,2)]]
+        cl = 1
+    else
+        G = get_graph(tsupp, basis, nb=nb, signsymmetry=signsymmetry)
+        if TS == "block"
+            blocks = connected_components(G)
+            blocksize = length.(blocks)
+            cl = length(blocksize)
+        else
+            blocks,cl,blocksize = chordal_cliques!(G, method=TS, minimize=minimize)
+            if merge == true
+                blocks,cl,blocksize = clique_merge!(blocks, d=md, QUIET=true)
+            end
+        end
+    end
+    if QUIET == false
+        sb = sort(unique(blocksize), rev=true)
+        numb = [sum(blocksize.== i) for i in sb]
+        println("-----------------------------------------------------------------------------")
+        println("The sizes of PSD blocks:\n$sb\n$numb")
+        println("-----------------------------------------------------------------------------")
+    end
+    return blocks,cl,blocksize
 end
 
 function get_eblock(tsupp::Array{UInt8, 2}, hsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nv=0, signsymmetry=nothing)
@@ -413,7 +502,7 @@ function get_blocks(m, l, tsupp, supp, basis, hbasis; blocks=[], eblocks=[], cl=
 end
 
 function solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize; nb=0, numeq=0, gb=[], x=[], lead=[], solver="Mosek", TS="block",
-    QUIET=true, solve=true, dualize=false, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
+    QUIET=true, solve=true, feasibility=false, dualize=false, solution=false, MomentOne=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
     signsymmetry=false, normality=false)
     ksupp = zeros(UInt8, n, numele(blocksize[1]))
     k = 1
@@ -433,53 +522,41 @@ function solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize
         if normality == true
             wbasis = basis[1]
             bs = size(wbasis, 2)  
-            if NormalSparse == true
-                hyblocks = Vector{Vector{Vector{UInt16}}}(undef, n)
-                for i = 1:n
-                    G = SimpleGraph(2bs)
-                    for j = 1:bs, k = j:bs
-                        bi = bin_add(wbasis[:, j], wbasis[:, k], nb)
-                        if all(transpose(signsymmetry)*bi .== 0)
-                            add_edge!(G, j, k)
-                        end
-                        temp = zeros(UInt8, n)
-                        temp[i] = 2
-                        bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
-                        if all(transpose(signsymmetry)*bi .== 0)
-                            add_edge!(G, j+bs, k+bs)
-                        end
-                        temp[i] = 1
-                        bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
-                        if all(transpose(signsymmetry)*bi .== 0)
-                            add_edge!(G, j, k+bs)
-                        end
+            hyblocks = Vector{Vector{Vector{UInt16}}}(undef, n)
+            for i = 1:n
+                G = SimpleGraph(2bs)
+                for j = 1:bs, k = j:bs
+                    bi = bin_add(wbasis[:, j], wbasis[:, k], nb)
+                    if all(transpose(signsymmetry)*bi .== 0)
+                        add_edge!(G, j, k)
                     end
-                    hyblocks[i] = connected_components(G)
-                    for l = 1:length(hyblocks[i])
-                        for j = 1:length(hyblocks[i][l]), k = j:length(hyblocks[i][l])
-                            if hyblocks[i][l][j] <= bs && hyblocks[i][l][k] > bs
-                                temp = zeros(UInt8, n)
-                                temp[i] = 1
-                                bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
-                                tsupp = [tsupp bi]
-                            elseif hyblocks[i][l][j] > bs
-                                temp = zeros(UInt8, n)
-                                temp[i] = 2
-                                bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]-bs], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
-                                tsupp = [tsupp bi]
-                            end
-                        end
-                    end
-                end
-            else
-                for i = 1:n, j = 1:bs, k = j:bs
                     temp = zeros(UInt8, n)
-                    temp[i] = 1
-                    bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
-                    tsupp = [tsupp bi]
                     temp[i] = 2
                     bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
-                    tsupp = [tsupp bi]
+                    if all(transpose(signsymmetry)*bi .== 0)
+                        add_edge!(G, j+bs, k+bs)
+                    end
+                    temp[i] = 1
+                    bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
+                    if all(transpose(signsymmetry)*bi .== 0)
+                        add_edge!(G, j, k+bs)
+                    end
+                end
+                hyblocks[i] = connected_components(G)
+                for l = 1:length(hyblocks[i])
+                    for j = 1:length(hyblocks[i][l]), k = j:length(hyblocks[i][l])
+                        if hyblocks[i][l][j] <= bs && hyblocks[i][l][k] > bs
+                            temp = zeros(UInt8, n)
+                            temp[i] = 1
+                            bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
+                            tsupp = [tsupp bi]
+                        elseif hyblocks[i][l][j] > bs
+                            temp = zeros(UInt8, n)
+                            temp[i] = 2
+                            bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]-bs], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
+                            tsupp = [tsupp bi]
+                        end
+                    end
                 end
             end
         end
@@ -522,113 +599,44 @@ function solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize
             model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
         else
             @error "The solver is currently not supported!"
-            return nothing,nothing,nothing,nothing,nothing,nothing
+            return nothing,nothing,nothing,nothing,nothing,nothing,nothing
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
         cons = [AffExpr(0) for i=1:ltsupp]
         if normality == true
-            for i = 1:n
-                if NormalSparse == false
-                    hnom = @variable(model, [1:2bs, 1:2bs], PSD)
-                    for j = 1:bs, k = j:bs
-                        bi = bin_add(wbasis[:, j], wbasis[:, k], nb)
-                        if !isempty(gb) && divide(bi, lead, n, llead)
-                            bi_lm,bi_supp,bi_coe = reminder(bi, x, gb, n)
-                            for l = 1:bi_lm
-                                Locb = bfind(tsupp, ltsupp, bi_supp[:,l])
-                                if j == k
-                                    @inbounds add_to_expression!(cons[Locb], bi_coe[l], hnom[j,k])
-                                else
-                                    @inbounds add_to_expression!(cons[Locb], 2*bi_coe[l], hnom[j,k])
-                                end
-                            end
-                        else
-                            Locb = bfind(tsupp, ltsupp, bi)
-                            if j == k
-                                @inbounds add_to_expression!(cons[Locb], hnom[j,k])
-                            else
-                                @inbounds add_to_expression!(cons[Locb], 2, hnom[j,k])
-                            end
-                        end
-                        temp = zeros(UInt8, n)
-                        temp[i] = 2
-                        bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
-                        bi = bin_add(wbasis[:, j], wbasis[:, k], nb)
-                        if !isempty(gb) && divide(bi, lead, n, llead)
-                            bi_lm,bi_supp,bi_coe = reminder(bi, x, gb, n)
-                            for l = 1:bi_lm
-                                Locb = bfind(tsupp, ltsupp, bi_supp[:,l])
-                                if j == k
-                                    @inbounds add_to_expression!(cons[Locb], bi_coe[l], hnom[j+bs,k+bs])
-                                else
-                                    @inbounds add_to_expression!(cons[Locb], 2*bi_coe[l], hnom[j+bs,k+bs])
-                                end
-                            end
-                        else
-                            Locb = bfind(tsupp, ltsupp, bi)
-                            if j == k
-                                @inbounds add_to_expression!(cons[Locb], hnom[j+bs,k+bs])
-                            else
-                                @inbounds add_to_expression!(cons[Locb], 2, hnom[j+bs,k+bs])
-                            end
-                        end
+            for i = 1:n, l = 1:length(hyblocks[i])
+                hbs = length(hyblocks[i][l])
+                hnom = @variable(model, [1:hbs, 1:hbs], PSD)
+                for j = 1:hbs, k = j:hbs
+                    temp = zeros(UInt8, n)
+                    if hyblocks[i][l][k] <= bs
+                        bi = bin_add(wbasis[:, hyblocks[i][l][j]], wbasis[:, hyblocks[i][l][k]], nb)
+                    elseif hyblocks[i][l][j] <= bs && hyblocks[i][l][k] > bs
                         temp[i] = 1
-                        bi = bin_add(bin_add(wbasis[:, j], wbasis[:, k], nb), temp, nb)
-                        if !isempty(gb) && divide(bi, lead, n, llead)
-                            bi_lm,bi_supp,bi_coe = reminder(bi, x, gb, n)
-                            for l = 1:bi_lm
-                                Locb = bfind(tsupp, ltsupp, bi_supp[:,l])
-                                if j == k
-                                    @inbounds add_to_expression!(cons[Locb], 2*bi_coe[l], hnom[j,k+bs])
-                                else
-                                    @inbounds add_to_expression!(cons[Locb], 2*bi_coe[l], hnom[j,k+bs]+hnom[k,j+bs])
-                                end
-                            end
-                        else
-                            Locb = bfind(tsupp, ltsupp, bi)
+                        bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
+                    else
+                        temp[i] = 2
+                        bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]-bs], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
+                    end
+                    if !isempty(gb) && divide(bi, lead, n, llead)
+                        bi_lm,bi_supp,bi_coe = reminder(bi, x, gb, n)
+                        for l = 1:bi_lm
+                            Locb = bfind(tsupp, ltsupp, bi_supp[:,l])
                             if j == k
-                                @inbounds add_to_expression!(cons[Locb], 2, hnom[j,k+bs])
+                                @inbounds add_to_expression!(cons[Locb], bi_coe[l], hnom[j,k])
                             else
-                                @inbounds add_to_expression!(cons[Locb], 2, hnom[j,k+bs]+hnom[k,j+bs])
+                                @inbounds add_to_expression!(cons[Locb], 2*bi_coe[l], hnom[j,k])
                             end
-                        end      
-                    end
-                else
-                    for l = 1:length(hyblocks[i])
-                        hbs = length(hyblocks[i][l])
-                        hnom = @variable(model, [1:hbs, 1:hbs], PSD)
-                        for j = 1:hbs, k = j:hbs
-                            temp = zeros(UInt8, n)
-                            if hyblocks[i][l][k] <= bs
-                                bi = bin_add(wbasis[:, hyblocks[i][l][j]], wbasis[:, hyblocks[i][l][k]], nb)
-                            elseif hyblocks[i][l][j] <= bs && hyblocks[i][l][k] > bs
-                                temp[i] = 1
-                                bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
-                            else
-                                temp[i] = 2
-                                bi = bin_add(bin_add(wbasis[:, hyblocks[i][l][j]-bs], wbasis[:, hyblocks[i][l][k]-bs], nb), temp, nb)
-                            end
-                            if !isempty(gb) && divide(bi, lead, n, llead)
-                                bi_lm,bi_supp,bi_coe = reminder(bi, x, gb, n)
-                                for l = 1:bi_lm
-                                    Locb = bfind(tsupp, ltsupp, bi_supp[:,l])
-                                    if j == k
-                                        @inbounds add_to_expression!(cons[Locb], bi_coe[l], hnom[j,k])
-                                    else
-                                        @inbounds add_to_expression!(cons[Locb], 2*bi_coe[l], hnom[j,k])
-                                    end
-                                end
-                            else
-                                Locb = bfind(tsupp, ltsupp, bi)
-                                if j == k
-                                    @inbounds add_to_expression!(cons[Locb], hnom[j,k])
-                                else
-                                    @inbounds add_to_expression!(cons[Locb], 2, hnom[j,k])
-                                end
-                            end                
                         end
-                    end
+                    else
+                        Locb = bfind(tsupp, ltsupp, bi)
+                        if j == k
+                            @inbounds add_to_expression!(cons[Locb], hnom[j,k])
+                        else
+                            @inbounds add_to_expression!(cons[Locb], 2, hnom[j,k])
+                        end
+                    end                
                 end
             end
         end
@@ -762,16 +770,28 @@ function solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize
         for i = 1:size(supp[1], 2)
             Locb = bfind(tsupp, ltsupp, supp[1][:,i])
             if Locb === nothing
-               @error "The monomial basis is not enough!"
-               return nothing,nothing,nothing,nothing,nothing,nothing
+                @error "The monomial basis is not enough!"
+                return nothing,nothing,nothing,nothing,nothing,nothing,nothing
             else
                bc[Locb] = coe[1][i]
-           end
+            end
         end
-        @variable(model, lower)
-        cons[1] += lower
-        @constraint(model, con[i=1:ltsupp], cons[i]==bc[i])
-        @objective(model, Max, lower)
+        if feasibility == false
+            @variable(model, lower)
+            cons[1] += lower
+            @objective(model, Max, lower)
+        else
+            tnorm = AffExpr(0)
+            for i = 1:cl[1]
+                if blocksize[1][i] == 1
+                    tnorm += pos[1][i]
+                else
+                    tnorm += tr(pos[1][i])
+                end
+            end
+            @objective(model, Min, tnorm)
+        end
+        @constraint(model, con, cons==bc)
         end
         if QUIET == false
             println("SDP assembling time: $time seconds.")
@@ -801,10 +821,10 @@ function solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize
                 multiplier_equality = [value.(free[j]) for j = 1:neq]
             end
         end
-        dual_var = -dual.(con)
+        dual_var = -dual(con)
         moment = Vector{Matrix{Float64}}(undef, cl[1])
         for i = 1:cl[1]
-            moment[i] = zeros(blocksize[1][i],blocksize[1][i])
+            moment[i] = zeros(blocksize[1][i], blocksize[1][i])
             for j = 1:blocksize[1][i], k = j:blocksize[1][i]
                 bi = bin_add(basis[1][:,blocks[1][i][j]], basis[1][:,blocks[1][i][k]], nb)
                 if !isempty(gb) && divide(bi, lead, n, llead)

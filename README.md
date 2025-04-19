@@ -113,7 +113,7 @@ Options
 **nb**: specify the first nb variables to be $\pm1$ binary variables  
 **TS**: "block" by default (maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)  
 **normality**: true (impose normality condtions), false   
-**quotient**: true (work in the quotient ring by computing a Gröbner basis), false  
+**Groebnerbasis**: true (work in the quotient ring by computing a Gröbner basis), false  
 **solution**: true (extract optimal solutions), false  
 
 One could also exploit correlative sparsity and term sparsity simultaneously.

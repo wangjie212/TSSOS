@@ -539,7 +539,7 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
     else
         ksupp = tsupp
     end
-    objv = GramMat = SDP_status= nothing
+    objv = moment = GramMat = SDP_status= nothing
     if solve == true
         ltsupp = length(tsupp)
         if QUIET == false
@@ -906,7 +906,7 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
             Locb = bfind(tsupp, ltsupp, supp[1][i])
             if Locb === nothing
                @error "The monomial basis is not enough!"
-               return nothing,ksupp,nothing,nothing,nothing
+               return nothing,nothing,nothing,nothing,nothing
             else
                rbc[Locb] = real(coe[1][i])
                if ipart == true && supp[1][i][1] != supp[1][i][2]

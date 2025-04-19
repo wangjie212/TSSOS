@@ -262,7 +262,7 @@ function solvesdp(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, hbasis
     else
         ksupp = tsupp
     end
-    objv = moment = GramMat = multiplier_equality = SDP_status = nothing
+    objv = moment = momone = GramMat = multiplier_equality = SDP_status = nothing
     if solve == true
         ltsupp = length(tsupp)
         if QUIET == false
@@ -284,7 +284,7 @@ function solvesdp(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, hbasis
             model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
         else
             @error "The solver is currently not supported!"
-            return nothing,nothing,nothing,nothing
+            return nothing,nothing,nothing,nothing,nothing,nothing,nothing
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
@@ -399,7 +399,7 @@ function solvesdp(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, hbasis
             Locb = bfind(tsupp, ltsupp, supp[1][i])
             if Locb === nothing
                @error "The monomial basis is not enough!"
-               return nothing,nothing,nothing,nothing,nothing
+               return nothing,nothing,nothing,nothing,nothing,nothing,nothing
             else
                bc[Locb] = coe[1][i]
             end

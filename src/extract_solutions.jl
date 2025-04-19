@@ -263,3 +263,33 @@ function comp_to(a, b, n)
     end
     return 0
 end
+
+# extract a solution from the eigenvector associated with the maximal eigenvalue of the moment matrix
+function extract_solution(moment, opt, pop, x; numeq=0, tol=1e-4)
+    n = length(x)
+    m = length(pop) - 1
+    F = eigen(moment, n+1:n+1)
+    sol = sqrt(F.values[1])*F.vectors[:,1]
+    if abs(sol[1]) < 1e-8
+        return nothing,1,1
+    else
+        sol = sol[2:end]/sol[1]
+        ub = MultivariatePolynomials.polynomial(pop[1])(x => sol)
+        gap = abs(opt-ub)/max(1, abs(ub))
+        flag = gap >= tol ? 1 : 0
+        for i = 1:m-numeq
+            if MultivariatePolynomials.polynomial(pop[i+1])(x => sol) <= -tol
+                flag = 1
+            end
+        end
+        for i = m-numeq+1:m
+            if abs(MultivariatePolynomials.polynomial(pop[i+1])(x => sol)) >= tol
+                flag = 1
+            end
+        end
+        if flag == 0
+            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+        end
+        return sol,gap,flag
+    end
+end

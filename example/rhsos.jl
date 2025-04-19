@@ -49,7 +49,7 @@ end
 rf = f(z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
 rpop = [real.(coefficients(rf))'*monomials(rf), 1-sum(x.^2)]
 @time begin
-opt,sol,data = tssos_first(rpop, x, 1, numeq=1, quotient=false, QUIET=true, TS="block")
+opt,sol,data = tssos_first(rpop, x, 1, numeq=1, Groebnerbasis=false, QUIET=true, TS="block")
 end
 
 opt,sol = local_solution(2n, 1, data.supp, data.coe, numeq=1, startpoint=rand(2n), QUIET=true)
@@ -76,7 +76,7 @@ end
 rf = f(z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
 rpop = [real.(coefficients(rf))'*monomials(rf), 1-sum(x.^2)]
 @time begin
-opt,sol,data = tssos_first(rpop, x, 2, numeq=1, quotient=false, QUIET=true, TS="block")
+opt,sol,data = tssos_first(rpop, x, 2, numeq=1, Groebnerbasis=false, QUIET=true, TS="block")
 end
     
 opt,sol = local_solution(2n, 1, data.supp, data.coe, numeq=1, startpoint=rand(2n), QUIET=true)

@@ -18,8 +18,7 @@ Compute a local solution by a local solver.
 - `sol`: local solution
 - `status`: solver termination status
 """
-function local_solution(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe; nb=0, numeq=0,
-    startpoint=[], QUIET=false)
+function local_solution(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe; nb=0, numeq=0, startpoint=[], QUIET=false)
     model = Model(optimizer_with_attributes(Ipopt.Optimizer))
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     if QUIET == true
@@ -49,8 +48,7 @@ function local_solution(n, m, supp::Vector{Vector{Vector{UInt16}}}, coe; nb=0, n
     return objv,value.(x),status
 end
 
-function local_solution(n, m, supp::Vector{Array{UInt8, 2}}, coe; nb=0, numeq=0,
-    startpoint=[], QUIET=false)
+function local_solution(n, m, supp::Vector{Array{UInt8, 2}}, coe; nb=0, numeq=0, startpoint=[], QUIET=false)
     model = Model(optimizer_with_attributes(Ipopt.Optimizer))
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     if QUIET == true
@@ -86,32 +84,6 @@ end
 Refine the obtained solution by a local solver.
 Return the refined solution, and `flag=0` if global optimality is certified, `flag=1` otherwise.
 """
-function refine_sol(opt, sol, data::upop_data; QUIET=false, tol=1e-4)
-    n = data.n
-    nb = data.nb
-    supp = data.supp
-    coe = data.coe
-    for i = 1:n
-        if abs(sol[i]) < 1e-10
-            sol[i] = 1e-10
-        end
-    end
-    ub,rsol,status = local_solution(n, 0, [supp], [coe], nb=nb, numeq=0, startpoint=sol, QUIET=QUIET)
-    if status == MOI.LOCALLY_SOLVED
-        gap = abs(opt-ub)/max(1, abs(ub))
-        if gap < tol
-            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
-            return rsol,0
-        else
-            @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
-            return rsol,1
-        end
-    else
-        println("The local solver failed refining the solution!")
-        return sol,1
-    end
-end
-
 function refine_sol(opt, sol, data::Union{cpop_data,mcpop_data}; QUIET=false, tol=1e-4)
     n = data.n
     nb = data.nb
