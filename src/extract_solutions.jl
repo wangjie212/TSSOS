@@ -1,7 +1,7 @@
 using RowEchelon
 
 """
-    sol = extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-4)
+    sol = extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-2)
 
 Extract a set of solutions for the polynomial optimization problem.
 
@@ -142,7 +142,7 @@ function extract_solutions_robust(n, d, moment; tol=1e-2)
 end
 
 """
-    sol = extract_solutions_pmo(n, d, p, moment; tol=1e-4)
+    sol = extract_solutions_pmo(n, d, p, moment; tol=1e-2)
 
 Extract a set of solutions for the polynomial matrix optimization problem.
 

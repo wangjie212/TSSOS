@@ -28,8 +28,8 @@ mutable struct mcpop_data
 end
 
 """
-    opt,sol,data = cs_tssos_first(pop, x, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", merge=false, md=3, solver="Mosek", QUIET=false, solve=true, solution=false,
-    Gram=false, MomentOne=false, tol=1e-4)
+    opt,sol,data = cs_tssos_first(pop, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], hbasis=[], TS="block", merge=false, md=3, solver="Mosek", 
+    dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained polynomial optimization.
 If `merge=true`, perform the PSD block merging. 
@@ -65,8 +65,9 @@ function cs_tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, C
 end
 
 """
-    opt,sol,data = cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", 
-    merge=false, md=3, QUIET=false, solver="Mosek", solve=true, solution=false, Gram=false, MomentOne=false, tol=1e-4)
+    opt,sol,data = cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], hbasis=[], TS="block", 
+    merge=false, md=3, QUIET=false, solver="Mosek", dualize=false, solve=true, solution=false, Gram=false, MomentOne=false, tol=1e-4, 
+    cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained polynomial optimization. 
 Here the polynomial optimization problem is defined by `supp` and `coe`, corresponding to the supports and coeffients of `pop` respectively.
@@ -153,8 +154,8 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
 end
 
 """
-    opt,sol,data = cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true,
-    solution=false, Gram=false, MomentOne=false)
+    opt,sol,data = cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
+    MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
 
 Compute higher TS steps of the CS-TSSOS hierarchy.
 """

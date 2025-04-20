@@ -26,9 +26,9 @@ mutable struct cpop_data
 end
 
 """
-    opt,sol,data = tssos_first(pop, x, d; nb=0, numeq=0, Groebnerbasis=true, basis=[],
-    reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", QUIET=false, solve=true,
-    MomentOne=false, Gram=false, solution=false, tol=1e-4)
+    opt,sol,data = tssos_first(pop, x, d; nb=0, numeq=0, Groebnerbasis=true, basis=[], reducebasis=false, TS="block", 
+    merge=false, md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-4, 
+    cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=false)
 
 Compute the first TS step of the TSSOS hierarchy for constrained polynomial optimization.
 If `reducebasis=true`, then remove monomials from the monomial basis by diagonal inconsistency.
@@ -200,8 +200,8 @@ function tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, newt
 end
 
 """
-    opt,sol,data = tssos_first(f, x; newton=true, reducebasis=false, TS="block", merge=false,
-    md=3, feasibility=false, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-4)
+    opt,sol,data = tssos_first(f, x; newton=true, reducebasis=false, TS="block", merge=false, md=3, feasibility=false, solver="Mosek", 
+    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
 
 Compute the first TS step of the TSSOS hierarchy for unconstrained polynomial optimization.
 If `newton=true`, then compute a monomial basis by the Newton polytope method.
@@ -232,6 +232,12 @@ function tssos_first(f::Polynomial{true, T}, x; newton=true, reducebasis=false, 
     QUIET=QUIET, solve=solve, dualize=dualize, MomentOne=MomentOne, Gram=Gram, solution=solution, tol=tol, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
 end
 
+"""
+    opt,sol,data = tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, feasibility=false, dualize=false, Gram=false,
+    MomentOne=false, solution=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=false)
+
+Compute higher TS steps of the TSSOS hierarchy.
+"""
 function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, feasibility=false, dualize=false, MomentOne=false, Gram=false,
     solution=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=false)
     n = data.n

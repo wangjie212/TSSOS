@@ -1,23 +1,21 @@
 using Random
 
-function get_basis_indices(n::Int64, d::Int64) 
-    """
-        get_basis_indices(n::Int64, d::Int64) -> Matrix{Int64}
+"""
+    get_basis_indices(n::Int64, d::Int64) -> Matrix{Int64}
 
-    Generate the multi-index representation of the monomial basis for `n` variables 
-    of degree `d`.
+Generate the multi-index representation of the monomial basis for `n` variables 
+of degree `d`.
     
-    # Arguments
-    - `n::Int64`: The number of variables.
-    - `d::Int64`: The maximum degree of the monomials.
+# Arguments
+- `n::Int64`: The number of variables.
+- `d::Int64`: The maximum degree of the monomials.
     
-    # Returns
-    - `Matrix{Int64}`: A matrix where each column represents a multi-index for a 
-      monomial. The rows correspond to the variables, and the columns correspond 
-      to the exponents in each monomial. The total degree of each column sums to is always smaller or equal to d. 
-    
-    """ 
-    
+# Returns
+- `Matrix{Int64}`: A matrix where each column represents a multi-index for a 
+monomial. The rows correspond to the variables, and the columns correspond 
+to the exponents in each monomial. The total degree of each column sums to is always smaller or equal to d. 
+""" 
+function get_basis_indices(n::Int64, d::Int64) 
     sd = binomial(n + d, d)
     basis = zeros(Int64, n, sd)  
     
@@ -60,19 +58,18 @@ function get_basis_indices(n::Int64, d::Int64)
     return basis
 end
 
+"""
+   Generate the monomial basis of degree `d` for a given set of variables.
+    
+# Arguments
+- `vars::Vector`: A vector of symbolic variables.
+- `d::Int64`: The total degree of the monomials to generate.
+    
+# Returns
+- `Vector`: A vector containing the monomial basis of degree `d` of size binomial(length(vars)+d,d). 
+Each monomial is represented as a product of the variables raised to their corresponding powers.
+"""
 function get_basis(vars::Vector{PolyVar{true}}, d::Int64)
-
-    """
-    Generate the monomial basis of degree `d` for a given set of variables.
-    
-    # Arguments
-    - `vars::Vector`: A vector of symbolic variables.
-    - `d::Int64`: The total degree of the monomials to generate.
-    
-    # Returns
-    - `Vector`: A vector containing the monomial basis of degree `d` of size binomial(length(vars)+d,d). 
-                Each monomial is represented as a product of the variables raised to their corresponding powers.
-    """
     b_indices = get_basis_indices(length(vars),d)
 
     monomial_basis = [] 
@@ -85,21 +82,19 @@ function get_basis(vars::Vector{PolyVar{true}}, d::Int64)
     return monob
 end
 
-function get_monomial_exponents(monomial, vars)
-
-    """
+"""
     get_monomial_exponents(monomial, vars) -> Vector{Int}
 
-    Compute the exponent vector for a given monomial with respect to a specified set of variables.
+Compute the exponent vector for a given monomial with respect to a specified set of variables.
     
-    # Arguments
-    - `monomial`: The input monomial for which the exponents are to be computed. This should be a symbolic term.
-    - `vars::Vector`: A vector containing the variables (e.g., `[x1, x2, ..., xn]`) to be used for indexing the exponents.
+# Arguments
+- `monomial`: The input monomial for which the exponents are to be computed. This should be a symbolic term.
+- `vars::Vector`: A vector containing the variables (e.g., `[x1, x2, ..., xn]`) to be used for indexing the exponents.
     
-    # Returns
-    - `Vector{Int}`: A vector of integers representing the exponents of the monomial for each variable in `vars`.
-    
-    """
+# Returns
+- `Vector{Int}`: A vector of integers representing the exponents of the monomial for each variable in `vars`.    
+"""
+function get_monomial_exponents(monomial, vars)
     exponents = zeros(Int, length(vars))
     
     for (i, var) in enumerate(vars)
@@ -109,23 +104,20 @@ function get_monomial_exponents(monomial, vars)
     return exponents
 end
 
-function find_moment_matrix_entry(vars, d, target_exponents)
-
-    """
+"""
     find_moment_matrix_entry(vars, d, target_exponents) -> Tuple{Int, Int}
 
-    Find the position of a monomial (i.e., its associated moment) in the moment matrix of order `d`.
+Find the position of a monomial (i.e., its associated moment) in the moment matrix of order `d`.
     
-    # Arguments
-    - `vars::Vector`: A vector of variables (e.g., `[x1, x2, ..., xn]`).
-    - `d::Int`: The order of the moment matrix.
-    - `target_exponents::Vector{Int}`: A vector representing the exponents of the target monomial. The length of this vector should match the number of variables in `vars`.
+# Arguments
+- `vars::Vector`: A vector of variables (e.g., `[x1, x2, ..., xn]`).
+- `d::Int`: The order of the moment matrix.
+- `target_exponents::Vector{Int}`: A vector representing the exponents of the target monomial. The length of this vector should match the number of variables in `vars`.
     
-    # Returns
-    - `Tuple{Int, Int}`: A pair `(i, j)` representing the row and column indices in the moment matrix where the target monomial (i.e., its associated moment) appears.
-       
-    """
-    
+# Returns
+- `Tuple{Int, Int}`: A pair `(i, j)` representing the row and column indices in the moment matrix where the target monomial (i.e., its associated moment) appears.       
+"""
+function find_moment_matrix_entry(vars, d, target_exponents)
     basis_d = get_basis_indices(length(vars), d)     # Basis for indexing the matrix
     basis_2d = get_basis_indices(length(vars), 2*d)   # Basis for the moment matrix entries
 
@@ -153,23 +145,21 @@ function find_moment_matrix_entry(vars, d, target_exponents)
     error("Target monomial cannot be represented as a product of basis monomials.")
 end
 
-function extract_moment_vector(vars, d, monomials, Mm)
-
-    """
+"""
     extract_moment_vector(vars, d, monomials, Mm) -> Vector
 
-    Extract the moment vector of order 2d corresponding to a given set of monomials from a moment matrix.
+Extract the moment vector of order 2d corresponding to a given set of monomials from a moment matrix.
     
-    # Arguments
-    - `vars::Vector`: A vector of variables (e.g., `[x1, x2, ..., xn]`).
-    - `d::Int`: The order of the moment matrix.
-    - `monomials::Vector`: A vector of monomials for which the corresponding moments are to be extracted. Each monomial should be expressed in terms of the variables in `vars`.
-    - `Mm::Matrix`: The moment matrix of order `d`, containing moments for the given variables.
-    
-    # Returns
-    - `Vector`: A vector containing the extracted moments, where the i-th entry corresponds to the moment associated to the i-th monomial in `monomials`.
-    
-    """
+# Arguments
+- `vars::Vector`: A vector of variables (e.g., `[x1, x2, ..., xn]`).
+- `d::Int`: The order of the moment matrix.
+- `monomials::Vector`: A vector of monomials for which the corresponding moments are to be extracted. Each monomial should be expressed in terms of the variables in `vars`.
+- `Mm::Matrix`: The moment matrix of order `d`, containing moments for the given variables.
+
+# Returns
+- `Vector`: A vector containing the extracted moments, where the i-th entry corresponds to the moment associated to the i-th monomial in `monomials`.
+"""
+function extract_moment_vector(vars, d, monomials, Mm)    
     momemnt_vec_2d=[]
 
     for i=1:length(monomials)
@@ -181,26 +171,23 @@ function extract_moment_vector(vars, d, monomials, Mm)
     return momemnt_vec_2d
 end
 
-function construct_CDK(vars, dc, Mm, threshold=0.001)
-
-    """
+"""
     Constructs Christoffel polynomial of order d (CDK) using Singular Value Decomposition (SVD) for the input moment matrix `Mm` of order smaller or equal than d. 
     
-    # Arguments
-    - `vars`: vector of variables, e.g., @polyvar x[1:5]
-    - `dc`:  degree of the CDK (has to be smaller than or equal to the order of the moment matrix)
-    - `Mm::Matrix`: The input moment matrix from which which the CDK is constructed.
-    - `threshold::Float64` (optional): A threshold value for filtering eigenvalues (i.e., deciding the numerical rank of `Mm`) . Default is `0.001`.
+# Arguments
+- `vars`: vector of variables, e.g., @polyvar x[1:5]
+- `dc`:  degree of the CDK (has to be smaller than or equal to the order of the moment matrix)
+- `Mm::Matrix`: The input moment matrix from which which the CDK is constructed.
+- `threshold::Float64` (optional): A threshold value for filtering eigenvalues (i.e., deciding the numerical rank of `Mm`) . Default is `0.001`.
     
-    # Returns
-    - `p_alpha_squared[1:negativeEV]`: Polynomials in the kernel of the moment matrix.
-    - `cdk`: The constructed CDK (positive part of the moment matrix).
-    - `positiveEV`: The number of positive eigenvalues of the moment matrix.
-    - `minimum(Qval)`: The minimum eigenvalue of the moment matrix.
-    - `negativeEV`: The number of negative eigenvalues of the moment matrix.
-    
-    """
-
+# Returns
+- `p_alpha_squared[1:negativeEV]`: Polynomials in the kernel of the moment matrix.
+- `cdk`: The constructed CDK (positive part of the moment matrix).
+- `positiveEV`: The number of positive eigenvalues of the moment matrix.
+- `minimum(Qval)`: The minimum eigenvalue of the moment matrix.
+- `negativeEV`: The number of negative eigenvalues of the moment matrix.    
+"""
+function construct_CDK(vars, dc, Mm; threshold=0.001)
     sd=binomial(length(vars)+dc,dc)
 
     eigen_result = eigen(Mm[1:sd,1:sd])
@@ -229,29 +216,26 @@ function construct_CDK(vars, dc, Mm, threshold=0.001)
         
 end
 
-function construct_CDK_cs(x, dc, Mm, cliques, threshold=0.001)
-
-    """
+"""
     construct_CDK_cs(x, dc, Mm, cliques, threshold=0.001) -> Tuple
-
     Construct the `Cdk`, kernel, and eigenvalue-related statistics for a given set of cliques and moment matrices.
     
-    # Arguments
-    - `x::Vector`: A vector of polynomial variables.
-    - `dc::Int`: The degree of the Christoffel polynomial constraints. It must be  <= than the order of relaxation d.
-    - `Mm::Vector`: A vector of moment matrices, one for each clique.
-    - `cliques::Vector{Vector{Int}}`: A list of cliques, where each clique is a vector of indices corresponding to variables in `x`.
-    - `threshold::Float64` (optional): A small positive value used to distinguish between eigenvalues considered positive and negative. Defaults to `0.001`.
+# Arguments
+- `x::Vector`: A vector of polynomial variables.
+- `dc::Int`: The degree of the Christoffel polynomial constraints. It must be  <= than the order of relaxation d.
+- `Mm::Vector`: A vector of moment matrices, one for each clique.
+- `cliques::Vector{Vector{Int}}`: A list of cliques, where each clique is a vector of indices corresponding to variables in `x`.
+- `threshold::Float64` (optional): A small positive value used to distinguish between eigenvalues considered positive and negative. Defaults to `0.001`.
     
-    # Returns
-    - `Tuple`: A tuple containing:
-        - `Kernel::Vector`: A vector of squared orthonormal polynomial values corresponding to the polynomials in the kernel of clique-based moment matrices.
-        - `Cdk::Vector`: A vector of Christoffel poolynomials of degree 2*dc, one for each clique.
-        - `posEV::Vector`: A vector of counts of eigenvalues above the threshold for each clique.
-        - `minEV::Vector`: A vector of the smallest eigenvalue for each clique.
-        - `negEV::Vector`: A vector of counts of eigenvalues below or equal to the threshold for each clique.
-    
-    """
+# Returns
+- `Tuple`: A tuple containing:
+- `Kernel::Vector`: A vector of squared orthonormal polynomial values corresponding to the polynomials in the kernel of clique-based moment matrices.
+- `Cdk::Vector`: A vector of Christoffel poolynomials of degree 2*dc, one for each clique.
+- `posEV::Vector`: A vector of counts of eigenvalues above the threshold for each clique.
+- `minEV::Vector`: A vector of the smallest eigenvalue for each clique.
+- `negEV::Vector`: A vector of counts of eigenvalues below or equal to the threshold for each clique. 
+"""
+function construct_CDK_cs(x, dc, Mm, cliques, threshold=0.001)  
     Cdk = []
     Kernel = []
     posEV = []
@@ -297,37 +281,29 @@ function construct_CDK_cs(x, dc, Mm, cliques, threshold=0.001)
     return Kernel, Cdk, posEV, minEV, negEV
 end
 
+"""
+    Performs iterative bound strengthening (i.e, implements H1) for a given POP.
+
+# Arguments
+- `x::Vector`: Initial vector of decision variables.
+- `n::Int`: Dimension or size of the problem.
+- `d::Int`: Degree of the relaxation.
+- `dc::Int`: Degree of the Christoffel polynomials relaxation. dc must be smaller than or equal to d.
+- `N::Int`: Maximum number of iterations to perform.
+- `eps::Float64`: Perturbation factor deciding the volume of CDK sublevel sets.
+- `gap_tol::Float64` (optional): Threshold for optimality gap tolerance. Default is `0.5`.
+- `beta::Float64` (optional): Threshold beta controlling the strength of the Tikhonov regularization of CDK. Default is `0.001`.
+
+# Returns
+A list with the following elements:
+1. `OPT`: Relaxation bound from each iteration.
+2. `gap_history`: A history of the optimality gaps at each iteration.
+3. `Moment_matrices`: Moment matrices computed during each iterations used to construct CDK sublevel constraints.
+4. `K`: Parameter to keep track of the rank of the moment matrices for each iteration.
+5. `Certain_overrestriction`: A measure or flag for over-restriction (when H1 is sure that further feasible set reductions would yield an invalid bound).
+6. `ubRef`: Upper bounds with respect to which the optimality gap is measured.
+"""
 function run_H1(pop,x,d,dc,N,eps,gap_tol=0.5,beta=0.001)
-    
-    """
-
-    Performs iterative bound strengthening (i.e, implements H1) for a given POP. 
-    
-    # Arguments
-    - `x::Vector`: Initial vector of decision variables.
-    - `n::Int`: Dimension or size of the problem.
-    - `d::Int`: Degree of the relaxation.
-    - `dc::Int`: Degree of the Christoffel polynomials relaxation. dc must be smaller than or equal to d.
-
-
-    
-    
-    - `N::Int`: Maximum number of iterations to perform.
-    - `eps::Float64`: Perturbation factor deciding the volume of CDK sublevel sets.
-    - `gap_tol::Float64` (optional): Threshold for optimality gap tolerance. Default is `0.5`.
-    - `beta::Float64` (optional): Threshold beta controlling the strength of the Tikhonov regularization of CDK. Default is `0.001`.
-    
-    # Returns
-    A list with the following elements:
-    1. `OPT`: Relaxation bound from each iteration.
-    2. `gap_history`: A history of the optimality gaps at each iteration.
-    3. `Moment_matrices`: Moment matrices computed during each iterations used to construct CDK sublevel constraints.
-    4. `K`: Parameter to keep track of the rank of the moment matrices for each iteration.
-    5. `Certain_overrestriction`: A measure or flag for over-restriction (when H1 is sure that further feasible set reductions would yield an invalid bound).
-    6. `ubRef`: Upper bounds with respect to which the optimality gap is measured
-
-    """
-
     Moment_matrices=[]
     Certain_overrestriction=false
     
@@ -735,23 +711,21 @@ function run_H1CS(pop,x,d,dc,N,eps,gap_tol=0.5,beta=0.0001)
     return OPT, gap_history, Moment_matrices, K, Certain_overrestriction, UBH
 
             
-end 
+end
 
-function extract_marginal_indices(k::Int,indices::Matrix{Int})
-
-    """
+"""
     extract_marginal_indices(k::Int, indices::Matrix{Int}) -> Vector{Int}
-
-    Extract the column indices corresponding to the marginal monomials for a given variable  x_k .
     
-    # Arguments
-    - `k::Int`: The index of the variable x_k  for which marginal monomial indices are to be extracted.
-    - `indices::Matrix{Int}`: A matrix of monomial basis indices, where each column represents a monomial, and each row represents the exponents of a variable in that monomial.
+Extract the column indices corresponding to the marginal monomials for a given variable  x_k.
     
-    # Returns
-    - `Vector{Int}`: A vector containing the indices of columns in `indices` that correspond to marginal monomials for x_k .
+# Arguments
+- `k::Int`: The index of the variable x_k  for which marginal monomial indices are to be extracted.
+- `indices::Matrix{Int}`: A matrix of monomial basis indices, where each column represents a monomial, and each row represents the exponents of a variable in that monomial.
 
-    """
+# Returns
+- `Vector{Int}`: A vector containing the indices of columns in `indices` that correspond to marginal monomials for x_k.
+"""
+function extract_marginal_indices(k::Int,indices::Matrix{Int})
     n, sd = size(indices)  
     
     marginal_indices = []
@@ -765,22 +739,21 @@ function extract_marginal_indices(k::Int,indices::Matrix{Int})
     return  marginal_indices  
 end
 
-function find_clique_and_local_index(k, cliques)
-    """
+"""
     find_clique_and_local_index(k, cliques) -> Vector{Int}
 
-    Find the clique and local index of an element in a list of cliques.
+Find the clique and local index of an element in a list of cliques.
     
-    # Arguments
-    - `k::Int`: The element/variable to search for.
-    - `cliques::Vector{Vector{Int}}`: A list of cliques, where each clique is a vector of integers representing decision variable indices.
+# Arguments
+- `k::Int`: The element/variable to search for.
+- `cliques::Vector{Vector{Int}}`: A list of cliques, where each clique is a vector of integers representing decision variable indices.
     
-    # Returns
-    - `Vector{Int}`: A two-element vector `[global_clique_index, local_index]`, where:
-        - `global_clique_index` is the index of the clique (in `cliques`) containing the element `k`.
-        - `local_index` is the position of `k` within the identified clique.
-    
-    """    
+# Returns
+- `Vector{Int}`: A two-element vector `[global_clique_index, local_index]`, where:
+- `global_clique_index` is the index of the clique (in `cliques`) containing the element `k`.
+- `local_index` is the position of `k` within the identified clique.    
+"""  
+function find_clique_and_local_index(k, cliques)  
     for i in 1:length(cliques)
         clique = cliques[i]
 
@@ -793,27 +766,24 @@ function find_clique_and_local_index(k, cliques)
     error("The index k=$k does not belong to any clique!")
 end
 
-function construct_marginal_CDK(vars, k, dc, Mm, threshold=0.001)
-
-    """
+"""
     Constructs marginal Christoffel polynomials (CDK) using Singular Value Decomposition (SVD) for the input matrix `Mm`. 
     
-    # Arguments
-    - `vars`: vector of variables, e.g., @polyvar x[1:5]
-    - `k::vector` - Index of the decision variable for which CDK needs to be constructed
-    - `dc::Int`: - Degree of the marginal Christoffel polynomials (has to be smaller than or equal to d - order of the moment matrix)
-    - `Mm::Matrix`: The input moment matrix from which the marginal CDK is constructed.
-    - `threshold::Float64` (optional): A threshold value for filtering eigenvalue (i.e., deciding the numerical rank of `Mm`) . Default is `0.001`.
+# Arguments
+- `vars`: vector of variables, e.g., @polyvar x[1:5].
+- `k::vector` - Index of the decision variable for which CDK needs to be constructed.
+- `dc::Int`: - Degree of the marginal Christoffel polynomials (has to be smaller than or equal to d - order of the moment matrix).
+- `Mm::Matrix`: The input moment matrix from which the marginal CDK is constructed.
+- `threshold::Float64` (optional): A threshold value for filtering eigenvalue (i.e., deciding the numerical rank of `Mm`) . Default is `0.001`.
     
-    # Returns
-    - `cdk`: The constructed marginal CDK.
-    - `p_alpha_squared[1:negativeEV]`: Polynomials in the kernel of the marginal moment matrix.
-    - `positiveEV`: The set of positive eigenvalues of the marginal moment matrix.
-    - `negativeEV`: The set of negative eigenvalues of the marginal moment matrix.
-    - `minimum(Qval)`: The minimum eigenvalue of the marginal moment matrix.
-    
-    """
-    
+# Returns
+- `cdk`: The constructed marginal CDK.
+- `p_alpha_squared[1:negativeEV]`: Polynomials in the kernel of the marginal moment matrix.
+- `positiveEV`: The set of positive eigenvalues of the marginal moment matrix.
+- `negativeEV`: The set of negative eigenvalues of the marginal moment matrix.
+- `minimum(Qval)`: The minimum eigenvalue of the marginal moment matrix.    
+"""
+function construct_marginal_CDK(vars, k, dc, Mm, threshold=0.001)
     local_indices=extract_marginal_indices(k,get_basis_indices(length(vars),dc))
     eigen_result = eigen(Mm[[1,local_indices...],[1,local_indices...]])
 
@@ -839,29 +809,28 @@ function construct_marginal_CDK(vars, k, dc, Mm, threshold=0.001)
         
 end
 
-function construct_marginal_CDK_cs(vars, k, dc, Mm, cliques, threshold=0.001)
-    """
+"""
     construct_marginal_CDK_cs(vars, k, dc, Mm, cliques; threshold=0.001) -> Tuple
 
-    Constructs the marginal Christoffel polynomials (CDK) for a given variable x_k using eigenvalue decomposition, using clique-based moment matrices.
+Constructs the marginal Christoffel polynomials (CDK) for a given variable x_k using eigenvalue decomposition, using clique-based moment matrices.
     
-    # Arguments
-    - `vars::Vector`: A vector of polynomial variables (e.g., created with `@polyvar x[1:n]`).
-    - `k::Int`: The global index of the variable x_k  for which the marginal CDK is to be constructed.
-    - `dc::Int`: The degree of the marginal Christoffel polynomials. Must be less than or equal to the order of the associated moment matrix.
-    - `Mm::Vector{Matrix}`: A vector of moment matrices, where each matrix corresponds to a clique.
-    - `cliques::Vector{Vector{Int}}`: A list of cliques, where each clique is a subset of the indices of `vars`.
-    - `threshold::Float64` (optional): A threshold for filtering eigenvalues, used to determine the numerical rank of the moment matrix. Default is `0.001`.
+# Arguments
+- `vars::Vector`: A vector of polynomial variables (e.g., created with `@polyvar x[1:n]`).
+- `k::Int`: The global index of the variable x_k  for which the marginal CDK is to be constructed.
+- `dc::Int`: The degree of the marginal Christoffel polynomials. Must be less than or equal to the order of the associated moment matrix.
+- `Mm::Vector{Matrix}`: A vector of moment matrices, where each matrix corresponds to a clique.
+- `cliques::Vector{Vector{Int}}`: A list of cliques, where each clique is a subset of the indices of `vars`.
+- `threshold::Float64` (optional): A threshold for filtering eigenvalues, used to determine the numerical rank of the moment matrix. Default is `0.001`.
     
-    # Returns
-    A tuple containing:
-    1. `p_alpha_squared[1:negativeEV]::Vector`: Polynomials in the kernel of the marginal moment matrix.
-    2. `cdk::Float64`: The constructed marginal Christoffel polynomial.
-    3. `positiveEV::Int`: The count of positive eigenvalues of the marginal moment matrix.
-    4. `negativeEV::Int`: The count of negative eigenvalues of the marginal moment matrix.
-    5. `minimum(Qval)::Float64`: The smallest eigenvalue of the marginal moment matrix.
-    """
-    
+# Returns
+A tuple containing:
+1. `p_alpha_squared[1:negativeEV]::Vector`: Polynomials in the kernel of the marginal moment matrix.
+2. `cdk::Float64`: The constructed marginal Christoffel polynomial.
+3. `positiveEV::Int`: The count of positive eigenvalues of the marginal moment matrix.
+4. `negativeEV::Int`: The count of negative eigenvalues of the marginal moment matrix.
+5. `minimum(Qval)::Float64`: The smallest eigenvalue of the marginal moment matrix.
+"""
+function construct_marginal_CDK_cs(vars, k, dc, Mm, cliques, threshold=0.001)
     clique_index, local_index = find_clique_and_local_index(k, cliques)
     
     local_indices=extract_marginal_indices(local_index, get_basis_indices(length(cliques[clique_index]),dc))
@@ -889,30 +858,27 @@ function construct_marginal_CDK_cs(vars, k, dc, Mm, cliques, threshold=0.001)
         
 end
 
-function run_H2(pop,x,d,dc,local_sol,tau,beta=0.001)          
-
-    """
+"""
     Applies H2 algorithm to a given POP instance
     
-    # Arguments
-    - `pop::Vector`: Vector defining the problem, the first element being the objective function, the others being constraints.
-    - `x::Vector`: Initial vector of decision variables 
-    - `d::Int`: - Degree of the relaxation
-    - `dc::Int`: - Degree of the marginal Christoffel polynomials (has to be smaller than or equal to d - order of the moment matrix)
-    - `local_sol::Vector`: Available solution (here obtained from an external local optimizer IPOPT).
-    - `tau::Float64`: Filtering parameter 
-    - `beta::Float64` (optional): Threshold beta controling the strength of the Tikhonov regularization of marginal Christoffel polynomials. Default is `0.001`.
+# Arguments
+- `pop::Vector`: Vector defining the problem, the first element being the objective function, the others being constraints.
+- `x::Vector`: Initial vector of decision variables 
+- `d::Int`: - Degree of the relaxation
+- `dc::Int`: - Degree of the marginal Christoffel polynomials (has to be smaller than or equal to d - order of the moment matrix)
+- `local_sol::Vector`: Available solution (here obtained from an external local optimizer IPOPT).
+- `tau::Float64`: Filtering parameter 
+- `beta::Float64` (optional): Threshold beta controling the strength of the Tikhonov regularization of marginal Christoffel polynomials. Default is `0.001`.
     
-    # Returns
-    A tuple of the following:
-    1. `[opt, optcdk]`: A pair containing the optimal solutions of moment relaxation before and after CDK strengthening via H2.
-    2. `[initial_gap, gapcdk]`: Relative optimality gaps before and after CDK strengthening via H2.
-    3. `Gammas`: Thresholds used to construct sublevel sets of marginal Christoffel polynomials (CDK).
-    4. `[ubRef, f(solcdk)]`: The available upper bound before and after CDK strengthening via H2.
-    5. `data.moment[1]`: The moment matrix from which marginal CDK polynomials were constructed
-    
-    """
-    
+# Returns
+A tuple of the following:
+1. `[opt, optcdk]`: A pair containing the optimal solutions of moment relaxation before and after CDK strengthening via H2.
+2. `[initial_gap, gapcdk]`: Relative optimality gaps before and after CDK strengthening via H2.
+3. `Gammas`: Thresholds used to construct sublevel sets of marginal Christoffel polynomials (CDK).
+4. `[ubRef, f(solcdk)]`: The available upper bound before and after CDK strengthening via H2.
+5. `data.moment[1]`: The moment matrix from which marginal CDK polynomials were constructed    
+"""
+function run_H2(pop,x,d,dc,local_sol,tau,beta=0.001)          
     f=pop[1]
     
     println("_________________________ SOLVING THE INITIAL RELAXATION: _________________________")
@@ -991,30 +957,27 @@ function run_H2(pop,x,d,dc,local_sol,tau,beta=0.001)
     return [opt,optcdk],[initial_gap,gapcdk],Gammas,[ubRef,f(solcdk)],data.moment[1]
 end 
 
-function run_H2CS(pop,x,d,dc,local_sol,tau,beta=0.001)
+"""
+   Applies H2CS algorithm to a given POP instance
 
-    """
-    Applies H2CS algorithm to a given POP instance
-    
-    # Arguments
-    - `pop::Vector`: Vector defining the problem, the first element being the objective function, the others being constraints.
-    - `x::Vector`: Initial vector of decision variables 
-    - `d::Int`: - Degree of the relaxation
-    - `dc::Int`: - Degree of the marginal Christoffel polynomials (has to be smaller than or equal to d - order of the moment matrix)
-    - `local_sol::Vector`: Available solution (here obtained from an external local optimizer IPOPT).
-    - `tau::Float64`: Filtering parameter 
-    - `beta::Float64` (optional): Threshold beta controling the strength of the Tikhonov regularization of marginal Christoffel polynomials. Default is `0.001`.
-    
-    # Returns
-    A tuple of the following:
-    1. `[opt, optcdk]`: A pair containing the optimal solutions of the sparse moment relaxation before and after CDK strengthening via H2CS.
-    2. `[initial_gap, gapcdk]`: Relative optimality gaps before and after CDK strengthening via H2CS.
-    3. `Gammas`: Thresholds used to construct sublevel sets of marginal Christoffel polynomials (CDK).
-    4. `[ubRef, f(solcdk)]`: The available upper bound before and after CDK strengthening via H2CS.
-    5. `data.moment[1]`: The moment matrix from which marginal CDK polynomials were constructed
-    
-    """
-    
+# Arguments
+- `pop::Vector`: Vector defining the problem, the first element being the objective function, the others being constraints.
+- `x::Vector`: Initial vector of decision variables 
+- `d::Int`: - Degree of the relaxation
+- `dc::Int`: - Degree of the marginal Christoffel polynomials (has to be smaller than or equal to d - order of the moment matrix)
+- `local_sol::Vector`: Available solution (here obtained from an external local optimizer IPOPT).
+- `tau::Float64`: Filtering parameter 
+- `beta::Float64` (optional): Threshold beta controling the strength of the Tikhonov regularization of marginal Christoffel polynomials. Default is `0.001`.
+
+# Returns
+A tuple of the following:
+1. `[opt, optcdk]`: A pair containing the optimal solutions of the sparse moment relaxation before and after CDK strengthening via H2CS.
+2. `[initial_gap, gapcdk]`: Relative optimality gaps before and after CDK strengthening via H2CS.
+3. `Gammas`: Thresholds used to construct sublevel sets of marginal Christoffel polynomials (CDK).
+4. `[ubRef, f(solcdk)]`: The available upper bound before and after CDK strengthening via H2CS.
+5. `data.moment[1]`: The moment matrix from which marginal CDK polynomials were constructed.
+"""
+function run_H2CS(pop,x,d,dc,local_sol,tau,beta=0.001)
     f=pop[1]
     
     println("_________________________ SOLVING THE INITIAL RELAXATION: _________________________")

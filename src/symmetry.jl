@@ -4,7 +4,7 @@ end
 
 function SymbolicWedderburn.action(
     a::VariablePermutation,
-    g::AbstractPermutations.AbstractPermutation,
+    g,
     m::AbstractMonomial,
 )
     v = a.variables
@@ -29,7 +29,6 @@ Compute the symmetry adapted moment-SOS relaxation for polynomial optimization p
 - `basis`: symmetry adapted basis
 - `Gram`: Gram matrix
 """
-
 function tssos_symmetry(pop, x, d, group; numeq=0, QUIET=false)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
