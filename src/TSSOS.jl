@@ -15,7 +15,7 @@ using Printf
 using AbstractAlgebra
 using Random
 using SymbolicWedderburn
-using AbstractPermutations
+# using AbstractPermutations
 # using Hypatia
 # using SDPT3
 # using SDPNAL
