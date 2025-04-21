@@ -247,9 +247,9 @@ yt = map(v -> v[2], solode.u)
 plot!(p, xt[1500:end], yt[1500:end], color=:black, legend=false, ylimits=(-xb,xb), xlimits=(-xb,xb), aspect_ratio=:equal)
 ```
 
-<p align="center">
-<img src="https://homepages.laas.fr/vmagron/files/tssos/roa8.png" alt="Image approximation" style="width:40%; border:0;">
-</p>
+<div style="align: center; text-align:center;">
+    <img src="https://homepages.laas.fr/vmagron/files/tssos/roa8.png" alt="Image approximation" style="width:40%; border:0;" />
+</div>
 
 The black curve corresponds to the boundary of the true region of attraction. 
 The outer approximation obtained at the 8-th relaxation order is represented in light gray.
