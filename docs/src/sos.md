@@ -139,9 +139,10 @@ yt = sin.(t)
 plot!(p, xt, yt, color=:black, legend=false, ylimits=(-1,1), xlimits=(-1,1), aspect_ratio=:equal)
 ```
 
-<p align="center">
-<img src="https://homepages.laas.fr/vmagron/files/tssos/image5.png" alt="Image approximation" style="width:40%; border:0;">
-</p>
+<div style="align: center; text-align:center;">
+    <img src="https://homepages.laas.fr/vmagron/files/tssos/image5.png" alt="Image approximation" style="width:40%; border:0;" />
+</div>
+
 
 The black dots correspond to the image set of the points obtained by uniform sampling of $\mathbf{S}$ under $f$. 
 The outer approximation obtained at the 5-th relaxation order is represented in light gray.
