@@ -4,7 +4,7 @@ end
 
 function SymbolicWedderburn.action(
     a::VariablePermutation,
-    g,
+    g::AbstractPermutations.AbstractPermutation,
     m::AbstractMonomial,
 )
     v = a.variables
