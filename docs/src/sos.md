@@ -139,9 +139,7 @@ yt = sin.(t)
 plot!(p, xt, yt, color=:black, legend=false, ylimits=(-1,1), xlimits=(-1,1), aspect_ratio=:equal)
 ```
 
-<div style="align: center; text-align:center;">
-    <img src="https://homepages.laas.fr/vmagron/files/tssos/image5.png" alt="Image approximation" style="width:40%; border:0;" />
-</div>
+![Image approximation](https://homepages.laas.fr/vmagron/files/tssos/image5.png)
 
 
 The black dots correspond to the image set of the points obtained by uniform sampling of $\mathbf{S}$ under $f$. 
@@ -247,9 +245,7 @@ yt = map(v -> v[2], solode.u)
 plot!(p, xt[1500:end], yt[1500:end], color=:black, legend=false, ylimits=(-xb,xb), xlimits=(-xb,xb), aspect_ratio=:equal)
 ```
 
-<div style="align: center; text-align:center;">
-    <img src="https://homepages.laas.fr/vmagron/files/tssos/roa8.png" alt="Image approximation" style="width:40%; border:0;" />
-</div>
+![ROA approximation](https://homepages.laas.fr/vmagron/files/tssos/roa8.png)
 
 The black curve corresponds to the boundary of the true region of attraction. 
 The outer approximation obtained at the 8-th relaxation order is represented in light gray.
