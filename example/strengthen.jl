@@ -4,20 +4,20 @@ using Random
 using LinearAlgebra
 
 # Minimizing a random complex quadratic polynomial with unit-norm variables
-Random.seed!(2)
-n = 10
+Random.seed!(1)
+n = 20
 @polyvar z[1:2n]
 P = rand(n+1, n+1)
 Q = rand(n+1, n+1)
 pop = [[1; z[n+1:2n]]'*((P+P')/2+im*(Q-Q')/2)*[1; z[1:n]]]
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 1, nb=n, QUIET=true, CS=false, TS=false)
+opt,sol,data = cs_tssos_first(pop, z, n, 1, nb=n, QUIET=true, CS=false, TS=false, normality=0)
 end
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 2, nb=n, QUIET=true, CS=false, TS=false)
+opt,sol,data = cs_tssos_first(pop, z, n, 2, nb=n, QUIET=true, CS=false, TS=false, normality=0)
 end
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, n, 1, nb=n, QUIET=true, CS=false, TS=false, normality=1)
+opt,sol,data = cs_tssos_first(pop, z, n, 1, nb=n, QUIET=true, CS=false, TS=false, normality=1, mosek_setting=mosek_para(1e-8, 1e-8, 1e-8, -1, 0))
 end
 
 eigvals(convert.(ComplexF64, data.moment[1][1]))
