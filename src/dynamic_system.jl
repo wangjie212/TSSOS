@@ -1,8 +1,8 @@
-function get_dynamic_sparsity(f, g, x, d; TS=["block","block"], SO=[1,1], merge=false, md=3, QUIET=true)
+function get_dynamic_sparsity(f, g, x, d; TS=["block","block"], SO=[1,1], merge=false, md=3, QUIET=false)
     n = length(x)
     m = length(g)
-    fsupp,fcoe,flt,df = npolys_info(f, x)
-    gsupp,gcoe,glt,dg = npolys_info(g, x)
+    fsupp,_,flt,df = npolys_info(f, x)
+    gsupp,_,glt,dg = npolys_info(g, x)
     basis = Vector{Array{UInt8,2}}(undef, m+1)
     basis[1] = get_basis(n, d)
     for i = 1:m
@@ -14,7 +14,7 @@ function get_dynamic_sparsity(f, g, x, d; TS=["block","block"], SO=[1,1], merge=
         tsupp = [tsupp get_Lsupp(n, tsupp, fsupp, flt)]
         tsupp = sortslices(tsupp, dims=2)
         tsupp = unique(tsupp, dims=2)
-        vsupp = tsupp[:, [sum(tsupp[:,i])<=dv for i=1:size(tsupp,2)]]
+        vsupp = tsupp[:, [sum(item) <= dv for item in eachcol(tsupp)]]
         tsupp1 = [vsupp get_Lsupp(n, vsupp, fsupp, flt)]
         tsupp1 = sortslices(tsupp1, dims=2)
         tsupp1 = unique(tsupp1, dims=2)
@@ -115,9 +115,7 @@ function get_blocks(m::Int, tsupp, gsupp::Vector{Array{UInt8, 2}}, glt, basis::V
                     tsupp = unique(tsupp, dims=2)
                 end
             else
-                if QUIET == false
-                    println("No higher TS step of the TSSOS hierarchy!")
-                end
+                println("No higher TS step of the TSSOS hierarchy!")
                 status = 0
                 break
             end
@@ -165,7 +163,7 @@ function get_vblocks(m::Int, dv, tsupp1, tsupp, vsupp::Array{UInt8, 2}, fsupp, f
                     end
                     tsupp = sortslices(tsupp, dims=2)
                     tsupp = unique(tsupp, dims=2)
-                    qvsupp = tsupp[:, [sum(tsupp[:,s])<=dv for s=1:size(tsupp,2)]]
+                    qvsupp = tsupp[:, [sum(item) <= dv for item in eachcol(tsupp)]]
                     tsupp1 = [tsupp get_Lsupp(size(gsupp[1], 1), qvsupp, fsupp, flt)]
                     tsupp1 = sortslices(tsupp1, dims=2)
                     tsupp1 = unique(tsupp1, dims=2)

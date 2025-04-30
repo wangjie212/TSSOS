@@ -111,7 +111,7 @@ function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons
     else
         eblocks = nothing
         blocksize = [[length.(blocks[1][i]) for i = 1:length(blocks[1])]]
-        cl = [length.(blocksize)]
+        cl = [length.(blocksize[1])]
     end
     ne = 0
     for t = 1:cql
