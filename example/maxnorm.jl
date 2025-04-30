@@ -3,18 +3,6 @@ using DynamicPolynomials
 
 # Smale’s Mean Value Conjecture
 n = 2
-supp = Vector{Vector{Vector{UInt16}}}[[[[3], [3]]], [[[1;1], [1;1]], [[1;1], []], [[], [1;1]], [[3], [3]], [[], []]],
-[[[2;2], [2;2]], [[2;2], []], [[], [2;2]], [[3], [3]], [[], []]],
-[[[1], [1]], [[2], [2]], [[], []]],
-[[[1;2], []], [[], [1;2]], [[], []]],
-[[[1;2], [1;2]], [[], []]]]
-coe = [[-1], [1;-1;-1;-4;1], [1;-1;-1;-4;1], [-1;-1;2/3], [3;3;-2], [9;-1]]
-
-@time begin
-opt,sol,data = cs_tssos_first(supp, coe, 3, 2, numeq=3, CS=false, TS="block", ipart=false, QUIET=true, solve=true)
-end
-println(sqrt(-opt))
-
 @polyvar z1 z2 z3 z4 z5 z6
 z = tuple(z1,z2,z3,z4,z5,z6)
 f = - z3*z6
@@ -24,6 +12,11 @@ h1 = - z1*z4 - z2*z5 + 2/3
 h2 = 3*z1*z2 + 3*z4*z5 - 2
 h3 = 9*z1*z2*z4*z5 - 1
 cpop = [f; g1; g2; h1; h2; h3]
+
+@time begin
+opt,sol,data = cs_tssos_first(cpop, z, 3, 2, numeq=3, CS=false, TS="block", ipart=false, QUIET=true)
+end
+println(sqrt(-opt))
 
 n = 3
 @polyvar z1 z2 z3 z4 z5 z6 z7 z8
@@ -119,10 +112,10 @@ h3 = 25*z1*z2*z3*z4*z6*z7*z8*z9 - 1
 cpop = [f; g1; g2; g3; g4; h1; h2; h3]
 
 @time begin
-opt,sol,data = cs_tssos_first(cpop, z, n+1, 4, numeq=3, CS=false, TS="block", ipart=false, QUIET=true, solve=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, normality=3)  
+opt,sol,data = cs_tssos_first(cpop, z, n+1, 8, numeq=3, CS=false, TS="block", ipart=false, QUIET=true, normality=0, solve=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, normality=0, solve=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, normality=0, solve=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, normality=0)  
 end
 println(sqrt(-opt))
 
@@ -504,24 +497,25 @@ n = 2
 @polyvar z1 z2 z3 z4
 z = tuple(z1,z2,z3,z4)
 f = (z1-z2)*(z3-z4)*(2z1+z2)*(2z3+z4)*(2z2+z1)*(2z4+z3)
-h1 = 2*z1*z3 + 2*z2*z4 + z1*z4 + z2*z3 - 3
+h = 2*z1*z3 + 2*z2*z4 + z1*z4 + z2*z3 - 3
 
 n = 3
 @polyvar z1 z2 z3 z4 z5 z6
 z = tuple(z1,z2,z3,z4,z5,z6)
 f = (z1-z2)*(z4-z5)*(z1-z3)*(z4-z6)*(2z1+z2+z3)*(2z4+z5+z6)*(z2-z3)*(z5-z6)*(2z2+z1+z3)*(2z5+z4+z6)*(2z3+z1+z2)*(2z6+z4+z5)
-h1 = z1*z4 + z2*z5 + z3*z6 + (z1+z2+z3)*(z4+z5+z6) - 4
+h = z1*z4 + z2*z5 + z3*z6 + (z1+z2+z3)*(z4+z5+z6) - 4
 
 n = 4
 @polyvar z1 z2 z3 z4 z5 z6 z7 z8
 z = tuple(z1,z2,z3,z4,z5,z6,z7,z8)
 f = (z1-z2)*(z5-z6)*(z1-z3)*(z5-z7)*(z1-z4)*(z5-z8)*(z2-z3)*(z6-z7)*(z2-z4)*(z6-z8)*(z3-z4)*(z7-z8)*
 (2z1+z2+z3+z4)*(2z5+z6+z7+z8)*(2z2+z1+z3+z4)*(2z6+z5+z7+z8)*(2z3+z1+z2+z4)*(2z7+z5+z6+z8)*(2z4+z1+z2+z3)*(2z8+z5+z6+z7)
-h1 = z1*z5 + z2*z6 + z3*z7 + z4*z8 + (z1+z2+z3+z4)*(z5+z6+z7+z8) - 5
+h = z1*z5 + z2*z6 + z3*z7 + z4*z8 + (z1+z2+z3+z4)*(z5+z6+z7+z8) - 5
 
-cpop = [-f; h1]
+cpop = [-f; h]
 @time begin
-opt,sol,data = cs_tssos_first(cpop, z, n, 6, numeq=1, CS=false, balanced=true, TS="block", ipart=false, solve=false, QUIET=true)
-opt,sol,data = cs_tssos_higher!(data, balanced=true, TS="block", ipart=false, QUIET=true, normality=0, solve=false, NormalSparse=true)
-opt,sol,data = cs_tssos_higher!(data, balanced=true, TS="block", ipart=false, QUIET=true, normality=0, NormalSparse=true)
+opt,sol,data = cs_tssos_first(cpop, z, n, 6, numeq=1, CS=false, balanced=false, TS="block", ipart=false, normality=0, solve=false, QUIET=true)
+opt,sol,data = cs_tssos_higher!(data, balanced=false, TS="block", ipart=false, QUIET=true, normality=0, solve=false)
+# opt,sol,data = cs_tssos_higher!(data, balanced=false, TS="block", ipart=false, QUIET=true, normality=0, solve=false)
+opt,sol,data = cs_tssos_higher!(data, balanced=true, TS="block", ipart=false, QUIET=true, normality=5)
 end

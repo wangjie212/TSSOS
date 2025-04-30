@@ -101,82 +101,79 @@ function sadd(a, b; nb=0)
 end
 
 # generate the standard monomial basis
-function get_basis(n, d; nb=0, lead=[])
-    lb = binomial(n+d, d)
-    basis = zeros(UInt8, n, lb)
-    i = 0
-    t = 1
-    while i < d+1
-        t += 1
-        if basis[n,t-1] == i
-           if i < d
-              basis[1,t] = i+1
-           end
-           i += 1
-        else
-            j = findfirst(x->basis[x,t-1]!=0, 1:n)
-            basis[:,t] = basis[:,t-1]
-            if j == 1
-               basis[1,t] -= 1
-               basis[2,t] += 1
+function get_basis(n::Int, d::Int; nb=0, lead=[], var=[])
+    if isempty(var)
+        lb = binomial(n+d, d)
+        basis = zeros(UInt8, n, lb)
+        i = 0
+        t = 1
+        while i < d+1
+            t += 1
+            if basis[n,t-1] == i
+               if i < d
+                  basis[1,t] = i+1
+               end
+               i += 1
             else
-               basis[1,t] = basis[j,t] - 1
-               basis[j,t] = 0
-               basis[j+1,t] += 1
+                j = findfirst(x->basis[x,t-1]!=0, 1:n)
+                basis[:,t] = basis[:,t-1]
+                if j == 1
+                   basis[1,t] -= 1
+                   basis[2,t] += 1
+                else
+                   basis[1,t] = basis[j,t] - 1
+                   basis[j,t] = 0
+                   basis[j+1,t] += 1
+                end
             end
         end
-    end
-    if nb > 0
-        basis_bin = basis[1:nb,:]
-        basis_valid = all.(x->x<=1, eachcol(basis_bin))
-        basis = basis[:, basis_valid]
-    end
-    if !isempty(lead)
-        basis_valid = map(a->!divide(a, lead, n, size(lead,2)), eachcol(basis))
-        basis = basis[:, basis_valid]
-    end
-    return basis
-end
-
-function get_basis(var::Vector{UInt16}, d)
-    n = length(var)
-    lb = binomial(n+d, d)
-    basis = Vector{Vector{UInt16}}(undef, lb)
-    basis[1] = UInt16[]
-    i = 0
-    t = 1
-    while i < d+1
-        t += 1
-        if length(basis[t-1])>=i && basis[t-1][end-i+1:end] == var[n]*ones(UInt16, i)
-           if i < d
-               basis[t] = var[1]*ones(UInt16, i+1)
-           end
-           i += 1
-        else
-            j = bfind(var, n, basis[t-1][1])
-            basis[t] = copy(basis[t-1])
-            ind = findfirst(x->basis[t][x]!=var[j], 1:length(basis[t]))
-            if ind === nothing
-                ind = length(basis[t])+1
+        if nb > 0
+            basis_bin = basis[1:nb,:]
+            basis_valid = all.(x->x<=1, eachcol(basis_bin))
+            basis = basis[:, basis_valid]
+        end
+        if !isempty(lead)
+            basis_valid = map(a->!divide(a, lead, n, size(lead,2)), eachcol(basis))
+            basis = basis[:, basis_valid]
+        end
+    else
+        lb = binomial(length(var)+d, d)
+        basis = zeros(UInt8, n, lb)
+        i = 0
+        t = 1
+        while i < d+1
+            t += 1
+            if basis[var[end], t-1] == i
+               if i < d
+                  basis[var[1], t] = i + 1
+               end
+               i += 1
+            else
+                j = findfirst(x->basis[var[x], t-1] != 0, 1:n)
+                basis[:, t] = basis[:, t-1]
+                if j == 1
+                   basis[var[1], t] -= 1
+                   basis[var[2], t] += 1
+                else
+                   basis[var[1], t] = basis[var[j], t] - 1
+                   basis[var[j], t] = 0
+                   basis[var[j+1], t] += 1
+                end
             end
-            if j != 1
-                basis[t][1:ind-2] = var[1]*ones(UInt16, ind-2)
-            end
-            basis[t][ind-1] = var[j+1]
         end
     end
     return basis
 end
 
 # generate the standard monomial basis in the sparse form
-function get_sbasis(var, d; nb=0)
+function get_basis(var::Vector{UInt16}, d::Int; nb=0)
     n = length(var)
     lb = binomial(n+d, d)
     basis = Vector{Vector{UInt16}}(undef, lb)
     basis[1] = UInt16[]
     i = 0
     t = 1
-    while i < d+1
+    while i < d + 1
         t += 1
         if sum(basis[t-1]) == var[n]*i
            if i < d
@@ -197,36 +194,8 @@ function get_sbasis(var, d; nb=0)
         end
     end
     if nb > 0
-        ind = [!any([basis[i][j]==basis[i][j+1]&&basis[i][j]<=nb for j=1:length(basis[i])-1]) for i=1:lb]
+        ind = [!any([basis[i][j] == basis[i][j+1] && basis[i][j] <= nb for j = 1:length(basis[i])-1]) for i = 1:lb]
         basis = basis[ind]
-    end
-    return basis
-end
-
-function get_nbasis(n, d; var=Vector(1:n))
-    lb = binomial(length(var)+d, d)
-    basis = zeros(UInt8, n, lb)
-    i = 0
-    t = 1
-    while i < d+1
-        t += 1
-        if basis[var[end], t-1] == i
-           if i < d
-              basis[var[1], t] = i + 1
-           end
-           i += 1
-        else
-            j = findfirst(x->basis[var[x], t-1] != 0, 1:n)
-            basis[:, t] = basis[:, t-1]
-            if j == 1
-               basis[var[1], t] -= 1
-               basis[var[2], t] += 1
-            else
-               basis[var[1], t] = basis[var[j], t] - 1
-               basis[var[j], t] = 0
-               basis[var[j+1], t] += 1
-            end
-        end
     end
     return basis
 end
@@ -469,12 +438,19 @@ Generate an unknown polynomial of given degree whose coefficients are from the J
 - `coe`: coefficients of the polynomial 
 - `mon`: monomials of the polynomial 
 """
-function add_poly!(model, vars, degree; signsymmetry=false)
+function add_poly!(model, vars, degree::Int; signsymmetry=false)
     mon = vcat([MultivariatePolynomials.monomials(vars, i) for i = 0:degree]...)
     if signsymmetry != false
         ind = [all(transpose(signsymmetry)*exponents(item) .== 0) for item in mon]
         mon = mon[ind]
     end
+    coe = @variable(model, [1:length(mon)])
+    p = coe'*mon
+    return p,coe,mon
+end
+
+function add_poly!(model, vars, supp::Array{UInt8,2})
+    mon = [prod(vars.^supp[:,i]) for i = 1:size(supp,2)]
     coe = @variable(model, [1:length(mon)])
     p = coe'*mon
     return p,coe,mon

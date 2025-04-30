@@ -217,9 +217,9 @@ end
 
 function get_mblocks(om, cons_matrix, tsupp, basis, gbasis; TS="block", blocks=[], cl=[], blocksize=[], QUIET=false)
     if isempty(blocks)
-        blocks = Vector{Vector{Vector{UInt16}}}(undef, length(cons_matrix)+1)
-        blocksize = Vector{Vector{UInt16}}(undef, length(cons_matrix)+1)
-        cl = Vector{UInt16}(undef, length(cons_matrix)+1)
+        blocks = Vector{Vector{Vector{Int}}}(undef, length(cons_matrix)+1)
+        blocksize = Vector{Vector{Int}}(undef, length(cons_matrix)+1)
+        cl = Vector{Int}(undef, length(cons_matrix)+1)
     end
     if TS == false
         for k = 1:length(cons_matrix) + 1
@@ -256,13 +256,13 @@ function get_mblocks(I, om, cons_matrix, cliques, cql, tsupp, basis, gbasis; blo
     end
     time = @elapsed begin
     if isempty(blocks)
-        blocks = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
-        cl = Vector{Vector{UInt16}}(undef, cql)
-        blocksize = Vector{Vector{Vector{UInt16}}}(undef, cql)
+        blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
+        cl = Vector{Vector{Int}}(undef, cql)
+        blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
         for i = 1:cql
-            blocks[i] = Vector{Vector{Vector{UInt16}}}(undef, length(I[i])+1)
-            cl[i] = Vector{UInt16}(undef, length(I[i])+1)
-            blocksize[i] = Vector{Vector{UInt16}}(undef, length(I[i])+1)
+            blocks[i] = Vector{Vector{Vector{Int}}}(undef, length(I[i])+1)
+            cl[i] = Vector{Int}(undef, length(I[i])+1)
+            blocksize[i] = Vector{Vector{Int}}(undef, length(I[i])+1)
             nsupp = nothing
             if TS != false
                 ind = [[issubset(item[j], cliques[i]) for j in eachindex(item)] for item in tsupp]

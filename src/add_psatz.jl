@@ -39,7 +39,7 @@ Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP 
 # Output arguments
 - `info`: auxiliary data
 """
-function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], TS="block", SO=1, Groebnerbasis=false, QUIET=false, constrs=nothing) where {T<:Union{Number,AffExpr}}
+function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], blocks=[], TS="block", SO=1, Groebnerbasis=false, QUIET=false, constrs=nothing) where {T<:Union{Number,AffExpr}}
     n = length(vars)
     m = length(ineq_cons)
     if ineq_cons != []
@@ -98,15 +98,21 @@ function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons
     basis = Vector{Vector{Matrix{UInt8}}}(undef, cql)
     for t = 1:cql
         basis[t] = Vector{Matrix{UInt8}}(undef, length(I[t])+length(J[t])+1)
-        basis[t][1] = get_nbasis(n, order, var=cliques[t])
+        basis[t][1] = get_basis(n, order, var=cliques[t])
         for s = 1:length(I[t])
-            basis[t][s+1] = get_nbasis(n, order-ceil(Int, dg[I[t][s]]/2), var=cliques[t])
+            basis[t][s+1] = get_basis(n, order-ceil(Int, dg[I[t][s]]/2), var=cliques[t])
         end
         for s = 1:length(J[t])
-            basis[t][s+length(I[t])+1] = get_nbasis(n, 2*order-dh[J[t][s]], var=cliques[t])
+            basis[t][s+length(I[t])+1] = get_basis(n, 2*order-dh[J[t][s]], var=cliques[t])
         end
     end
-    blocks,cl,blocksize,eblocks = get_blocks(n, I, J, m, l, fsupp, gsupp, hsupp, basis, cliques, cql, tsupp=[], TS=TS, SO=SO, QUIET=QUIET, signsymmetry=ss)
+    if isempty(blocks)
+        blocks,cl,blocksize,eblocks = get_blocks(n, I, J, m, l, fsupp, gsupp, hsupp, basis, cliques, cql, tsupp=[], TS=TS, SO=SO, signsymmetry=ss)
+    else
+        eblocks = nothing
+        blocksize = [[length.(blocks[1][i]) for i = 1:length(blocks[1])]]
+        cl = [length.(blocksize)]
+    end
     ne = 0
     for t = 1:cql
         ne += sum(numele(blocksize[t][1]))
@@ -340,9 +346,9 @@ function assign_constraint(m, l, gsupp::Vector{Matrix{UInt8}}, hsupp::Vector{Mat
     return I,J
 end
 
-function get_blocks(n, I, J, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matrix{UInt8}}, hsupp::Vector{Matrix{UInt8}}, basis, cliques, cql; tsupp=[], TS="block", SO=1, QUIET=false, signsymmetry=nothing)
-    blocks = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
-    eblocks = Vector{Vector{Vector{UInt16}}}(undef, cql)
+function get_blocks(n, I, J, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matrix{UInt8}}, hsupp::Vector{Matrix{UInt8}}, basis, cliques, cql; tsupp=[], TS="block", SO=1, signsymmetry=nothing)
+    blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
+    eblocks = Vector{Vector{Vector{Int}}}(undef, cql)
     cl = Vector{Vector{Int}}(undef, cql)
     blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
     status = ones(Int, cql)
@@ -363,8 +369,8 @@ function get_blocks(n, I, J, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matrix{UI
         supp = [tsupp[:, ind] UInt8(2)*basis[i][1]]
         supp = sortslices(supp, dims=2)
         supp = unique(supp, dims=2)
-        blocks[i] = Vector{Vector{Vector{UInt16}}}(undef, lc+1)
-        eblocks[i] = Vector{Vector{UInt16}}(undef, length(J[i]))
+        blocks[i] = Vector{Vector{Vector{Int}}}(undef, lc+1)
+        eblocks[i] = Vector{Vector{Int}}(undef, length(J[i]))
         cl[i] = Vector{Int}(undef, lc+1)
         blocksize[i] = Vector{Vector{Int}}(undef, lc+1)
         blocks[i],cl[i],blocksize[i],eblocks[i],status[i] = get_blocks(n, lc, length(J[i]), supp, [gsupp[I[i]]; hsupp[J[i]]], basis[i], TS=TS, SO=SO, signsymmetry=signsymmetry)
@@ -376,8 +382,8 @@ function get_blocks(n, I, J, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matrix{UI
 end
 
 function get_blocks(n::Int, m::Int, l::Int, tsupp, supp::Vector{Array{UInt8, 2}}, basis::Vector{Array{UInt8, 2}}; TS="block", SO=1, merge=false, md=3, signsymmetry=nothing)
-    blocks = Vector{Vector{Vector{UInt16}}}(undef, m+1)
-    eblocks = Vector{Vector{UInt16}}(undef, l)
+    blocks = Vector{Vector{Vector{Int}}}(undef, m+1)
+    eblocks = Vector{Vector{Int}}(undef, l)
     blocksize = Vector{Vector{Int}}(undef, m+1)
     cl = Vector{Int}(undef, m+1)
     status = 0
@@ -433,13 +439,13 @@ function get_blocks(n::Int, m::Int, l::Int, tsupp, supp::Vector{Array{UInt8, 2}}
     return blocks,cl,blocksize,eblocks,status
 end
 
-function get_moment(n, tsupp, lb, ub)
-    ltsupp = size(tsupp, 2)
-    moment = zeros(ltsupp)
-    for i = 1:ltsupp
-        moment[i] = prod([(ub[j]^(tsupp[j,i]+1)-lb[j]^(tsupp[j,i]+1))/(tsupp[j,i]+1) for j=1:n])
-    end
-    return moment
+function get_moment(supp::Array{UInt8, 2}, lb, ub)
+    return [prod([(ub[j]^(item[j]+1)-lb[j]^(item[j]+1))/(item[j]+1) for j=1:length(lb)]) for item in eachcol(supp)]
+end
+
+function get_moment(mons::Vector{Monomial{true}}, lb, ub)
+    supp = exponents.(mons)
+    return [prod([(ub[j]^(item[j]+1)-lb[j]^(item[j]+1))/(item[j]+1) for j=1:length(lb)]) for item in supp]
 end
 
 function get_moment_matrix(moment, info)

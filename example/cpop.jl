@@ -102,7 +102,7 @@ include("D:/Programs/TSSOS/example/modelopf.jl")
 cd("D:/Programs/PolyOPF/pglib")
 silence()
 
-case = "pglib_opf_case14_ieee"
+case = "pglib_opf_case30_as"
 AC = 2178.08
 opfdata = parse_file(case * ".m")
 model = pop_opf_com_vol(opfdata, normal=true, AngleCons=true, LineLimit=true)
@@ -115,7 +115,7 @@ mc = maximum(abs.(coe[1]))
 coe[1] = coe[1]./mc
 
 t = @elapsed begin
-opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, CS="MF", TS="block", MomentOne=false)
+opt,_,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, CS="MF", TS="block", QUIET=true, MomentOne=false)
 end
 opt *= mc
 maxc = maximum(popd.cliquesize) # maximal clique size

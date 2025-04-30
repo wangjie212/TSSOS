@@ -107,13 +107,13 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
         hbasis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
         for i = 1:cql
             basis[i] = Vector{Vector{Vector{UInt16}}}(undef, length(I[i])+1)
-            basis[i][1] = get_sbasis(cliques[i], rlorder[i], nb=nb)
+            basis[i][1] = get_basis(cliques[i], rlorder[i], nb=nb)
             hbasis[i] = Vector{Vector{Vector{UInt16}}}(undef, length(J[i]))
             for s = 1:length(I[i])
-                basis[i][s+1] = get_sbasis(cliques[i], rlorder[i]-ceil(Int, dc[I[i][s]]/2), nb=nb)
+                basis[i][s+1] = get_basis(cliques[i], rlorder[i]-ceil(Int, dc[I[i][s]]/2), nb=nb)
             end
             for s = 1:length(J[i])
-                hbasis[i][s] = get_sbasis(cliques[i], 2*rlorder[i]-dc[J[i][s]], nb=nb)
+                hbasis[i][s] = get_basis(cliques[i], 2*rlorder[i]-dc[J[i][s]], nb=nb)
             end
         end
     end
@@ -456,7 +456,7 @@ end
 function get_eblock(tsupp::Vector{Vector{UInt16}}, hsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=nb, nv=0, signsymmetry=nothing)
     ltsupp = length(tsupp)
     hlt = length(hsupp)
-    eblock = UInt16[]
+    eblock = Int[]
     for (i,item) in enumerate(basis)
         if signsymmetry === nothing
             if findfirst(x -> bfind(tsupp, ltsupp, sadd(item, hsupp[x], nb=nb)) !== nothing, 1:hlt) !== nothing
@@ -478,15 +478,15 @@ end
 function get_blocks(I, J, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql, tsupp, basis, hbasis; blocks=[], eblocks=[], cl=[], blocksize=[], TS="block",
     nb=0, merge=false, md=3, nv=0, signsymmetry=nothing)
     if isempty(blocks)
-        blocks = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
-        eblocks = Vector{Vector{Vector{UInt16}}}(undef, cql)
-        cl = Vector{Vector{UInt16}}(undef, cql)
-        blocksize = Vector{Vector{Vector{UInt16}}}(undef, cql)
+        blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
+        eblocks = Vector{Vector{Vector{Int}}}(undef, cql)
+        cl = Vector{Vector{Int}}(undef, cql)
+        blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
         for i = 1:cql
-            blocks[i] = Vector{Vector{Vector{UInt16}}}(undef, length(I[i])+1)
-            eblocks[i] = Vector{Vector{UInt16}}(undef, length(J[i]))
-            cl[i] = Vector{UInt16}(undef, length(I[i])+1)
-            blocksize[i] = Vector{Vector{UInt16}}(undef, length(I[i])+1)
+            blocks[i] = Vector{Vector{Vector{Int}}}(undef, length(I[i])+1)
+            eblocks[i] = Vector{Vector{Int}}(undef, length(J[i]))
+            cl[i] = Vector{Int}(undef, length(I[i])+1)
+            blocksize[i] = Vector{Vector{Int}}(undef, length(I[i])+1)
             ksupp = TS == false ? nothing : tsupp[[issubset(tsupp[j], cliques[i]) for j in eachindex(tsupp)]]
             blocks[i],eblocks[i],cl[i],blocksize[i] = get_blocks(length(I[i]), length(J[i]), ksupp, supp[[I[i]; J[i]].+1], basis[i],
             hbasis[i], TS=TS, nb=nb, QUIET=true, merge=merge, md=md, nv=nv, signsymmetry=signsymmetry)

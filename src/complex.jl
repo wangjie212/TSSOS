@@ -401,14 +401,14 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
     ksupp = copy(tsupp)
     if normality > 0
         if NormalSparse == true
-            hyblocks = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
+            hyblocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
         end
         wbasis = Vector{Vector{Vector{UInt16}}}(undef, cql)
         for s = 1:cql
             wbasis[s] = get_basis(cliques[s], normality)
             bs = length(wbasis[s])
             if NormalSparse == true
-                hyblocks[s] = Vector{Vector{Vector{UInt16}}}(undef, cliquesize[s])
+                hyblocks[s] = Vector{Vector{Vector{Int}}}(undef, cliquesize[s])
             end
             for i = 1:cliquesize[s]
                 if NormalSparse == true
@@ -950,7 +950,7 @@ end
 
 function get_eblock(tsupp::Vector{Vector{Vector{UInt16}}}, hsupp::Vector{Vector{Vector{UInt16}}}, basis::Vector{Vector{Vector{UInt16}}}; nb=nb)
     ltsupp = length(tsupp)
-    eblock = UInt16[]
+    eblock = Int[]
     for (i,item) in enumerate(basis)
         flag = 0
         for temp in hsupp
@@ -973,10 +973,10 @@ end
 function get_blocks(m, l, tsupp, supp::Vector{Vector{Vector{Vector{UInt16}}}}, basis, hbasis; blocks=[], eblocks=[], cl=[], blocksize=[], 
     nb=0, TS="block", balanced=false, QUIET=true, merge=false, md=3)
     if isempty(blocks)
-        blocks = Vector{Vector{Vector{UInt16}}}(undef, m+1)
-        eblocks = Vector{Vector{UInt16}}(undef, l)
-        blocksize = Vector{Vector{UInt16}}(undef, m+1)
-        cl = Vector{UInt16}(undef, m+1)
+        blocks = Vector{Vector{Vector{Int}}}(undef, m+1)
+        eblocks = Vector{Vector{Int}}(undef, l)
+        blocksize = Vector{Vector{Int}}(undef, m+1)
+        cl = Vector{Int}(undef, m+1)
     end
     if TS == false
         for k = 1:m+1
@@ -1014,15 +1014,15 @@ end
 function get_blocks(I, J, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques, cql, tsupp, basis, hbasis; blocks=[], eblocks=[], cl=[], 
     blocksize=[], TS="block", balanced=false, nb=0, merge=false, md=3)
     if isempty(blocks)
-        blocks = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
-        eblocks = Vector{Vector{Vector{UInt16}}}(undef, cql)
-        cl = Vector{Vector{UInt16}}(undef, cql)
-        blocksize = Vector{Vector{Vector{UInt16}}}(undef, cql)
+        blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
+        eblocks = Vector{Vector{Vector{Int}}}(undef, cql)
+        cl = Vector{Vector{Int}}(undef, cql)
+        blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
         for i = 1:cql
-            blocks[i] = Vector{Vector{Vector{UInt16}}}(undef, length(I[i])+1)
-            eblocks[i] = Vector{Vector{UInt16}}(undef, length(J[i]))
-            cl[i] = Vector{UInt16}(undef, length(I[i])+1)
-            blocksize[i] = Vector{Vector{UInt16}}(undef, length(I[i])+1)
+            blocks[i] = Vector{Vector{Vector{Int}}}(undef, length(I[i])+1)
+            eblocks[i] = Vector{Vector{Int}}(undef, length(J[i]))
+            cl[i] = Vector{Int}(undef, length(I[i])+1)
+            blocksize[i] = Vector{Vector{Int}}(undef, length(I[i])+1)
             ksupp = TS == false ? nothing : tsupp[[issubset(union(tsupp[j][1], tsupp[j][2]), cliques[i]) for j in eachindex(tsupp)]]
             blocks[i],eblocks[i],cl[i],blocksize[i] = get_blocks(length(I[i]), length(J[i]), ksupp, supp[[I[i]; J[i]].+1], basis[i], 
             hbasis[i], TS=TS, balanced=balanced, QUIET=true, merge=merge, md=md, nb=nb)

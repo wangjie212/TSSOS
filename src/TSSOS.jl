@@ -23,11 +23,12 @@ using AbstractPermutations
 import CliqueTrees
 
 export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, local_solution, refine_sol,
-cosmo_para, mosek_para, add_psatz!, add_poly!, get_nbasis, get_moment, get_moment_matrix, get_cmoment, homogenize, 
+cosmo_para, mosek_para, add_psatz!, add_poly!, get_basis, get_moment, get_moment_matrix, get_cmoment, homogenize, 
 solve_hpop, get_signsymmetry, SumOfRatios, SparseSumOfRatios, LinearPMI_first, LinearPMI_higher!, 
 show_blocks, complex_to_real, add_SOSMatrix!, sparseobj, get_mmoment, extract_solutions, extract_solutions_robust, 
 extract_solutions_pmo, extract_solutions_robust_pmo, extract_weight_matrix, add_SOS!, tssos_symmetry,
-run_H1, run_H1CS, run_H2, run_H2CS, construct_CDK, construct_marginal_CDK, construct_CDK_cs, construct_marginal_CDK_cs
+run_H1, run_H1CS, run_H2, run_H2CS, construct_CDK, construct_marginal_CDK, construct_CDK_cs, construct_marginal_CDK_cs,
+get_dynamic_sparsity
 
 mutable struct cosmo_para
     eps_abs::Float64
@@ -105,5 +106,6 @@ include("matrixsos.jl")
 include("sum_of_ratios.jl")
 include("CDK.jl")
 include("symmetry.jl")
+include("dynamic_system.jl")
 
 end

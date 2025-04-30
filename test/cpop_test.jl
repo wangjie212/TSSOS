@@ -27,4 +27,19 @@ pop = [z[1]*z[2] + z[3]*z[4], 1 - z[1]*z[3] - z[2]*z[4]]
 opt,sol,data = cs_tssos_first(pop, z, 2, 1, ipart=false, numeq=1, QUIET=true, CS=false, TS=false, solution=true)
 # optimum = -1
 
+@polyvar z1 z2 z3 z4 z5 z6
+z = tuple(z1,z2,z3,z4,z5,z6)
+f = - z3*z6
+g1 = z1^2*z4^2 - z1^2 - z4^2 - 4*z3*z6 + 1
+g2 = z2^2*z5^2 - z2^2 - z5^2 - 4*z3*z6 + 1
+h1 = - z1*z4 - z2*z5 + 2/3
+h2 = 3*z1*z2 + 3*z4*z5 - 2
+h3 = 9*z1*z2*z4*z5 - 1
+cpop = [f; g1; g2; h1; h2; h3]
+
+@time begin
+opt,sol,data = cs_tssos_first(cpop, z, 3, 2, numeq=3, CS=false, TS="block", ipart=false, QUIET=true)
+end
+# optimum = -0.444444
+
 println("Run successfully!")

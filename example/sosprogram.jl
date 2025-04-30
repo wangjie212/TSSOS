@@ -8,22 +8,22 @@ n = 3
 @polyvar x[1:n]
 f = [(x[1]^2+x[2]^2-1/4)*x[1], (x[2]^2+x[3]^2-1/4)*x[2], (x[2]^2+x[3]^2-1/4)*x[3]]
 g = [1-x[1]^2, 1-x[2]^2, 1-x[3]^2]
-d = 3
 
+d = 3
 model = Model(optimizer_with_attributes(Mosek.Optimizer))
 set_optimizer_attribute(model, MOI.Silent(), true)
 v, vc, vb = add_poly!(model, x, 2d-2)
 w, wc, wb = add_poly!(model, x, 2d)
 Lv = v - sum(f .* differentiate(v, x))
-info1 = add_psatz!(model, Lv, x, g, [], d, QUIET=true, CS=true, cliques=[[1;2;3]], TS="block", SO=1, Groebnerbasis=false, constrs="con1")
-info2 = add_psatz!(model, w, x, g, [], d, QUIET=true, CS=true, TS="block", SO=1, Groebnerbasis=false)
-info3 = add_psatz!(model, w-v-1, x, g, [], d, QUIET=true, CS=true, TS="block", SO=1, Groebnerbasis=false)
-supp = get_nbasis(n, 2d, var=Vector(n:-1:1))
-moment = get_moment(n, supp, -ones(n), ones(n))
+info1 = add_psatz!(model, Lv, x, g, [], d, TS=false, SO=1, constrs="con1")
+info2 = add_psatz!(model, w, x, g, [], d, TS=false, SO=1)
+info3 = add_psatz!(model, w-v-1, x, g, [], d, TS=false, SO=1)
+moment = get_moment(wb, -ones(n), ones(n))
 @objective(model, Min, sum(moment.*wc))
 optimize!(model)
 objv = objective_value(model)
 @show objv
+# objv = 3.437648
 
 # retrieve Gram matrices
 GramMat = Vector{Vector{Vector{Union{Float64,Matrix{Float64}}}}}(undef, info1.cql)

@@ -442,7 +442,7 @@ end
 function get_eblock(tsupp::Array{UInt8, 2}, hsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nv=0, signsymmetry=nothing)
     ltsupp = size(tsupp, 2)
     hlt = size(hsupp, 2)
-    eblock = UInt16[]
+    eblock = Int[]
     for i = 1:size(basis, 2)
         if signsymmetry === nothing
             if findfirst(x -> bfind(tsupp, ltsupp, bin_add(basis[:,i], hsupp[:,x], nb)) !== nothing, 1:hlt) !== nothing
@@ -461,10 +461,10 @@ end
 function get_blocks(m, l, tsupp, supp, basis, hbasis; blocks=[], eblocks=[], cl=[], blocksize=[], nb=0,
     TS="block", QUIET=true, merge=false, md=3, nv=0, signsymmetry=nothing)
     if isempty(blocks)
-        blocks = Vector{Vector{Vector{UInt16}}}(undef, m+1)
-        eblocks = Vector{Vector{UInt16}}(undef, l)
-        blocksize = Vector{Vector{UInt16}}(undef, m+1)
-        cl = Vector{UInt16}(undef, m+1)
+        blocks = Vector{Vector{Vector{Int}}}(undef, m+1)
+        eblocks = Vector{Vector{Int}}(undef, l)
+        blocksize = Vector{Vector{Int}}(undef, m+1)
+        cl = Vector{Int}(undef, m+1)
     end
     if TS == false
         for k = 1:m+1
@@ -528,7 +528,7 @@ function solvesdp(n, m, supp, coe, basis, hbasis, blocks, eblocks, cl, blocksize
         if normality == true
             wbasis = basis[1]
             bs = size(wbasis, 2)  
-            hyblocks = Vector{Vector{Vector{UInt16}}}(undef, n)
+            hyblocks = Vector{Vector{Vector{Int}}}(undef, n)
             for i = 1:n
                 G = SimpleGraph(2bs)
                 for j = 1:bs, k = j:bs

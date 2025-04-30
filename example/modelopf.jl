@@ -315,7 +315,7 @@ function pop_opf_com_vol(data::Dict{String, Any}; normal=true, AngleCons=false, 
     nb = length(ref[:branch])
     ng = length(ref[:gen])
     n = nbus
-    m = 4*nbus + 2*ng + 2*length(keys(ref[:ref_buses]))
+    m = 4*nbus + 2*ng + length(keys(ref[:ref_buses]))
     if AngleCons == true
         m += 2*nb
     end
@@ -550,23 +550,15 @@ function pop_opf_com_vol(data::Dict{String, Any}; normal=true, AngleCons=false, 
             end
         end
     end
-    supp[1],coe[1] = move_zero!(supp[1],coe[1])
-    supp[1],coe[1] = resort(supp[1],coe[1],field="complex")
+    supp[1],coe[1] = move_zero!(supp[1], coe[1])
+    supp[1],coe[1] = resort(supp[1], coe[1], field="complex")
 
     # reference voltage
-    # for key in keys(ref[:ref_buses])
-    #     i = bfind(bus,nbus,key)
-    #     supp[k] = [[[i;i], []], [[i], [i]], [[], [i;i]]]
-    #     coe[k] = [1;-2;1]
-    #     k += 1
-    # end
     for key in keys(ref[:ref_buses])
         i = bfind(bus,nbus,key)
-        supp[k] = [[[i], []], [[], [i]]]
-        coe[k] = [1;1]
-        supp[k+1] = [[[i], []], [[], [i]]]
-        coe[k+1] = [im;-im]
-        k += 2
+        supp[k] = [[[i;i], []], [[i], [i]], [[], [i;i]]]
+        coe[k] = [1;-2;1]
+        k += 1
     end
     return SparsePolyModel(n,m,numeq,nbus,ng,nb,supp,coe,nothing)
 end

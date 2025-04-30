@@ -6,8 +6,8 @@ include("D:/Programs/TSSOS/example/modelopf.jl")
 cd("D:/Programs/PolyOPF/pglib")
 silence()
 
-case = "pglib_opf_case3375wp_k"
-AC = 260200
+case = "pglib_opf_case30_ieee"
+AC = 8208.5
 opfdata = parse_file(case * ".m")
 
 # first order relaxation
@@ -21,7 +21,7 @@ mc = maximum(abs.(coe[1]))
 coe[1] = coe[1]./mc
 
 t = @elapsed begin
-opt,sol,popd = cs_tssos_first(supp, coe, n, 1, numeq=numeq, CS=false, TS="MF", MomentOne=false)
+opt,_,popd = cs_tssos_first(supp, coe, n, 1, numeq=numeq, CS=false, TS="MF", MomentOne=false)
 end
 opt *= mc
 mb = maximum(maximum.([maximum.(popd.blocksize[i]) for i = 1:popd.cql])) # maximal block size
@@ -40,7 +40,7 @@ mc = maximum(abs.(coe[1]))
 coe[1] = coe[1]./mc
 
 t = @elapsed begin
-opt,sol,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, CS="MF", TS="block", MomentOne=false)
+opt,_,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, CS="MF", TS="block", MomentOne=false)
 end
 opt *= mc
 maxc = maximum(popd.cliquesize) # maximal clique size
