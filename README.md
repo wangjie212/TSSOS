@@ -53,7 +53,6 @@ Options
 
 Output  
 **basis**: monomial basis  
-**cl**: numbers of blocks  
 **blocksize**: sizes of blocks  
 **blocks**: block structrue  
 **GramMat**: Gram matrices (set Gram=true)  
@@ -92,7 +91,7 @@ Options
 **nb**: specify the first nb variables to be $\pm1$ binary variables  
 **TS**: "block" by default (maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)  
 **normality**: true (impose normality condtions), false   
-**Groebnerbasis**: true (work in the quotient ring by computing a Gröbner basis), false  
+**GroebnerBasis**: true (work in the quotient ring by computing a Gröbner basis), false  
 **solution**: true (extract optimal solutions), false  
 
 One could also exploit correlative sparsity and term sparsity simultaneously.
@@ -142,7 +141,6 @@ and run for instance tssos_first(..., mosek_setting=settings)
 
 Output  
 **basis**: monomial basis  
-**cl**: numbers of blocks  
 **blocksize**: sizes of blocks  
 **blocks**: block structrue  
 **GramMat**: Gram matrices (set Gram=true)  
@@ -183,7 +181,7 @@ $$\mathrm{s.t.}\ a_{k0}+y_1a_{k1}+\cdots+y_na_{kn}\in\mathrm{SOS},\ k=1,\ldots,m
 where $\mathbf{c}\in\mathbb{R}^n$ and $a_{ki}\in\mathbb{R}[\mathbf{x}]$ are polynomials. SOS constraints could be handled with the routine **add_psatz!**:
 
 ```Julia
-info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order, TS="block", SO=1, Groebnerbasis=false)
+info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order, TS="block", SO=1, GroebnerBasis=false)
 ```
 where **nonneg** is a nonnegative polynomial constrained to admit a Putinar's style SOS representation on the semialgebraic set defined by **ineq_cons** and **eq_cons**, and **SO** is the sparse order.
 
@@ -210,7 +208,7 @@ h = [x[1]^2 + x[2]^2 + y[1]^2-1, x[2]^2 + x[3]^2 + y[2]^2 - 1]
 model = Model(optimizer_with_attributes(Mosek.Optimizer))
 @variable(model, lower)
 nonneg = f - lower*sum(x.^2)
-info = add_psatz!(model, nonneg, [x; y], [], h, d, TS="block", Groebnerbasis=true)
+info = add_psatz!(model, nonneg, [x; y], [], h, d, TS="block", GroebnerBasis=true)
 @objective(model, Max, lower)
 optimize!(model)
 ```
@@ -294,7 +292,7 @@ opt = SparseSumOfRatios(p, q, g, [], [x;y;z], d, QUIET=true, SignSymmetry=true) 
 
 Options  
 **SignSymmetry**: true (exploit sign symmetries), false
-**Groebnerbasis**: true (work in the quotient ring by computing a Gröbner basis), false
+**GroebnerBasis**: true (work in the quotient ring by computing a Gröbner basis), false
 
 ## Polynomial matrix optimization
 The polynomial matrix optimization problem aims to minimize the smallest eigenvalue of a polynomial matrix subject to a tuple of polynomial matrix inequalties (PMIs), which could be formulized as

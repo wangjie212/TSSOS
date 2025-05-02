@@ -10,15 +10,6 @@ pop = [3-x[1]^2-x[3]^2+x[1]*x[2]^2+2x[2]*x[3]*x[4]-x[1]*x[4]^2, x[2], x[1]^2+3x[
 opt,sol,data = cs_tssos_first(pop, x, 2, numeq=3, CS=false, TS=false, QUIET=true)
 end
 
-supp = Vector{Vector{Vector{UInt16}}}[[[[], []], [[1], [1]], [[1], [2;2]], [[2;2], [1]]],
-[[[2], []], [[], [2]]], [[[], []], [[1], [1]], [[1;1], []], [[], [1;1]]],
-[[[2;2], []], [[], [2;2]], [[2], [2]]], [[[], []], [[1], [1]], [[2], [2]]]]
-coe = [[3;-1;0.5;0.5], [1;1], [-1;1;-0.25;-0.25], [1;1;-2], [-3;1;1]]
-
-@time begin
-opt,sol,data = cs_tssos_first(supp, coe, 2, 2, numeq=1, QUIET=false, CS=false, TS=false, ipart=false)
-end
-
 function cbasis(z)
     basis = Monomial{true}[1]
     for i = 1:length(z)
@@ -49,7 +40,7 @@ end
 rf = f(z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
 rpop = [real.(coefficients(rf))'*monomials(rf), 1-sum(x.^2)]
 @time begin
-opt,sol,data = tssos_first(rpop, x, 1, numeq=1, Groebnerbasis=false, QUIET=true, TS="block")
+opt,sol,data = tssos_first(rpop, x, 1, numeq=1, GroebnerBasis=false, QUIET=true, TS="block")
 end
 
 opt,sol = local_solution(2n, 1, data.supp, data.coe, numeq=1, startpoint=rand(2n), QUIET=true)
@@ -76,7 +67,7 @@ end
 rf = f(z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
 rpop = [real.(coefficients(rf))'*monomials(rf), 1-sum(x.^2)]
 @time begin
-opt,sol,data = tssos_first(rpop, x, 2, numeq=1, Groebnerbasis=false, QUIET=true, TS="block")
+opt,sol,data = tssos_first(rpop, x, 2, numeq=1, GroebnerBasis=false, QUIET=true, TS="block")
 end
     
 opt,sol = local_solution(2n, 1, data.supp, data.coe, numeq=1, startpoint=rand(2n), QUIET=true)

@@ -1,5 +1,5 @@
 """
-    optimum = SumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, Groebnerbasis=false)
+    optimum = SumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, GroebnerBasis=false)
 
 Minimizing the sum of ratios p1/q1 + ... + pN/qN on the set defined by g >= 0 and h == 0.
 
@@ -13,9 +13,9 @@ Minimizing the sum of ratios p1/q1 + ... + pN/qN on the set defined by g >= 0 an
 
 # Output arguments
 - `SignSymmetry`: exploit sign symmetries or not (`true`, `false`)
-- `Groebnerbasis`: exploit the quotient ring structure or not (`true`, `false`)
+- `GroebnerBasis`: exploit the quotient ring structure or not (`true`, `false`)
 """
-function SumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=true, mosek_setting=mosek_para(), Groebnerbasis=false)
+function SumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=true, mosek_setting=mosek_para(), GroebnerBasis=false)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     N = length(p)
@@ -44,10 +44,10 @@ function SumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=
     hh = Vector{Polynomial{true, AffExpr}}(undef, N-1)
     for i = 1:N-1
         hh[i] = add_poly!(model, x, 2d-max(dq[i], dq[N]), signsymmetry=ss)[1]
-        add_psatz!(model, p[i]-hh[i]*q[i], x, g, h, d, QUIET=QUIET, CS=false, TS=TS, Groebnerbasis=Groebnerbasis)
+        add_psatz!(model, p[i]-hh[i]*q[i], x, g, h, d, QUIET=QUIET, CS=false, TS=TS, GroebnerBasis=GroebnerBasis)
     end
     c = @variable(model)
-    add_psatz!(model, p[N]+(sum(hh)-c)*q[N], x, g, h, d, QUIET=QUIET, CS=false, TS=TS, Groebnerbasis=Groebnerbasis)
+    add_psatz!(model, p[N]+(sum(hh)-c)*q[N], x, g, h, d, QUIET=QUIET, CS=false, TS=TS, GroebnerBasis=GroebnerBasis)
     @objective(model, Max, c)
     optimize!(model)
     status = termination_status(model)
@@ -64,7 +64,7 @@ function SumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=
 end
 
 """
-    optimum = SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, Groebnerbasis=false)
+    optimum = SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, GroebnerBasis=false)
 
 Minimizing the sum of sparse ratios p1/q1 + ... + pN/qN on the set defined by g >= 0 and h == 0.
 
@@ -78,9 +78,9 @@ Minimizing the sum of sparse ratios p1/q1 + ... + pN/qN on the set defined by g 
 
 # Output arguments
 - `SignSymmetry`: exploit sign symmetries or not (`true`, `false`)
-- `Groebnerbasis`: exploit the quotient ring structure or not (`true`, `false`)
+- `GroebnerBasis`: exploit the quotient ring structure or not (`true`, `false`)
 """
-function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=true, mosek_setting=mosek_para(), Groebnerbasis=false)
+function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=true, mosek_setting=mosek_para(), GroebnerBasis=false)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     N = length(p)
@@ -141,7 +141,7 @@ function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSym
             ind = [bfind(U[j], length(U[j]), i) for j in V[i-1]]
             temp = sum(hh[V[i-1][j]][ind[j]] for j=1:length(V[i-1]))
         end
-        add_psatz!(model, p[i]-(c[i]+sum(hh[i])-temp)*q[i], I[i], g[J[i]], h[K[i]], d, QUIET=QUIET, CS=false, TS=TS, Groebnerbasis=Groebnerbasis)
+        add_psatz!(model, p[i]-(c[i]+sum(hh[i])-temp)*q[i], I[i], g[J[i]], h[K[i]], d, QUIET=QUIET, CS=false, TS=TS, GroebnerBasis=GroebnerBasis)
     end 
     @objective(model, Max, sum(c))
     end

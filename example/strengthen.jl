@@ -28,7 +28,7 @@ for i = 1:n
     push!(rpop, 1 - x[i]^2 - x[i+n]^2)
 end
 @time begin
-opt,sol,data = tssos_first(rpop, x, 2, numeq=n, Groebnerbasis=true, QUIET=true, TS=false)
+opt,sol,data = tssos_first(rpop, x, 2, numeq=n, GroebnerBasis=true, QUIET=true, TS=false)
 end
 
 function basis(x)
@@ -65,7 +65,7 @@ end
 rf = pop[1](z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
 rpop = [real.(coefficients(rf))'*monomials(rf), 1 - sum(x.^2)]
 @time begin
-opt,sol,data = tssos_first(rpop, x, 2, numeq=1, Groebnerbasis=false, QUIET=true, TS=false)
+opt,sol,data = tssos_first(rpop, x, 2, numeq=1, GroebnerBasis=false, QUIET=true, TS=false)
 end
 println(sum(eigvals(data.moment[1]) .> 1e-4))
 

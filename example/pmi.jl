@@ -8,13 +8,13 @@ using Random
 Q = [1/sqrt(2) -1/sqrt(3) 1/sqrt(6); 0 1/sqrt(3) 2/sqrt(6); 1/sqrt(2) 1/sqrt(3) -1/sqrt(6)]
 F = Q*[-x[1]^2-x[2]^2 0 0; 0 -1/4*(x[1]+1)^2-1/4*(x[2]-1)^2 0; 0 0 -1/4*(x[1]-1)^2-1/4*(x[2]+1)^2]*Q'
 G = [1-4x[1]*x[2] x[1]; x[1] 4-x[1]^2-x[2]^2]
-opt,data = tssos_first(F, [G], x, 3, TS=false, QUIET=true)
-# opt,data = tssos_higher!(data)
+opt,data = tssos_first(F, [G], x, 2, TS="block", QUIET=true)
+opt,data = tssos_higher!(data, QUIET=true)
 
 @polyvar x[1:2]
 F = [x[1]^2 x[1]+x[2]; x[1]+x[2] x[2]^2]
 G = [1-x[1]^2-x[2]^2]
-opt,data = tssos_first(F, G, x, 2, TS=false, Gram=true, QUIET=true)
+opt,data = tssos_first(F, G, x, 2, TS="block", Gram=true, QUIET=true)
 
 ## polynomial matrix optimization with term sparsity
 @polyvar x[1:5]
@@ -67,19 +67,19 @@ G = [1 - sum(x.^2)]
 F = [2 0; 0 0]*(x[1]-1)^2 + [0 0; 0 2]*(x[1]-2)^2 + [1 -1; -1 1]*(x[2]-1)^2 + [1 1; 1 1]*(x[2]-2)^2
 G = [4 - x[1]^2, 4 - x[2]^2, x[1]^2 - 2.25, 2.25 - x[1]^2]
 d = 2
-opt,data = cs_tssos_first(F, G, x, d, TS=false, QUIET=true)
-sol = extract_solutions_pmo(1, 2, 2, data.moment[2])
-W = extract_weight_matrix(1, 2, 2, sol, data.moment[2])
-sol = extract_solutions_robust_pmo(2, d, 2, data.moment[1])
+opt,data = cs_tssos_first(F, G, x, d, TS=false, QUIET=true, Moment=true)
+sol = extract_solutions_pmo(1, d, 2, data.moment[2])
+W = extract_weight_matrix(1, d, 2, sol, data.moment[2])
+sol = extract_solutions_robust_pmo(1, d, 2, data.moment[1])
 
 @polyvar x[1:3]
 Q = [1/sqrt(2) -1/sqrt(3) 1/sqrt(6); 0 1/sqrt(3) 2/sqrt(6); 1/sqrt(2) 1/sqrt(3) -1/sqrt(6)]
 F = (-x[1]^2 + x[2])*(Q[:,1]*Q[:,1]'+Q[:,2]*Q[:,2]') + (x[2]^2 + x[3]^2)*Q[:,3]*Q[:,3]'
 G = [1 - x[1]^2 - x[2]^2, 1 - x[2]^2 - x[3]^2, -1 + x[2]^2 + x[3]^2]
-opt,data = cs_tssos_first(F, G, x, 2, TS=false, QUIET=true)
+opt,data = cs_tssos_first(F, G, x, 2, TS=false, QUIET=true, Moment=true)
 sol = extract_solutions_pmo(2, 2, 3, data.moment[2])
 W = extract_weight_matrix(2, 2, 3, sol, data.moment[2])
-sol = extract_solutions_robust_pmo(4, 3, 3, data.moment[1])
+sol = extract_solutions_robust_pmo(2, 2, 3, data.moment[1])
 
 
 ## polynomial matrix optimization with correlative sparsity

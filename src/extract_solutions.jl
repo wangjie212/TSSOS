@@ -22,9 +22,11 @@ function extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-2)
     n = length(x)
     if rank(moment, tol) == 1
         sol = moment[2:n+1, 1]
+        ub = MultivariatePolynomials.polynomial(pop[1])(x => sol)
+        gap = abs(opt-ub)/max(1, abs(ub))
         println("------------------------------------------------")
-        println("Global optimality certified!")
-        println("Successfully extracted ", 1 ," globally optimal solution.")
+        @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+        println("Successfully extracted one globally optimal solution.")
         println("------------------------------------------------")
     else
         U,pivots = rref_with_pivots!(Matrix(moment), tol)
@@ -90,8 +92,15 @@ function extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-2)
         nsol = length(sol)
         if nsol > 0
             println("------------------------------------------------")
-            println("Global optimality certified!")
-            println("Successfully extracted ", nsol, " globally optimal solutions.")
+            if nsol == 1
+                ub = MultivariatePolynomials.polynomial(pop[1])(x => sol[1])
+                gap = abs(opt-ub)/max(1, abs(ub))
+                @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+                println("Successfully extracted one globally optimal solution.")
+            else
+                println("Global optimality certified by the flatness conditon!")
+                println("Successfully extracted ", nsol, " globally optimal solutions.")
+            end
             println("------------------------------------------------")
         else
             sol = nothing
@@ -288,8 +297,55 @@ function extract_solution(moment, opt, pop, x; numeq=0, tol=1e-4)
             end
         end
         if flag == 0
+            println("------------------------------------------------")
             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+            println("Successfully extracted one globally optimal solution.")
+            println("------------------------------------------------")
         end
         return sol,gap,flag
     end
+end
+
+# extract an approximate solution from the moment matrix
+function approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe; numeq=0, tol=1e-4)
+    qsol = Float64[]
+    A = zeros(sum(cliquesize), n)
+    q = 1
+    for k = 1:cql
+        cqs = cliquesize[k]
+        F = eigen(moment[k], cqs+1:cqs+1)
+        temp = sqrt(F.values[1])*F.vectors[:,1]
+        if temp[1] == 0
+            temp = zeros(cqs)
+        else
+            temp = temp[2:cqs+1]./temp[1]
+        end
+        append!(qsol, temp)
+        for j = 1:cqs
+            A[q,cliques[k][j]] = 1
+            q += 1
+        end
+    end
+    sol = (A'*A)\(A'*qsol)
+    ub = seval(supp[1], coe[1], sol)
+    gap = abs(opt-ub)/max(1, abs(ub))
+    flag = gap >= tol ? 1 : 0
+    m = length(supp)-1
+    for i = 1:m-numeq
+        if seval(supp[i+1], coe[i+1], sol) <= -tol
+            flag = 1
+        end
+    end
+    for i = m-numeq+1:m
+        if abs(seval(supp[i+1], coe[i+1], sol)) >= tol
+            flag = 1
+        end
+    end
+    if flag == 0
+        println("------------------------------------------------")
+        @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+        println("Successfully extracted one globally optimal solution.")
+        println("------------------------------------------------")
+    end
+    return sol,gap,flag
 end

@@ -44,8 +44,8 @@ cpop = [f; g1; g2; g3; h1; h2; h3]
 
 @time begin
 opt,sol,data = cs_tssos_first(cpop, z, n+1, 5, numeq=3, CS=false, TS="block", ipart=false, QUIET=true, solve=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=true, QUIET=true)  
+opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true, solve=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true)  
 end
 println(sqrt(-opt))
 
@@ -113,9 +113,9 @@ cpop = [f; g1; g2; g3; g4; h1; h2; h3]
 
 @time begin
 opt,sol,data = cs_tssos_first(cpop, z, n+1, 8, numeq=3, CS=false, TS="block", ipart=false, QUIET=true, normality=0, solve=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, normality=0, solve=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, normality=0, solve=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, normality=0)  
+opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true, normality=0, solve=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true, normality=0, solve=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true, normality=0)  
 end
 println(sqrt(-opt))
 
@@ -486,9 +486,9 @@ cpop = [f; g1; g2; g3; g4; g5; h1; h2; h3]
 
 @time begin
 opt,sol,data = cs_tssos_first(cpop, z, n+1, 5, numeq=3, CS=false, TS="block", ipart=false, QUIET=true, solve=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, solve=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, QUIET=true, normality=1)
+opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true, solve=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true, solve=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true, normality=1)
 end
 println(sqrt(-opt))
 
@@ -515,7 +515,7 @@ h = z1*z5 + z2*z6 + z3*z7 + z4*z8 + (z1+z2+z3+z4)*(z5+z6+z7+z8) - 5
 cpop = [-f; h]
 @time begin
 opt,sol,data = cs_tssos_first(cpop, z, n, 6, numeq=1, CS=false, balanced=false, TS="block", ipart=false, normality=0, solve=false, QUIET=true)
-opt,sol,data = cs_tssos_higher!(data, balanced=false, TS="block", ipart=false, QUIET=true, normality=0, solve=false)
-# opt,sol,data = cs_tssos_higher!(data, balanced=false, TS="block", ipart=false, QUIET=true, normality=0, solve=false)
-opt,sol,data = cs_tssos_higher!(data, balanced=true, TS="block", ipart=false, QUIET=true, normality=5)
+opt,sol,data = cs_tssos_higher!(data, balanced=false, TS="block", QUIET=true, normality=0, solve=false)
+# opt,sol,data = cs_tssos_higher!(data, balanced=false, TS="block", QUIET=true, normality=0, solve=false)
+opt,sol,data = cs_tssos_higher!(data, balanced=true, TS="block", QUIET=true, normality=5)
 end

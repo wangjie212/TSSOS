@@ -3,7 +3,6 @@ mutable struct struct_data
     cliquesize # size of cliques
     cliques # clique structrue
     basis # monomial basis
-    cl # number of blocks
     blocksize # size of blocks
     blocks # block structrue
     eblocks # block structrue for equality constraints
@@ -17,7 +16,7 @@ end
 
 """
     info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], TS="block", 
-    SO=1, Groebnerbasis=false, QUIET=false, constrs=nothing)
+    SO=1, GroebnerBasis=false, QUIET=false, constrs=nothing)
 
 Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP `model`.
 
@@ -32,14 +31,14 @@ Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP 
 - `cliques`: the set of cliques used in correlative sparsity
 - `TS`: type of term sparsity (`"block"`, `"signsymmetry"`, `"MD"`, `"MF"`, `false`)
 - `SO`: sparse order
-- `Groebnerbasis`: exploit the quotient ring structure or not (`true`, `false`)
+- `GroebnerBasis`: exploit the quotient ring structure or not (`true`, `false`)
 - `QUIET`: run in the quiet mode (`true`, `false`)
 - `constrs`: the constraint name used in the JuMP model
 
 # Output arguments
 - `info`: auxiliary data
 """
-function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], blocks=[], TS="block", SO=1, Groebnerbasis=false, QUIET=false, constrs=nothing) where {T<:Union{Number,AffExpr}}
+function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], blocks=[], TS="block", SO=1, GroebnerBasis=false, QUIET=false, constrs=nothing) where {T<:Union{Number,AffExpr}}
     n = length(vars)
     m = length(ineq_cons)
     if ineq_cons != []
@@ -54,7 +53,7 @@ function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons
         hsupp = Matrix{UInt8}[]
         hlt = dh = Int[]
     end
-    if Groebnerbasis == true && eq_cons != []
+    if GroebnerBasis == true && eq_cons != []
         l = 0
         gb = convert.(Polynomial{true,Float64}, eq_cons)
         SemialgebraicSets.gröbnerbasis!(gb)
@@ -284,7 +283,7 @@ function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons
     else
         @constraint(model, cons==bc)
     end
-    info = struct_data(cql,cliquesize,cliques,basis,cl,blocksize,blocks,eblocks,tsupp,I,J,pos,mul,constrs)
+    info = struct_data(cql, cliquesize, cliques, basis, blocksize, blocks, eblocks, tsupp, I, J, pos, mul, constrs)
     return info
 end
 

@@ -16,7 +16,6 @@ mutable struct mpop_data
     basis # monomial basis
     gbasis # monomial bases for inequality constraints
     ksupp # extended support at the k-th step
-    cl # numbers of blocks
     blocksize # sizes of blocks
     blocks # block structure
     cql # number of cliques
@@ -29,34 +28,34 @@ mutable struct mpop_data
     SDP_status
 end
 
-function tssos_first(F::Matrix{Polynomial{true, T}}, G, x, d; TS="block", QUIET=false, solve=true, Gram=false) where {T<:Number}
-    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram)
+function tssos_first(F::Matrix{Polynomial{true, T}}, G, x, d; TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {T<:Number}
+    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment)
 end
 
-function tssos_first(F::Polynomial{true, T1}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; TS="block", QUIET=false, solve=true, Gram=false) where {T1,T2<:Number}
-    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram)
+function tssos_first(F::Polynomial{true, T1}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {T1,T2<:Number}
+    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment)
 end
 
 function tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
     return cs_tssos_higher!(data, TS=TS, QUIET=QUIET, solve=solve)
 end
 
-function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Polynomial{true, T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false) where {T1,T2<:Number}
+function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Polynomial{true, T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {T1,T2<:Number}
     nG = Vector{Matrix{Polynomial{true, T2}}}(undef, length(G))
     for i = 1:length(G)
         nG[i] = Matrix{Polynomial{true, T2}}(undef, 1, 1)
         nG[i][1,1] = G[i]
     end
-    return cs_tssos_first(F, nG, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram)
+    return cs_tssos_first(F, nG, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment)
 end
 
-function cs_tssos_first(F::Polynomial{true, T1}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false) where {T1,T2<:Number}
+function cs_tssos_first(F::Polynomial{true, T1}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {T1,T2<:Number}
     nF = Matrix{Polynomial{true, T1}}(undef, 1, 1)
     nF[1,1] = F
-    return cs_tssos_first(nF, G, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram)
+    return cs_tssos_first(nF, G, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment)
 end
 
-function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false) where {T1,T2<:Number}
+function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {T1,T2<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     n = length(x)
@@ -83,10 +82,10 @@ function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polyno
     basis = Vector{Vector{Vector{UInt16}}}(undef, cql)
     gbasis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
     for i = 1:cql
-        basis[i] = get_sbasis(cliques[i], d)
+        basis[i] = get_basis(cliques[i], d)
         gbasis[i] = Vector{Vector{Vector{UInt16}}}(undef, length(I[i]))
         for (s,k) in enumerate(I[i])
-            gbasis[i][s] = get_sbasis(cliques[i], d-Int(ceil(dG[k]/2)))
+            gbasis[i][s] = get_basis(cliques[i], d-Int(ceil(dG[k]/2)))
         end
     end
     ksupp = Vector{Vector{Vector{UInt16}}}(undef, Int((obj_matrix.m+1)*obj_matrix.m/2))
@@ -105,28 +104,27 @@ function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polyno
         sort!.(ksupp)
     end
     blocks,cl,blocksize = get_mblocks(I, obj_matrix.m, cons_matrix, cliques, cql, ksupp, basis, gbasis, QUIET=QUIET, TS=TS)
-    opt,ksupp,GramMat,moment,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram)
-    data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, cl, blocksize, blocks, cql, cliquesize, cliques, I, ncc, GramMat, moment, SDP_status)
+    opt,ksupp,GramMat,moment,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment)
+    data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocksize, blocks, cql, cliquesize, cliques, I, ncc, GramMat, moment, SDP_status)
     return opt,data
 end
 
 function cs_tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
     basis = data.basis
     gbasis = data.gbasis
-    ksupp = data.ksupp
     obj_matrix = data.obj_matrix
     cons_matrix = data.cons_matrix
-    blocks = data.blocks
-    cl = data.cl
-    oblocksize = deepcopy(data.blocksize)
-    blocks,cl,blocksize = get_mblocks(data.I, obj_matrix.m, cons_matrix, data.cliques, data.cql, ksupp, basis, gbasis, blocks=blocks, 
-    cl=cl, blocksize=data.blocksize, TS=TS, QUIET=QUIET)
-    if blocksize == oblocksize
+    blocks,cl,blocksize = get_mblocks(data.I, obj_matrix.m, cons_matrix, data.cliques, data.cql, data.ksupp, basis, gbasis, TS=TS, QUIET=QUIET)
+    if blocksize == data.blocksize
         opt = nothing
         println("No higher TS step of the CS-TSSOS hierarchy!")
     else
-        opt,ksupp,_,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, data.cql, data.I, data.ncc, TS=TS, QUIET=QUIET, solve=solve)
+        opt,ksupp,GramMat,moment,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, data.cql, data.I, data.ncc, TS=TS, QUIET=QUIET, solve=solve)
         data.ksupp = ksupp
+        data.blocks = blocks
+        data.blocksize = blocksize
+        data.GramMat = GramMat
+        data.moment = moment
         data.SDP_status = SDP_status
     end
     return opt,data
@@ -215,12 +213,10 @@ function get_mgraph(tsupp, cons_matrix, gbasis, om)
     return G
 end
 
-function get_mblocks(om, cons_matrix, tsupp, basis, gbasis; TS="block", blocks=[], cl=[], blocksize=[], QUIET=false)
-    if isempty(blocks)
-        blocks = Vector{Vector{Vector{Int}}}(undef, length(cons_matrix)+1)
-        blocksize = Vector{Vector{Int}}(undef, length(cons_matrix)+1)
-        cl = Vector{Int}(undef, length(cons_matrix)+1)
-    end
+function get_mblocks(om, cons_matrix, tsupp, basis, gbasis; TS="block")
+    blocks = Vector{Vector{Vector{Int}}}(undef, length(cons_matrix)+1)
+    blocksize = Vector{Vector{Int}}(undef, length(cons_matrix)+1)
+    cl = Vector{Int}(undef, length(cons_matrix)+1)
     if TS == false
         for k = 1:length(cons_matrix) + 1
             lb = k == 1 ? om*length(basis) : om*cons_matrix[k-1].m*length(gbasis[k-1])
@@ -240,43 +236,26 @@ function get_mblocks(om, cons_matrix, tsupp, basis, gbasis; TS="block", blocks=[
             else
                 blocks[k],cl[k],blocksize[k] = chordal_cliques!(G, method=TS)
             end
-            # sb = sort(Int.(unique(blocksize[k])), rev=true)
-            # numb = [sum(blocksize[k].== i) for i in sb]
-            # println("-----------------------------------------------------------------------------")
-            # println("The sizes of PSD blocks for the $k-th SOS multiplier:\n$sb\n$numb")
-            # println("-----------------------------------------------------------------------------")
         end
     end
     return blocks,cl,blocksize
 end
 
-function get_mblocks(I, om, cons_matrix, cliques, cql, tsupp, basis, gbasis; blocks=[], cl=[], blocksize=[], TS="block", QUIET=true)
+function get_mblocks(I, om, cons_matrix, cliques, cql, tsupp, basis, gbasis; TS="block", QUIET=true)
     if TS != false && QUIET == false
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    if isempty(blocks)
-        blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
-        cl = Vector{Vector{Int}}(undef, cql)
-        blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
-        for i = 1:cql
-            blocks[i] = Vector{Vector{Vector{Int}}}(undef, length(I[i])+1)
-            cl[i] = Vector{Int}(undef, length(I[i])+1)
-            blocksize[i] = Vector{Vector{Int}}(undef, length(I[i])+1)
-            nsupp = nothing
-            if TS != false
-                ind = [[issubset(item[j], cliques[i]) for j in eachindex(item)] for item in tsupp]
-                nsupp = [tsupp[k][ind[k]] for k = 1:length(tsupp)]
-            end
-            blocks[i],cl[i],blocksize[i] = get_mblocks(om, cons_matrix[I[i]], nsupp, basis[i], gbasis[i], TS=TS, QUIET=QUIET)
-        end
-    else
-        for i = 1:cql
+    blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
+    cl = Vector{Vector{Int}}(undef, cql)
+    blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
+    for i = 1:cql
+        nsupp = nothing
+        if TS != false
             ind = [[issubset(item[j], cliques[i]) for j in eachindex(item)] for item in tsupp]
             nsupp = [tsupp[k][ind[k]] for k = 1:length(tsupp)]
-            blocks[i],cl[i],blocksize[i] = get_mblocks(om, cons_matrix[I[i]], nsupp, basis[i], gbasis[i], blocks=blocks[i], 
-            cl=cl[i], blocksize=blocksize[i], TS=TS, QUIET=QUIET)
         end
+        blocks[i],cl[i],blocksize[i] = get_mblocks(om, cons_matrix[I[i]], nsupp, basis[i], gbasis[i], TS=TS)
     end
     end
     if QUIET == false
@@ -286,7 +265,7 @@ function get_mblocks(I, om, cons_matrix, cliques, cql, tsupp, basis, gbasis; blo
     return blocks,cl,blocksize
 end
 
-function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc; TS="block", solve=true, QUIET=false, Gram=false)
+function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc; TS="block", solve=true, QUIET=false, Gram=false, Moment=false)
     om = obj_matrix.m
     ksupp = [Vector{UInt16}[] for i = 1:length(obj_matrix.poly)]
     for u = 1:cql, i = 1:cl[u][1], j = 1:blocksize[u][1][i], k = j:blocksize[u][1][i]
@@ -446,8 +425,10 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
                 end
             end
         end
-        measure = [-dual(constraint_by_name(model, "con$i")) for i = 1:length(ksupp)]
-        moment = get_mmoment(measure, ksupp[1], cql, basis, om)
+        if Moment == true
+            measure = [-dual(constraint_by_name(model, "con$i")) for i = 1:length(ksupp)]
+            moment = get_mmoment(measure, ksupp[1], cql, basis, om)
+        end
     end 
     return objv,ksupp,GramMat,moment,SDP_status
 end
@@ -476,12 +457,12 @@ function LinearPMI_first(b, F::Vector{Matrix{Polynomial{true, T1}}}, G::Vector{M
             obj_matrix[k].poly[i+Int(j*(j-1)/2)] = poly_data(n, supp[1], coe[1])
         end
     end
-    basis = get_sbasis(Vector(1:n), d)
+    basis = get_basis(Vector(1:n), d)
     cons_matrix = Vector{poly_matrix}(undef, m)
     # csupp = Vector{UInt16}[]
     gbasis = Vector{Vector{Vector{UInt16}}}(undef, m)
     for k = 1:m
-        gbasis[k] = get_sbasis(Vector(1:n), d-Int(ceil(dG[k]/2)))
+        gbasis[k] = get_basis(Vector(1:n), d-Int(ceil(dG[k]/2)))
         cons_matrix[k] = poly_matrix(size(G[k],1), Vector{poly_data}(undef, Int((size(G[k],1)+1)*size(G[k],1)/2)))
         for i = 1:cons_matrix[k].m, j = i:cons_matrix[k].m
             _,supp,coe = polys_info([G[k][i,j]], x)
@@ -508,42 +489,40 @@ function LinearPMI_first(b, F::Vector{Matrix{Polynomial{true, T1}}}, G::Vector{M
         end
     end
     time = @elapsed begin
-    blocks,cl,blocksize = get_mblocks(obj_matrix[1].m, cons_matrix, ksupp, basis, gbasis, TS=TS, QUIET=QUIET)
+    blocks,cl,blocksize = get_mblocks(obj_matrix[1].m, cons_matrix, ksupp, basis, gbasis, TS=TS)
     end
     if QUIET == false
         mb = maximum(maximum.(blocksize))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
     opt,ksupp,moment,SDP_status = LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, TS=TS, QUIET=QUIET, solve=solve)
-    data = mpop_data(b, obj_matrix, cons_matrix, basis, gbasis, ksupp, cl, blocksize, blocks, nothing, nothing, nothing, nothing, nothing, nothing, moment, SDP_status)
+    data = mpop_data(b, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocksize, blocks, nothing, nothing, nothing, nothing, nothing, nothing, moment, SDP_status)
     return opt,data
 end
 
 function LinearPMI_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
     basis = data.basis
     gbasis = data.gbasis
-    ksupp = data.ksupp
     obj_matrix = data.obj_matrix
     cons_matrix = data.cons_matrix
-    blocks = data.blocks
-    cl = data.cl
-    oblocksize = deepcopy(data.blocksize)
     if TS != false && QUIET == false
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,cl,blocksize = get_mblocks(obj_matrix[1].m, cons_matrix, ksupp, basis, gbasis, blocks=blocks, cl=cl, blocksize=data.blocksize, TS=TS, QUIET=QUIET)
+    blocks,cl,blocksize = get_mblocks(obj_matrix[1].m, cons_matrix, data.ksupp, basis, gbasis, TS=TS)
     end
     if QUIET == false
         mb = maximum(maximum.(blocksize))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    if blocksize == oblocksize
+    if blocksize == data.blocksize
         opt = nothing
         println("No higher TS step of the TSSOS hierarchy!")
     else
         opt,ksupp,moment,SDP_status = LinearPMI_sdp(data.b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, TS=TS, QUIET=QUIET, solve=solve)
         data.ksupp = ksupp
+        data.blocks = blocks
+        data.blocksize = blocksize
         data.moment = moment
         data.SDP_status = SDP_status
     end
@@ -694,7 +673,7 @@ function add_SOSMatrix!(model, vars, m, d; constraint=nothing, TS=false, QUIET=t
         lb = m*length(mons)
         blocks,blocksize,cl = [Vector(1:lb)],[lb],1
     else
-        basis = get_sbasis(Vector(1:length(vars)), d)
+        basis = get_basis(Vector(1:length(vars)), d)
         if constraint === nothing
             G = get_mgraph(tsupp, basis, m)
         else
@@ -772,7 +751,7 @@ function sparseobj(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polynomial{
         for i = 1:m, j = i:m
             supp = [supp; polys_info([F[i,j]], x)[2][1]]
         end
-        basis = get_sbasis(Vector(1:n), d)
+        basis = get_basis(Vector(1:n), d)
         for item in basis
             push!(supp, sadd(item, item))
         end
@@ -863,7 +842,7 @@ function sparseobj(b, F::Vector{Matrix{Polynomial{true, T}}}, G, x, d; TS="block
         for k = 1:length(F), i = 1:m, j = i:m
             supp = [supp; polys_info([F[k][i,j]], x)[2][1]]
         end
-        basis = get_sbasis(Vector(1:n), d)
+        basis = get_basis(Vector(1:n), d)
         for item in basis
             push!(supp, sadd(item, item))
         end
@@ -957,7 +936,7 @@ function add_psatz!(model, nonneg::Matrix{Polynomial{true, T}}, vars, ineq_cons,
     end
     ksupp = Vector{Vector{Vector{UInt16}}}(undef, Int((m+1)*m/2))
     if TS != false
-        basis = get_sbasis(Vector(1:n), order)
+        basis = get_basis(Vector(1:n), order)
         for i = 1:m, j = i:m
             ind = i + Int(j*(j-1)/2)
             ksupp[ind] = copy(obj_matrix.poly[ind].supp)

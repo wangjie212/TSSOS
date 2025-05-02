@@ -5,10 +5,12 @@ mutable struct ccpop_data
     nb # number of binary variables
     m # number of all constraints
     numeq # number of equality constraints
+    ipart # retain the imaginary part
+    ConjugateBasis # include conjugate variables in monomial bases
     supp # support data
     coe # coefficient data
     basis # monomial bases
-    hbasis # monomial bases for equality constraints
+    ebasis # monomial bases for equality constraints
     rlorder # relaxation order
     ksupp # extended support at the k-th step
     cql # number of cliques
@@ -17,7 +19,6 @@ mutable struct ccpop_data
     I # index sets of inequality constraints
     J # index sets of equality constraints
     ncc # constraints associated to no clique
-    cl # numbers of blocks
     blocksize # sizes of blocks
     blocks # block structure
     eblocks # block structrue for equality constraints
@@ -126,14 +127,14 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
     else
         rlorder = d*ones(Int, cql)
     end
-    hbasis = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, cql)
+    ebasis = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, cql)
     if ConjugateBasis == false
         basis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
     else
         basis = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, cql)
     end
     for i = 1:cql
-        hbasis[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, length(J[i]))
+        ebasis[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, length(J[i]))
         if ConjugateBasis == false
             basis[i] = Vector{Vector{Vector{UInt16}}}(undef, length(I[i])+1)
             basis[i][1] = get_basis(cliques[i], rlorder[i])
@@ -142,12 +143,12 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
             end
             for s = 1:length(J[i])
                 temp = get_basis(cliques[i], rlorder[i]-dc[J[i][s]])
-                hbasis[i][s] = vec([[item1, item2] for item1 in temp, item2 in temp])
+                ebasis[i][s] = vec([[item1, item2] for item1 in temp, item2 in temp])
                 if nb > 0
-                    hbasis[i][s] = reduce_unitnorm.(hbasis[i][s], nb=nb)
-                    unique!(hbasis[i][s])
+                    ebasis[i][s] = reduce_unitnorm.(ebasis[i][s], nb=nb)
+                    unique!(ebasis[i][s])
                 end
-                sort!(hbasis[i][s])
+                sort!(ebasis[i][s])
             end
         else
             basis[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, length(I[i])+1)
@@ -156,7 +157,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
                 basis[i][s+1] = get_conjugate_basis(cliques[i], rlorder[i]-Int(ceil(dc[I[i][s]]/2)), nb=nb)
             end
             for s = 1:length(J[i])
-                hbasis[i][s] = get_conjugate_basis(cliques[i], 2*rlorder[i]-dc[J[i][s]], nb=nb)
+                ebasis[i][s] = get_conjugate_basis(cliques[i], 2*rlorder[i]-dc[J[i][s]], nb=nb)
             end
         end
     end
@@ -172,7 +173,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, tsupp, basis, hbasis, TS=TS, ConjugateBasis=ConjugateBasis, 
+    blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, tsupp, basis, ebasis, TS=TS, ConjugateBasis=ConjugateBasis, 
     balanced=balanced, merge=merge, md=md, nb=nb)
     if RemSig == true
         for i = 1:cql
@@ -186,10 +187,10 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
         end
         sort!(tsupp)
         unique!(tsupp)
-        blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, tsupp, basis, hbasis, TS=TS, ConjugateBasis=ConjugateBasis, balanced=balanced, merge=merge, md=md, nb=nb)
+        blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, tsupp, basis, ebasis, TS=TS, ConjugateBasis=ConjugateBasis, balanced=balanced, merge=merge, md=md, nb=nb)
     end
     if reducebasis == true
-        tsupp = get_gsupp(basis, hbasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, norm=true)
+        tsupp = get_gsupp(basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, norm=true)
         for i = 1:length(supp[1])
             if supp[1][i][1] == supp[1][i][2]
                 push!(tsupp, supp[1][i][1])
@@ -215,7 +216,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
             end
             sort!(tsupp)
             unique!(tsupp)
-            blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, tsupp, basis, hbasis, TS=TS, balanced=balanced, nb=nb, merge=merge, md=md)
+            blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, tsupp, basis, ebasis, TS=TS, balanced=balanced, nb=nb, merge=merge, md=md)
         end
     end
     end
@@ -223,7 +224,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
         mb = maximum(maximum.([maximum.(blocksize[i]) for i = 1:cql]))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,GramMat,multiplier_equality,SDP_status = solvesdp(n, m, rlorder, supp, coe, basis, hbasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize,
+    opt,ksupp,moment,GramMat,multiplier_equality,SDP_status = solvesdp(n, m, rlorder, supp, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize,
     numeq=numeq, QUIET=QUIET, TS=TS, ConjugateBasis=ConjugateBasis, solver=solver, solve=solve, solution=solution, ipart=ipart, MomentOne=MomentOne, signsymmetry=signsymmetry, balanced=balanced,
     Gram=Gram, nb=nb, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, dualize=dualize, writetofile=writetofile, normality=normality, NormalSparse=NormalSparse)
     sol = nothing
@@ -232,52 +233,50 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
         pop,x = complex_to_real(cpop, z)
         _,rsupp,rcoe = polys_info(pop, x)
         ub,sol,status = local_solution(2n, m, rsupp, rcoe, numeq=numeq, startpoint=rand(2n), QUIET=true)
+        sol = sol[1:n] + sol[n+1:2n]*im
         if status == MOI.LOCALLY_SOLVED
             gap = abs(opt-ub)/max(1, abs(ub))
             if gap < 1e-4
                 flag = 0
+                println("------------------------------------------------")
                 @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+                println("Successfully extracted one globally optimal solution.")
+                println("------------------------------------------------")
             else
                 @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
             end
         end
     end
-    data = ccpop_data(cpop, z, n, nb, m, numeq, supp, coe, basis, hbasis, rlorder, ksupp, cql, cliquesize, cliques, I, J, ncc, cl, blocksize, blocks, eblocks, 
+    data = ccpop_data(cpop, z, n, nb, m, numeq, ipart, ConjugateBasis, supp, coe, basis, ebasis, rlorder, ksupp, cql, cliquesize, cliques, I, J, ncc, blocksize, blocks, eblocks, 
     GramMat, multiplier_equality, moment, solver, SDP_status, 1e-4, flag)
     return opt,sol,data
 end
 
 """
-    opt,sol,data = cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, ipart=true, dualize=false,
+    opt,sol,data = cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, dualize=false,
     solution=false, Gram=false, balanced=false, MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=1)
 
 Compute higher TS steps of the CS-TSSOS hierarchy.
 """
-function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, ipart=true, dualize=false, 
-    balanced=false, ConjugateBasis=false, MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=1)
+function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
+    balanced=false, MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=1)
     n = data.n
     nb = data.nb
     m = data.m
     numeq = data.numeq
     supp = data.supp
-    coe = data.coe
     basis = data.basis
-    hbasis = data.hbasis
-    rlorder = data.rlorder
-    ksupp = data.ksupp
+    ebasis = data.ebasis
     cql = data.cql
     cliques = data.cliques
     cliquesize = data.cliquesize
     I = data.I
     J = data.J
-    ncc = data.ncc 
-    solver = data.solver
-    tol = data.tol
     if TS != false && QUIET == false
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, ksupp, basis, hbasis, nb=nb, balanced=balanced, TS=TS, ConjugateBasis=ConjugateBasis, merge=merge, md=md)
+    blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, data.ksupp, basis, ebasis, nb=nb, balanced=balanced, TS=TS, ConjugateBasis=data.ConjugateBasis, merge=merge, md=md)
     end
     if blocksize == data.blocksize && eblocks == data.eblocks
         println("No higher TS step of the CS-TSSOS hierarchy!")
@@ -287,19 +286,23 @@ function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET
             mb = maximum(maximum.([maximum.(blocksize[i]) for i = 1:cql]))
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,GramMat,multiplier_equality,SDP_status = solvesdp(n, m, rlorder, supp, coe, basis, hbasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl,
-        blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=solver, solve=solve, solution=solution, dualize=dualize, ipart=ipart, MomentOne=MomentOne, 
-        Gram=Gram, ConjugateBasis=ConjugateBasis, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, balanced=balanced, normality=normality)
+        opt,ksupp,moment,GramMat,multiplier_equality,SDP_status = solvesdp(n, m, data.rlorder, supp, data.coe, basis, ebasis, cliques, cql, cliquesize, I, J, data.ncc, blocks, eblocks, cl,
+        blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=data.solver, solve=solve, solution=solution, dualize=dualize, ipart=data.ipart, MomentOne=MomentOne, 
+        Gram=Gram, ConjugateBasis=data.ConjugateBasis, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, balanced=balanced, normality=normality)
         sol = nothing
         if solution == true
             pop,x = complex_to_real(data.cpop, data.z)
             _,rsupp,rcoe = polys_info(pop, x)
             ub,sol,status = local_solution(2n, m, rsupp, rcoe, numeq=numeq, startpoint=rand(2n), QUIET=true)
+            sol = sol[1:n] + sol[n+1:2n]*im
             if status == MOI.LOCALLY_SOLVED
                 gap = abs(opt-ub)/max(1, abs(ub))
-                if gap < tol
+                if gap < data.tol
                     data.flag = 0
+                    println("------------------------------------------------")
                     @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+                    println("Successfully extracted one globally optimal solution.")
+                    println("------------------------------------------------")
                 else
                     @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
                 end
@@ -307,8 +310,8 @@ function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET
         end
         data.blocks = blocks
         data.eblocks = eblocks
-        data.cl = cl
         data.blocksize = blocksize
+        data.ksupp = ksupp
         data.GramMat = GramMat
         data.multiplier_equality = multiplier_equality
         data.moment = moment
@@ -339,7 +342,7 @@ function reduce_unitnorm(a; nb=0)
     return a
 end
 
-function get_gsupp(basis, hbasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize; norm=false, nb=0, ConjugateBasis=false)
+function get_gsupp(basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize; norm=false, nb=0, ConjugateBasis=false)
     if norm == true
         gsupp = Vector{UInt16}[]
     else
@@ -370,7 +373,7 @@ function get_gsupp(basis, hbasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blo
             end
         end
         for (j, w) in enumerate(J[i]), k in eblocks[i][j], item in supp[w+1]
-            @inbounds bi = [sadd(hbasis[i][j][k][1], item[1]), sadd(hbasis[i][j][k][2], item[2])]
+            @inbounds bi = [sadd(ebasis[i][j][k][1], item[1]), sadd(ebasis[i][j][k][2], item[2])]
             if nb > 0
                 bi = reduce_unitnorm(bi, nb=nb)
             end
@@ -401,7 +404,7 @@ function get_gsupp(basis, hbasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blo
     return gsupp
 end
 
-function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, basis, hbasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize; 
+function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize; 
     numeq=0, nb=0, QUIET=false, TS="block", ConjugateBasis=false, solver="Mosek", solve=true, dualize=false, solution=false, Gram=false, MomentOne=false, ipart=true, 
     cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, signsymmetry=false, balanced=false, normality=1, NormalSparse=true)
     tsupp = Vector{Vector{UInt16}}[]
@@ -421,7 +424,7 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
         end
     end
     if TS != false
-        gsupp = get_gsupp(basis, hbasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, ConjugateBasis=ConjugateBasis, nb=nb)
+        gsupp = get_gsupp(basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, ConjugateBasis=ConjugateBasis, nb=nb)
         append!(tsupp, gsupp)
     end
     ksupp = copy(tsupp)
@@ -859,7 +862,7 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                 if !isempty(J[i])
                     free[i] = Vector{Vector{VariableRef}}(undef, length(J[i]))
                     for (j, w) in enumerate(J[i])
-                        mons = hbasis[i][j][eblocks[i][j]]
+                        mons = ebasis[i][j][eblocks[i][j]]
                         temp = mons[[item[1] <= item[2] for item in mons]]
                         lb = length(temp)
                         if ipart == true
@@ -868,20 +871,20 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                             free[i][j] = @variable(model, [1:lb])
                         end
                         for k in eblocks[i][j], s = 1:length(supp[w+1])
-                            @inbounds bi = [sadd(hbasis[i][j][k][1], supp[w+1][s][1]), sadd(hbasis[i][j][k][2], supp[w+1][s][2])]
+                            @inbounds bi = [sadd(ebasis[i][j][k][1], supp[w+1][s][1]), sadd(ebasis[i][j][k][2], supp[w+1][s][2])]
                             if nb > 0
                                 bi = reduce_unitnorm(bi, nb=nb)
                             end
                             if bi[1] <= bi[2]
                                 Locb = bfind(tsupp, ltsupp, bi)
-                                if hbasis[i][j][k][1] <= hbasis[i][j][k][2]
-                                    loc = bfind(temp, lb, hbasis[i][j][k])
+                                if ebasis[i][j][k][1] <= ebasis[i][j][k][2]
+                                    loc = bfind(temp, lb, ebasis[i][j][k])
                                     tag = 1
-                                    if hbasis[i][j][k][1] == hbasis[i][j][k][2]
+                                    if ebasis[i][j][k][1] == ebasis[i][j][k][2]
                                         tag = 0
                                     end
                                 else
-                                    loc = bfind(temp, lb, hbasis[i][j][k][2:-1:1])
+                                    loc = bfind(temp, lb, ebasis[i][j][k][2:-1:1])
                                     tag = -1
                                 end
                                 if ipart == true
@@ -1027,7 +1030,7 @@ function get_eblock(tsupp::Vector{Vector{Vector{UInt16}}}, hsupp::Vector{Vector{
     return eblock
 end
 
-function get_blocks(m, l, tsupp, supp::Vector{Vector{Vector{Vector{UInt16}}}}, basis, hbasis; 
+function get_blocks(m, l, tsupp, supp::Vector{Vector{Vector{Vector{UInt16}}}}, basis, ebasis; 
     nb=0, TS="block", ConjugateBasis=false, balanced=false, merge=false, md=3)
     blocks = Vector{Vector{Vector{Int}}}(undef, m+1)
     eblocks = Vector{Vector{Int}}(undef, l)
@@ -1039,7 +1042,7 @@ function get_blocks(m, l, tsupp, supp::Vector{Vector{Vector{Vector{UInt16}}}}, b
             blocks[k],blocksize[k],cl[k] = [Vector(1:lb)],[lb],1
         end
         for k = 1:l
-            eblocks[k] = Vector(1:length(hbasis[k]))
+            eblocks[k] = Vector(1:length(ebasis[k]))
         end
     else
         for k = 1:m+1
@@ -1060,13 +1063,13 @@ function get_blocks(m, l, tsupp, supp::Vector{Vector{Vector{Vector{UInt16}}}}, b
             end
         end
         for k = 1:l
-            eblocks[k] = get_eblock(tsupp, supp[k+m], hbasis[k], nb=nb)
+            eblocks[k] = get_eblock(tsupp, supp[k+m], ebasis[k], nb=nb)
         end
     end
     return blocks,eblocks,cl,blocksize
 end
 
-function get_blocks(I, J, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques, cql, tsupp, basis, hbasis; 
+function get_blocks(I, J, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques, cql, tsupp, basis, ebasis; 
     TS="block", ConjugateBasis=false, balanced=false, nb=0, merge=false, md=3)
     blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
     eblocks = Vector{Vector{Vector{Int}}}(undef, cql)
@@ -1075,7 +1078,7 @@ function get_blocks(I, J, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques,
     for i = 1:cql
         ksupp = TS == false ? nothing : tsupp[[issubset(union(tsupp[j][1], tsupp[j][2]), cliques[i]) for j in eachindex(tsupp)]]
         blocks[i],eblocks[i],cl[i],blocksize[i] = get_blocks(length(I[i]), length(J[i]), ksupp, supp[[I[i]; J[i]].+1], basis[i], 
-        hbasis[i], TS=TS, ConjugateBasis=ConjugateBasis, balanced=balanced, merge=merge, md=md, nb=nb)
+        ebasis[i], TS=TS, ConjugateBasis=ConjugateBasis, balanced=balanced, merge=merge, md=md, nb=nb)
     end
     return blocks,eblocks,cl,blocksize
 end

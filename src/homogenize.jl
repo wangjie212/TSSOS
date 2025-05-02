@@ -5,7 +5,7 @@ function homogenize(f, z)
     return sum(ts)
 end
 
-function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF", type=2, ε=0, TS="block", SO=1, nnhomovar=false, Groebnerbasis=false, Mommat=false)
+function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF", type=2, ε=0, TS="block", SO=1, nnhomovar=false, GroebnerBasis=false, Mommat=false)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     if CS != false
@@ -82,7 +82,7 @@ function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF",
     model = Model(optimizer_with_attributes(Mosek.Optimizer))
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     @variable(model, λ)
-    model,info = add_psatz!(model, cost-λ*z^d, nvars, ineq_cons, eq_cons, order, QUIET=QUIET, CS=CS, TS=TS, SO=SO, Groebnerbasis=Groebnerbasis, constrs="con")
+    info = add_psatz!(model, cost-λ*z^d, nvars, ineq_cons, eq_cons, order, QUIET=QUIET, CS=CS, TS=TS, SO=SO, GroebnerBasis=GroebnerBasis, constrs="con")
     @objective(model, Max, λ)
     optimize!(model)
     status = termination_status(model)

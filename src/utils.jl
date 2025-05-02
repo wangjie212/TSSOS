@@ -166,7 +166,7 @@ function get_basis(n::Int, d::Int; nb=0, lead=[], var=[])
 end
 
 # generate the standard monomial basis in the sparse form
-function get_basis(var::Vector{UInt16}, d::Int; nb=0)
+function get_basis(var::Vector{T}, d::Int; nb=0) where T <: Union{UInt16, Int}
     n = length(var)
     lb = binomial(n+d, d)
     basis = Vector{Vector{UInt16}}(undef, lb)
@@ -480,14 +480,14 @@ Display the block structure
 function show_blocks(data::cpop_data)
     for j = 1:length(data.blocks[1])
         print("block $j: ")
-        println([prod(data.x.^data.basis[1][:, data.blocks[1][j][k]]) for k = 1:length(data.blocks[1][j])])
+        println([prod(data.x.^data.basis[1][:, data.blocks[1][j][k]]) for k = 1:data.blocksize[1][j]])
     end
 end
 
 function show_blocks(data::mcpop_data)
     for l = 1:data.cql, j = 1:length(data.blocks[l][1])
         print("clique $l, block $j: ")
-        println([prod(data.x[data.basis[l][1][data.blocks[l][1][j][k]]]) for k = 1:length(data.blocks[l][1][j])])
+        println([prod(data.x[data.basis[l][1][data.blocks[l][1][j][k]]]) for k = 1:data.blocksize[l][1][j]])
     end
 end
 

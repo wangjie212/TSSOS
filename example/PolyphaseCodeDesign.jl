@@ -32,7 +32,7 @@ end
 order = 3
 @time begin
 opt,sol,data = cs_tssos_first(pop, z, 2N-1, order, numeq=N-2, nb=2N-1, CS=false, TS="block", ipart=false, QUIET=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, solve=true, QUIET=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", solve=true, QUIET=false)
 end
 println(opt^0.5)
 
@@ -68,7 +68,7 @@ for k = 1:N
 end
 
 @time begin
-opt,sol,data = tssos_first(pop, [x;y;t], 2, numeq=N, Groebnerbasis=false, TS=false, QUIET=true, solve=false)
+opt,sol,data = tssos_first(pop, [x;y;t], 2, numeq=N, GroebnerBasis=false, TS=false, QUIET=true, solve=false)
 # opt,sol,data = tssos_higher!(data, TS="block", QUIET=true)
 end
 # println(opt^0.5)
@@ -94,7 +94,7 @@ for k = 1:N
     pop[k+1] = 1 - x[k]^2 - y[k]^2
 end
 @time begin
-opt,sol,data = tssos_first(pop, [x;y], 2, numeq=N, TS=false, Groebnerbasis=false, QUIET=true, solve=false)
+opt,sol,data = tssos_first(pop, [x;y], 2, numeq=N, TS=false, GroebnerBasis=false, QUIET=true, solve=false)
 # opt,sol,data = tssos_higher!(data, TS="block", QUIET=true)
 end
 

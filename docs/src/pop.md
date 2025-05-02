@@ -24,7 +24,7 @@ Argument | Description | Default value
 --- | :--- | :---
 nb | Specify the first **nb** variables to be $\pm1$ binary variables | 0
 numeq | Specify the last **numeq** constraints to be equality constraints | 0
-Groebnerbasis | Work in the quotient ring by computing a Gröbner basis | true
+GroebnerBasis | Work in the quotient ring by computing a Gröbner basis | true
 basis | Use customized monomial bases | []
 reducebasis | Reduce the monomial bases | false
 TS | Types of chordal extensions used in term sparsity iterations: "block"(maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity exploitation) | "block"

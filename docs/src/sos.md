@@ -9,7 +9,7 @@ $$\mathrm{s.t.}\ a_{k0}+y_1a_{k1}+\cdots+y_na_{kn}\in\mathrm{SOS},\ k=1,\ldots,m
 where $\mathbf{c}\in\mathbb{R}^n$ and $a_{ki}\in\mathbb{R}[\mathbf{x}]$ are polynomials. In TSSOS, SOS constraints could be handled with the routine **add_psatz!**:
 
 ```Julia
-info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order, TS="block", SO=1, Groebnerbasis=false)
+info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order, TS="block", SO=1, GroebnerBasis=false)
 ```
 where **nonneg** is a nonnegative polynomial constrained to admit a Putinar's style SOS representation on the semialgebraic set defined by **ineq_cons** and **eq_cons**, and **SO** is the sparse order.
 
@@ -36,7 +36,7 @@ h = [x[1]^2+x[2]^2+y[1]^2-1, x[2]^2+x[3]^2+y[2]^2-1]
 model = Model(optimizer_with_attributes(Mosek.Optimizer))
 @variable(model, lower)
 nonneg = f - lower*sum(x.^2)
-info = add_psatz!(model, nonneg, [x; y], [], h, d, TS="block", Groebnerbasis=true)
+info = add_psatz!(model, nonneg, [x; y], [], h, d, TS="block", GroebnerBasis=true)
 @objective(model, Max, lower)
 optimize!(model)
 ```
@@ -49,7 +49,7 @@ cliques | Use customized variable cliques | []
 TS | Types of chordal extensions used in term sparsity iterations: "block"(maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations) | "block"
 QUIET | Silence the output| false
 SO | Specify the sparse order | 1
-Groebnerbasis | Work in the quotient ring by computing a Gröbner basis | false
+GroebnerBasis | Work in the quotient ring by computing a Gröbner basis | false
 
 ## Image of a semialgebraic set by a polynomial map
 Example 1, Section 6.1 from [arXiv:1507.06143](https://arxiv.org/pdf/1507.06143). 
@@ -95,9 +95,9 @@ vf = subs(v, x[1]=>f[1], x[2]=>f[2])
 dv = Int(ceil(maxdegree(vf)/2))
 
 # Constraints
-info1 = add_psatz!(model, vf, x, [gS], [], dv, QUIET=false, CS=false, TS=false, Groebnerbasis=false) # v o f >= 0 on S
-info2 = add_psatz!(model, w-1-v, x, [gB], [], d, QUIET=false, CS=false, TS=false, Groebnerbasis=false) # w >= v + 1 on B
-info3 = add_psatz!(model, w, x, [gB], [], d, QUIET=false, CS=false, TS=false, Groebnerbasis=false) # w >= 0 on B
+info1 = add_psatz!(model, vf, x, [gS], [], dv, QUIET=false, CS=false, TS=false, GroebnerBasis=false) # v o f >= 0 on S
+info2 = add_psatz!(model, w-1-v, x, [gB], [], d, QUIET=false, CS=false, TS=false, GroebnerBasis=false) # w >= v + 1 on B
+info3 = add_psatz!(model, w, x, [gB], [], d, QUIET=false, CS=false, TS=false, GroebnerBasis=false) # w >= 0 on B
 
 supp = TSSOS.get_basis(n, 2d)
 
@@ -196,10 +196,10 @@ dv = Int(ceil(maxdegree(Lv)/2))
 
 # Constraints (Note that the dynamics was scaled by T, so there T = 1)
 
-info1 = add_psatz!(model, -Lv, [x;t], [gX; t*(1-t)], [], dv, QUIET=false, CS=false, TS=false, Groebnerbasis=false) # Lv <= 0 on [0 T] x X
-info2 = add_psatz!(model, subs(v,t=>1), x, [gxT], [], d, QUIET=false, CS=false, TS=false, Groebnerbasis=false) # v >= 0 on {T} x X_T
-info3 = add_psatz!(model, w-1-subs(v,t=>0), x, gX, [], d, QUIET=false, CS=false, TS=false, Groebnerbasis=false) # w >= v + 1 on {0} x X
-info4 = add_psatz!(model, w, x, gX, [], d, QUIET=false, CS=false, TS=false, Groebnerbasis=false) # w >= 0 on X
+info1 = add_psatz!(model, -Lv, [x;t], [gX; t*(1-t)], [], dv, QUIET=false, CS=false, TS=false, GroebnerBasis=false) # Lv <= 0 on [0 T] x X
+info2 = add_psatz!(model, subs(v,t=>1), x, [gxT], [], d, QUIET=false, CS=false, TS=false, GroebnerBasis=false) # v >= 0 on {T} x X_T
+info3 = add_psatz!(model, w-1-subs(v,t=>0), x, gX, [], d, QUIET=false, CS=false, TS=false, GroebnerBasis=false) # w >= v + 1 on {0} x X
+info4 = add_psatz!(model, w, x, gX, [], d, QUIET=false, CS=false, TS=false, GroebnerBasis=false) # w >= 0 on X
 
 supp = TSSOS.get_basis(n, 2d)
 
