@@ -17,6 +17,8 @@ opt,sol,data = cs_tssos_first(supp, coe, 3, 2, numeq=1, ipart=false, QUIET=true,
 
 @polyvar z[1:4]
 pop = [z[1]+z[2]+z[3]+z[4], (1+im)*z[1]^2*z[4]+(1-im)*z[2]*z[3]^2, 1-z[1]*z[3]-z[2]*z[4]]
+opt,sol,data = cs_tssos_first(pop, z, 2, 2, numeq=1, QUIET=true, CS=false, TS="block", ConjugateBasis=true, solution=true)
+# optimum = -2.74232
 opt,sol,data = cs_tssos_first(pop, z, 2, 2, numeq=1, QUIET=true, CS=false, TS="block", solution=true)
 # optimum = -2.74232
 opt,sol,data = cs_tssos_higher!(data, QUIET=true, TS="block", solution=true)
@@ -24,7 +26,7 @@ opt,sol,data = cs_tssos_higher!(data, QUIET=true, TS="block", solution=true)
 
 @polyvar z[1:4]
 pop = [z[1]*z[2] + z[3]*z[4], 1 - z[1]*z[3] - z[2]*z[4]]
-opt,sol,data = cs_tssos_first(pop, z, 2, 1, ipart=false, numeq=1, QUIET=true, CS=false, TS=false, solution=true)
+opt,sol,data = cs_tssos_first(pop, z, 2, 2, ipart=false, numeq=1, QUIET=true, CS=false, TS=false, solution=true)
 # optimum = -1
 
 @polyvar z1 z2 z3 z4 z5 z6

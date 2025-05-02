@@ -7,9 +7,9 @@ function cbasis(z)
     for i = 1:length(z)
         push!(basis, z[i])
     end
-    # for i = 1:length(z), j = i:length(z)
-    #     push!(basis, z[i]*z[j])
-    # end
+    for i = 1:length(z), j = i:length(z)
+        push!(basis, z[i]*z[j])
+    end
     return basis
 end
 
@@ -23,19 +23,12 @@ P = randn(length(basis1), length(basis1))
 Q = randn(length(basis1), length(basis1))
 f = basis2'*((P+P')/2+im*(Q-Q')/2)*basis1
 h = sum(z[i]*z[i+n] for i = 1:n) - 1
-@time begin
-opt,sol,data = cs_tssos_first([f; h], z, n, 2, numeq=1, QUIET=false, solve=true, CS=false, TS=false)
-end
-# println(length(data.basis[1][1]))
-@time begin
-opt,sol,data = cs_tssos_first([f; h], z, n, 3, numeq=1, QUIET=false, solve=true, CS=false, TS=false)
-end
-# println(length(data.basis[1][1]))
+@time opt,sol,data = cs_tssos_first([f; h], z, n, 2, numeq=1, QUIET=false, solve=true, CS=false, TS=false)
+@time opt,sol,data = cs_tssos_first([f; h], z, n, 3, numeq=1, QUIET=false, solve=true, CS=false, TS=false)
 
 # minimizing a random complex quartic polynomial with unit-norm variables
-for i = 1:500
-Random.seed!(i)
-n = 3
+Random.seed!(1)
+n = 5
 @polyvar z[1:2n]
 basis1 = cbasis(z[1:n])
 basis2 = cbasis(z[n+1:2n])
@@ -43,19 +36,8 @@ P = rand(length(basis1), length(basis1))
 Q = rand(length(basis1), length(basis1))
 pop = [basis2'*((P+P')/2+im*(Q-Q')/2)*basis1]
 # pop = [basis2'*((P+P')/2)*basis1]
-@time begin
-opt1,sol,data = cs_tssos_first(pop, z, n, 2, nb=n, QUIET=true, CS=false, TS=false)
-end
-# println(length(data.basis[1][1]))
-@time begin
-opt2,sol,data = cs_tssos_first(pop, z, n, 3, nb=n, QUIET=true, CS=false, TS=false)
-end
-if abs(opt1-opt2) > 1e-6
-    println(i)
-    break
-end
-end
-# println(length(data.basis[1][1]))
+@time opt1,sol,data = cs_tssos_first(pop, z, n, 2, nb=n, QUIET=true, CS=false, TS=false, ConjugateBasis=false)
+@time opt2,sol,data = cs_tssos_first(pop, z, n, 2, nb=n, QUIET=true, CS=false, TS=false, ConjugateBasis=true)
 
 # minimizing large-scale randomly generated complex QCQPs
 Random.seed!(1)
@@ -93,9 +75,7 @@ for i = 1:l
     coe[i+1] = [1; -ones(b)]
 end
 
-@time begin
-opt,sol,data = cs_tssos_first(supp, coe, n, 2, numeq=l, TS="MD")
-end
+@time opt,sol,data = cs_tssos_first(supp, coe, n, 2, numeq=l, TS="MD")
 
 # AC-OPF problem
 include("D:/Programs/TSSOS/example/modelopf.jl")

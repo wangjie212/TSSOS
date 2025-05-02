@@ -200,6 +200,18 @@ function get_basis(var::Vector{UInt16}, d::Int; nb=0)
     return basis
 end
 
+function get_conjugate_basis(var::Vector{UInt16}, d::Int; nb=0)
+    temp = get_basis(var, d)
+    basis = vec([[item1, item2] for item1 in temp, item2 in temp])
+    basis = basis[[length(item[1]) + length(item[2]) <= d for item in basis]]
+    if nb > 0
+        basis = reduce_unitnorm.(basis, nb=nb)
+        unique!(basis)
+    end
+    sort!(basis)
+    return basis
+end
+
 function newton_basis(n, d, supp; e=1e-5, solver="Mosek")
     lsupp = size(supp,2)
     basis = get_basis(n, d)

@@ -3,7 +3,7 @@ using DynamicPolynomials
 
 ## Polyphase Code Waveform Design
 ## formulation with inequality constraints
-N = 4
+N = 10
 @polyvar z[1:2N+2]
 pop = Vector{Polynomial{true,Float64}}(undef, N-1)
 pop[1] = z[N+1]^2 + z[2N+2]^2
@@ -11,16 +11,16 @@ for k = 1:N-2
     pop[k+1] = z[N+1]^2 + z[2N+2]^2 - sum(z[i]*z[j+k]*z[j+N+1]*z[i+k+N+1] for i = 1:N-k, j = 1:N-k)
 end
 
-order = 3
+order = 4
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, N+1, order, nb=N+1, CS=false, TS="block", ipart=false, solve=true, balanced=false, QUIET=false)
+opt,sol,data = cs_tssos_first(pop, z, N+1, order, nb=N+1, CS=false, TS="block", ConjugateBasis=true, ipart=false, QUIET=false)
 end
 println(opt^0.5)
 
 # writetofile="D:/project/ManiDSDP/polyphasecode4.sdpa"
 
 ## formulation with equality constraints
-N = 10
+N = 8
 @polyvar z[1:4N-2]
 pop = Vector{Polynomial{true,Float64}}(undef, N-1)
 pop[1] = z[N+1]^2 + z[3N]^2
@@ -29,10 +29,10 @@ for k = 1:N-2
     # z[N+1+k]*z[3N+k]
 end
 
-order = 4
+order = 3
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, 2N-1, order, numeq=N-2, nb=2N-1, CS=false, balanced=false, TS="block", ipart=false, solve=true, QUIET=false)
-# opt,sol,data = cs_tssos_higher!(data, TS="block", balanced=true, ipart=false, solve=true, QUIET=false)
+opt,sol,data = cs_tssos_first(pop, z, 2N-1, order, numeq=N-2, nb=2N-1, CS=false, TS="block", ipart=false, QUIET=false)
+opt,sol,data = cs_tssos_higher!(data, TS="block", ipart=false, solve=true, QUIET=false)
 end
 println(opt^0.5)
 
@@ -77,12 +77,12 @@ opt,sol = local_solution(data.n, data.m, data.supp, data.coe, numeq=N, startpoin
 println(opt^0.5)
 
 # Another model
-N = 4
+N = 6
 @polyvar z[1:2N]
 f = sum(sum(z[i]*z[i+j+N] for i = 1:N-j)*sum(z[i+N]*z[i+j] for i = 1:N-j) for j = 1:N-2)
 order = 5
 @time begin
-opt,sol,data = cs_tssos_first([f], z, N, order, nb=N, CS=false, TS="block", balanced=true, ipart=false, QUIET=true)
+opt,sol,data = cs_tssos_first([f], z, N, order, nb=N, CS=false, TS="block", balanced=false, ipart=false, QUIET=false)
 end
 
 N = 12
