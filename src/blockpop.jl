@@ -375,7 +375,7 @@ function reducebasis!(supp, basis, blocks, cl, blocksize; nb=0)
     end
 end
 
-function get_graph(tsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nv=0, signsymmetry=nothing)
+function get_graph(tsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nvar=0, signsymmetry=nothing)
     lb = size(basis,2)
     G = SimpleGraph(lb)
     ltsupp = size(tsupp,2)
@@ -394,7 +394,7 @@ function get_graph(tsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nv=0, s
     return G
 end
 
-function get_graph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nv=0, signsymmetry=nothing)
+function get_graph(tsupp::Array{UInt8, 2}, supp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nvar=0, signsymmetry=nothing)
     lb = size(basis, 2)
     G = SimpleGraph(lb)
     ltsupp = size(tsupp, 2)
@@ -442,7 +442,7 @@ function get_blocks(tsupp, basis; nb=0, TS="block", QUIET=true, merge=false, md=
     return blocks,cl,blocksize
 end
 
-function get_eblock(tsupp::Array{UInt8, 2}, hsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nv=0, signsymmetry=nothing)
+function get_eblock(tsupp::Array{UInt8, 2}, hsupp::Array{UInt8, 2}, basis::Array{UInt8, 2}; nb=0, nvar=0, signsymmetry=nothing)
     ltsupp = size(tsupp, 2)
     hlt = size(hsupp, 2)
     eblock = Int[]
@@ -461,7 +461,7 @@ function get_eblock(tsupp::Array{UInt8, 2}, hsupp::Array{UInt8, 2}, basis::Array
     return eblock
 end
 
-function get_blocks(m, l, tsupp, supp, basis, ebasis; nb=0, TS="block", QUIET=true, merge=false, md=3, nv=0, signsymmetry=nothing)
+function get_blocks(m, l, tsupp, supp, basis, ebasis; nb=0, TS="block", QUIET=true, merge=false, md=3, nvar=0, signsymmetry=nothing)
     blocks = Vector{Vector{Vector{Int}}}(undef, m+1)
     eblocks = Vector{Vector{Int}}(undef, l)
     blocksize = Vector{Vector{Int}}(undef, m+1)
@@ -478,9 +478,9 @@ function get_blocks(m, l, tsupp, supp, basis, ebasis; nb=0, TS="block", QUIET=tr
     else
         for k = 1:m+1
             if k == 1
-                G = get_graph(tsupp, basis[1], nb=nb, nv=nv, signsymmetry=signsymmetry)
+                G = get_graph(tsupp, basis[1], nb=nb, nvar=nvar, signsymmetry=signsymmetry)
             else
-                G = get_graph(tsupp, supp[k-1], basis[k], nb=nb, nv=nv, signsymmetry=signsymmetry)
+                G = get_graph(tsupp, supp[k-1], basis[k], nb=nb, nvar=nvar, signsymmetry=signsymmetry)
             end
             if TS == "block"
                 blocks[k] = connected_components(G)
@@ -501,7 +501,7 @@ function get_blocks(m, l, tsupp, supp, basis, ebasis; nb=0, TS="block", QUIET=tr
             end
         end
         for k = 1:l
-            eblocks[k] = get_eblock(tsupp, supp[k+m], ebasis[k], nb=nb, nv=nv, signsymmetry=signsymmetry)
+            eblocks[k] = get_eblock(tsupp, supp[k+m], ebasis[k], nb=nb, nvar=nvar, signsymmetry=signsymmetry)
         end
     end
     return blocks,eblocks,cl,blocksize

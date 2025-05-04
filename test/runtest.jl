@@ -11,9 +11,9 @@ using Test
 # Unconstrained Polynomial Optimization
 @polyvar x[1:3]
 f = 1+x[1]^4+x[2]^4+x[3]^4+x[1]*x[2]*x[3]+x[2]
-opt,sol,data = tssos_first(f, x, newton=true, reducebasis=true, TS="block", solution=false, QUIET=true)
+opt,sol,data = tssos_first(f, x, newton=true, reducebasis=true, TS="block", solution=true, Gram=true, QUIET=true)
 @test opt ≈ 0.4752748 atol = 1e-6
-opt,sol,data = tssos_higher!(data, TS="MD", solution=true, QUIET=true)
+opt,sol,data = tssos_higher!(data, TS="MD", solution=true, Gram=true, QUIET=true)
 @test opt ≈ 0.4752748 atol = 1e-6
 
 # Constrained Polynomial Optimization
@@ -24,12 +24,17 @@ h = x[2]^2+x[3]^2-1
 pop = [f, g, h]
 opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=false, TS="block", Gram=true, solution=true, QUIET=true)
 @test opt ≈ 0.68619257 atol = 1e-6
-opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=true, TS="block", solution=true, QUIET=true)
+opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=true, TS="block", Gram=true, solution=true, QUIET=true)
 @test opt ≈ 0.68619257 atol = 1e-6
-opt,sol,data = tssos_higher!(data, TS="MF", solution=true, QUIET=true)
+opt,sol,data = tssos_higher!(data, TS="MF", solution=true, Gram=true, QUIET=true)
 @test opt ≈ 0.68619257 atol = 1e-6
-opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=false, TS=false, solution=true, QUIET=true)
+opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=false, TS=false, Gram=true, solution=true, QUIET=true)
 @test opt ≈ 0.68619257 atol = 1e-6
+
+@polyvar x[1:4]
+pop = [3-x[1]^2-x[3]^2+x[1]*x[2]^2+2x[2]*x[3]*x[4]-x[1]*x[4]^2, x[2], x[1]^2+3x[3]^2-2, x[4], x[1]^2+x[2]^2+x[3]^2+x[4]^2-3]
+opt,sol,data = cs_tssos_first(pop, x, 2, numeq=3, TS="block", Gram=true, solution=true, QUIET=true)
+@test opt ≈ -0.4142135 atol = 1e-6
 
 n = 6
 @polyvar x[1:n]
@@ -38,7 +43,7 @@ pop = [f, 1-sum(x[1:3].^2), 1-sum(x[3:6].^2)]
 d = 2
 opt,sol,data = cs_tssos_first(pop, x, d, numeq=1, TS="block", Gram=true, solution=true, QUIET=true)
 @test opt ≈ 0.71742533 atol = 1e-6
-opt,sol,data = cs_tssos_higher!(data, TS="MD", solution=true, QUIET=true)
+opt,sol,data = cs_tssos_higher!(data, TS="MD", solution=true, Gram=true, QUIET=true)
 @test opt ≈ 0.71742533 atol = 1e-6
 
 # SOS Programming
@@ -52,9 +57,9 @@ set_optimizer_attribute(model, MOI.Silent(), true)
 v, vc, vb = add_poly!(model, x, 2d-2)
 w, wc, wb = add_poly!(model, x, 2d)
 Lv = v - sum(f .* differentiate(v, x))
-info1 = add_psatz!(model, Lv, x, g, [], d, TS=false, SO=1, constrs="con1")
-info2 = add_psatz!(model, w, x, g, [], d, TS=false, SO=1)
-info3 = add_psatz!(model, w-v-1, x, g, [], d, TS=false, SO=1)
+info1 = add_psatz!(model, Lv, x, g, [], d, TS="block", SO=1, constrs="con1")
+info2 = add_psatz!(model, w, x, g, [], d, TS="block", SO=1)
+info3 = add_psatz!(model, w-v-1, x, g, [], d, TS="block", SO=1)
 moment = get_moment(wb, -ones(n), ones(n))
 @objective(model, Min, sum(moment.*wc))
 optimize!(model)
@@ -72,9 +77,9 @@ set_optimizer_attribute(model, MOI.Silent(), true)
 h1 = add_poly!(model, [x;y;z], 2d-2, signsymmetry=get_signsymmetry([p[2]; q[2]; g], [x;y;z]))[1]
 h2 = add_poly!(model, [x;y;z], 2d-2, signsymmetry=get_signsymmetry([p[3]; q[3]; g], [x;y;z]))[1]
 c = @variable(model)
-add_psatz!(model, p[1]+(h1+h2-c)*q[1], [x;y;z], g, [], d, QUIET=true, CS=false, TS=false, SO=1, GroebnerBasis=false)
-add_psatz!(model, p[2]-h1*q[2], [x;y;z], g, [], d, QUIET=true, CS=false, TS="block", SO=1, GroebnerBasis=false)
-add_psatz!(model, p[3]-h2*q[3], [x;y;z], g, [], d, QUIET=true, CS=false, TS="block", SO=1, GroebnerBasis=false)
+add_psatz!(model, p[1]+(h1+h2-c)*q[1], [x;y;z], g, [], d, QUIET=true, TS="block", SO=1, GroebnerBasis=false)
+add_psatz!(model, p[2]-h1*q[2], [x;y;z], g, [], d, QUIET=true, TS="block", SO=1, GroebnerBasis=false)
+add_psatz!(model, p[3]-h2*q[3], [x;y;z], g, [], d, QUIET=true, TS="block", SO=1, GroebnerBasis=false)
 @objective(model, Max, c)
 optimize!(model)
 objv = objective_value(model)
@@ -85,9 +90,9 @@ objv = objective_value(model)
 Q = [1/sqrt(2) -1/sqrt(3) 1/sqrt(6); 0 1/sqrt(3) 2/sqrt(6); 1/sqrt(2) 1/sqrt(3) -1/sqrt(6)]
 F = Q*[-x[1]^2-x[2]^2 0 0; 0 -1/4*(x[1]+1)^2-1/4*(x[2]-1)^2 0; 0 0 -1/4*(x[1]-1)^2-1/4*(x[2]+1)^2]*Q'
 G = [1-4x[1]*x[2] x[1]; x[1] 4-x[1]^2-x[2]^2]
-opt,data = tssos_first(F, [G], x, 2, TS="block", QUIET=true)
+opt,data = tssos_first(F, [G], x, 2, TS="block", QUIET=true, Gram=true, Moment=true)
 @test opt ≈ -4 atol = 1e-6
-opt,data = tssos_higher!(data, QUIET=true)
+opt,data = tssos_higher!(data, QUIET=true, Gram=true)
 @test opt ≈ -4 atol = 1e-6
 
 @polyvar x[1:3]

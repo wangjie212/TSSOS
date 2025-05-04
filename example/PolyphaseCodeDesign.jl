@@ -3,7 +3,7 @@ using DynamicPolynomials
 
 ## Polyphase Code Waveform Design
 ## formulation with inequality constraints
-N = 10
+N = 6
 @polyvar z[1:2N+2]
 pop = Vector{Polynomial{true,Float64}}(undef, N-1)
 pop[1] = z[N+1]^2 + z[2N+2]^2
@@ -11,9 +11,9 @@ for k = 1:N-2
     pop[k+1] = z[N+1]^2 + z[2N+2]^2 - sum(z[i]*z[j+k]*z[j+N+1]*z[i+k+N+1] for i = 1:N-k, j = 1:N-k)
 end
 
-order = 4
+order = 3
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, N+1, order, nb=N+1, CS=false, TS="block", ConjugateBasis=true, ipart=false, QUIET=false)
+opt,sol,data = cs_tssos_first(pop, z, N+1, order, nb=N+1, CS=false, TS="block", ConjugateBasis=false, QUIET=false)
 end
 println(opt^0.5)
 
@@ -31,7 +31,7 @@ end
 
 order = 3
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, 2N-1, order, numeq=N-2, nb=2N-1, CS=false, TS="block", ipart=false, QUIET=false)
+opt,sol,data = cs_tssos_first(pop, z, 2N-1, order, numeq=N-2, nb=2N-1, CS=false, TS="block", QUIET=false)
 opt,sol,data = cs_tssos_higher!(data, TS="block", solve=true, QUIET=false)
 end
 println(opt^0.5)
@@ -80,9 +80,9 @@ println(opt^0.5)
 N = 6
 @polyvar z[1:2N]
 f = sum(sum(z[i]*z[i+j+N] for i = 1:N-j)*sum(z[i+N]*z[i+j] for i = 1:N-j) for j = 1:N-2)
-order = 5
+order = 4
 @time begin
-opt,sol,data = cs_tssos_first([f], z, N, order, nb=N, CS=false, TS="block", balanced=false, ipart=false, QUIET=false)
+opt,sol,data = cs_tssos_first([f], z, N, order, nb=N, CS=false, TS="block", QUIET=false)
 end
 
 N = 12
@@ -121,7 +121,7 @@ f = basis2'*Q*basis1
 # f = z[n+1:end]'*Q*z[1:n] + c'*(z[1:n]+z[n+1:2n])
 # f = (1+im)*z[1]*z[2]*z[3] + (1+im)*z[2]*z[3]*z[4] + (1-im)*z[4]*z[5]*z[6] + (1-im)*z[1]*z[5]*z[6]
 h = 1 - sum(z[i]*z[i+n] for i = 1:n)
-opt,sol,data = cs_tssos_first([f; h], z, n, 2, numeq=1, QUIET=true, CS=false, TS=false, ipart=false)
+opt,sol,data = cs_tssos_first([f; h], z, n, 2, numeq=1, QUIET=true, CS=false, TS=false)
 M = Matrix{Float64}(data.moment[1][1][1:n+1,1:n+1])
 F = ldl(M)
 ind = findall(diag(F.D).>1e-4)

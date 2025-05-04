@@ -8,33 +8,28 @@ supp = Vector{Vector{Vector{UInt16}}}[[[[], []], [[1], [1]], [[1], [2;2]], [[2;2
 [[[2], []], [[], [2]]], [[[], []], [[1], [1]], [[1;1], []], [[], [1;1]]],
 [[[], []], [[1], [1]], [[2], [2]]], [[[2], []], [[], [2]]]]
 coe = [[3;-1;-0.5im;0.5im], [1;1], [-1;1;-0.25;-0.25], [-3;1;1], [im;-im]]
-opt,sol,data = cs_tssos_first(supp, coe, 2, 2, numeq=3, QUIET=true, CS=false, TS=false)
+opt,sol,data = cs_tssos_first(supp, coe, 2, 2, numeq=3, QUIET=true, TS=false, Gram=true)
 @test opt ≈ 0.428174 atol = 1e-6
 
 supp = Vector{Vector{Vector{UInt16}}}[[[[1;1], [2]], [[2], [1;1]], [[1], [2]], [[2], [1]], [[2], [3]], [[3], [2]]],
 [[[], []], [[1], [1]], [[2],[2]]], [[[], []], [[2], [2]], [[3], [3]]],
 [[[], []], [[], [2]], [[2], []]]]
 coe = [[1;1;1;1;1;1], [1;-1;-1], [1;-1;-1], [1;1;1]]
-opt,sol,data = cs_tssos_first(supp, coe, 3, 2, numeq=1, ipart=false, QUIET=true, CS=true, TS=false)
+opt,sol,data = cs_tssos_first(supp, coe, 3, 2, numeq=1, QUIET=true, TS="block", Gram=true)
 @test opt ≈ -2.682188 atol = 1e-6
-
-@polyvar x[1:4]
-pop = [3-x[1]^2-x[3]^2+x[1]*x[2]^2+2x[2]*x[3]*x[4]-x[1]*x[4]^2, x[2], x[1]^2+3x[3]^2-2, x[4], x[1]^2+x[2]^2+x[3]^2+x[4]^2-3]
-opt,sol,data = cs_tssos_first(pop, x, 2, numeq=3, CS=false, TS=false, QUIET=true)
-@test opt ≈ -0.4142135 atol = 1e-6
 
 @polyvar z[1:4]
 pop = [z[1]+z[2]+z[3]+z[4], (1+im)*z[1]^2*z[4]+(1-im)*z[2]*z[3]^2, 1-z[1]*z[3]-z[2]*z[4]]
-opt,sol,data = cs_tssos_first(pop, z, 2, 2, numeq=1, QUIET=true, CS=true, TS="block", ConjugateBasis=true, solution=true)
+opt,sol,data = cs_tssos_first(pop, z, 2, 2, numeq=1, QUIET=true, TS="block", ConjugateBasis=true, solution=true, Gram=true)
 @test opt ≈ -2.7423247 atol = 1e-6
-opt,sol,data = cs_tssos_first(pop, z, 2, 2, numeq=1, QUIET=true, CS=false, TS="block", solution=true)
+opt,sol,data = cs_tssos_first(pop, z, 2, 2, numeq=1, QUIET=true, TS="block", solution=true, Gram=true)
 @test opt ≈ -2.7423247 atol = 1e-6
-opt,sol,data = cs_tssos_higher!(data, QUIET=true, TS="block", solution=true)
+opt,sol,data = cs_tssos_higher!(data, QUIET=true, TS="block", solution=true, Gram=true)
 @test opt ≈ -2.7423247 atol = 1e-6
 
 @polyvar z[1:4]
 pop = [z[1]*z[2] + z[3]*z[4], 1 - z[1]*z[3] - z[2]*z[4]]
-opt,sol,data = cs_tssos_first(pop, z, 2, 2, ipart=false, numeq=1, QUIET=true, CS=false, TS=false, solution=true)
+opt,sol,data = cs_tssos_first(pop, z, 2, 2, numeq=1, QUIET=true, TS="block", solution=true, Gram=true)
 @test opt ≈ -1 atol = 1e-6
 
 @polyvar z1 z2 z3 z4 z5 z6
@@ -46,7 +41,7 @@ h1 = - z1*z4 - z2*z5 + 2/3
 h2 = 3*z1*z2 + 3*z4*z5 - 2
 h3 = 9*z1*z2*z4*z5 - 1
 cpop = [f; g1; g2; h1; h2; h3]
-opt,sol,data = cs_tssos_first(cpop, z, 3, 2, numeq=3, CS=false, TS="block", ipart=false, QUIET=true)
+opt,sol,data = cs_tssos_first(cpop, z, 3, 2, numeq=3, CS=false, TS="block", solution=true, QUIET=true, Gram=true)
 @test opt ≈ -0.4444444 atol = 1e-6
 
 n = 3
@@ -72,9 +67,9 @@ h1 = z1*z5 + z2*z6 + z3*z7 - n*(1/(n+1))^(2/n)
 h2 = 2*z1*z2*z3 + 2*z5*z6*z7 + 1
 h3 = 16*z1*z2*z3*z5*z6*z7 - 1
 cpop = [f; g1; g2; g3; h1; h2; h3]
-opt,sol,data = cs_tssos_first(cpop, z, n+1, 5, numeq=3, CS=false, TS="block", ipart=false, QUIET=true, solve=false)
+opt,sol,data = cs_tssos_first(cpop, z, n+1, 5, numeq=3, CS=false, TS="block", QUIET=true, solve=false)
 opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true, solve=false)
-opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true)
+opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true, Gram=true)
 @test opt ≈ -0.5625 atol = 1e-6
 
 N = 6
@@ -84,7 +79,7 @@ pop[1] = z[N+1]^2 + z[2N+2]^2
 for k = 1:N-2
     pop[k+1] = z[N+1]^2 + z[2N+2]^2 - sum(z[i]*z[j+k]*z[j+N+1]*z[i+k+N+1] for i = 1:N-k, j = 1:N-k)
 end
-opt,sol,data = cs_tssos_first(pop, z, N+1, 3, nb=N+1, CS=false, TS="block", ConjugateBasis=true, ipart=false, QUIET=true)
+opt,sol,data = cs_tssos_first(pop, z, N+1, 3, nb=N+1, CS=false, TS="block", ConjugateBasis=true, QUIET=true, Gram=true)
 @test opt ≈ 1 atol = 1e-6
 
 end

@@ -36,8 +36,8 @@ function tssos_first(F::Polynomial{true, T1}, G::Vector{Matrix{Polynomial{true, 
     return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment)
 end
 
-function tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
-    return cs_tssos_higher!(data, TS=TS, QUIET=QUIET, solve=solve)
+function tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, Gram=false)
+    return cs_tssos_higher!(data, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram)
 end
 
 function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Polynomial{true, T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {T1,T2<:Number}
@@ -109,7 +109,7 @@ function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polyno
     return opt,data
 end
 
-function cs_tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
+function cs_tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, Gram=false)
     basis = data.basis
     gbasis = data.gbasis
     obj_matrix = data.obj_matrix
@@ -119,12 +119,11 @@ function cs_tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
         opt = nothing
         println("No higher TS step of the CS-TSSOS hierarchy!")
     else
-        opt,ksupp,GramMat,moment,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, data.cql, data.I, data.ncc, TS=TS, QUIET=QUIET, solve=solve)
+        opt,ksupp,GramMat,_,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, data.cql, data.I, data.ncc, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram)
         data.ksupp = ksupp
         data.blocks = blocks
         data.blocksize = blocksize
         data.GramMat = GramMat
-        data.moment = moment
         data.SDP_status = SDP_status
     end
     return opt,data

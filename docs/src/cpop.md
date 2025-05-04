@@ -45,8 +45,6 @@ numeq | Specify the last **numeq** constraints to be equality constraints | 0
 CS | Types of chordal extensions in exploiting correlative sparsity: "MF" (approximately smallest chordal extension), "NC" (not performing chordal extension), false (invalidating correlative sparsity exploitation) | "MF"
 cliques | Use customized variable cliques | []
 TS | Types of chordal extensions used in term sparsity iterations: "block"(maximal chordal extension), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations) | "block"
-ipart | Use complex moment matrices | true
-balanced | Impose the balanced structure | false
 normality | Impose normality condtions of order **normality** | 1
 merge | Merge overlapping PSD blocks | false
 md | Parameter for tunning the merging strength | 3

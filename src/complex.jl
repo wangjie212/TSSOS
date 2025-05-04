@@ -5,13 +5,13 @@ mutable struct ccpop_data
     nb # number of binary variables
     m # number of all constraints
     numeq # number of equality constraints
-    ipart # retain the imaginary part
+    ipart # include the imaginary part
     ConjugateBasis # include conjugate variables in monomial bases
+    normality # normal order
     supp # support data
     coe # coefficient data
     basis # monomial bases
     ebasis # monomial bases for equality constraints
-    rlorder # relaxation order
     ksupp # extended support at the k-th step
     cql # number of cliques
     cliquesize # sizes of cliques
@@ -32,13 +32,13 @@ mutable struct ccpop_data
 end
 
 """
-    opt,sol,data = cs_tssos_first(pop, z, n, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", ipart=true, reducebasis=false, 
-    merge=false, md=3, solver="Mosek", QUIET=false, solve=true, solution=false, dualize=false, Gram=false, balanced=false, 
+    opt,sol,data = cs_tssos_first(pop, z, n, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", reducebasis=false, 
+    merge=false, md=3, solver="Mosek", QUIET=false, solve=true, solution=false, dualize=false, Gram=false, 
     MomentOne=false, ConjugateBasis=false, normality=1, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained complex polynomial optimization. 
+If `ConjugateBasis=true`, then include conjugate variables in monomial bases.
 If `merge=true`, perform the PSD block merging. 
-If `ipart=false`, then use the real moment-HSOS hierarchy.
 If `solve=false`, then do not solve the SDP.
 If `Gram=true`, then output the Gram matrix.
 If `MomentOne=true`, add an extra first-order moment PSD constraint to the moment relaxation.
@@ -62,34 +62,31 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function cs_tssos_first(pop::Vector{Polynomial{true, T}}, z, n, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], TS="block", 
-    merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, ipart=true, dualize=false, 
-    balanced=false, MomentOne=false, ConjugateBasis=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
-    writetofile=false, normality=1) where {T<:Number}
-    ctype = ipart==true ? ComplexF64 : Float64
-    supp,coe = polys_info(pop, z, n, ctype=ctype)
-    ss = get_signsymmetry([subs(poly, z[n+1:2n]=>z[1:n]) for poly in pop], z[1:n])
-    opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, RemSig=RemSig, nb=nb, CS=CS, cliques=cliques, TS=TS, 
-    merge=merge, md=md, solver=solver, reducebasis=reducebasis, QUIET=QUIET, solve=solve, signsymmetry=ss, 
-    solution=solution, ipart=ipart, dualize=dualize, balanced=balanced, MomentOne=MomentOne, ConjugateBasis=ConjugateBasis, Gram=Gram, 
-    cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile, normality=normality, NormalSparse=true, cpop=pop, z=z)
+function cs_tssos_first(pop::Vector{Polynomial{true, T}}, z, n::Int, d::Int; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], TS="block", 
+    merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, 
+    ConjugateBasis=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=1) where {T<:Number}
+    supp,coe = polys_info(pop, z, n, ctype=T)
+    opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, RemSig=RemSig, nb=nb, CS=CS, cliques=cliques, TS=TS, merge=merge, 
+    md=md, solver=solver, reducebasis=reducebasis, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution,
+    MomentOne=MomentOne, ConjugateBasis=ConjugateBasis, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
+    writetofile=writetofile, normality=normality, cpop=pop, z=z)
     return opt,sol,data
 end
 
 """
-    opt,sol,data = cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vector{Vector{ComplexF64}},
-    n, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", ipart=true, merge=false, md=3, solver="Mosek", solution=false, dualize=false,
-    QUIET=false, solve=true, Gram=false, balanced=false, MomentOne=false, normality=1, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+    opt,sol,data = cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vector{Vector{T}}, n, d; 
+    nb=0, numeq=0, CS="MF", cliques=[], TS="block", merge=false, md=3, solver="Mosek", solution=false, dualize=false,
+    QUIET=false, solve=true, Gram=false, MomentOne=false, normality=1, cosmo_setting=cosmo_para(), mosek_setting=mosek_para()) where {T<:Number}
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained complex polynomial optimization. 
 Here the complex polynomial optimization problem is defined by `supp` and `coe`, corresponding to the supports and coeffients of `pop` respectively.
 """
-function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], 
-    TS="block", merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, 
-    ipart=true, dualize=false, balanced=false, MomentOne=false, ConjugateBasis=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
-    writetofile=false, signsymmetry=false, normality=1, NormalSparse=false, cpop=nothing, z=nothing)
+function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vector{Vector{T}}, n::Int, d::Int; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], 
+    TS="block", merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, ConjugateBasis=false, 
+    Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=1, cpop=nothing, z=nothing) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
+    ipart = T <: Real ? false : true
     if ConjugateBasis == true normality = 0 end
     if nb > 0
         supp[1],coe[1] = resort(supp[1], coe[1], nb=nb)
@@ -129,17 +126,33 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
     end
     ebasis = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, cql)
     if ConjugateBasis == false
-        basis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
+        if normality == 0
+            basis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
+        else
+            basis = Vector{Vector{Vector{Union{Vector{UInt16}, Vector{Vector{UInt16}}}}}}(undef, cql)
+        end
     else
         basis = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, cql)
     end
     for i = 1:cql
         ebasis[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, length(J[i]))
         if ConjugateBasis == false
-            basis[i] = Vector{Vector{Vector{UInt16}}}(undef, length(I[i])+1)
-            basis[i][1] = get_basis(cliques[i], rlorder[i])
-            for s = 1:length(I[i])
-                basis[i][s+1] = get_basis(cliques[i], rlorder[i]-dc[I[i][s]])
+            if normality == 0
+                basis[i] = Vector{Vector{Vector{UInt16}}}(undef, length(I[i])+1)
+                basis[i][1] = get_basis(cliques[i], rlorder[i])
+                for s = 1:length(I[i])
+                    basis[i][s+1] = get_basis(cliques[i], rlorder[i]-dc[I[i][s]])
+                end
+            else
+                basis[i] = Vector{Vector{Union{Vector{UInt16}, Vector{Vector{UInt16}}}}}(undef, length(I[i])+1+cliquesize[i])
+                basis[i][1] = get_basis(cliques[i], rlorder[i])
+                for s = 1:cliquesize[i]
+                    temp = get_basis(cliques[i], normality)
+                    basis[i][s+1] = [[[item, [cliques[i][s]]] for item in temp]; [[item, UInt16[]] for item in temp]]
+                end
+                for s = 1:length(I[i])
+                    basis[i][s+1+cliquesize[i]] = get_basis(cliques[i], rlorder[i]-dc[I[i][s]])
+                end
             end
             for s = 1:length(J[i])
                 temp = get_basis(cliques[i], rlorder[i]-dc[J[i][s]])
@@ -173,8 +186,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, tsupp, basis, ebasis, TS=TS, ConjugateBasis=ConjugateBasis, 
-    balanced=balanced, merge=merge, md=md, nb=nb)
+    blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cliquesize, cql, tsupp, basis, ebasis, TS=TS, ConjugateBasis=ConjugateBasis, normality=normality, merge=merge, md=md, nb=nb)
     if RemSig == true
         for i = 1:cql
             basis[i][1] = basis[i][1][union(blocks[i][1][blocksize[i][1] .> 1]...)]
@@ -187,10 +199,10 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
         end
         sort!(tsupp)
         unique!(tsupp)
-        blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, tsupp, basis, ebasis, TS=TS, ConjugateBasis=ConjugateBasis, balanced=balanced, merge=merge, md=md, nb=nb)
+        blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cliquesize, cql, tsupp, basis, ebasis, TS=TS, ConjugateBasis=ConjugateBasis, normality=normality, merge=merge, md=md, nb=nb)
     end
     if reducebasis == true
-        tsupp = get_gsupp(basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, norm=true)
+        tsupp = get_gsupp(basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, cliquesize, norm=true, nb=nb, ConjugateBasis=ConjugateBasis, normality=normality)
         for i = 1:length(supp[1])
             if supp[1][i][1] == supp[1][i][2]
                 push!(tsupp, supp[1][i][1])
@@ -216,7 +228,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
             end
             sort!(tsupp)
             unique!(tsupp)
-            blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, tsupp, basis, ebasis, TS=TS, balanced=balanced, nb=nb, merge=merge, md=md)
+            blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cliquesize, cql, tsupp, basis, ebasis, TS=TS, nb=nb, ConjugateBasis=ConjugateBasis, normality=normality, merge=merge, md=md)
         end
     end
     end
@@ -224,9 +236,9 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
         mb = maximum(maximum.([maximum.(blocksize[i]) for i = 1:cql]))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,GramMat,multiplier_equality,SDP_status = solvesdp(n, m, rlorder, supp, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize,
-    numeq=numeq, QUIET=QUIET, TS=TS, ConjugateBasis=ConjugateBasis, solver=solver, solve=solve, solution=solution, ipart=ipart, MomentOne=MomentOne, signsymmetry=signsymmetry, balanced=balanced,
-    Gram=Gram, nb=nb, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, dualize=dualize, writetofile=writetofile, normality=normality, NormalSparse=NormalSparse)
+    opt,ksupp,moment,GramMat,multiplier_equality,SDP_status = solvesdp(m, supp, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize,
+    numeq=numeq, QUIET=QUIET, TS=TS, ConjugateBasis=ConjugateBasis, solver=solver, solve=solve, MomentOne=MomentOne, ipart=ipart,
+    Gram=Gram, nb=nb, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, dualize=dualize, writetofile=writetofile, normality=normality)
     sol = nothing
     flag = 1
     if solution == true
@@ -247,23 +259,24 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, n, d;
             end
         end
     end
-    data = ccpop_data(cpop, z, n, nb, m, numeq, ipart, ConjugateBasis, supp, coe, basis, ebasis, rlorder, ksupp, cql, cliquesize, cliques, I, J, ncc, blocksize, blocks, eblocks, 
+    data = ccpop_data(cpop, z, n, nb, m, numeq, ipart, ConjugateBasis, normality, supp, coe, basis, ebasis, ksupp, cql, cliquesize, cliques, I, J, ncc, blocksize, blocks, eblocks, 
     GramMat, multiplier_equality, moment, solver, SDP_status, 1e-4, flag)
     return opt,sol,data
 end
 
 """
     opt,sol,data = cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, dualize=false,
-    solution=false, Gram=false, balanced=false, MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=1)
+    solution=false, Gram=false, MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
 
 Compute higher TS steps of the CS-TSSOS hierarchy.
 """
 function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
-    balanced=false, MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=1)
+    MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
     n = data.n
     nb = data.nb
     m = data.m
     numeq = data.numeq
+    normality = data.normality
     supp = data.supp
     basis = data.basis
     ebasis = data.ebasis
@@ -276,7 +289,7 @@ function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, data.ksupp, basis, ebasis, nb=nb, balanced=balanced, TS=TS, ConjugateBasis=data.ConjugateBasis, merge=merge, md=md)
+    blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cliquesize, cql, data.ksupp, basis, ebasis, nb=nb, TS=TS, ConjugateBasis=data.ConjugateBasis, normality=normality, merge=merge, md=md)
     end
     if blocksize == data.blocksize && eblocks == data.eblocks
         println("No higher TS step of the CS-TSSOS hierarchy!")
@@ -286,9 +299,9 @@ function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET
             mb = maximum(maximum.([maximum.(blocksize[i]) for i = 1:cql]))
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,GramMat,multiplier_equality,SDP_status = solvesdp(n, m, data.rlorder, supp, data.coe, basis, ebasis, cliques, cql, cliquesize, I, J, data.ncc, blocks, eblocks, cl,
-        blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=data.solver, solve=solve, solution=solution, dualize=dualize, ipart=data.ipart, MomentOne=MomentOne, 
-        Gram=Gram, ConjugateBasis=data.ConjugateBasis, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, balanced=balanced, normality=normality)
+        opt,ksupp,moment,GramMat,multiplier_equality,SDP_status = solvesdp(m, supp, data.coe, basis, ebasis, cliques, cql, cliquesize, I, J, data.ncc, blocks, eblocks, cl,
+        blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=data.solver, solve=solve, dualize=dualize, ipart=data.ipart, MomentOne=MomentOne, 
+        Gram=Gram, ConjugateBasis=data.ConjugateBasis, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, normality=normality)
         sol = nothing
         if solution == true
             pop,x = complex_to_real(data.cpop, data.z)
@@ -342,20 +355,21 @@ function reduce_unitnorm(a; nb=0)
     return a
 end
 
-function get_gsupp(basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize; norm=false, nb=0, ConjugateBasis=false)
+function get_gsupp(basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, cliquesize; norm=false, nb=0, ConjugateBasis=false, normality=1)
     if norm == true
         gsupp = Vector{UInt16}[]
     else
         gsupp = Vector{Vector{UInt16}}[]
     end
     for i = 1:cql
-        for (j, w) in enumerate(I[i]), l = 1:cl[i][j+1], t = 1:blocksize[i][j+1][l], r = t:blocksize[i][j+1][l], item in supp[w+1]
-            ind1 = blocks[i][j+1][l][t]
-            ind2 = blocks[i][j+1][l][r]
+        a = normality > 0 ? 1 + cliquesize[i] : 1
+        for (j, w) in enumerate(I[i]), l = 1:cl[i][j+a], t = 1:blocksize[i][j+a][l], r = t:blocksize[i][j+a][l], item in supp[w+1]
+            ind1 = blocks[i][j+a][l][t]
+            ind2 = blocks[i][j+a][l][r]
             if ConjugateBasis == false
-                @inbounds bi = [sadd(basis[i][j+1][ind1], item[1]), sadd(basis[i][j+1][ind2], item[2])]
+                @inbounds bi = [sadd(basis[i][j+a][ind1], item[1]), sadd(basis[i][j+a][ind2], item[2])]
             else
-                @inbounds bi = [sadd(sadd(basis[i][j+1][ind1][1], item[1]), basis[i][j+1][ind2][2]), sadd(sadd(basis[i][j+1][ind1][2], item[2]),basis[i][j+1][ind2][1])]
+                @inbounds bi = [sadd(sadd(basis[i][j+a][ind1][1], item[1]), basis[i][j+a][ind2][2]), sadd(sadd(basis[i][j+a][ind1][2], item[2]), basis[i][j+a][ind2][1])]
             end
             if nb > 0
                 bi = reduce_unitnorm(bi, nb=nb)
@@ -404,125 +418,33 @@ function get_gsupp(basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blo
     return gsupp
 end
 
-function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize; 
-    numeq=0, nb=0, QUIET=false, TS="block", ConjugateBasis=false, solver="Mosek", solve=true, dualize=false, solution=false, Gram=false, MomentOne=false, ipart=true, 
-    cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, signsymmetry=false, balanced=false, normality=1, NormalSparse=true)
+function solvesdp(m, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize; 
+    numeq=0, nb=0, QUIET=false, TS="block", ConjugateBasis=false, solver="Mosek", solve=true, dualize=false, Gram=false, MomentOne=false, ipart=true, 
+    cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=1)
     tsupp = Vector{Vector{UInt16}}[]
-    for i = 1:cql, j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
-        if ConjugateBasis == false
-            @inbounds bi = [basis[i][1][blocks[i][1][j][k]], basis[i][1][blocks[i][1][j][r]]]
-        else
-            @inbounds bi = [sadd(basis[i][1][blocks[i][1][j][k]][1], basis[i][1][blocks[i][1][j][r]][2]), sadd(basis[i][1][blocks[i][1][j][k]][2], basis[i][1][blocks[i][1][j][r]][1])]
-        end
-        if nb > 0
-            bi = reduce_unitnorm(bi, nb=nb)
-        end
-        if bi[1] <= bi[2]
-            push!(tsupp, bi)
-        else
-            push!(tsupp, bi[2:-1:1])
+    for i = 1:cql
+        a = normality > 0 ? 1 + cliquesize[i] : 1
+        for s = 1:a, j = 1:cl[i][s], k = 1:blocksize[i][s][j], r = k:blocksize[i][s][j]
+            if ConjugateBasis == false && s == 1
+                @inbounds bi = [basis[i][s][blocks[i][s][j][k]], basis[i][s][blocks[i][s][j][r]]]
+            else
+                @inbounds bi = [sadd(basis[i][s][blocks[i][s][j][k]][1], basis[i][s][blocks[i][s][j][r]][2]), sadd(basis[i][s][blocks[i][s][j][k]][2], basis[i][s][blocks[i][s][j][r]][1])]
+            end
+            if nb > 0
+                bi = reduce_unitnorm(bi, nb=nb)
+            end
+            if bi[1] <= bi[2]
+                push!(tsupp, bi)
+            else
+                push!(tsupp, bi[2:-1:1])
+            end
         end
     end
     if TS != false
-        gsupp = get_gsupp(basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, ConjugateBasis=ConjugateBasis, nb=nb)
+        gsupp = get_gsupp(basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, cliquesize, ConjugateBasis=ConjugateBasis, nb=nb, normality=normality)
         append!(tsupp, gsupp)
     end
     ksupp = copy(tsupp)
-    if normality > 0
-        if NormalSparse == true
-            hyblocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
-        end
-        wbasis = Vector{Vector{Vector{UInt16}}}(undef, cql)
-        for s = 1:cql
-            wbasis[s] = get_basis(cliques[s], normality)
-            bs = length(wbasis[s])
-            if NormalSparse == true
-                hyblocks[s] = Vector{Vector{Vector{Int}}}(undef, cliquesize[s])
-            end
-            for i = 1:cliquesize[s]
-                if NormalSparse == true
-                    G = SimpleGraph(2*bs)
-                    for j = 1:bs, k = j:bs
-                        bi = [wbasis[s][j], wbasis[s][k]]
-                        if nb > 0
-                            bi = reduce_unitnorm(bi, nb=nb)
-                        end
-                        sp = zeros(Int, n)
-                        st = sign_type(sadd(bi[1], bi[2]))
-                        sp[st] = ones(Int, length(st))
-                        if (balanced == false || length(bi[1]) == length(bi[2])) && all(transpose(signsymmetry)*sp .== 0)
-                            add_edge!(G, j, k)
-                        end
-                        bi = [sadd(wbasis[s][j], [cliques[s][i]]), sadd(wbasis[s][k], [cliques[s][i]])]
-                        if nb > 0
-                            bi = reduce_unitnorm(bi, nb=nb)
-                        end
-                        sp = zeros(Int, n)
-                        st = sign_type(sadd(bi[1], bi[2]))
-                        sp[st] = ones(Int, length(st))
-                        if (balanced == false || length(bi[1]) == length(bi[2])) && all(transpose(signsymmetry)*sp .== 0)
-                            add_edge!(G, j+bs, k+bs)
-                        end
-                    end
-                    for j = 1:bs, k = 1:bs
-                        bi = [sadd(wbasis[s][j], [cliques[s][i]]), wbasis[s][k]]
-                        if nb > 0
-                            bi = reduce_unitnorm(bi, nb=nb)
-                        end
-                        sp = zeros(Int, n)
-                        st = sign_type(sadd(bi[1], bi[2]))
-                        sp[st] = ones(Int, length(st))
-                        if (balanced == false || length(bi[1]) == length(bi[2])) && all(transpose(signsymmetry)*sp .== 0)
-                            add_edge!(G, j, k+bs)
-                        end
-                    end
-                    hyblocks[s][i] = connected_components(G)
-                    if normality >= rlorder[s] || TS == "block"
-                        for t = 1:length(hyblocks[s][i]), j = 1:length(hyblocks[s][i][t]), k = j:length(hyblocks[s][i][t])
-                            if hyblocks[s][i][t][j] <= bs && hyblocks[s][i][t][k] <= bs
-                                bi = [wbasis[s][hyblocks[s][i][t][j]], wbasis[s][hyblocks[s][i][t][k]]]
-                            elseif hyblocks[s][i][t][j] <= bs && hyblocks[s][i][t][k] > bs
-                                bi = [sadd(wbasis[s][hyblocks[s][i][t][j]], [cliques[s][i]]), wbasis[s][hyblocks[s][i][t][k]-bs]]
-                            else
-                                bi = [sadd(wbasis[s][hyblocks[s][i][t][j]-bs], [cliques[s][i]]), sadd(wbasis[s][hyblocks[s][i][t][k]-bs], [cliques[s][i]])]
-                            end
-                            if nb > 0
-                                bi = reduce_unitnorm(bi, nb=nb)
-                            end
-                            if bi[1] <= bi[2]
-                                push!(tsupp, bi)
-                            else
-                                push!(tsupp, bi[2:-1:1])
-                            end
-                        end
-                    end
-                elseif normality >= rlorder[s] || TS == "block"
-                    for j = 1:bs, k = j:bs
-                        bi = [sadd(wbasis[s][j], [cliques[s][i]]), sadd(wbasis[s][k], [cliques[s][i]])]
-                        if nb > 0
-                            bi = reduce_unitnorm(bi, nb=nb)
-                        end
-                        if bi[1] <= bi[2]
-                            push!(tsupp, bi)
-                        else
-                            push!(tsupp, bi[2:-1:1])
-                        end
-                    end
-                    for j = 1:bs, k = 1:bs
-                        bi = [sadd(wbasis[s][j], [cliques[s][i]]), wbasis[s][k]]
-                        if nb > 0
-                            bi = reduce_unitnorm(bi, nb=nb)
-                        end
-                        if bi[1] <= bi[2]
-                            push!(tsupp, bi)
-                        else
-                            push!(tsupp, bi[2:-1:1])
-                        end
-                    end
-                end
-            end
-        end
-    end
     if MomentOne == true
         for i = 1:cql, j = 1:cliquesize[i]
             push!(tsupp, [UInt16[], UInt16[cliques[i][j]]])
@@ -537,7 +459,7 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
     end
     sort!(tsupp)
     unique!(tsupp)
-    if normality > 0 || MomentOne == true
+    if MomentOne == true
         sort!(ksupp)
         unique!(ksupp)
     else
@@ -572,140 +494,6 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
         if ipart == true
             icons = [AffExpr(0) for i=1:ltsupp]
         end
-        if normality > 0
-            for s = 1:cql
-                bs = length(wbasis[s])
-                for i = 1:cliquesize[s]
-                    if NormalSparse == false
-                        if ipart == true
-                            hnom = @variable(model, [1:4bs, 1:4bs], PSD)
-                        else
-                            hnom = @variable(model, [1:2bs, 1:2bs], PSD)
-                        end
-                        for j = 1:bs, k = j:bs
-                            bi = [wbasis[s][j], wbasis[s][k]]
-                            if nb > 0
-                                bi = reduce_unitnorm(bi, nb=nb)
-                            end
-                            if bi[1] <= bi[2]
-                                Locb = bfind(tsupp, ltsupp, bi)
-                                if bi[1] != bi[2] && ipart == true
-                                    @inbounds add_to_expression!(icons[Locb], hnom[j,k+2bs]-hnom[k,j+2bs])
-                                end
-                            else
-                                Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
-                                if ipart == true
-                                    @inbounds add_to_expression!(icons[Locb], -1, hnom[j,k+2bs]-hnom[k,j+2bs])
-                                end
-                            end
-                            if ipart == true
-                                @inbounds add_to_expression!(rcons[Locb], hnom[j,k]+hnom[j+2bs,k+2bs])
-                            else
-                                @inbounds add_to_expression!(rcons[Locb], hnom[j,k])
-                            end
-                            bi = [sadd(wbasis[s][j], [cliques[s][i]]), sadd(wbasis[s][k], [cliques[s][i]])]
-                            if nb > 0
-                                bi = reduce_unitnorm(bi, nb=nb)
-                            end
-                            if bi[1] <= bi[2]
-                                Locb = bfind(tsupp, ltsupp, bi)
-                                if bi[1] != bi[2] && ipart == true
-                                    @inbounds add_to_expression!(icons[Locb], hnom[j+bs,k+3bs]-hnom[k+bs,j+3bs])
-                                end
-                            else
-                                Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
-                                if ipart == true
-                                    @inbounds add_to_expression!(icons[Locb], -1, hnom[j+bs,k+3bs]-hnom[k+bs,j+3bs])
-                                end
-                            end
-                            if ipart == true
-                                @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+bs]+hnom[j+3bs,k+3bs])
-                            else
-                                @inbounds add_to_expression!(rcons[Locb], hnom[j+bs,k+bs])
-                            end
-                        end
-                        for j = 1:bs, k = 1:bs
-                            bi = [sadd(wbasis[s][j], [cliques[s][i]]), wbasis[s][k]]
-                            if nb > 0
-                                bi = reduce_unitnorm(bi, nb=nb)
-                            end
-                            if bi[1] <= bi[2]
-                                Locb = bfind(tsupp, ltsupp, bi)
-                                if bi[1] != bi[2]
-                                    if ipart == true
-                                        @inbounds add_to_expression!(icons[Locb], hnom[j,k+3bs]-hnom[k+bs,j+2bs])
-                                        @inbounds add_to_expression!(rcons[Locb], hnom[j,k+bs]+hnom[j+2bs,k+3bs])
-                                    else
-                                        @inbounds add_to_expression!(rcons[Locb], hnom[j,k+bs])
-                                    end
-                                else
-                                    if ipart == true
-                                        @inbounds add_to_expression!(rcons[Locb], 2, hnom[j,k+bs]+hnom[j+2bs,k+3bs])
-                                    else
-                                        @inbounds add_to_expression!(rcons[Locb], 2, hnom[j,k+bs])
-                                    end
-                                end
-                            else
-                                Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
-                                if ipart == true
-                                    @inbounds add_to_expression!(icons[Locb], -1, hnom[j,k+3bs]-hnom[k+bs,j+2bs])
-                                    @inbounds add_to_expression!(rcons[Locb], hnom[j,k+bs]+hnom[j+2bs,k+3bs])
-                                else
-                                    @inbounds add_to_expression!(rcons[Locb], hnom[j,k+bs])
-                                end
-                            end
-                        end
-                    else
-                        for t = 1:length(hyblocks[s][i])
-                            hbs = length(hyblocks[s][i][t])
-                            if ipart == true
-                                hnom = @variable(model, [1:2*hbs, 1:2*hbs], PSD)
-                            else
-                                hnom = @variable(model, [1:hbs, 1:hbs], PSD)
-                            end
-                            for j = 1:hbs, k = j:hbs
-                                if hyblocks[s][i][t][j] <= bs && hyblocks[s][i][t][k] <= bs
-                                    bi = [wbasis[s][hyblocks[s][i][t][j]], wbasis[s][hyblocks[s][i][t][k]]]
-                                elseif hyblocks[s][i][t][j] <= bs && hyblocks[s][i][t][k] > bs
-                                    bi = [sadd(wbasis[s][hyblocks[s][i][t][j]], [cliques[s][i]]), wbasis[s][hyblocks[s][i][t][k]-bs]]
-                                else
-                                    bi = [sadd(wbasis[s][hyblocks[s][i][t][j]-bs], [cliques[s][i]]), sadd(wbasis[s][hyblocks[s][i][t][k]-bs], [cliques[s][i]])]
-                                end
-                                if nb > 0
-                                    bi = reduce_unitnorm(bi, nb=nb)
-                                end
-                                if bi[1] <= bi[2]
-                                    Locb = bfind(tsupp, ltsupp, bi)
-                                    if hyblocks[s][i][t][j] == hyblocks[s][i][t][k] || bi[1] != bi[2]
-                                        if ipart == true
-                                            @inbounds add_to_expression!(icons[Locb], hnom[j,k+hbs]-hnom[k,j+hbs])
-                                            @inbounds add_to_expression!(rcons[Locb], hnom[j,k]+hnom[j+hbs,k+hbs])
-                                        else
-                                            @inbounds add_to_expression!(rcons[Locb], hnom[j,k])
-                                        end
-                                    else
-                                        if ipart == true
-                                            @inbounds add_to_expression!(icons[Locb], 2, hnom[j,k+hbs]-hnom[k,j+hbs])
-                                            @inbounds add_to_expression!(rcons[Locb], 2, hnom[j,k]+hnom[j+hbs,k+hbs])
-                                        else
-                                            @inbounds add_to_expression!(rcons[Locb], 2, hnom[j,k])
-                                        end
-                                    end
-                                else
-                                    Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
-                                    if ipart == true
-                                        @inbounds add_to_expression!(icons[Locb], -1, hnom[j,k+hbs]-hnom[k,j+hbs])
-                                        @inbounds add_to_expression!(rcons[Locb], hnom[j,k]+hnom[j+hbs,k+hbs])
-                                    else
-                                        @inbounds add_to_expression!(rcons[Locb], hnom[j,k])
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
         pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, cql)
         for i = 1:cql
             if MomentOne == true
@@ -735,61 +523,64 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                     end
                 end
             end
-            pos[i] = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, 1+length(I[i]))
-            pos[i][1] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[i][1])
-            for l = 1:cl[i][1]
-                @inbounds bs = blocksize[i][1][l]
-                if bs == 1
-                    pos[i][1][l] = @variable(model, lower_bound=0)
-                    if ConjugateBasis == false
-                        @inbounds bi = [basis[i][1][blocks[i][1][l][1]], basis[i][1][blocks[i][1][l][1]]]
-                    else
-                        @inbounds bi = [sadd(basis[i][1][blocks[i][1][l][1]][1], basis[i][1][blocks[i][1][l][1]][2]), sadd(basis[i][1][blocks[i][1][l][1]][1], basis[i][1][blocks[i][1][l][1]][2])]
-                    end
-                    if nb > 0
-                        bi = reduce_unitnorm(bi, nb=nb)
-                    end
-                    Locb = bfind(tsupp, ltsupp, bi)
-                    @inbounds add_to_expression!(rcons[Locb], pos[i][1][l])
-                else
-                    if ipart == true
-                        pos[i][1][l] = @variable(model, [1:2bs, 1:2bs], PSD)
-                    else
-                        pos[i][1][l] = @variable(model, [1:bs, 1:bs], PSD)
-                    end
-                    for t = 1:bs, r = t:bs
-                        @inbounds ind1 = blocks[i][1][l][t]
-                        @inbounds ind2 = blocks[i][1][l][r]
-                        if ConjugateBasis == false
-                            @inbounds bi = [basis[i][1][ind1], basis[i][1][ind2]]
+            a = normality > 0 ? 1 + cliquesize[i] : 1
+            pos[i] = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, a+length(I[i]))
+            for j = 1:a
+                pos[i][j] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[i][j])
+                for l = 1:cl[i][j]
+                    @inbounds bs = blocksize[i][j][l]
+                    if bs == 1
+                        pos[i][j][l] = @variable(model, lower_bound=0)
+                        if ConjugateBasis == false && j == 1
+                            @inbounds bi = [basis[i][j][blocks[i][j][l][1]], basis[i][j][blocks[i][j][l][1]]]
                         else
-                            @inbounds bi = [sadd(basis[i][1][ind1][1], basis[i][1][ind2][2]), sadd(basis[i][1][ind1][2], basis[i][1][ind2][1])]
+                            @inbounds bi = [sadd(basis[i][j][blocks[i][j][l][1]][1], basis[i][j][blocks[i][j][l][1]][2]), sadd(basis[i][j][blocks[i][j][l][1]][1], basis[i][j][blocks[i][j][l][1]][2])]
                         end
                         if nb > 0
                             bi = reduce_unitnorm(bi, nb=nb)
                         end
-                        if bi[1] <= bi[2]
-                            Locb = bfind(tsupp, ltsupp, bi)
-                            if ipart == true && bi[1] != bi[2]
-                                @inbounds add_to_expression!(icons[Locb], pos[i][1][l][t,r+bs]-pos[i][1][l][r,t+bs])
-                            end
-                        else
-                            Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
-                            if ipart == true
-                                @inbounds add_to_expression!(icons[Locb], -1, pos[i][1][l][t,r+bs]-pos[i][1][l][r,t+bs])
-                            end
-                        end
+                        Locb = bfind(tsupp, ltsupp, bi)
+                        @inbounds add_to_expression!(rcons[Locb], pos[i][j][l])
+                    else
                         if ipart == true
-                            if bi[1] == bi[2] && t != r
-                                @inbounds add_to_expression!(rcons[Locb], 2*pos[i][1][l][t,r]+2*pos[i][1][l][t+bs,r+bs])
-                            else
-                                @inbounds add_to_expression!(rcons[Locb], pos[i][1][l][t,r]+pos[i][1][l][t+bs,r+bs])
-                            end
+                            pos[i][j][l] = @variable(model, [1:2bs, 1:2bs], PSD)
                         else
-                            if bi[1] == bi[2] && t != r
-                                @inbounds add_to_expression!(rcons[Locb], 2*pos[i][1][l][t,r])
+                            pos[i][j][l] = @variable(model, [1:bs, 1:bs], PSD)
+                        end
+                        for t = 1:bs, r = t:bs
+                            @inbounds ind1 = blocks[i][j][l][t]
+                            @inbounds ind2 = blocks[i][j][l][r]
+                            if ConjugateBasis == false && j == 1
+                                @inbounds bi = [basis[i][j][ind1], basis[i][j][ind2]]
                             else
-                                @inbounds add_to_expression!(rcons[Locb], pos[i][1][l][t,r])
+                                @inbounds bi = [sadd(basis[i][j][ind1][1], basis[i][j][ind2][2]), sadd(basis[i][j][ind1][2], basis[i][j][ind2][1])]
+                            end
+                            if nb > 0
+                                bi = reduce_unitnorm(bi, nb=nb)
+                            end
+                            if bi[1] <= bi[2]
+                                Locb = bfind(tsupp, ltsupp, bi)
+                                if ipart == true && bi[1] != bi[2]
+                                    @inbounds add_to_expression!(icons[Locb], pos[i][j][l][t,r+bs]-pos[i][j][l][r,t+bs])
+                                end
+                            else
+                                Locb = bfind(tsupp, ltsupp, bi[2:-1:1])
+                                if ipart == true
+                                    @inbounds add_to_expression!(icons[Locb], -1, pos[i][j][l][t,r+bs]-pos[i][j][l][r,t+bs])
+                                end
+                            end
+                            if ipart == true
+                                if bi[1] == bi[2] && t != r
+                                    @inbounds add_to_expression!(rcons[Locb], 2*pos[i][j][l][t,r]+2*pos[i][j][l][t+bs,r+bs])
+                                else
+                                    @inbounds add_to_expression!(rcons[Locb], pos[i][j][l][t,r]+pos[i][j][l][t+bs,r+bs])
+                                end
+                            else
+                                if bi[1] == bi[2] && t != r
+                                    @inbounds add_to_expression!(rcons[Locb], 2*pos[i][j][l][t,r])
+                                else
+                                    @inbounds add_to_expression!(rcons[Locb], pos[i][j][l][t,r])
+                                end
                             end
                         end
                     end
@@ -797,17 +588,18 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
             end
         end
         for i = 1:cql, (j, w) in enumerate(I[i])
-            pos[i][j+1] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[i][j+1])
-            for l = 1:cl[i][j+1]
-                bs = blocksize[i][j+1][l]
+            a = normality > 0 ? 1 + cliquesize[i] : 1
+            pos[i][j+a] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[i][j+a])
+            for l = 1:cl[i][j+a]
+                bs = blocksize[i][j+a][l]
                 if bs == 1
-                    pos[i][j+1][l] = @variable(model, lower_bound=0)
-                    ind = blocks[i][j+1][l][1]
+                    pos[i][j+a][l] = @variable(model, lower_bound=0)
+                    ind = blocks[i][j+a][l][1]
                     for s = 1:length(supp[w+1])
                         if ConjugateBasis == false
-                            @inbounds bi = [sadd(basis[i][j+1][ind], supp[w+1][s][1]), sadd(basis[i][j+1][ind], supp[w+1][s][2])]
+                            @inbounds bi = [sadd(basis[i][j+a][ind], supp[w+1][s][1]), sadd(basis[i][j+a][ind], supp[w+1][s][2])]
                         else
-                            @inbounds bi = [sadd(sadd(basis[i][j+1][ind][1], supp[w+1][s][1]), basis[i][j+1][ind][2]), sadd(sadd(basis[i][j+1][ind][2], supp[w+1][s][2]), basis[i][j+1][ind][1])]
+                            @inbounds bi = [sadd(sadd(basis[i][j+a][ind][1], supp[w+1][s][1]), basis[i][j+a][ind][2]), sadd(sadd(basis[i][j+a][ind][2], supp[w+1][s][2]), basis[i][j+a][ind][1])]
                         end
                         if nb > 0
                             bi = reduce_unitnorm(bi, nb=nb)
@@ -815,25 +607,25 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                         if bi[1] <= bi[2]
                             Locb = bfind(tsupp, ltsupp, bi)
                             if ipart == true
-                                @inbounds add_to_expression!(icons[Locb], imag(coe[w+1][s]), pos[i][j+1][l])
+                                @inbounds add_to_expression!(icons[Locb], imag(coe[w+1][s]), pos[i][j+a][l])
                             end
-                            @inbounds add_to_expression!(rcons[Locb], real(coe[w+1][s]), pos[i][j+1][l])
+                            @inbounds add_to_expression!(rcons[Locb], real(coe[w+1][s]), pos[i][j+a][l])
                         end
                     end
                 else
                     if ipart == true
-                        pos[i][j+1][l] = @variable(model, [1:2bs, 1:2bs], PSD)
+                        pos[i][j+a][l] = @variable(model, [1:2bs, 1:2bs], PSD)
                     else
-                        pos[i][j+1][l] = @variable(model, [1:bs, 1:bs], PSD)
+                        pos[i][j+a][l] = @variable(model, [1:bs, 1:bs], PSD)
                     end
                     for t = 1:bs, r = 1:bs
-                        ind1 = blocks[i][j+1][l][t]
-                        ind2 = blocks[i][j+1][l][r]
+                        ind1 = blocks[i][j+a][l][t]
+                        ind2 = blocks[i][j+a][l][r]
                         for s = 1:length(supp[w+1])
                             if ConjugateBasis == false
-                                @inbounds bi = [sadd(basis[i][j+1][ind1], supp[w+1][s][1]), sadd(basis[i][j+1][ind2], supp[w+1][s][2])]
+                                @inbounds bi = [sadd(basis[i][j+a][ind1], supp[w+1][s][1]), sadd(basis[i][j+a][ind2], supp[w+1][s][2])]
                             else
-                                @inbounds bi = [sadd(sadd(basis[i][j+1][ind1][1], supp[w+1][s][1]), basis[i][j+1][ind2][2]), sadd(sadd(basis[i][j+1][ind1][2], supp[w+1][s][2]), basis[i][j+1][ind2][1])]
+                                @inbounds bi = [sadd(sadd(basis[i][j+a][ind1][1], supp[w+1][s][1]), basis[i][j+a][ind2][2]), sadd(sadd(basis[i][j+a][ind1][2], supp[w+1][s][2]), basis[i][j+a][ind2][1])]
                             end
                             if nb > 0
                                 bi = reduce_unitnorm(bi, nb=nb)
@@ -841,14 +633,14 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                             if bi[1] <= bi[2]
                                 Locb = bfind(tsupp, ltsupp, bi)
                                 if ipart == true
-                                    @inbounds add_to_expression!(rcons[Locb], real(coe[w+1][s]), pos[i][j+1][l][t,r]+pos[i][j+1][l][t+bs,r+bs])
-                                    @inbounds add_to_expression!(rcons[Locb], -imag(coe[w+1][s]), pos[i][j+1][l][t,r+bs]-pos[i][j+1][l][r,t+bs])
+                                    @inbounds add_to_expression!(rcons[Locb], real(coe[w+1][s]), pos[i][j+a][l][t,r]+pos[i][j+a][l][t+bs,r+bs])
+                                    @inbounds add_to_expression!(rcons[Locb], -imag(coe[w+1][s]), pos[i][j+a][l][t,r+bs]-pos[i][j+a][l][r,t+bs])
                                     if bi[1] != bi[2]
-                                        @inbounds add_to_expression!(icons[Locb], imag(coe[w+1][s]), pos[i][j+1][l][t,r]+pos[i][j+1][l][t+bs,r+bs])
-                                        @inbounds add_to_expression!(icons[Locb], real(coe[w+1][s]), pos[i][j+1][l][t,r+bs]-pos[i][j+1][l][r,t+bs])
+                                        @inbounds add_to_expression!(icons[Locb], imag(coe[w+1][s]), pos[i][j+a][l][t,r]+pos[i][j+a][l][t+bs,r+bs])
+                                        @inbounds add_to_expression!(icons[Locb], real(coe[w+1][s]), pos[i][j+a][l][t,r+bs]-pos[i][j+a][l][r,t+bs])
                                     end
                                 else
-                                    @inbounds add_to_expression!(rcons[Locb], real(coe[w+1][s]), pos[i][j+1][l][t,r])
+                                    @inbounds add_to_expression!(rcons[Locb], real(coe[w+1][s]), pos[i][j+a][l][t,r])
                                 end
                             end
                         end
@@ -973,15 +765,16 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
            println("solution status: $status")
         end
         println("optimum = $objv")
-        ctype = ipart==true ? ComplexF64 : Float64
         if Gram == true
-            GramMat = Vector{Vector{Vector{Union{ctype,Matrix{ctype}}}}}(undef, cql)
+            ctype = ipart==true ? ComplexF64 : Float64
+            GramMat = Vector{Vector{Vector{Union{Float64,ComplexF64,Matrix{ctype}}}}}(undef, cql)
             for i = 1:cql
-                GramMat[i] = Vector{Vector{Union{ctype,Matrix{ctype}}}}(undef, 1+length(I[i]))
-                for j = 1:1+length(I[i])
+                a = normality > 0 ? 1 + length(I[i]) + cliquesize[i] : 1 + length(I[i])
+                GramMat[i] = Vector{Vector{Union{ctype,Matrix{ctype}}}}(undef, a)
+                for j = 1:a
                     GramMat[i][j] = Vector{Union{ctype,Matrix{ctype}}}(undef, cl[i][j])
                     for l = 1:cl[i][j]
-                        if ipart == true
+                        if ipart == true && blocksize[i][j][l] > 1
                             bs = blocksize[i][j][l]
                             temp = value.(pos[i][j][l][1:bs,bs+1:2bs])
                             GramMat[i][j][l] = value.(pos[i][j][l][1:bs,1:bs]+pos[i][j][l][bs+1:2bs,bs+1:2bs]) + im*(temp-temp')
@@ -1030,14 +823,20 @@ function get_eblock(tsupp::Vector{Vector{Vector{UInt16}}}, hsupp::Vector{Vector{
     return eblock
 end
 
-function get_blocks(m, l, tsupp, supp::Vector{Vector{Vector{Vector{UInt16}}}}, basis, ebasis; 
-    nb=0, TS="block", ConjugateBasis=false, balanced=false, merge=false, md=3)
-    blocks = Vector{Vector{Vector{Int}}}(undef, m+1)
+function get_blocks(m, l, tsupp, supp::Vector{Vector{Vector{Vector{UInt16}}}}, basis, ebasis; nb=0, normality=1, nvar=0, TS="block", ConjugateBasis=false, merge=false, md=3)
+    if normality > 0
+        blocks = Vector{Vector{Vector{Int}}}(undef, m+1+nvar)
+        blocksize = Vector{Vector{Int}}(undef, m+1+nvar)
+        cl = Vector{Int}(undef, m+1+nvar)
+    else
+        blocks = Vector{Vector{Vector{Int}}}(undef, m+1)
+        blocksize = Vector{Vector{Int}}(undef, m+1)
+        cl = Vector{Int}(undef, m+1)
+    end
     eblocks = Vector{Vector{Int}}(undef, l)
-    blocksize = Vector{Vector{Int}}(undef, m+1)
-    cl = Vector{Int}(undef, m+1)
+    uk = normality > 0 ? m+1+nvar : m+1
     if TS == false
-        for k = 1:m+1
+        for k = 1:uk
             lb = length(basis[k])
             blocks[k],blocksize[k],cl[k] = [Vector(1:lb)],[lb],1
         end
@@ -1045,11 +844,15 @@ function get_blocks(m, l, tsupp, supp::Vector{Vector{Vector{Vector{UInt16}}}}, b
             eblocks[k] = Vector(1:length(ebasis[k]))
         end
     else
-        for k = 1:m+1
+        for k = 1:uk
             if k == 1
-                G = get_graph(tsupp, basis[1], nb=nb, ConjugateBasis=ConjugateBasis, balanced=balanced)
+                G = get_graph(tsupp, basis[1], nb=nb, ConjugateBasis=ConjugateBasis)
+            elseif normality > 0 && k <= 1 + nvar
+                G = get_graph(tsupp, basis[k], nb=nb, ConjugateBasis=true)
+            elseif normality > 0 && k > 1 + nvar
+                G = get_graph(tsupp, supp[k-1-nvar], basis[k], nb=nb, ConjugateBasis=ConjugateBasis)
             else
-                G = get_graph(tsupp, supp[k-1], basis[k], nb=nb, ConjugateBasis=ConjugateBasis, balanced=balanced)
+                G = get_graph(tsupp, supp[k-1], basis[k], nb=nb, ConjugateBasis=ConjugateBasis)
             end
             if TS == "block"
                 blocks[k] = connected_components(G)
@@ -1069,8 +872,7 @@ function get_blocks(m, l, tsupp, supp::Vector{Vector{Vector{Vector{UInt16}}}}, b
     return blocks,eblocks,cl,blocksize
 end
 
-function get_blocks(I, J, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques, cql, tsupp, basis, ebasis; 
-    TS="block", ConjugateBasis=false, balanced=false, nb=0, merge=false, md=3)
+function get_blocks(I, J, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques, cliquesize, cql, tsupp, basis, ebasis; TS="block", ConjugateBasis=false, nb=0, normality=1, merge=false, md=3)
     blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
     eblocks = Vector{Vector{Vector{Int}}}(undef, cql)
     cl = Vector{Vector{Int}}(undef, cql)
@@ -1078,7 +880,7 @@ function get_blocks(I, J, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques,
     for i = 1:cql
         ksupp = TS == false ? nothing : tsupp[[issubset(union(tsupp[j][1], tsupp[j][2]), cliques[i]) for j in eachindex(tsupp)]]
         blocks[i],eblocks[i],cl[i],blocksize[i] = get_blocks(length(I[i]), length(J[i]), ksupp, supp[[I[i]; J[i]].+1], basis[i], 
-        ebasis[i], TS=TS, ConjugateBasis=ConjugateBasis, balanced=balanced, merge=merge, md=md, nb=nb)
+        ebasis[i], TS=TS, ConjugateBasis=ConjugateBasis, merge=merge, md=md, nb=nb, normality=normality, nvar=cliquesize[i])
     end
     return blocks,eblocks,cl,blocksize
 end
@@ -1100,16 +902,40 @@ function assign_constraint(m, numeq, supp::Vector{Vector{Vector{Vector{UInt16}}}
     return I,J,ncc
 end
 
-function get_graph(tsupp::Vector{Vector{Vector{UInt16}}}, basis; nb=0, ConjugateBasis=false, balanced=false)
+function get_graph(tsupp::Vector{Vector{Vector{UInt16}}}, basis; nb=0, ConjugateBasis=false)
     lb = length(basis)
     G = SimpleGraph(lb)
     ltsupp = length(tsupp)
     for i = 1:lb, j = i+1:lb
-        if balanced == false || length(basis[i]) == length(basis[j])
+        if ConjugateBasis == false
+            bi = [basis[i], basis[j]]
+        else
+            bi = [sadd(basis[i][1], basis[j][2]), sadd(basis[i][2], basis[j][1])]
+        end
+        if nb > 0
+            bi = reduce_unitnorm(bi, nb=nb)
+        end
+        if bi[1] > bi[2]
+            bi = bi[2:-1:1]
+        end
+        if bfind(tsupp, ltsupp, bi) !== nothing
+            add_edge!(G, i, j)
+        end
+    end
+    return G
+end
+
+function get_graph(tsupp::Vector{Vector{Vector{UInt16}}}, supp, basis; nb=0, ConjugateBasis=false)
+    lb = length(basis)
+    ltsupp = length(tsupp)
+    G = SimpleGraph(lb)
+    for i = 1:lb, j = i+1:lb
+        r = 1
+        while r <= length(supp)
             if ConjugateBasis == false
-                bi = [basis[i], basis[j]]
+                bi = [sadd(basis[i], supp[r][1]), sadd(basis[j], supp[r][2])]
             else
-                bi = [sadd(basis[i][1], basis[j][2]), sadd(basis[i][2], basis[j][1])]
+                bi = [sadd(sadd(basis[i][1], supp[r][1]), basis[j][2]), sadd(sadd(basis[i][2], supp[r][2]), basis[j][1])]
             end
             if nb > 0
                 bi = reduce_unitnorm(bi, nb=nb)
@@ -1118,41 +944,13 @@ function get_graph(tsupp::Vector{Vector{Vector{UInt16}}}, basis; nb=0, Conjugate
                 bi = bi[2:-1:1]
             end
             if bfind(tsupp, ltsupp, bi) !== nothing
-                add_edge!(G, i, j)
+               break
+            else
+                r += 1
             end
         end
-    end
-    return G
-end
-
-function get_graph(tsupp::Vector{Vector{Vector{UInt16}}}, supp, basis; nb=0, ConjugateBasis=false, balanced=false)
-    lb = length(basis)
-    ltsupp = length(tsupp)
-    G = SimpleGraph(lb)
-    for i = 1:lb, j = i+1:lb
-        if balanced == false || length(basis[i]) == length(basis[j])
-            r = 1
-            while r <= length(supp)
-                if ConjugateBasis == false
-                    bi = [sadd(basis[i], supp[r][1]), sadd(basis[j], supp[r][2])]
-                else
-                    bi = [sadd(sadd(basis[i][1], supp[r][1]), basis[j][2]), sadd(sadd(basis[i][2], supp[r][2]), basis[j][1])]
-                end
-                if nb > 0
-                    bi = reduce_unitnorm(bi, nb=nb)
-                end
-                if bi[1] > bi[2]
-                    bi = bi[2:-1:1]
-                end
-                if bfind(tsupp, ltsupp, bi) !== nothing
-                   break
-                else
-                    r += 1
-                end
-            end
-            if r <= length(supp)
-                add_edge!(G, i, j)
-            end
+        if r <= length(supp)
+            add_edge!(G, i, j)
         end
     end
     return G

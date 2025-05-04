@@ -3,13 +3,6 @@ using DynamicPolynomials
 using MultivariatePolynomials
 using Random
 
-# Example 3.4
-@polyvar x[1:4]
-pop = [3-x[1]^2-x[3]^2+x[1]*x[2]^2+2x[2]*x[3]*x[4]-x[1]*x[4]^2, x[2], x[1]^2+3x[3]^2-2, x[4], x[1]^2+x[2]^2+x[3]^2+x[4]^2-3]
-@time begin
-opt,sol,data = cs_tssos_first(pop, x, 2, numeq=3, CS=false, TS=false, QUIET=true)
-end
-
 function cbasis(z)
     basis = Monomial{true}[1]
     for i = 1:length(z)
@@ -30,10 +23,7 @@ Q = (Q+Q')/2
 f = [1; z[n+1:end]]'*Q*[1; z[1:n]]
 h = sum(z[i]*z[i+n] for i = 1:n) - 1
 @time begin
-opt,sol,data = cs_tssos_first([f; h], z, n, 1, numeq=1, QUIET=true, CS=false, TS=false, ipart=false)
-end
-@time begin
-opt,sol,data = cs_tssos_first([f; h], z, n, 1, numeq=1, QUIET=true, CS=false, TS=false, ipart=true)
+opt,sol,data = cs_tssos_first([f; h], z, n, 1, numeq=1, QUIET=true, CS=false, TS=false)
 end
 
 @polyvar x[1:2n]
@@ -57,10 +47,7 @@ f = basis2'*((P+P')/2)*basis1
 h = sum(z[i]*z[i+n] for i = 1:n) - 1
 
 @time begin
-opt,sol,data = cs_tssos_first([f; h], z, n, 2, numeq=1, QUIET=true, CS=false, TS=false, ipart=false)
-end
-@time begin
-opt,sol,data = cs_tssos_first([f; h], z, n, 2, numeq=1, QUIET=true, CS=false, TS=false, ipart=true)
+opt,sol,data = cs_tssos_first([f; h], z, n, 2, numeq=1, QUIET=true, CS=false, TS=false)
 end
 
 @polyvar x[1:2n]

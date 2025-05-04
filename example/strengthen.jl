@@ -19,7 +19,7 @@ end
 @time begin
 opt,sol,data = cs_tssos_first(pop, z, n, 1, nb=n, QUIET=true, CS=false, TS=false, normality=1)
 end
-println(sum(eigvals(convert.(ComplexF64, data.moment[1][1])) .> 1e-4))
+# println(sum(eigvals(convert.(ComplexF64, data.moment[1][1])) .> 1e-4))
 
 @polyvar x[1:2n]
 rf = pop[1](z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
@@ -114,7 +114,7 @@ cd("D:/Programs/PolyOPF/pglib")
 silence()
 
 case = "pglib_opf_case30_as"
-AC = 754270
+AC = 803.13
 opfdata = parse_file(case * ".m")
 model = pop_opf_com_vol(opfdata, normal=true, AngleCons=true, LineLimit=true)
 n = model.n

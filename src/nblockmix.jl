@@ -130,7 +130,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
     if TS == "signsymmetry"
         ss = get_signsymmetry(supp, n)
     end
-    blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, ksupp, basis, ebasis, nb=nb, TS=TS, merge=merge, md=md, nv=n, signsymmetry=ss)
+    blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, ksupp, basis, ebasis, nb=nb, TS=TS, merge=merge, md=md, nvar=n, signsymmetry=ss)
     end
     if QUIET == false
         mb = maximum(maximum.([maximum.(blocksize[i]) for i = 1:cql]))
@@ -443,7 +443,7 @@ function solvesdp(m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, ebasis, c
     return objv,ksupp,momone,moment,GramMat,multiplier_equality,SDP_status
 end
 
-function get_eblock(tsupp::Vector{Vector{UInt16}}, hsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=nb, nv=0, signsymmetry=nothing)
+function get_eblock(tsupp::Vector{Vector{UInt16}}, hsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=nb, nvar=0, signsymmetry=nothing)
     ltsupp = length(tsupp)
     hlt = length(hsupp)
     eblock = Int[]
@@ -454,7 +454,7 @@ function get_eblock(tsupp::Vector{Vector{UInt16}}, hsupp::Vector{Vector{UInt16}}
             end
         else
             bi = sadd(item, hsupp[1], nb=nb)
-            sp = zeros(Int, nv)
+            sp = zeros(Int, nvar)
             st = sign_type(bi)
             sp[st] = ones(Int, length(st))
             if all(transpose(signsymmetry)*sp .== 0)
@@ -466,7 +466,7 @@ function get_eblock(tsupp::Vector{Vector{UInt16}}, hsupp::Vector{Vector{UInt16}}
 end
 
 function get_blocks(I, J, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql, tsupp, basis, ebasis; blocks=[], eblocks=[], cl=[], blocksize=[], TS="block",
-    nb=0, merge=false, md=3, nv=0, signsymmetry=nothing)
+    nb=0, merge=false, md=3, nvar=0, signsymmetry=nothing)
     blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
     eblocks = Vector{Vector{Vector{Int}}}(undef, cql)
     cl = Vector{Vector{Int}}(undef, cql)
@@ -474,7 +474,7 @@ function get_blocks(I, J, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql, ts
     for i = 1:cql
         ksupp = TS == false ? nothing : tsupp[[issubset(tsupp[j], cliques[i]) for j in eachindex(tsupp)]]
         blocks[i],eblocks[i],cl[i],blocksize[i] = get_blocks(length(I[i]), length(J[i]), ksupp, supp[[I[i]; J[i]].+1], basis[i],
-        ebasis[i], TS=TS, nb=nb, QUIET=true, merge=merge, md=md, nv=nv, signsymmetry=signsymmetry)
+        ebasis[i], TS=TS, nb=nb, QUIET=true, merge=merge, md=md, nvar=nvar, signsymmetry=signsymmetry)
     end
     return blocks,eblocks,cl,blocksize
 end
@@ -496,7 +496,7 @@ function assign_constraint(m, numeq, supp::Vector{Vector{Vector{UInt16}}}, cliqu
     return I,J,ncc
 end
 
-function get_graph(tsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0, nv=0, signsymmetry=nothing)
+function get_graph(tsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0, nvar=0, signsymmetry=nothing)
     lb = length(basis)
     G = SimpleGraph(lb)
     ltsupp = length(tsupp)
@@ -507,7 +507,7 @@ function get_graph(tsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}};
                 add_edge!(G, i, j)
             end
         else
-            sp = zeros(Int, nv)
+            sp = zeros(Int, nvar)
             st = sign_type(bi)
             sp[st] = ones(Int, length(st))
             if all(transpose(signsymmetry)*sp .== 0)
@@ -518,7 +518,7 @@ function get_graph(tsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}};
     return G
 end
 
-function get_graph(tsupp::Vector{Vector{UInt16}}, supp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0, nv=0, signsymmetry=nothing)
+function get_graph(tsupp::Vector{Vector{UInt16}}, supp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0, nvar=0, signsymmetry=nothing)
     lb = length(basis)
     ltsupp = length(tsupp)
     G = SimpleGraph(lb)
@@ -530,7 +530,7 @@ function get_graph(tsupp::Vector{Vector{UInt16}}, supp::Vector{Vector{UInt16}}, 
             end
         else
             bi = sadd(sadd(basis[i], supp[1], nb=nb), basis[j], nb=nb)
-            sp = zeros(Int, nv)
+            sp = zeros(Int, nvar)
             st = sign_type(bi)
             sp[st] = ones(Int, length(st))
             if all(transpose(signsymmetry)*sp .== 0)
