@@ -273,7 +273,7 @@ function generate_basis!(supp, basis)
     supp = unique(supp, dims=2)
     lsupp = size(supp, 2)
     lb = size(basis, 2)
-    indexb = UInt32[]
+    indexb = Int[]
     for i = 1:lb, j = i:lb
         bi = basis[:,i] + basis[:,j]
         if bfind(supp, lsupp, bi) !== nothing

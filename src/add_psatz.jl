@@ -322,8 +322,8 @@ function clique_decomp(n, m, l, fsupp::Matrix{UInt8}, gsupp::Vector{Matrix{UInt8
 end
 
 function assign_constraint(m, l, gsupp::Vector{Matrix{UInt8}}, hsupp::Vector{Matrix{UInt8}}, cliques, cql)
-    I = [UInt32[] for i=1:cql]
-    J = [UInt32[] for i=1:cql]
+    I = [Int[] for i=1:cql]
+    J = [Int[] for i=1:cql]
     for i = 1:m
         rind = findall(gsupp[i][:,1] .!= 0)
         for j = 2:size(gsupp[i], 2)

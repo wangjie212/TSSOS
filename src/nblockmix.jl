@@ -480,9 +480,9 @@ function get_blocks(I, J, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql, ts
 end
 
 function assign_constraint(m, numeq, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql)
-    I = [UInt32[] for i=1:cql]
-    J = [UInt32[] for i=1:cql]
-    ncc = UInt32[]
+    I = [Int[] for i=1:cql]
+    J = [Int[] for i=1:cql]
+    ncc = Int[]
     for i = 1:m
         ind = findall(k->issubset(unique(reduce(vcat, supp[i+1])), cliques[k]), 1:cql)
         if isempty(ind)

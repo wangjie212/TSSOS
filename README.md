@@ -262,10 +262,10 @@ opt,sol,data = cs_tssos_first(pop, x, n, order, numeq=3, TS="block")
 Options  
 **nb**: specify the first nb complex variables to be of unit norm (satisfying $|z_i|=1$)  
 **CS**: "MF" by default (approximately smallest chordal extension), "NC" (not performing chordal extension), false (invalidating correlative sparsity exploitation)   
-**TS**: "block" by default (maximal chordal extension), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)   
+**TS**: "block" by default (maximal chordal extension), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)  
+**ConjugateBasis**: include conjugate variables in monomial bases (false by default)  
 **normality**: specify the normal order   
 **MomentOne**: true (add a first-order moment PSD constraint for each variable clique), false  
-**ipart**: true (use complex moment matrices), false (use real moment matrices)
 
 ## Sums of rational functions optimization
 The sum-of-rational-functions optimization problem could be formulized as

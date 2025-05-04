@@ -22,6 +22,8 @@ opt,sol,data = cs_tssos_first(supp, coe, 3, 2, numeq=1, QUIET=true, TS="block", 
 pop = [z[1]+z[2]+z[3]+z[4], (1+im)*z[1]^2*z[4]+(1-im)*z[2]*z[3]^2, 1-z[1]*z[3]-z[2]*z[4]]
 opt,sol,data = cs_tssos_first(pop, z, 2, 2, numeq=1, QUIET=true, TS="block", ConjugateBasis=true, solution=true, Gram=true)
 @test opt ≈ -2.7423247 atol = 1e-6
+opt,sol,data = cs_tssos_first(pop, z, 2, 2, numeq=1, QUIET=true, TS="block", ConjugateBasis=true, normality=2, solution=true, Gram=true)
+@test opt ≈ -2.7423247 atol = 1e-6
 opt,sol,data = cs_tssos_first(pop, z, 2, 2, numeq=1, QUIET=true, TS="block", solution=true, Gram=true)
 @test opt ≈ -2.7423247 atol = 1e-6
 opt,sol,data = cs_tssos_higher!(data, QUIET=true, TS="block", solution=true, Gram=true)
