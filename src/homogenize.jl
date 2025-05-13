@@ -1,7 +1,7 @@
 # Homogenize the polynomial f with the homogenization variable z
 function homogenize(f, z)
     d = maxdegree(f)
-    ts = [term*z^(d-maxdegree(term)) for term in MultivariatePolynomials.terms(f)]
+    ts = [term*z^(d-maxdegree(term)) for term in MP.terms(f)]
     return sum(ts)
 end
 

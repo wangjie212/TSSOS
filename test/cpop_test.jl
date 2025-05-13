@@ -7,7 +7,7 @@ using Test
 supp = Vector{Vector{Vector{UInt16}}}[[[[], []], [[1], [1]], [[1], [2;2]], [[2;2], [1]]],
 [[[2], []], [[], [2]]], [[[], []], [[1], [1]], [[1;1], []], [[], [1;1]]],
 [[[], []], [[1], [1]], [[2], [2]]], [[[2], []], [[], [2]]]]
-coe = [[3;-1;-0.5im;0.5im], [1;1], [-1;1;-0.25;-0.25], [-3;1;1], [im;-im]]
+coe = Vector{ComplexF64}[[3;-1;-0.5im;0.5im], [1;1], [-1;1;-0.25;-0.25], [-3;1;1], [im;-im]]
 opt,sol,data = cs_tssos_first(supp, coe, 2, 2, numeq=3, QUIET=true, TS=false, Gram=true)
 @test opt ≈ 0.428174 atol = 1e-6
 
@@ -76,12 +76,12 @@ opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true, Gram=true)
 
 N = 6
 @polyvar z[1:2N+2]
-pop = Vector{Polynomial{true,Float64}}(undef, N-1)
-pop[1] = z[N+1]^2 + z[2N+2]^2
+f = z[N+1]^2 + z[2N+2]^2
+cons = Vector{typeof(f)}(undef, N-2)
 for k = 1:N-2
-    pop[k+1] = z[N+1]^2 + z[2N+2]^2 - sum(z[i]*z[j+k]*z[j+N+1]*z[i+k+N+1] for i = 1:N-k, j = 1:N-k)
+    cons[k] = z[N+1]^2 + z[2N+2]^2 - sum(z[i]*z[j+k]*z[j+N+1]*z[i+k+N+1] for i = 1:N-k, j = 1:N-k)
 end
-opt,sol,data = cs_tssos_first(pop, z, N+1, 3, nb=N+1, CS=false, TS="block", ConjugateBasis=true, QUIET=true, Gram=true)
+opt,sol,data = cs_tssos_first([f; cons], z, N+1, 3, nb=N+1, CS=false, TS="block", ConjugateBasis=true, QUIET=true, Gram=true)
 @test opt ≈ 1 atol = 1e-6
 
 end

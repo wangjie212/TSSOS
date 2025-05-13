@@ -69,7 +69,7 @@ end
 - `Vector`: A vector containing the monomial basis of degree `d` of size binomial(length(vars)+d,d). 
 Each monomial is represented as a product of the variables raised to their corresponding powers.
 """
-function get_basis(vars::Vector{PolyVar{true}}, d::Int64)
+function get_basis(vars::Vector{DP.Variable}, d::Int64)
     b_indices = get_basis_indices(length(vars),d)
 
     monomial_basis = [] 

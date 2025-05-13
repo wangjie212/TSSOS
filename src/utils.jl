@@ -20,6 +20,23 @@ function bfind(A, l, a)
     return nothing
 end
 
+function lbfind(A, l, a)
+    low = 1
+    high = l
+    while low <= high
+        mid = Int(ceil(1/2*(low+high)))
+        temp = A[mid]
+        if temp == a
+           return mid
+        elseif temp < a
+           low = mid + 1
+        else
+           high = mid - 1
+        end
+    end
+    return nothing
+end
+
 function ncbfind(A, l, a)
     low = 1
     high = l
@@ -36,14 +53,14 @@ function ncbfind(A, l, a)
     return nothing
 end
 
-function get_signsymmetry(polys::Vector{Polynomial{true, T}}, x) where {T<:Number}
+function get_signsymmetry(polys::Vector{DP.Polynomial{V, M, T}}, x) where {V, M, T<:Number}
     n = length(x)
     supp = zeros(UInt8, 1, n)
     for k = 1:length(polys)
-        mons = MultivariatePolynomials.monomials(polys[k])
+        mons = MP.monomials(polys[k])
         temp = zeros(UInt8, length(mons), n)
         for i in eachindex(mons), j = 1:n
-            @inbounds temp[i, j] = MultivariatePolynomials.degree(mons[i], x[j])
+            @inbounds temp[i, j] = MP.degree(mons[i], x[j])
         end
         supp = [supp; temp]
     end
@@ -213,9 +230,9 @@ function get_conjugate_basis(var::Vector{UInt16}, d::Int; nb=0)
 end
 
 function newton_basis(n, d, supp; e=1e-5, solver="Mosek")
-    lsupp = size(supp,2)
+    lsupp = size(supp, 2)
     basis = get_basis(n, d)
-    lb = size(basis,2)
+    lb = size(basis, 2)
     A0 = [-1/2*supp' ones(lsupp,1)]
     t = 1
     indexb = [i for i=1:lb]
@@ -303,12 +320,12 @@ function npolys_info(p, x)
     plt = Vector{Int}(undef, m)
     for i = 1:m
         dp[i] = maxdegree(p[i])
-        mon = MultivariatePolynomials.monomials(p[i])
-        pcoe[i] = MultivariatePolynomials.coefficients(p[i])
+        mon = MP.monomials(p[i])
+        pcoe[i] = MP.coefficients(p[i])
         plt[i] = length(mon)
         psupp[i] = zeros(UInt8, n, plt[i])
         for j = 1:plt[i], k = 1:n
-            psupp[i][k, j] = MultivariatePolynomials.degree(mon[j], x[k])
+            psupp[i][k, j] = MP.degree(mon[j], x[k])
         end
     end
     return psupp,pcoe,plt,dp
@@ -316,12 +333,12 @@ end
 
 function poly_info(p, x)
     n = length(x)
-    mon = MultivariatePolynomials.monomials(p)
+    mon = MP.monomials(p)
     plt = length(mon)
-    pcoe = MultivariatePolynomials.coefficients(p)
+    pcoe = MP.coefficients(p)
     psupp = zeros(UInt8, n, plt)
     for j = 1:plt, k = 1:n
-        psupp[k, j] = MultivariatePolynomials.degree(mon[j], x[k])
+        psupp[k, j] = MP.degree(mon[j], x[k])
     end
     return psupp,pcoe
 end
@@ -338,8 +355,8 @@ function polys_info(pop, x; nb=0)
     coe = Vector{Vector{Union{Number, AffExpr}}}(undef, m+1)
     supp = Vector{Vector{Vector{UInt16}}}(undef, m+1)
     for k = 1:m+1
-        mon = MultivariatePolynomials.monomials(pop[k])
-        coe[k] = MultivariatePolynomials.coefficients(pop[k])
+        mon = MP.monomials(pop[k])
+        coe[k] = MP.coefficients(pop[k])
         lm = length(mon)
         supp[k] = [UInt16[] for i=1:lm]
         for i = 1:lm
@@ -359,8 +376,8 @@ function polys_info(pop, z, n; ctype=ComplexF64)
     coe = Vector{Vector{ctype}}(undef, length(pop))
     supp = Vector{Vector{Vector{Vector{UInt16}}}}(undef, length(pop))
     for k in eachindex(pop)
-        mon = MultivariatePolynomials.monomials(pop[k])
-        coe[k] = MultivariatePolynomials.coefficients(pop[k])
+        mon = MP.monomials(pop[k])
+        coe[k] = MP.coefficients(pop[k])
         lm = length(mon)
         supp[k] = [[[], []] for i=1:lm]
         for i = 1:lm
@@ -402,12 +419,12 @@ end
 
 function reminder(a, x, gb, n)
     remind = rem(prod(x.^a), gb)
-    mon = MultivariatePolynomials.monomials(remind)
-    coe = MultivariatePolynomials.coefficients(remind)
+    mon = MP.monomials(remind)
+    coe = MP.coefficients(remind)
     lm = length(mon)
     supp = zeros(UInt8,n,lm)
     for i = 1:lm, j = 1:n
-        @inbounds supp[j,i]=MultivariatePolynomials.degree(mon[i],x[j])
+        @inbounds supp[j,i]=MP.degree(mon[i],x[j])
     end
     return lm,supp,coe
 end
@@ -451,7 +468,7 @@ Generate an unknown polynomial of given degree whose coefficients are from the J
 - `mon`: monomials of the polynomial 
 """
 function add_poly!(model, vars, degree::Int; signsymmetry=false)
-    mon = vcat([MultivariatePolynomials.monomials(vars, i) for i = 0:degree]...)
+    mon = vcat([MP.monomials(vars, i) for i = 0:degree]...)
     if signsymmetry != false
         ind = [all(transpose(signsymmetry)*exponents(item) .== 0) for item in mon]
         mon = mon[ind]
@@ -494,10 +511,10 @@ end
 function complex_to_real(cpop, z)
     n = Int(length(z)/2)
     @polyvar x[1:2n]
-    pop = Vector{Polynomial{true, Float64}}(undef, length(cpop))
+    pop = Vector{DP.Polynomial}(undef, length(cpop))
     for (i,cp) in enumerate(cpop)
         temp = cp(z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
-        pop[i] = real.(MultivariatePolynomials.coefficients(temp))'*MultivariatePolynomials.monomials(temp)
+        pop[i] = real.(MP.coefficients(temp))'*MP.monomials(temp)
     end
     return pop,x
 end
@@ -522,7 +539,7 @@ Generate an SOS polynomial of degree 2d whose coefficients are from the JuMP `mo
 - `sos`: the sos polynomial 
 """
 function add_SOS!(model, vars, d)
-    basis = vcat([MultivariatePolynomials.monomials(vars, i) for i = 0:d]...)
+    basis = vcat([MP.monomials(vars, i) for i = 0:d]...)
     sos = 0
     pos = @variable(model, [1:length(basis), 1:length(basis)], PSD)
     for j = 1:length(basis), k = j:length(basis)

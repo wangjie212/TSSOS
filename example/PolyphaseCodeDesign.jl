@@ -5,15 +5,15 @@ using DynamicPolynomials
 ## formulation with inequality constraints
 N = 6
 @polyvar z[1:2N+2]
-pop = Vector{Polynomial{true,Float64}}(undef, N-1)
-pop[1] = z[N+1]^2 + z[2N+2]^2
+f = z[N+1]^2 + z[2N+2]^2
+cons = Vector{typeof(f)}(undef, N-2)
 for k = 1:N-2
-    pop[k+1] = z[N+1]^2 + z[2N+2]^2 - sum(z[i]*z[j+k]*z[j+N+1]*z[i+k+N+1] for i = 1:N-k, j = 1:N-k)
+    cons[k] = z[N+1]^2 + z[2N+2]^2 - sum(z[i]*z[j+k]*z[j+N+1]*z[i+k+N+1] for i = 1:N-k, j = 1:N-k)
 end
 
-order = 3
+order = 4
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, N+1, order, nb=N+1, CS=false, TS="block", ConjugateBasis=false, QUIET=false)
+opt,sol,data = cs_tssos_first([f; cons], z, N+1, order, nb=N+1, CS=false, TS="block", ConjugateBasis=true, normality=0, QUIET=false)
 end
 println(opt^0.5)
 
@@ -22,16 +22,16 @@ println(opt^0.5)
 ## formulation with equality constraints
 N = 8
 @polyvar z[1:4N-2]
-pop = Vector{Polynomial{true,Float64}}(undef, N-1)
-pop[1] = z[N+1]^2 + z[3N]^2
+f = z[N+1]^2 + z[3N]^2
+cons = Vector{typeof(f)}(undef, N-2)
 for k = 1:N-2
-    pop[k+1] = z[N+1]^2 + z[3N]^2 - z[N+1+k]*z[N+1+k] - z[3N+k]*z[3N+k] - 2 - sum(z[i]*z[j+k]*z[j+2N-1]*z[i+k+2N-1] for i = 1:N-k, j = 1:N-k)
+    cons[k] = z[N+1]^2 + z[3N]^2 - z[N+1+k]*z[N+1+k] - z[3N+k]*z[3N+k] - 2 - sum(z[i]*z[j+k]*z[j+2N-1]*z[i+k+2N-1] for i = 1:N-k, j = 1:N-k)
     # z[N+1+k]*z[3N+k]
 end
 
 order = 3
 @time begin
-opt,sol,data = cs_tssos_first(pop, z, 2N-1, order, numeq=N-2, nb=2N-1, CS=false, TS="block", QUIET=false)
+opt,sol,data = cs_tssos_first([f; cons], z, 2N-1, order, numeq=N-2, nb=2N-1, CS=false, TS="block", QUIET=false)
 opt,sol,data = cs_tssos_higher!(data, TS="block", solve=true, QUIET=false)
 end
 println(opt^0.5)
@@ -88,13 +88,13 @@ end
 N = 12
 @polyvar x[1:N]
 @polyvar y[1:N]
-pop = Vector{Polynomial{true,Float64}}(undef, N+1)
-pop[1] = sum(sum(x[j]*x[j+k]+y[j]*y[j+k] for j=1:N-k)^2 + sum(x[j]*y[j+k]-y[j]*x[j+k] for j=1:N-k)^2 for k=1:N-2)
+f = sum(sum(x[j]*x[j+k]+y[j]*y[j+k] for j=1:N-k)^2 + sum(x[j]*y[j+k]-y[j]*x[j+k] for j=1:N-k)^2 for k=1:N-2)
+cons = Vector{typeof(f)}(undef, N)
 for k = 1:N
-    pop[k+1] = 1 - x[k]^2 - y[k]^2
+    cons[k] = 1 - x[k]^2 - y[k]^2
 end
 @time begin
-opt,sol,data = tssos_first(pop, [x;y], 2, numeq=N, TS=false, GroebnerBasis=false, QUIET=true, solve=false)
+opt,sol,data = tssos_first([f; cons], [x;y], 2, numeq=N, TS=false, GroebnerBasis=false, QUIET=true, solve=false)
 # opt,sol,data = tssos_higher!(data, TS="block", QUIET=true)
 end
 

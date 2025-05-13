@@ -63,9 +63,9 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function cs_tssos_first(pop::Vector{Polynomial{true, T}}, z, n::Int, d::Int; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], TS="block", 
+function cs_tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, z, n::Int, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], TS="block", 
     merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, 
-    ConjugateBasis=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=!ConjugateBasis) where {T<:Number}
+    ConjugateBasis=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=!ConjugateBasis) where {V, M, T<:Number}
     supp,coe = polys_info(pop, z, n, ctype=T)
     opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, RemSig=RemSig, nb=nb, CS=CS, cliques=cliques, TS=TS, merge=merge, 
     md=md, solver=solver, reducebasis=reducebasis, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution,
@@ -82,7 +82,7 @@ end
 Compute the first TS step of the CS-TSSOS hierarchy for constrained complex polynomial optimization. 
 Here the complex polynomial optimization problem is defined by `supp` and `coe`, corresponding to the supports and coeffients of `pop` respectively.
 """
-function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vector{Vector{T}}, n::Int, d::Int; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], 
+function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vector{Vector{T}}, n::Int, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], 
     TS="block", merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, ConjugateBasis=false, 
     Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=!ConjugateBasis, cpop=nothing, z=nothing) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
@@ -291,7 +291,7 @@ end
 Compute higher TS steps of the CS-TSSOS hierarchy.
 """
 function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
-    MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+    MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false)
     n = data.n
     nb = data.nb
     m = data.m
@@ -321,7 +321,7 @@ function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET
         end
         opt,ksupp,moment,GramMat,multiplier_equality,SDP_status = solvesdp(m, data.rlorder, supp, data.coe, basis, ebasis, cliques, cql, cliquesize, I, J, data.ncc, blocks, eblocks, cl,
         blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=data.solver, solve=solve, dualize=dualize, ipart=data.ipart, MomentOne=MomentOne, 
-        Gram=Gram, ConjugateBasis=data.ConjugateBasis, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, normality=normality)
+        Gram=Gram, ConjugateBasis=data.ConjugateBasis, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile, normality=normality)
         sol = nothing
         if solution == true
             pop,x = complex_to_real(data.cpop, data.z)

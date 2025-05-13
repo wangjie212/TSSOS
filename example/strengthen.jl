@@ -41,8 +41,8 @@ function basis(x)
 end
 
 # Minimizing a random complex quartic polynomial on a unit sphere
-Random.seed!(3)
-n = 15
+Random.seed!(1)
+n = 10
 @polyvar z[1:2n]
 cb1 = basis(z[1:n])
 cb2 = basis(z[n+1:2n])
@@ -54,9 +54,9 @@ push!(pop, 1 - sum(z[1:n]'*z[n+1:2n]))
 @time begin
 opt,sol,data = cs_tssos_first(pop, z, n, 2, numeq=1, QUIET=true, CS=false, TS=false, normality=0)
 end
-# @time begin
-# opt,sol,data = cs_tssos_first(pop, z, n, 3, numeq=1, QUIET=true, CS=false, TS=false, normality=0)
-# end
+@time begin
+opt,sol,data = cs_tssos_first(pop, z, n, 3, numeq=1, QUIET=true, CS=false, TS=false, normality=0)
+end
 @time begin
 opt,sol,data = cs_tssos_first(pop, z, n, 2, numeq=1, QUIET=true, CS=false, TS=false, normality=1)
 end
@@ -70,8 +70,8 @@ end
 println(sum(eigvals(data.moment[1]) .> 1e-4))
 
 # Minimizing a random complex quartic polynomial with CS on multi-spheres
-Random.seed!(3)
-l = 20
+Random.seed!(1)
+l = 5
 n = 4l + 2
 @polyvar z[1:2n]
 f = 0
@@ -106,7 +106,7 @@ end
 @time begin
 opt,sol,data = cs_tssos_first(rpop, x, 2, numeq=l, QUIET=true, TS=false, solution=false)
 end
-println(maximum([sum(eigvals(data.moment[i][1]) .> 1e-4) for i = 1:l]))
+# println(maximum([sum(eigvals(data.moment[i][1]) .> 1e-4) for i = 1:l]))
 
 # The AC-OPF problem
 include("D:/Programs/TSSOS/example/modelopf.jl")

@@ -95,11 +95,11 @@ function refine_sol(opt, sol, data::Union{cpop_data,mcpop_data}; QUIET=false, to
         supp[2:m+1-numeq] = data.supp[2:end]
         coe[2:m+1-numeq] = data.coe[2:end]
         for k in [1; [k for k=m+2-numeq:m+1]]
-            mons = MultivariatePolynomials.monomials(data.pop[k])
-            coe[k] = MultivariatePolynomials.coefficients(data.pop[k])
+            mons = MP.monomials(data.pop[k])
+            coe[k] = MP.coefficients(data.pop[k])
             supp[k] = zeros(UInt8, n, length(mons))
             for i in eachindex(mons), j = 1:n
-                @inbounds supp[k][j,i] = MultivariatePolynomials.degree(mons[i], data.x[j])
+                @inbounds supp[k][j,i] = MP.degree(mons[i], data.x[j])
             end
         end
     else

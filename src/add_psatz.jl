@@ -38,7 +38,7 @@ Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP 
 # Output arguments
 - `info`: auxiliary data
 """
-function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], blocks=[], TS="block", SO=1, GroebnerBasis=false, QUIET=false, constrs=nothing) where {T<:Union{Number,AffExpr}}
+function add_psatz!(model, nonneg::DP.Polynomial{V, M, T}, vars, ineq_cons, eq_cons, order; CS=false, cliques=[], blocks=[], TS="block", SO=1, GroebnerBasis=false, QUIET=false, constrs=nothing) where {V, M, T<:Union{Number,AffExpr}}
     n = length(vars)
     m = length(ineq_cons)
     if ineq_cons != []
@@ -55,14 +55,14 @@ function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons
     end
     if GroebnerBasis == true && eq_cons != []
         l = 0
-        gb = convert.(Polynomial{true,Float64}, eq_cons)
-        SemialgebraicSets.gröbnerbasis!(gb)
+        gb = convert.(DP.Polynomial{V, M, Float64}, eq_cons)
+        SemialgebraicSets.gröbner_basis!(gb)
         nonneg = rem(nonneg, gb)
-        leadm = leadingmonomial.(gb)
+        leadm = SemialgebraicSets.leading_monomial.(gb)
         llead = length(leadm)
         lead = zeros(UInt8, n, llead)
         for i = 1:llead, j = 1:n
-            @inbounds lead[j,i] = MultivariatePolynomials.degree(leadm[i], vars[j])
+            @inbounds lead[j,i] = MP.degree(leadm[i], vars[j])
         end
     else
         gb = []
@@ -243,7 +243,7 @@ function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons
                                     @inbounds add_to_expression!(cons[Locb], 2*gcoe[I[t][k]][s]*bi_coe[z], pos[t][k+1][i][j,r])
                                 end
                             end
-                       else
+                        else
                             Locb = bfind(tsupp, ltsupp, bi)
                             if j == r
                                 @inbounds add_to_expression!(cons[Locb], gcoe[I[t][k]][s], pos[t][k+1][i][j,r])
@@ -273,7 +273,7 @@ function add_psatz!(model, nonneg::Polynomial{true, T}, vars, ineq_cons, eq_cons
         Locb = bfind(tsupp, ltsupp, fsupp[:, i])
         if Locb === nothing
             @error "The monomial basis is not enough!"
-            return model,info
+            return info
         else
             bc[Locb] = fcoe[i]
         end
@@ -442,7 +442,7 @@ function get_moment(supp::Array{UInt8, 2}, lb, ub)
     return [prod([(ub[j]^(item[j]+1)-lb[j]^(item[j]+1))/(item[j]+1) for j=1:length(lb)]) for item in eachcol(supp)]
 end
 
-function get_moment(mons::Vector{Monomial{true}}, lb, ub)
+function get_moment(mons::Vector{DP.Monomial{V, M}}, lb, ub) where {V, M}
     supp = exponents.(mons)
     return [prod([(ub[j]^(item[j]+1)-lb[j]^(item[j]+1))/(item[j]+1) for j=1:length(lb)]) for item in supp]
 end

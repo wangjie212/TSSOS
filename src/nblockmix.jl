@@ -54,12 +54,12 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function cs_tssos_first(pop::Vector{Polynomial{true, T}}, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", merge=false, md=3, solver="Mosek", 
-    dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para()) where {T<:Number}
+function cs_tssos_first(pop::Vector{P}, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", merge=false, md=3, solver="Mosek", 
+    dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false) where {P<:AbstractPolynomial}
     n,supp,coe = polys_info(pop, x, nb=nb)
     opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, CS=CS, cliques=cliques, basis=basis, ebasis=ebasis, TS=TS,
     merge=merge, md=md, QUIET=QUIET, solver=solver, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
-    tol=tol, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
+    tol=tol, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile)
     return opt,sol,data
 end
 
@@ -73,7 +73,7 @@ Here the polynomial optimization problem is defined by `supp` and `coe`, corresp
 """
 function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", 
     merge=false, md=3, QUIET=false, solver="Mosek", dualize=false, solve=true, solution=false, MomentOne=false, Gram=false, 
-    tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+    tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     m = length(supp) - 1
@@ -138,7 +138,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
     end
     opt,ksupp,momone,moment,GramMat,multiplier_equality,SDP_status = solvesdp(m, supp, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, 
     eblocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, TS=TS, solver=solver, dualize=dualize, solve=solve, solution=solution, MomentOne=MomentOne, 
-    Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
+    Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile)
     data = mcpop_data(n, nb, m, numeq, supp, coe, basis, ebasis, ksupp, cql, cliquesize, cliques, I, J, ncc, blocksize, blocks, eblocks, GramMat, 
     multiplier_equality, moment, solver, SDP_status, tol, 1)
     sol = nothing
@@ -159,7 +159,7 @@ end
 Compute higher TS steps of the CS-TSSOS hierarchy.
 """
 function cs_tssos_higher!(data::mcpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
-    MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+    MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false)
     n = data.n
     nb = data.nb
     numeq = data.numeq
@@ -188,7 +188,7 @@ function cs_tssos_higher!(data::mcpop_data; TS="block", merge=false, md=3, QUIET
         end
         opt,ksupp,momone,moment,GramMat,multiplier_equality,SDP_status = solvesdp(data.m, supp, data.coe, basis, ebasis, cliques, cql, cliquesize, I, J, data.ncc, blocks, eblocks, cl,
         blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=data.solver, solve=solve, solution=solution, dualize=dualize, MomentOne=MomentOne, 
-        Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
+        Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile)
         sol = nothing
         if solution == true
             sol,gap,data.flag = approx_sol(opt, momone, n, cliques, cql, cliquesize, supp, data.coe, numeq=numeq, tol=tol)
@@ -211,7 +211,7 @@ end
 
 function solvesdp(m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize; 
     numeq=0, nb=0, QUIET=false, TS="block", solver="Mosek", solve=true, solution=false, Gram=false, MomentOne=false, cosmo_setting=cosmo_para(), 
-    mosek_setting=mosek_para(), dualize=false)
+    mosek_setting=mosek_para(), dualize=false, writetofile=false)
     tsupp = Vector{UInt16}[]
     for i = 1:cql, j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
         @inbounds bi = sadd(basis[i][1][blocks[i][1][j][k]], basis[i][1][blocks[i][1][j][r]], nb=nb)
@@ -409,6 +409,9 @@ function solvesdp(m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, ebasis, c
         end
         if QUIET == false
             println("SDP solving time: $time seconds.")
+        end
+        if writetofile != false
+            write_to_file(dualize(model), writetofile)
         end
         SDP_status = termination_status(model)
         objv = objective_value(model)

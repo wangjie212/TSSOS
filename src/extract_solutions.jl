@@ -22,7 +22,7 @@ function extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-2)
     n = length(x)
     if rank(moment, tol) == 1
         sol = moment[2:n+1, 1]
-        ub = MultivariatePolynomials.polynomial(pop[1])(x => sol)
+        ub = MP.polynomial(pop[1])(x => sol)
         gap = abs(opt-ub)/max(1, abs(ub))
         println("------------------------------------------------")
         @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
@@ -93,7 +93,7 @@ function extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-2)
         if nsol > 0
             println("------------------------------------------------")
             if nsol == 1
-                ub = MultivariatePolynomials.polynomial(pop[1])(x => sol[1])
+                ub = MP.polynomial(pop[1])(x => sol[1])
                 gap = abs(opt-ub)/max(1, abs(ub))
                 @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
                 println("Successfully extracted one globally optimal solution.")
@@ -283,16 +283,16 @@ function extract_solution(moment, opt, pop, x; numeq=0, tol=1e-4)
         return nothing,1,1
     else
         sol = sol[2:end]/sol[1]
-        ub = MultivariatePolynomials.polynomial(pop[1])(x => sol)
+        ub = MP.polynomial(pop[1])(x => sol)
         gap = abs(opt-ub)/max(1, abs(ub))
         flag = gap >= tol ? 1 : 0
         for i = 1:m-numeq
-            if MultivariatePolynomials.polynomial(pop[i+1])(x => sol) <= -tol
+            if MP.polynomial(pop[i+1])(x => sol) <= -tol
                 flag = 1
             end
         end
         for i = m-numeq+1:m
-            if abs(MultivariatePolynomials.polynomial(pop[i+1])(x => sol)) >= tol
+            if abs(MP.polynomial(pop[i+1])(x => sol)) >= tol
                 flag = 1
             end
         end

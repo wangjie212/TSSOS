@@ -28,11 +28,11 @@ mutable struct mpop_data
     SDP_status
 end
 
-function tssos_first(F::Matrix{Polynomial{true, T}}, G, x, d; TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {T<:Number}
+function tssos_first(F::Matrix{DP.Polynomial{V, M, T}}, G, x, d; TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {V, M, T<:Number}
     return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment)
 end
 
-function tssos_first(F::Polynomial{true, T1}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {T1,T2<:Number}
+function tssos_first(F::DP.Polynomial{V, M, T1}, G::Vector{Matrix{DP.Polynomial{V, M, T2}}}, x, d; TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {V, M, T1,T2<:Number}
     return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment)
 end
 
@@ -40,22 +40,22 @@ function tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, Gra
     return cs_tssos_higher!(data, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram)
 end
 
-function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Polynomial{true, T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {T1,T2<:Number}
-    nG = Vector{Matrix{Polynomial{true, T2}}}(undef, length(G))
+function cs_tssos_first(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{DP.Polynomial{V, M, T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {V, M, T1,T2<:Number}
+    nG = Vector{Matrix{DP.Polynomial{V, M, T2}}}(undef, length(G))
     for i = 1:length(G)
-        nG[i] = Matrix{Polynomial{true, T2}}(undef, 1, 1)
+        nG[i] = Matrix{DP.Polynomial{V, M, T2}}(undef, 1, 1)
         nG[i][1,1] = G[i]
     end
     return cs_tssos_first(F, nG, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment)
 end
 
-function cs_tssos_first(F::Polynomial{true, T1}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {T1,T2<:Number}
-    nF = Matrix{Polynomial{true, T1}}(undef, 1, 1)
+function cs_tssos_first(F::DP.Polynomial{V, M, T1}, G::Vector{Matrix{DP.Polynomial{V, M, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {V, M, T1,T2<:Number}
+    nF = Matrix{DP.Polynomial{V, M, T1}}(undef, 1, 1)
     nF[1,1] = F
     return cs_tssos_first(nF, G, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment)
 end
 
-function cs_tssos_first(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {T1,T2<:Number}
+function cs_tssos_first(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{Matrix{DP.Polynomial{V, M, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {V, M, T1,T2<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     n = length(x)
@@ -432,16 +432,16 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
     return objv,ksupp,GramMat,moment,SDP_status
 end
 
-function LinearPMI_first(b, F::Vector{Matrix{Polynomial{true, T1}}}, G::Vector{Polynomial{true, T2}}, x, d; TS="block", QUIET=false, solve=true) where {T1,T2<:Number}
-    nG = Vector{Matrix{Polynomial{true, T2}}}(undef, length(G))
+function LinearPMI_first(b, F::Vector{Matrix{DP.Polynomial{V, M, T1}}}, G::Vector{DP.Polynomial{V, M, T2}}, x, d; TS="block", QUIET=false, solve=true) where {V, M, T1,T2<:Number}
+    nG = Vector{Matrix{DP.Polynomial{V, M, T2}}}(undef, length(G))
     for i = 1:length(G)
-        nG[i] = Matrix{Polynomial{true, T2}}(undef, 1, 1)
+        nG[i] = Matrix{DP.Polynomial{V, M, T2}}(undef, 1, 1)
         nG[i][1,1] = G[i]
     end
     return LinearPMI_first(b, F, nG, x, d, TS=TS, QUIET=QUIET, solve=solve)
 end
 
-function LinearPMI_first(b, F::Vector{Matrix{Polynomial{true, T1}}}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; TS="block", QUIET=false, solve=true) where {T1,T2<:Number}
+function LinearPMI_first(b, F::Vector{Matrix{DP.Polynomial{V, M, T1}}}, G::Vector{Matrix{DP.Polynomial{V, M, T2}}}, x, d; TS="block", QUIET=false, solve=true) where {V, M, T1,T2<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     n = length(x)
@@ -667,7 +667,7 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
 end
 
 function add_SOSMatrix!(model, vars, m, d; constraint=nothing, TS=false, QUIET=true, tsupp=[])
-    mons = vcat([MultivariatePolynomials.monomials(vars, i) for i = 0:d]...)
+    mons = vcat([MP.monomials(vars, i) for i = 0:d]...)
     if TS == false
         lb = m*length(mons)
         blocks,blocksize,cl = [Vector(1:lb)],[lb],1
@@ -721,16 +721,16 @@ function add_SOSMatrix!(model, vars, m, d; constraint=nothing, TS=false, QUIET=t
     return sosmatrix,maximum(blocksize)
 end
 
-function sparseobj(F::Matrix{Polynomial{true, T1}}, G::Vector{Polynomial{true, T2}}, x, d; TS="block", QUIET=false) where {T1,T2<:Number}
-    nG = Vector{Matrix{Polynomial{true, T2}}}(undef, length(G))
+function sparseobj(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{DP.Polynomial{V, M, T2}}, x, d; TS="block", QUIET=false) where {V, M, T1,T2<:Number}
+    nG = Vector{Matrix{DP.Polynomial{V, M, T2}}}(undef, length(G))
     for i = 1:length(G)
-        nG[i] = Matrix{Polynomial{true, T2}}(undef, 1, 1)
+        nG[i] = Matrix{DP.Polynomial{V, M, T2}}(undef, 1, 1)
         nG[i][1,1] = G[i]
     end
     return sparseobj(F, nG, x, d, TS=TS, QUIET=QUIET)
 end
 
-function sparseobj(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polynomial{true, T2}}}, x, d; TS="block", QUIET=false) where {T1,T2<:Number}
+function sparseobj(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{Matrix{DP.Polynomial{V, M, T2}}}, x, d; TS="block", QUIET=false) where {V, M, T1,T2<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     m = size(F, 1)
@@ -801,7 +801,7 @@ function sparseobj(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polynomial{
     end
     for i = 1:m, j = i:m
         if i == j || has_edge(K, i, j)
-            @constraint(model, MultivariatePolynomials.coefficients(temp[i,j]).==0)
+            @constraint(model, MP.coefficients(temp[i,j]).==0)
         end
     end
     @objective(model, Max, lower)
@@ -821,7 +821,7 @@ function sparseobj(F::Matrix{Polynomial{true, T1}}, G::Vector{Matrix{Polynomial{
     return optimum,maximum(mb)
 end
 
-function sparseobj(b, F::Vector{Matrix{Polynomial{true, T}}}, G, x, d; TS="block", QUIET=false) where {T<:Number}
+function sparseobj(b, F::Vector{Matrix{DP.Polynomial{V, M, T}}}, G, x, d; TS="block", QUIET=false) where {V, M, T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     m = size(F[1], 1)
@@ -882,7 +882,7 @@ function sparseobj(b, F::Vector{Matrix{Polynomial{true, T}}}, G, x, d; TS="block
     end
     for i = 1:m, j = i:m
         if i == j || has_edge(K, i, j)
-            @constraint(model, MultivariatePolynomials.coefficients(temp[i,j]).==0)
+            @constraint(model, MP.coefficients(temp[i,j]).==0)
         end
     end
     @objective(model, Min, b'*λ)
@@ -925,7 +925,7 @@ function get_mmoment(measure, tsupp, cql, basis, om)
     return moment
 end
 
-function add_psatz!(model, nonneg::Matrix{Polynomial{true, T}}, vars, ineq_cons, eq_cons, order; TS="block", QUIET=false) where {T<:Union{Number,AffExpr}}
+function add_psatz!(model, nonneg::Matrix{DP.Polynomial{V, M, T}}, vars, ineq_cons, eq_cons, order; TS="block", QUIET=false) where {V, M, T<:Union{Number,AffExpr}}
     n = length(vars)
     m = size(nonneg, 1)
     obj_matrix = poly_matrix(m, Vector{poly_data}(undef, Int((m+1)*m/2)))
@@ -958,14 +958,14 @@ function add_psatz!(model, nonneg::Matrix{Polynomial{true, T}}, vars, ineq_cons,
         sos += add_SOSMatrix!(model, vars, m, order - Int(ceil(maxdegree(g)/2)), constraint=G, TS=TS, QUIET=QUIET, tsupp=ksupp)[1]*g
     end
     for h in eq_cons
-        basis = MultivariatePolynomials.monomials(vars, 0:2*order-maxdegree(h))
+        basis = MP.monomials(vars, 0:2*order-maxdegree(h))
         for i = 1:m, j = i:m
             free = @variable(model, [1:length(basis)])
             sos[i,j] += free'*basis*h
         end
     end
     for i = 1:m, j = i:m
-        @constraint(model, MultivariatePolynomials.coefficients(sos[i,j] - nonneg[i,j]) .== 0)
+        @constraint(model, MP.coefficients(sos[i,j] - nonneg[i,j]) .== 0)
     end
     return model
 end

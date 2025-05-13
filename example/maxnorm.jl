@@ -112,7 +112,7 @@ h3 = 25*z1*z2*z3*z4*z6*z7*z8*z9 - 1
 cpop = [f; g1; g2; g3; g4; h1; h2; h3]
 
 @time begin
-opt,sol,data = cs_tssos_first(cpop, z, n+1, 4, numeq=3, CS=false, TS="block", QUIET=true, normality=3, solve=false)
+opt,sol,data = cs_tssos_first(cpop, z, n+1, 4, numeq=3, CS=false, TS="block", QUIET=true, normality=1, solve=false)
 opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true, solve=false)
 opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true, solve=false)
 opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true)  
@@ -493,19 +493,19 @@ end
 println(sqrt(-opt))
 
 # Mordell Inequality Conjecture
-n = 2
+n = 3
 @polyvar z1 z2 z3 z4
 z = tuple(z1,z2,z3,z4)
 f = (z1-z2)*(z3-z4)*(2z1+z2)*(2z3+z4)*(2z2+z1)*(2z4+z3)
 h = 2*z1*z3 + 2*z2*z4 + z1*z4 + z2*z3 - 3
 
-n = 3
+n = 4
 @polyvar z1 z2 z3 z4 z5 z6
 z = tuple(z1,z2,z3,z4,z5,z6)
 f = (z1-z2)*(z4-z5)*(z1-z3)*(z4-z6)*(2z1+z2+z3)*(2z4+z5+z6)*(z2-z3)*(z5-z6)*(2z2+z1+z3)*(2z5+z4+z6)*(2z3+z1+z2)*(2z6+z4+z5)
 h = z1*z4 + z2*z5 + z3*z6 + (z1+z2+z3)*(z4+z5+z6) - 4
 
-n = 4
+n = 5
 @polyvar z1 z2 z3 z4 z5 z6 z7 z8
 z = tuple(z1,z2,z3,z4,z5,z6,z7,z8)
 f = (z1-z2)*(z5-z6)*(z1-z3)*(z5-z7)*(z1-z4)*(z5-z8)*(z2-z3)*(z6-z7)*(z2-z4)*(z6-z8)*(z3-z4)*(z7-z8)*
@@ -514,7 +514,7 @@ h = z1*z5 + z2*z6 + z3*z7 + z4*z8 + (z1+z2+z3+z4)*(z5+z6+z7+z8) - 5
 
 cpop = [-f; h]
 @time begin
-opt,sol,data = cs_tssos_first(cpop, z, n, 6, numeq=1, CS=false, TS="block", normality=5, solve=false, QUIET=true)
+opt,sol,data = cs_tssos_first(cpop, z, n-1, 6, numeq=1, CS=false, TS="block", normality=5, solve=false, QUIET=true)
 opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true, solve=false)
 opt,sol,data = cs_tssos_higher!(data, TS="block", QUIET=true)
 end

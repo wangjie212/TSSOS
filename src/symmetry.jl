@@ -38,8 +38,8 @@ function tssos_symmetry(pop, x, d, group; numeq=0, QUIET=false)
     dp = [maxdegree(p) for p in pop] 
     time = @elapsed begin
     action = VariablePermutation(x)
-    basis_full = MultivariatePolynomials.monomials(x, 0:2d)
-    basis_half = MultivariatePolynomials.monomials(x, 0:d)
+    basis_full = MP.monomials(x, 0:2d)
+    basis_half = MP.monomials(x, 0:d)
     wedderburn = WedderburnDecomposition(Float64, group, action, basis_full, basis_half)
     basis = [[wedderburn.Uπs[i].basis[j,:]'*basis_half for j=1:size(wedderburn.Uπs[i].basis, 1)] for i = 1:length(wedderburn.Uπs)] # This is the symmetry adapted basis
     end
@@ -92,7 +92,7 @@ function tssos_symmetry(pop, x, d, group; numeq=0, QUIET=false)
     if numeq > 0
         for k = 1:numeq
             # ebasis = basis_full[maxdegree.(basis_full) .<= 2d-dp[length(pop)-numeq+k]]
-            ebasis = MultivariatePolynomials.monomials(x, 0:2d-dp[length(pop)-numeq+k])
+            ebasis = MP.monomials(x, 0:2d-dp[length(pop)-numeq+k])
             free = @variable(model, [1:length(ebasis)])
             for (i,b) in enumerate(ebasis)
                 @inbounds supp,coe = poly_norm(b*pop[length(pop)-numeq+k], group, action)
@@ -148,8 +148,8 @@ Compute the normal form of a polynomial under the action of a group.
 - `coe`: coefficients of  the normal form
 """
 function poly_norm(p, group, action)
-    supp = MultivariatePolynomials.monomials(p)
-    coe = MultivariatePolynomials.coefficients(p)
+    supp = MP.monomials(p)
+    coe = MP.coefficients(p)
     nsupp = [normalform(mon, group, action) for mon in supp]
     supp = copy(nsupp)
     sort!(supp)
