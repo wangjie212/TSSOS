@@ -30,7 +30,7 @@ GramMat = Vector{Vector{Vector{Union{Float64,Matrix{Float64}}}}}(undef, info1.cq
 for i = 1:info1.cql
     GramMat[i] = Vector{Vector{Union{Float64,Matrix{Float64}}}}(undef, 1+length(info1.I[i]))
     for j = 1:1+length(info1.I[i])
-        GramMat[i][j] = [value.(info1.gram[i][j][l]) for l = 1:length(info1.gram[i][j])]
+        GramMat[i][j] = [value.(info1.GramMat[i][j][l]) for l = 1:length(info1.GramMat[i][j])]
     end
 end
 

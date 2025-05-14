@@ -15,8 +15,8 @@ mutable struct cpop_data
     blocksize # sizes of blocks
     blocks # block structure
     eblocks # block structrue for equality constraints
-    GramMat # Gram matrix
-    multiplier_equality # multiplier coefficients for equality constraints
+    GramMat # Gram matrices
+    multiplier # multipliers for equality constraints
     moment # Moment matrix
     solver # SDP solver
     SDP_status
@@ -150,10 +150,10 @@ function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, n
         mb = maximum(maximum.(blocksize))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,momone,GramMat,multiplier_equality,SDP_status = solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, dualize=dualize, TS=TS,
+    opt,ksupp,moment,momone,GramMat,multiplier,SDP_status = solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, dualize=dualize, TS=TS,
     lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile, 
     signsymmetry=ss, normality=normality)
-    data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, ebasis, ksupp, blocksize, blocks, eblocks, GramMat, multiplier_equality, moment, solver, SDP_status, tol, 1)
+    data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, ebasis, ksupp, blocksize, blocks, eblocks, GramMat, multiplier, moment, solver, SDP_status, tol, 1)
     sol = nothing
     if solution == true
         if TS != false || (numeq > 0 && GroebnerBasis == true)
@@ -279,7 +279,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
             mb = maximum(maximum.(blocksize))
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,momone,GramMat,multiplier_equality,SDP_status = solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, TS=TS,
+        opt,ksupp,moment,momone,GramMat,multiplier,SDP_status = solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, lead=leadsupp, TS=TS,
         solver=solver, feasibility=feasibility, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
         normality=normality, writetofile=writetofile)
         sol = nothing
@@ -295,7 +295,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
         data.blocksize = blocksize
         data.ksupp = ksupp
         data.GramMat = GramMat
-        data.multiplier_equality = multiplier_equality
+        data.multiplier = multiplier
         data.moment = moment
         data.SDP_status = SDP_status
     end
@@ -522,7 +522,7 @@ function solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize
         gsupp = get_gsupp(n, m, neq, supp, basis[2:end], ebasis, blocks[2:end], eblocks, cl[2:end], blocksize[2:end], nb=nb)
         ksupp = [ksupp gsupp]
     end
-    objv = moment = momone = GramMat = multiplier_equality = SDP_status = nothing
+    objv = moment = momone = GramMat = multiplier = SDP_status = nothing
     if solve == true
         tsupp = ksupp
         if normality == true
@@ -827,7 +827,7 @@ function solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize
                 GramMat[k+1] = [value.(gpos[k][i]) for i = 1:cl[k+1]]
             end
             if neq > 0
-                multiplier_equality = [value.(free[j]) for j = 1:neq]
+                multiplier = [value.(free[j]) for j = 1:neq]
             end
         end
         dual_var = -dual(con)
@@ -869,5 +869,5 @@ function solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize
             momone = Symmetric(momone,:U)
         end
     end
-    return objv,ksupp,moment,momone,GramMat,multiplier_equality,SDP_status
+    return objv,ksupp,moment,momone,GramMat,multiplier,SDP_status
 end

@@ -27,8 +27,8 @@ import CliqueTrees
 export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, LinearPMI_first, LinearPMI_higher!, sparseobj
 export cosmo_para, mosek_para
 export local_solution, refine_sol, extract_solutions, extract_solutions_robust, extract_solutions_pmo, extract_solutions_robust_pmo, extract_weight_matrix
-export add_SOS!, add_SOSMatrix!, add_poly!, add_psatz!, add_psatz_cheby!
-export tssos_symmetry, get_signsymmetry
+export add_SOS!, add_SOSMatrix!, add_poly!, add_psatz!, add_psatz_cheby!, add_poly_cheby!
+export tssos_symmetry, get_signsymmetry, tssos_symmetry_first, tssos_symmetry_higher!
 export homogenize, solve_hpop, SumOfRatios, SparseSumOfRatios, get_dynamic_sparsity
 export show_blocks, complex_to_real, get_mmoment, get_basis, get_moment, get_moment_matrix, get_cmoment
 export run_H1, run_H1CS, run_H2, run_H2CS, construct_CDK, construct_marginal_CDK, construct_CDK_cs, construct_marginal_CDK_cs
@@ -96,6 +96,8 @@ function max_cliques(G)
     return cliques,cql,cliquesize
 end
 
+const Poly = DP.Polynomial{DP.Commutative{DP.CreationOrder}, Graded{LexOrder}, Float64}
+
 include("clique_merge.jl")
 include("blockpop.jl")
 include("nblockmix.jl")
@@ -108,8 +110,8 @@ include("homogenize.jl")
 include("matrixsos.jl")
 include("sum_of_ratios.jl")
 include("CDK.jl")
-include("symmetry.jl")
 include("dynamic_system.jl")
 include("Chebyshev_basis.jl")
+include("symmetry.jl")
 
 end

@@ -23,8 +23,8 @@ mutable struct ccpop_data
     blocksize # sizes of blocks
     blocks # block structure
     eblocks # block structrue for equality constraints
-    GramMat # Gram matrix
-    multiplier_equality # multiplier coefficients for equality constraints
+    GramMat # Gram matrices
+    multiplier # multipliers for equality constraints
     moment # Moment matrix
     solver # SDP solver
     SDP_status
@@ -256,7 +256,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vecto
         mb = maximum(maximum.([maximum.(blocksize[i]) for i = 1:cql]))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,GramMat,multiplier_equality,SDP_status = solvesdp(m, rlorder, supp, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize,
+    opt,ksupp,moment,GramMat,multiplier,SDP_status = solvesdp(m, rlorder, supp, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize,
     numeq=numeq, QUIET=QUIET, TS=TS, ConjugateBasis=ConjugateBasis, solver=solver, solve=solve, MomentOne=MomentOne, ipart=ipart,
     Gram=Gram, nb=nb, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, dualize=dualize, writetofile=writetofile, normality=normality)
     sol = nothing
@@ -280,7 +280,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vecto
         end
     end
     data = ccpop_data(cpop, z, rlorder, n, nb, m, numeq, ipart, ConjugateBasis, normality, supp, coe, basis, ebasis, ksupp, cql, cliquesize, cliques, I, J, ncc, blocksize, blocks, eblocks, 
-    GramMat, multiplier_equality, moment, solver, SDP_status, 1e-4, flag)
+    GramMat, multiplier, moment, solver, SDP_status, 1e-4, flag)
     return opt,sol,data
 end
 
@@ -319,7 +319,7 @@ function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET
             mb = maximum(maximum.([maximum.(blocksize[i]) for i = 1:cql]))
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,GramMat,multiplier_equality,SDP_status = solvesdp(m, data.rlorder, supp, data.coe, basis, ebasis, cliques, cql, cliquesize, I, J, data.ncc, blocks, eblocks, cl,
+        opt,ksupp,moment,GramMat,multiplier,SDP_status = solvesdp(m, data.rlorder, supp, data.coe, basis, ebasis, cliques, cql, cliquesize, I, J, data.ncc, blocks, eblocks, cl,
         blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=data.solver, solve=solve, dualize=dualize, ipart=data.ipart, MomentOne=MomentOne, 
         Gram=Gram, ConjugateBasis=data.ConjugateBasis, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile, normality=normality)
         sol = nothing
@@ -346,7 +346,7 @@ function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET
         data.blocksize = blocksize
         data.ksupp = ksupp
         data.GramMat = GramMat
-        data.multiplier_equality = multiplier_equality
+        data.multiplier = multiplier
         data.moment = moment
         data.SDP_status = SDP_status
     end
@@ -493,7 +493,7 @@ function solvesdp(m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe,
     else
         ksupp = tsupp
     end
-    objv = moment = GramMat = multiplier_equality = SDP_status= nothing
+    objv = moment = GramMat = multiplier = SDP_status= nothing
     if solve == true
         ltsupp = length(tsupp)
         if QUIET == false
@@ -824,10 +824,10 @@ function solvesdp(m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe,
                     end
                 end
             end
-            multiplier_equality = Vector{Vector{Vector{Float64}}}(undef, cql)
+            multiplier = Vector{Vector{Vector{Float64}}}(undef, cql)
             for i = 1:cql
                 if !isempty(J[i])
-                    multiplier_equality[i] = [value.(free[i][j]) for j = 1:length(J[i])]
+                    multiplier[i] = [value.(free[i][j]) for j = 1:length(J[i])]
                 end
             end
         end
@@ -838,7 +838,7 @@ function solvesdp(m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe,
         end
         moment = get_cmoment(rmeasure, imeasure, tsupp, itsupp, cql, blocks, cl, blocksize, basis, ipart=ipart, nb=nb, ConjugateBasis=ConjugateBasis)
     end
-    return objv,ksupp,moment,GramMat,multiplier_equality,SDP_status
+    return objv,ksupp,moment,GramMat,multiplier,SDP_status
 end
 
 function get_eblock(tsupp::Vector{Vector{Vector{UInt16}}}, hsupp::Vector{Vector{Vector{UInt16}}}, basis::Vector{Vector{Vector{UInt16}}}; nb=nb)

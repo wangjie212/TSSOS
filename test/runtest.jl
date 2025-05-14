@@ -115,21 +115,21 @@ opt = objective_value(model)
 f = sum(x) + sum(x.^4)
 pop = [f, 1 - sum(x.^2)]
 G = PermGroup([perm"(1,2,3)", perm"(1,2)"])
-opt = tssos_symmetry(pop, x, 2, G, QUIET=true)[1]
+opt,data = tssos_symmetry(pop, x, 2, G, QUIET=true)
 @test opt ≈ -1.3987174 atol = 1e-6
 
 @polyvar x[1:3]
 f = sum(x) + sum(x.^4)
 pop = [f, 1 - sum(x.^2)]
 G = PermGroup([perm"(1,2,3)", perm"(1,2)"])
-opt = tssos_symmetry(pop, x, 2, G, QUIET=true)[1]
+opt,data = tssos_symmetry(pop, x, 2, G, QUIET=true)
 @test opt ≈ -1.3987174 atol = 1e-6
 
 @polyvar x[1:3]
 f = sum(x) + sum(x.^4)
 pop = [f, 1 - sum(x.^2)]
 G = PermGroup([perm"(1,2,3)", perm"(1,2)"])
-opt = tssos_symmetry(pop, x, 2, G, numeq=1, QUIET=true)[1]
+opt,data = tssos_symmetry(pop, x, 2, G, numeq=1, QUIET=true)
 @test opt ≈ -1.3987174 atol = 1e-6
 
 end

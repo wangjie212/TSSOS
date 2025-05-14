@@ -23,7 +23,7 @@ mutable struct mpop_data
     cliques # cliques of variables
     I # index sets of inequality constraints
     ncc # constraints associated to no clique
-    GramMat # Gram matrix
+    GramMat # Gram matrices
     moment # Moment matrix
     SDP_status
 end

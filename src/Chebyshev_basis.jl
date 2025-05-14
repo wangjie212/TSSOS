@@ -1,12 +1,19 @@
 using MultivariateBases
 
-mutable struct chebyshev
-    basis # Chebyshev bases
+mutable struct poly_basis
+    pop # polynomial optimization problem
+    numeq # number of equality constraints
+    group
+    action
+    basis # polynomial bases
+    ebasis # polynomial bases for equality constraints
+    ksupp # extended support at the k-th step
     blocksize # size of blocks
     blocks # block structrue
     eblocks # block structrue for equality constraints
-    gram # Gram variables
-    multiplier_equality # multiplier variables for equality constraints
+    GramMat # Gram matrices
+    multiplier # multipliers for equality constraints
+    SDP_status
 end
 
 """
@@ -38,7 +45,7 @@ function add_psatz_cheby!(model, nonneg::DP.Polynomial{V, M, T}, vars, ineq_cons
     tsupp = basis_covering_monomials(ChebyshevBasis, unique([MP.monomials(nonneg); MP.monomials.(ineq_cons)...; MP.monomials.(eq_cons)...]))
     tsupp = [item for item in tsupp]
     sort!(tsupp)
-    blocks,cl,blocksize,eblocks = get_blocks(m, l, tsupp, ineq_cons, eq_cons, basis, TS=TS, SO=SO, merge=merge, md=md, QUIET=false)
+    blocks,cl,blocksize,eblocks = get_blocks(m, l, tsupp, ineq_cons, eq_cons, basis, TS=TS, SO=SO, merge=merge, md=md, QUIET=QUIET)
     poly = nonneg
     pos = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, 1+m)
     pos[1] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[1])
@@ -77,7 +84,7 @@ function add_psatz_cheby!(model, nonneg::DP.Polynomial{V, M, T}, vars, ineq_cons
     remove_nearly_zero_terms!(model, coefs)
     drop_zeros!.(coefs)
     @constraint(model, coefs .== 0)
-    info = chebyshev(basis, blocksize, blocks, eblocks, pos, mul)
+    info = poly_basis(nothing, nothing, nothing, nothing, basis, nothing, nothing, blocksize, blocks, eblocks, pos, mul, nothing)
     return info
 end
 

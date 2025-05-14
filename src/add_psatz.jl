@@ -9,8 +9,8 @@ mutable struct struct_data
     tsupp # total support
     I # index sets of inequality constraints
     J # index sets of equality constraints
-    gram # Gram variables
-    multiplier_equality # multiplier variables for equality constraints
+    GramMat # Gram matrices
+    multiplier # multipliers for equality constraints
     constrs # constraint name
 end
 

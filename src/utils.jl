@@ -478,6 +478,28 @@ function add_poly!(model, vars, degree::Int; signsymmetry=false)
     return p,coe,mon
 end
 
+"""
+    p,coe,basis = add_poly_cheby!(model, vars, degree)
+
+Generate an unknown polynomial of given degree in the Chebyshev basis whose coefficients are from the JuMP `model`.
+
+# Input arguments
+- `model`: a JuMP optimization model
+- `vars`: set of variables
+- `degree`: degree of the polynomial
+
+# Output arguments
+- `p`: the polynomial 
+- `coe`: coefficients of the polynomial 
+- `basis`: Chebyshev basis 
+"""
+function add_poly_cheby!(model, vars, degree::Int)
+    basis = basis_covering_monomials(ChebyshevBasis, MP.monomials(vars, 0:degree))
+    coe = @variable(model, [1:length(basis)])
+    p = coe'*mon
+    return p,coe,mon
+end
+
 function add_poly!(model, vars, supp::Array{UInt8,2})
     mon = [prod(vars.^supp[:,i]) for i = 1:size(supp,2)]
     coe = @variable(model, [1:length(mon)])
