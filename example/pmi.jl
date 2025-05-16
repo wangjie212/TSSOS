@@ -70,7 +70,7 @@ d = 2
 opt,data = cs_tssos_first(F, G, x, d, TS=false, QUIET=true, Moment=true)
 sol = extract_solutions_pmo(1, d, 2, data.moment[2])
 W = extract_weight_matrix(1, d, 2, sol, data.moment[2])
-sol = extract_solutions_robust_pmo(1, d, 2, data.moment[1])
+sol = extract_solutions_pmo_robust(1, d, 2, data.moment[1])
 
 @polyvar x[1:3]
 Q = [1/sqrt(2) -1/sqrt(3) 1/sqrt(6); 0 1/sqrt(3) 2/sqrt(6); 1/sqrt(2) 1/sqrt(3) -1/sqrt(6)]
@@ -79,7 +79,7 @@ G = [1 - x[1]^2 - x[2]^2, 1 - x[2]^2 - x[3]^2, -1 + x[2]^2 + x[3]^2]
 opt,data = cs_tssos_first(F, G, x, 2, TS=false, QUIET=true, Moment=true)
 sol = extract_solutions_pmo(2, 2, 3, data.moment[2])
 W = extract_weight_matrix(2, 2, 3, sol, data.moment[2])
-sol = extract_solutions_robust_pmo(2, 2, 3, data.moment[1])
+sol = extract_solutions_pmo_robust(2, 2, 3, data.moment[1])
 
 
 ## polynomial matrix optimization with correlative sparsity

@@ -79,17 +79,17 @@ function local_solution(n, m, supp::Vector{Array{UInt8, 2}}, coe; nb=0, numeq=0,
 end
 
 """
-    ref_sol,flag = refine_sol(opt, sol, data, QUIET=false, tol=1e-4)
+    ref_sol,flag = refine_sol(opt, sol, data, QUIET=false, tol=1e-2)
 
 Refine the obtained solution by a local solver.
 Return the refined solution, and `flag=0` if global optimality is certified, `flag=1` otherwise.
 """
-function refine_sol(opt, sol, data::Union{cpop_data,mcpop_data}; QUIET=false, tol=1e-4)
+function refine_sol(opt, sol, data::Union{cpop_data,mcpop_data}; QUIET=false, tol=1e-2)
     n = data.n
     nb = data.nb
     numeq = data.numeq
     if typeof(data) == cpop_data && !isempty(data.gb)
-        m = length(data.pop)-1
+        m = length(data.pop) - 1
         supp = Vector{Array{UInt8,2}}(undef, m+1)
         coe = Vector{Vector{Float64}}(undef, m+1)
         supp[2:m+1-numeq] = data.supp[2:end]

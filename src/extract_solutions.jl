@@ -1,37 +1,65 @@
 using RowEchelon
 
-"""
-    sol = extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-2)
+# extract a solution from the eigenvector associated with the maximal eigenvalue of the moment matrix
+function extract_solution(moment, lb, pop, x; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
+    F = eigen(moment, length(x)+1:length(x)+1)
+    sol = sqrt(F.values[1])*F.vectors[:,1]
+    if abs(sol[1]) < 1e-6
+        return nothing,1,1
+    else
+        sol = sol[2:end]/sol[1]
+        ub = MP.polynomial(pop[1])(x => sol)
+        gap = abs(lb-ub)/max(1, abs(ub))
+        flag = 1
+        if check_optimality(sol, lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+            flag = 0
+            println("------------------------------------------------")
+            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+            println("Successfully extracted one globally optimal solution.")
+            println("------------------------------------------------")
+        end
+        return sol,gap,flag
+    end
+end
 
-Extract a set of solutions for the polynomial optimization problem.
+"""
+    sol = extract_solutions(moment, d; pop=nothing, x=nothing, lb=nothing, numeq=0, nb=0, rtol=1e-2, gtol=1e-2, ftol=1e-3)
+
+Extract a tuple of solutions from the moment matrix using Henrion-Lasserre's algorithm.
 
 # Input arguments
+- `moment`: moment matrix
+- `d`: relaxation order
 - `pop`: polynomial optimization problem
 - `x`: set of variables
-- `d`: relaxation order
-- `opt`: optimum
-- `moment`: moment matrix
+- `lb`: SDP lower bound
 - `numeq`: number of equality constraints
 - `nb`: number of binary variables
-- `tol`: tolerance to obtain the column echelon form
+- `rtol`: tolerance for rank
+- `gtol`: tolerance for global optimality gap
+- `ftol`: tolerance for feasibility
 
 # Output arguments
-- `sol`: a set of solutions
+- `sol`: a tuple of solutions
 """
-function extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-2)
+function extract_solutions(moment, d; pop=nothing, x=nothing, lb=nothing, numeq=0, nb=0, basis=[], check=true, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
     n = length(x)
-    if rank(moment, tol) == 1
-        sol = moment[2:n+1, 1]
-        ub = MP.polynomial(pop[1])(x => sol)
-        gap = abs(opt-ub)/max(1, abs(ub))
-        println("------------------------------------------------")
-        @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
-        println("Successfully extracted one globally optimal solution.")
-        println("------------------------------------------------")
+    if rank(moment, rtol) == 1
+        sol = [moment[2:n+1, 1]]
+        if check == true && check_optimality(sol[1], lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+            ub = MP.polynomial(pop[1])(x => sol[1])
+            gap = abs(lb-ub)/max(1, abs(ub))
+            println("------------------------------------------------")
+            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+            println("Successfully extracted one globally optimal solution.")
+            println("------------------------------------------------")
+        end
     else
-        U,pivots = rref_with_pivots!(Matrix(moment), tol)
+        U,pivots = rref_with_pivots!(Matrix(moment), rtol)
         U = U[1:length(pivots), :]'
-        basis = get_basis(n, d)
+        if isempty(basis)
+            basis = get_basis(n, d)
+        end
         w = basis[:, pivots]
         lw = size(w, 2)
         if any([sum(w[:,j]) == d for j = 1:lw])
@@ -57,74 +85,39 @@ function extract_solutions(pop, x, d, opt, moment; numeq=0, nb=0, tol=1e-2)
         rands = rand(n)
         rands = rands/sum(rands)
         L = schur(sum(rands[i]*N[i] for i in 1:n)).Z
-        sol = Vector{Float64}[]
-        m = length(pop) - 1
-        for i = 1:lw
-            atom = [L[:,i]'*N[j]*L[:,i] for j = 1:n]
-            flag = 1
-            println("------------------------------------------------")
-            println("Check atom ", i)
-            gap = pop[1](x => atom) - opt
-            println("Global optimality gap = ", gap)
-            if abs(gap) > 1e-4
-                flag = 0
-            end
-            if m - numeq > 0
-                vio = [pop[j](x => atom) for j = 2:m+1-numeq]
-                mvio = max(-minimum(vio), 0)
-                if mvio > 1e-3
-                    flag = 0
-                end
-                println("Maximal inequality violation = ", mvio)
-            end
-            if numeq > 0
-                vio = [pop[j](x => atom) for j = m-numeq+2:m+1]
-                mvio = maximum(abs.(vio))
-                if mvio > 1e-3
-                    flag = 0
-                end
-                println("Maximal equality violation = ", mvio)
-            end
-            if flag == 1
-                push!(sol, atom)
-            end
-        end
-        nsol = length(sol)
-        if nsol > 0
-            println("------------------------------------------------")
-            if nsol == 1
-                ub = MP.polynomial(pop[1])(x => sol[1])
-                gap = abs(opt-ub)/max(1, abs(ub))
-                @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
-                println("Successfully extracted one globally optimal solution.")
-            else
-                println("Global optimality certified by the flatness conditon!")
-                println("Successfully extracted ", nsol, " globally optimal solutions.")
-            end
-            println("------------------------------------------------")
-        else
-            sol = nothing
+        sol = [[L[:,i]'*N[j]*L[:,i] for j = 1:n] for i = 1:lw]
+        if check == true
+            sol = check_solution(sol, lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         end
     end
     return sol
 end
 
 """
-    sol = extract_solutions_robust(n, d, moment; tol=1e-2)
+    sol = extract_solutions_robust(moment, n, d; pop=nothing, x=nothing, lb=nothing, numeq=0, nb=0, rtol=1e-2, gtol=1e-2, ftol=1e-3)
 
-Extract a set of solutions for the polynomial optimization problem.
+Extract a tuple of solutions from the moment matrix using the GNS robust algorithm.
 
 # Input arguments
+- `moment`: moment matrix
 - `n`: number of variables
 - `d`: relaxation order
-- `moment`: moment matrix
-- `tol`: tolerance to obtain the column echelon form
+- `pop`: polynomial optimization problem
+- `x`: set of variables
+- `lb`: SDP lower bound
+- `numeq`: number of equality constraints
+- `nb`: number of binary variables
+- `rtol`: tolerance for rank
+- `gtol`: tolerance for global optimality gap
+- `ftol`: tolerance for feasibility
 
 # Output arguments
-- `sol`: a set of solutions
+- `sol`: a tuple of solutions
 """
-function extract_solutions_robust(n, d, moment; tol=1e-2)
-    basis = get_basis(n, d)
+function extract_solutions_robust(moment, n, d; pop=nothing, x=nothing, lb=nothing, numeq=0, basis=[], check=true, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
+    if isempty(basis)
+        basis = get_basis(n, d)
+    end
     ls = binomial(n+d-1, n)
     N = Vector{Matrix{Float64}}(undef, n)
     for i = 1:n
@@ -138,37 +131,63 @@ function extract_solutions_robust(n, d, moment; tol=1e-2)
         N[i] = Symmetric(N[i],:U)
     end
     F = svd(moment[1:ls, 1:ls])
-    S = F.S[F.S .> tol]
-    S = sqrt.(S).^(-1)
+    S = sqrt.(F.S[F.S/F.S[1] .> rtol])
     for i = 1:n
-        N[i] = Diagonal(S)*F.Vt[1:length(S),:]*N[i]*F.U[:,1:length(S)]*Diagonal(S)
+        N[i] = Diagonal(S.^(-1))*F.Vt[1:length(S),:]*N[i]*F.U[:,1:length(S)]*Diagonal(S.^(-1))
     end
     rands = rand(n)
     rands = rands/sum(rands)
     L = schur(sum(rands[i]*N[i] for i in 1:n)).Z
     sol = [[L[:,i]'*N[j]*L[:,i] for j = 1:n] for i = 1:length(S)]
-    return sol
+    W = L'*Diagonal(S)*F.Vt[1:length(S),:]
+    w = W[:,1].^2
+    if check == true
+        sol = check_solution(sol, lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+    end
+    return sol,w
+end
+
+function extract_solutions_robust(moment, n, d, cliques, cql, cliquesize; pop=nothing, x=nothing, supp=[], coe=[], lb=nothing, numeq=0, check=true, gtol=1e-2, ftol=1e-3, QUIET=true)
+    ssol = Vector{Vector{Vector{Float64}}}(undef, cql)
+    sol = zeros(n)
+    freq = zeros(n)
+    for i = 1:cql
+        ssol[i],w = extract_solutions_robust(moment[i], cliquesize[i], d, check=false, gtol=gtol, ftol=ftol)
+        sol[cliques[i]] += ssol[i][argmax(w)]
+        freq[cliques[i]] .+= 1
+    end
+    sol ./= freq
+    if check == true
+        if pop !== nothing
+            sol = check_solution([sol], lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+        else
+            sol = check_solution([sol], lb, supp, coe, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+        end
+    end
+    return sol,ssol
 end
 
 """
-    sol = extract_solutions_pmo(n, d, p, moment; tol=1e-2)
+    sol = extract_solutions_pmo(n, d, p, moment; rtol=1e-2)
 
-Extract a set of solutions for the polynomial matrix optimization problem.
+Extract a tuple of solutions for a polynomial matrix optimization problem using Henrion-Lasserre's algorithm.
 
 # Input arguments
 - `n`: number of variables
 - `d`: relaxation order
 - `p`: size of the objective matrix
 - `moment`: moment matrix
-- `tol`: tolerance to obtain the column echelon form
+- `rtol`: tolerance for rank
 
 # Output arguments
-- `sol`: a set of solutions
+- `sol`: a tuple of solutions
 """
-function extract_solutions_pmo(n, d, p, moment; tol=1e-2)
-    U,pivots = rref_with_pivots!(Matrix(moment), tol)
+function extract_solutions_pmo(n, d, p, moment; basis=[], rtol=1e-2)
+    U,pivots = rref_with_pivots!(Matrix(moment), rtol)
     U = U[1:length(pivots), :]'
-    basis = get_basis(n, d)
+    if isempty(basis)
+        basis = get_basis(n, d)
+    end
     w = basis[:, ceil.(Int, pivots./p)]
     ind = cmod.(pivots, p)
     lw = size(w, 2)
@@ -194,8 +213,25 @@ function extract_solutions_pmo(n, d, p, moment; tol=1e-2)
     return sol
 end
 
-function extract_solutions_robust_pmo(n, d, p, moment; tol=1e-2)
-    basis = get_basis(n, d)
+"""
+    sol = extract_solutions_pmo_robust(n, d, p, moment; rtol=1e-2)
+
+Extract a tuple of solutions for a polynomial matrix optimization problem using the GNS robust algorithm.
+
+# Input arguments
+- `n`: number of variables
+- `d`: relaxation order
+- `p`: size of the objective matrix
+- `moment`: moment matrix
+- `rtol`: tolerance for rank
+
+# Output arguments
+- `sol`: a tuple of solutions
+"""
+function extract_solutions_pmo_robust(n, d, p, moment; basis=[], rtol=1e-2)
+    if isempty(basis)
+        basis = get_basis(n, d)
+    end
     ls = p*binomial(n+d-1, n)
     N = Vector{Matrix{Float64}}(undef, n)
     for i = 1:n
@@ -209,7 +245,7 @@ function extract_solutions_robust_pmo(n, d, p, moment; tol=1e-2)
         N[i] = Symmetric(N[i],:U)
     end
     F = svd(moment[1:ls, 1:ls])
-    S = F.S[F.S .> tol]
+    S = F.S[F.S/F.S[1] .> rtol]
     S = sqrt.(S).^(-1)
     for i = 1:n
         N[i] = Diagonal(S)*F.Vt[1:length(S),:]*N[i]*F.U[:,1:length(S)]*Diagonal(S)
@@ -273,41 +309,8 @@ function comp_to(a, b, n)
     return 0
 end
 
-# extract a solution from the eigenvector associated with the maximal eigenvalue of the moment matrix
-function extract_solution(moment, opt, pop, x; numeq=0, tol=1e-4)
-    n = length(x)
-    m = length(pop) - 1
-    F = eigen(moment, n+1:n+1)
-    sol = sqrt(F.values[1])*F.vectors[:,1]
-    if abs(sol[1]) < 1e-8
-        return nothing,1,1
-    else
-        sol = sol[2:end]/sol[1]
-        ub = MP.polynomial(pop[1])(x => sol)
-        gap = abs(opt-ub)/max(1, abs(ub))
-        flag = gap >= tol ? 1 : 0
-        for i = 1:m-numeq
-            if MP.polynomial(pop[i+1])(x => sol) <= -tol
-                flag = 1
-            end
-        end
-        for i = m-numeq+1:m
-            if abs(MP.polynomial(pop[i+1])(x => sol)) >= tol
-                flag = 1
-            end
-        end
-        if flag == 0
-            println("------------------------------------------------")
-            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
-            println("Successfully extracted one globally optimal solution.")
-            println("------------------------------------------------")
-        end
-        return sol,gap,flag
-    end
-end
-
 # extract an approximate solution from the moment matrix
-function approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe; numeq=0, tol=1e-4)
+function approx_sol(moment, lb, n, cliques, cql, cliquesize, supp, coe; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
     qsol = Float64[]
     A = zeros(sum(cliquesize), n)
     q = 1
@@ -327,25 +330,147 @@ function approx_sol(opt, moment, n, cliques, cql, cliquesize, supp, coe; numeq=0
         end
     end
     sol = (A'*A)\(A'*qsol)
+    flag = 1
     ub = seval(supp[1], coe[1], sol)
-    gap = abs(opt-ub)/max(1, abs(ub))
-    flag = gap >= tol ? 1 : 0
-    m = length(supp)-1
-    for i = 1:m-numeq
-        if seval(supp[i+1], coe[i+1], sol) <= -tol
-            flag = 1
-        end
-    end
-    for i = m-numeq+1:m
-        if abs(seval(supp[i+1], coe[i+1], sol)) >= tol
-            flag = 1
-        end
-    end
-    if flag == 0
+    gap = abs(lb-ub)/max(1, abs(ub))
+    if check_optimality(sol, lb, supp, coe, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+        flag = 0
         println("------------------------------------------------")
         @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
         println("Successfully extracted one globally optimal solution.")
         println("------------------------------------------------")
     end
     return sol,gap,flag
+end
+
+function check_optimality(sol, lb, pop::Vector{DP.Polynomial{V, M, T}}, x; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true) where {V, M, T<:Number}
+    flag = 1
+    ub = pop[1](x => sol)
+    gap = abs(lb-ub)/max(1, abs(ub))
+    if QUIET == false
+        @printf "Global optimality gap = %.6f%%!\n" 100*gap
+    end
+    if gap > gtol
+        flag = 0
+    end
+    m = length(pop) - 1 - numeq
+    if m > 0
+        vio = [pop[j](x => sol) for j = 2:m+1]
+        mvio = max(-minimum(vio), 0)
+        if mvio > ftol
+            flag = 0
+        end
+        if QUIET == false
+            println("Maximal inequality violation = ", mvio)
+        end
+    end
+    if numeq > 0
+        vio = [pop[j](x => sol) for j = m+2:length(pop)]
+        mvio = maximum(abs.(vio))
+        if mvio > ftol
+            flag = 0
+        end
+        if QUIET == false
+            println("Maximal equality violation = ", mvio)
+        end
+    end
+    return flag == 1
+end
+
+function check_optimality(sol, lb, supp::Vector{Vector{Vector{UInt16}}}, coe; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
+    flag = 1
+    ub = seval(supp[1], coe[1], sol)
+    gap = abs(lb-ub)/max(1, abs(ub))
+    if QUIET == false
+        @printf "Global optimality gap = %.6f%%!\n" 100*gap
+    end
+    if gap > gtol
+        flag = 0
+    end
+    m = length(supp) - 1 - numeq
+    if m > 0
+        vio = [seval(supp[j], coe[j], sol) for j = 2:m+1]
+        mvio = max(-minimum(vio), 0)
+        if mvio > ftol
+            flag = 0
+        end
+        if QUIET == false
+            println("Maximal inequality violation = ", mvio)
+        end
+    end
+    if numeq > 0
+        vio = [seval(supp[j], coe[j], sol) for j = m+2:length(supp)]
+        mvio = maximum(abs.(vio))
+        if mvio > ftol
+            flag = 0
+        end
+        if QUIET == false
+            println("Maximal equality violation = ", mvio)
+        end
+    end
+    return flag == 1
+end
+
+function check_solution(candidate_sol, lb, pop::Vector{DP.Polynomial{V, M, T}}, x; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true) where {V, M, T<:Number}
+    sol = Vector{Float64}[]
+    for (i, cand) in enumerate(candidate_sol)
+        if QUIET == false
+            println("------------------------------------------------")
+            println("Check the $i-th candidate solution:")
+        end
+        if check_optimality(cand, lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+            push!(sol, cand)
+        end
+    end
+    nsol = length(sol)
+    if nsol > 0
+        println("------------------------------------------------")
+        if nsol == 1
+            ub = MP.polynomial(pop[1])(x => sol[1])
+            gap = abs(lb-ub)/max(1, abs(ub))
+            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+            println("Successfully extracted one globally optimal solution.")
+        else
+            ub = minimum([MP.polynomial(pop[1])(x => s) for s in sol])
+            gap = abs(lb-ub)/max(1, abs(ub))
+            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+            println("Successfully extracted ", nsol, " globally optimal solutions.")
+        end
+        println("------------------------------------------------")
+    else
+        sol = nothing
+    end
+    return sol
+end
+
+function check_solution(candidate_sol, lb, supp::Vector{Vector{Vector{UInt16}}}, coe; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
+    sol = Vector{Float64}[]
+    for (i, cand) in enumerate(candidate_sol)
+        if QUIET == false
+            println("------------------------------------------------")
+            println("Check the $i-th candidate solution:")
+        end
+        if check_optimality(cand, lb, supp, coe, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+            push!(sol, cand)
+        end
+    end
+    nsol = length(sol)
+    if nsol > 0
+        println("------------------------------------------------")
+        if nsol == 1
+            ub = seval(supp[1], coe[1], sol[1])
+            gap = abs(lb-ub)/max(1, abs(ub))
+            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+            println("Successfully extracted one globally optimal solution.")
+        else
+            ub = minimum([seval(supp[1], coe[1], s) for s in sol])
+            gap = abs(lb-ub)/max(1, abs(ub))
+            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+            println("Successfully extracted ", nsol, " globally optimal solutions.")
+        end
+        println("------------------------------------------------")
+    else
+        sol = nothing
+    end
+    return sol
 end

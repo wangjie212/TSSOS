@@ -26,7 +26,7 @@ import CliqueTrees
 
 export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, LinearPMI_first, LinearPMI_higher!, sparseobj
 export cosmo_para, mosek_para
-export local_solution, refine_sol, extract_solutions, extract_solutions_robust, extract_solutions_pmo, extract_solutions_robust_pmo, extract_weight_matrix
+export local_solution, refine_sol, extract_solutions, extract_solutions_robust, extract_solutions_pmo, extract_solutions_pmo_robust, extract_weight_matrix
 export add_SOS!, add_SOSMatrix!, add_poly!, add_psatz!, add_psatz_cheby!, add_poly_cheby!
 export tssos_symmetry, get_signsymmetry, tssos_symmetry_first, tssos_symmetry_higher!
 export homogenize, solve_hpop, SumOfRatios, SparseSumOfRatios, get_dynamic_sparsity

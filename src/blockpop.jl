@@ -26,7 +26,7 @@ end
 
 """
     opt,sol,data = tssos_first(pop, x, d; nb=0, numeq=0, GroebnerBasis=true, basis=[], reducebasis=false, TS="block", 
-    merge=false, md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-4, 
+    merge=false, md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-2, 
     cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=false)
 
 Compute the first TS step of the TSSOS hierarchy for constrained polynomial optimization.
@@ -55,7 +55,7 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `data`: other auxiliary data 
 """
 function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, newton=false, feasibility=false, GroebnerBasis=true, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
-    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=false) where {V, M, T<:Number}
+    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-2, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=false) where {V, M, T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     n = length(x)
@@ -157,50 +157,15 @@ function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, n
     sol = nothing
     if solution == true
         if TS != false || (numeq > 0 && GroebnerBasis == true)
-            sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, tol=tol)
+            sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, gtol=tol, QUIET=QUIET)
             if data.flag == 1
                 sol = gap > 0.5 ? randn(n) : sol
                 sol,data.flag = refine_sol(opt, sol, data, QUIET=true, tol=tol)
             end
         else
-            sol = extract_solutions_robust(n, d, moment[1])
-            ind = Int[]
-            for (i, atom) in enumerate(sol)
-                flag = 1
-                if abs(pop[1](x => atom) - opt) > tol
-                    flag = 0
-                end
-                if m - neq > 0
-                    vio = [pop[j](x => atom) for j = 2:m+1-neq]
-                    if max(-minimum(vio), 0) > tol
-                        flag = 0
-                    end
-                end
-                if neq > 0
-                    vio = [pop[j](x => atom) for j = m-neq+2:m+1]
-                    if maximum(abs.(vio)) > tol
-                        flag = 0
-                    end
-                end
-                if flag == 1
-                    push!(ind, i)
-                end
-            end
-            if !isempty(ind)
+            sol = extract_solutions_robust(moment[1], n, d, pop=pop, x=x, lb=opt, numeq=numeq, basis=basis[1], gtol=tol, QUIET=QUIET)[1]
+            if sol !== nothing
                 data.flag = 0
-                sol = sol[ind]
-                nsol = length(sol)
-                println("------------------------------------------------")
-                if nsol == 1
-                    ub = MP.polynomial(pop[1])(x => sol[1])
-                    gap = abs(opt-ub)/max(1, abs(ub))
-                    @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
-                    println("Successfully extracted one globally optimal solution.")
-                else
-                    println("Global optimality certified by the flatness conditon!")
-                    println("Successfully extracted ", nsol, " globally optimal solutions.")
-                end
-                println("------------------------------------------------")
             end
         end
     end
@@ -209,7 +174,7 @@ end
 
 """
     opt,sol,data = tssos_first(f, x; newton=true, reducebasis=false, TS="block", merge=false, md=3, feasibility=false, solver="Mosek", 
-    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-2, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
 
 Compute the first TS step of the TSSOS hierarchy for unconstrained polynomial optimization.
 If `newton=true`, then compute a monomial basis by the Newton polytope method.
@@ -235,7 +200,7 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `data`: other auxiliary data 
 """
 function tssos_first(f::DP.Polynomial{V, M, T}, x; newton=true, reducebasis=false, TS="block", merge=false, md=3, feasibility=false, solver="Mosek", 
-    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-4, cosmo_setting=cosmo_para(), mosek_setting=mosek_para()) where {V, M, T<:Number}
+    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-2, cosmo_setting=cosmo_para(), mosek_setting=mosek_para()) where {V, M, T<:Number}
     return tssos_first([f], x, Int(ceil(maxdegree(f)/2)), newton=newton, feasibility=feasibility, GroebnerBasis=false, reducebasis=reducebasis, TS=TS, merge=merge, md=md, solver=solver, 
     QUIET=QUIET, solve=solve, dualize=dualize, MomentOne=MomentOne, Gram=Gram, solution=solution, tol=tol, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
 end
@@ -284,7 +249,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
         normality=normality, writetofile=writetofile)
         sol = nothing
         if solution == true
-            sol,gap,data.flag = extract_solution(momone, opt, data.pop, x, numeq=numeq, tol=tol)
+            sol,gap,data.flag = extract_solution(momone, opt, data.pop, x, numeq=numeq, gtol=tol)
             if data.flag == 1
                 sol = gap > 0.5 ? randn(n) : sol
                 sol,data.flag = refine_sol(opt, sol, data, QUIET=true, tol=tol)
@@ -421,7 +386,7 @@ function get_blocks(tsupp, basis; nb=0, TS="block", QUIET=true, merge=false, md=
         cl = 1
     else
         G = get_graph(tsupp, basis, nb=nb, signsymmetry=signsymmetry)
-        if TS == "block"
+        if TS == "block" || TS == "signsymmetry"
             blocks = connected_components(G)
             blocksize = length.(blocks)
             cl = length(blocksize)
@@ -482,7 +447,7 @@ function get_blocks(m, l, tsupp, supp, basis, ebasis; nb=0, TS="block", QUIET=tr
             else
                 G = get_graph(tsupp, supp[k-1], basis[k], nb=nb, nvar=nvar, signsymmetry=signsymmetry)
             end
-            if TS == "block"
+            if TS == "block" || TS == "signsymmetry"
                 blocks[k] = connected_components(G)
                 blocksize[k] = length.(blocks[k])
                 cl[k] = length(blocksize[k])

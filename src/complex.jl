@@ -268,7 +268,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vecto
         sol = sol[1:n] + sol[n+1:2n]*im
         if status == MOI.LOCALLY_SOLVED
             gap = abs(opt-ub)/max(1, abs(ub))
-            if gap < 1e-4
+            if gap < 1e-2
                 flag = 0
                 println("------------------------------------------------")
                 @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
@@ -280,7 +280,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vecto
         end
     end
     data = ccpop_data(cpop, z, rlorder, n, nb, m, numeq, ipart, ConjugateBasis, normality, supp, coe, basis, ebasis, ksupp, cql, cliquesize, cliques, I, J, ncc, blocksize, blocks, eblocks, 
-    GramMat, multiplier, moment, solver, SDP_status, 1e-4, flag)
+    GramMat, multiplier, moment, solver, SDP_status, 1e-2, flag)
     return opt,sol,data
 end
 

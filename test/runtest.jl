@@ -13,6 +13,8 @@ using Test
 f = 1+x[1]^4+x[2]^4+x[3]^4+x[1]*x[2]*x[3]+x[2]
 opt,sol,data = tssos_first(f, x, newton=true, reducebasis=true, TS="block", solution=true, Gram=true, QUIET=true)
 @test opt ≈ 0.4752748 atol = 1e-6
+opt,sol,data = tssos_first(f, x, newton=false, reducebasis=false, TS="block", solution=true, Gram=true, QUIET=true)
+@test opt ≈ 0.4752748 atol = 1e-6
 opt,sol,data = tssos_higher!(data, TS="MD", solution=true, Gram=true, QUIET=true)
 @test opt ≈ 0.4752748 atol = 1e-6
 
@@ -26,14 +28,20 @@ opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=false, TS="block", 
 @test opt ≈ 0.68619257 atol = 1e-6
 opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=true, TS="block", Gram=true, solution=true, QUIET=true)
 @test opt ≈ 0.68619257 atol = 1e-6
-opt,sol,data = tssos_higher!(data, TS="MF", solution=true, Gram=true, QUIET=true)
+opt,sol,data = tssos_higher!(data, TS="block", solution=true, Gram=true, QUIET=true)
+@test opt ≈ 0.68619257 atol = 1e-6
+opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=true, TS="MD", Gram=true, solution=true, QUIET=true)
 @test opt ≈ 0.68619257 atol = 1e-6
 opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=false, TS=false, Gram=true, solution=true, QUIET=true)
+@test opt ≈ 0.68619257 atol = 1e-6
+opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=false, TS="signsymmetry", Gram=true, solution=true, QUIET=true)
 @test opt ≈ 0.68619257 atol = 1e-6
 
 @polyvar x[1:4]
 pop = [3-x[1]^2-x[3]^2+x[1]*x[2]^2+2x[2]*x[3]*x[4]-x[1]*x[4]^2, x[2], x[1]^2+3x[3]^2-2, x[4], x[1]^2+x[2]^2+x[3]^2+x[4]^2-3]
 opt,sol,data = cs_tssos_first(pop, x, 2, numeq=3, TS="block", Gram=true, solution=true, QUIET=true)
+@test opt ≈ -0.4142135 atol = 1e-6
+opt,sol,data = cs_tssos_higher!(data, TS="block", Gram=true, solution=true, QUIET=true)
 @test opt ≈ -0.4142135 atol = 1e-6
 
 n = 6
@@ -44,6 +52,10 @@ d = 2
 opt,sol,data = cs_tssos_first(pop, x, d, numeq=1, TS="block", Gram=true, solution=true, QUIET=true)
 @test opt ≈ 0.71742533 atol = 1e-6
 opt,sol,data = cs_tssos_higher!(data, TS="MD", solution=true, Gram=true, QUIET=true)
+@test opt ≈ 0.71742533 atol = 1e-6
+opt,sol,data = cs_tssos_first(pop, x, d, numeq=1, TS="signsymmetry", Gram=true, solution=true, QUIET=true)
+@test opt ≈ 0.71742533 atol = 1e-6
+opt,sol,data = cs_tssos_first(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true)
 @test opt ≈ 0.71742533 atol = 1e-6
 
 # SOS Programming
