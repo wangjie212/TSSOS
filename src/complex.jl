@@ -79,11 +79,11 @@ function complex_cs_tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, z, d; numeq
     writetofile=writetofile, normality=normality, pop=pop, z=z, rtol=rtol, gtol=gtol, ftol=ftol)
 end
 
-function complex_tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, z, d; numeq=0, RemSig=false, nb=0, cliques=[], TS="block", 
+function complex_tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, z, d; numeq=0, RemSig=false, nb=0, TS="block", 
     merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, 
     ConjugateBasis=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=!ConjugateBasis, 
     rtol=1e-2, gtol=1e-2, ftol=1e-3) where {V, M, T<:Number}
-    return complex_cs_tssos_first(pop, z, d, numeq=numeq, RemSig=RemSig, nb=nb, CS=false, cliques=cliques, TS=TS, merge=merge, 
+    return complex_cs_tssos_first(pop, z, d, numeq=numeq, RemSig=RemSig, nb=nb, CS=false, TS=TS, merge=merge, 
     md=md, solver=solver, reducebasis=reducebasis, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution,
     MomentOne=MomentOne, ConjugateBasis=ConjugateBasis, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
     writetofile=writetofile, normality=normality, rtol=rtol, gtol=gtol, ftol=ftol)
@@ -173,6 +173,9 @@ function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, co
                 end
             end
             for s = 1:length(J[i])
+                if rlorder[i] < dc[J[i][s]]
+                    @error "The relaxation order is too small!"
+                end
                 temp = get_basis(cliques[i], rlorder[i]-dc[J[i][s]])
                 ebasis[i][s] = vec([[item1, item2] for item1 in temp, item2 in temp])
                 if nb > 0
@@ -277,13 +280,18 @@ function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, co
     if solution == true
         if TS != false
             if pop !== nothing
-                asol = check_solution([sol], opt, pop, z, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+                asol = check_solution([sol], opt, pop, z, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=true)
                 if asol === nothing
                     rsupp,rcoe = polys_info(complex_to_real(pop, z)...)
                     rsol = [real(sol); imag(sol)]
                     ub = eval(supp[1], coe[1], sol)
                     gap = abs(opt-ub)/max(1, abs(ub))
                     rsol = gap > 0.5 ? randn(2n) : rsol
+                    for i = 1:2n
+                        if abs(rsol[i]) < 1e-10
+                            rsol[i] = 1e-10
+                        end
+                    end
                     ub,rsol,status = local_solution(2n, m, rsupp, rcoe, numeq=numeq, startpoint=rsol, QUIET=true)
                     if status == MOI.LOCALLY_SOLVED
                         sol = rsol[1:n] + rsol[n+1:2n]*im
@@ -295,6 +303,8 @@ function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, co
                         else
                             @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
                         end
+                    else
+                        sol = nothing
                     end
                 end
             else
@@ -302,7 +312,7 @@ function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, co
             end
         else
             if cql == 1 && pop !== nothing
-                sol = extract_solutions_robust(moment[1][1], n, d, pop=pop, x=z, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
+                sol = extract_solutions_robust(moment[1][1], n, d, type=ComplexF64, pop=pop, x=z, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
             else
                 sol = extract_csolutions_robust(moment, n, d, cliques, cql, cliquesize, pop=pop, z=z, supp=supp, coe=coe, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
             end
@@ -356,13 +366,18 @@ function complex_cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=
         Gram=Gram, ConjugateBasis=data.ConjugateBasis, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile, normality=normality)
         if solution == true
             if data.pop !== nothing
-                asol = check_solution([sol], opt, data.pop, data.z, numeq=numeq, gtol=data.gtol, ftol=data.ftol, QUIET=QUIET)
+                asol = check_solution([sol], opt, data.pop, data.z, numeq=numeq, gtol=data.gtol, ftol=data.ftol, QUIET=true)
                 if asol === nothing
                     rsupp,rcoe = polys_info(complex_to_real(data.pop, data.z)...)
                     rsol = [real(sol); imag(sol)]
                     ub = eval(supp[1], data.coe[1], sol)
                     gap = abs(opt-ub)/max(1, abs(ub))
                     rsol = gap > 0.5 ? randn(2n) : rsol
+                    for i = 1:2n
+                        if abs(rsol[i]) < 1e-10
+                            rsol[i] = 1e-10
+                        end
+                    end
                     ub,rsol,status = local_solution(2n, m, rsupp, rcoe, numeq=numeq, startpoint=rsol, QUIET=true)
                     if status == MOI.LOCALLY_SOLVED
                         sol = rsol[1:n] + rsol[n+1:2n]*im
@@ -374,6 +389,8 @@ function complex_cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=
                         else
                             @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
                         end
+                    else
+                        sol = nothing
                     end
                 end
             else

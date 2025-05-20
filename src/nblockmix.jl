@@ -152,7 +152,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
     sol = nothing
     if solution == true
         if TS != false
-            sol,gap,data.flag = approx_sol(momone, opt, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+            sol,gap,data.flag = approx_sol(momone, opt, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=true)
             if data.flag == 1
                 sol = gap > 0.5 ? randn(n) : sol
                 sol,data.flag = refine_sol(opt, sol, data, QUIET=true, gtol=gtol)
@@ -205,7 +205,7 @@ function cs_tssos_higher!(data::mcpop_data; TS="block", merge=false, md=3, QUIET
         Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile)
         sol = nothing
         if solution == true
-            sol,gap,data.flag = approx_sol(momone, opt, n, cliques, cql, cliquesize, supp, data.coe, numeq=numeq, gtol=data.gtol, ftol=data.ftol, QUIET=QUIET)
+            sol,gap,data.flag = approx_sol(momone, opt, n, cliques, cql, cliquesize, supp, data.coe, numeq=numeq, gtol=data.gtol, ftol=data.ftol, QUIET=true)
             if data.flag == 1
                 sol = gap > 0.5 ? randn(n) : sol
                 sol,data.flag = refine_sol(opt, sol, data, QUIET=true, gtol=data.gtol)

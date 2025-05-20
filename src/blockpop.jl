@@ -58,7 +58,7 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, newton=false, feasibility=false, GroebnerBasis=true, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
+function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, newton=false, feasibility=false, GroebnerBasis=false, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
     QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=false, 
     rtol=1e-2, gtol=1e-2, ftol=1e-3) where {V, M, T<:Number}
     println("*********************************** TSSOS ***********************************")
@@ -74,10 +74,8 @@ function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, n
         cpop = copy(pop)
         gb = convert.(DP.Polynomial{V, M, Float64}, cpop[end-numeq+1:end])
         cpop = cpop[1:end-numeq]
-        if QUIET == false
-            println("Computing the Gröbner basis...")
-            println("This might be slow. You can set GroebnerBasis=false to close it.")
-        end
+        println("Computing the Gröbner basis...")
+        println("This might be slow. You can set GroebnerBasis=false to close it.")
         SemialgebraicSets.gröbner_basis!(gb)
         cpop[1] = rem(cpop[1], gb)
         lead = SemialgebraicSets.leading_monomial.(gb)
@@ -151,7 +149,7 @@ function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, n
     sol = nothing
     if solution == true
         if TS != false || (numeq > 0 && GroebnerBasis == true)
-            sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+            sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=true)
             if data.flag == 1
                 sol = gap > 0.5 ? randn(n) : sol
                 sol,data.flag = refine_sol(opt, sol, data, QUIET=true, gtol=gtol)
@@ -244,7 +242,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
         normality=normality, writetofile=writetofile)
         sol = nothing
         if solution == true
-            sol,gap,data.flag = extract_solution(momone, opt, data.pop, x, numeq=numeq, gtol=data.gtol, ftol=data.ftol)
+            sol,gap,data.flag = extract_solution(momone, opt, data.pop, x, numeq=numeq, QUIET=true, gtol=data.gtol, ftol=data.ftol)
             if data.flag == 1
                 sol = gap > 0.5 ? randn(n) : sol
                 sol,data.flag = refine_sol(opt, sol, data, QUIET=true, gtol=data.gtol)

@@ -115,14 +115,14 @@ Extract a tuple of solutions from the moment matrix using the GNS robust algorit
 - `sol`: a tuple of solutions
 - `w`: weight vector
 """
-function extract_solutions_robust(moment, n, d; pop=nothing, x=nothing, lb=nothing, numeq=0, basis=[], check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
+function extract_solutions_robust(moment, n, d; type=Float64, pop=nothing, x=nothing, lb=nothing, numeq=0, basis=[], check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
     if isempty(basis)
         basis = get_basis(n, d)
     end
     ls = binomial(n+d-1, n)
-    N = Vector{Matrix{ComplexF64}}(undef, n)
+    N = Vector{Matrix{type}}(undef, n)
     for i = 1:n
-        N[i] = zeros(ComplexF64, ls, ls)
+        N[i] = zeros(type, ls, ls)
         temp = zeros(UInt8, n)
         temp[i] = 1
         for j = 1:ls, k = 1:ls
@@ -172,7 +172,7 @@ function extract_csolutions_robust(moment, n, d, cliques, cql, cliquesize; pop=n
     sol = zeros(ComplexF64, n)
     freq = zeros(n)
     for i = 1:cql
-        ssol[i],w = extract_solutions_robust(moment[i][1], cliquesize[i], d, check=false, rtol=rtol, gtol=gtol, ftol=ftol)
+        ssol[i],w = extract_solutions_robust(moment[i][1], cliquesize[i], d, type=ComplexF64, check=false, rtol=rtol, gtol=gtol, ftol=ftol)
         sol[cliques[i]] += ssol[i][argmax(w)]
         freq[cliques[i]] .+= 1
     end

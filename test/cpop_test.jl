@@ -41,6 +41,20 @@ pop = [z[1]*z[2] + conj(z[1])*conj(z[2]), 1 - z'*z]
 opt,sol,data = complex_cs_tssos_first(pop, z, 2, numeq=1, QUIET=true, TS="block", solution=true, Gram=true)
 @test opt ≈ -1 atol = 1e-6
 
+@complex_polyvar x[1:3]
+pop = [1, x[1]^2-2x[1]*x[3]+conj(x[1]^2)-2conj(x[1]*x[3])+10, im*(x[1]^2-2x[1]*x[3])-im*(conj(x[1]^2)-2conj(x[1]*x[3])), 
+x[1]*x[2]^2+x[2]*x[3]+conj(x[1]*x[2]^2+x[2]*x[3])+2, im*(x[1]*x[2]^2+x[2]*x[3])-im*conj(x[1]*x[2]^2+x[2]*x[3])+2, 
+3x[2]^2-8x[1]*x[3]+conj(3x[2]^2-8x[1]*x[3]), im*(3x[2]^2-8x[1]*x[3])-im*conj(3x[2]^2-8x[1]*x[3])]
+opt,sol,data = complex_tssos_first(pop, x, 3, numeq=6, TS="block", Gram=true, solution=true, QUIET=true)
+@test opt ≈ 1 atol = 1e-6
+
+@complex_polyvar z[1:3]
+pop = [1, z[1]^2+z[2]+z[3]+conj(z[1]^2+z[2]+z[3])+2, im*(z[1]^2+z[2]+z[3])-im*conj(z[1]^2+z[2]+z[3]),
+z[2]^2+z[1]+z[3]+conj(z[2]^2+z[1]+z[3])+2, im*(z[2]^2+z[1]+z[3])-im*conj(z[2]^2+z[1]+z[3]),
+z[3]^2+z[2]+z[1]+conj(z[3]^2+z[2]+z[1])+2, im*(z[3]^2+z[2]+z[1])-im*conj(z[3]^2+z[2]+z[1])]
+opt,sol,data = complex_tssos_first(pop, z, 3, numeq=6, TS="block", Gram=true, solution=true, QUIET=true)
+@test opt ≈ 1 atol = 1e-6
+
 @complex_polyvar z1 z2 z3
 z = tuple(z1,z2,z3)
 f = - z3*conj(z3)
