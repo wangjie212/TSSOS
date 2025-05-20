@@ -10,31 +10,25 @@ $$\mathbf{K}\coloneqq\lbrace \mathbf{z}\in\mathbb{C}^n \mid g_i(\mathbf{z},\bar{
 
 where $\bar{\mathbf{z}}$ stands for the conjugate of $\mathbf{z}:=(z_1,\ldots,z_n)$, and $f, g_i, i=1,\ldots,m, h_j, j=1,\ldots,\ell$ are real-valued complex polynomials satisfying $\bar{f}=f$ and $\bar{g}_i=g_i$, $\bar{h}_j=h_j$.
 
-In TSSOS, we use $x_i$ to represent the complex variable $z_i$ and use $x_{n+i}$ to represent its conjugate $\bar{z}_i$. Let us consider the following example:
+Let us consider the following example:
 
 $$\mathrm{inf}\ 3-|z_1|^2-0.5\mathbf{i}z_1\bar{z}_2^2+0.5\mathbf{i}z_2^2\bar{z}_1$$
 
-$$\mathrm{s.t.}\ z_2+\bar{z}_2\ge0,|z_1|^2-0.25z_1^2-0.25\bar{z}_1^2=1,|z_1|^2+|z_2|^2=3,\mathbf{i}z_2-\mathbf{i}\bar{z}_2=0,$$
-
-which is represented in TSSOS as
-
-$$\mathrm{inf}\ 3-x_1x_3-0.5\mathbf{i}x_1x_4^2+0.5\mathbf{i}x_2^2x_3$$
-
-$$\mathrm{s.t.}\ x_2+x_4\ge0,x_1x_3-0.25x_1^2-0.25x_3^2=1,x_1x_3+x_2x_4=3,\mathbf{i}x_2-\mathbf{i}x_4=0.$$
+$$\mathrm{s.t.}\ z_2+\bar{z}_2\ge0,|z_1|^2-0.25z_1^2-0.25\bar{z}_1^2=1,|z_1|^2+|z_2|^2=3,\mathbf{i}z_2-\mathbf{i}\bar{z}_2=0.$$
 
 ```Julia
 using DynamicPolynomials
 n = 2 # set the number of complex variables
-@polyvar x[1:2n]
-f = 3 - x[1]*x[3] - 0.5im*x[1]*x[4]^2 + 0.5im*x[2]^2*x[3]
-g1 = x[2] + x[4]
-h1 = x[1]*x[3] - 0.25*x[1]^2 - 0.25 x[3]^2 - 1
-h2 = x[1]*x[3] + x[2]*x[4] - 3
-h3 = im*x[2] - im*x[4]
-pop = [f, g, h1, h2, h3]
+@complex_polyvar z[1:n]
+f = 3 - x[1]*conj(x[1]) - 0.5im*x[1]*conj(x[2])^2 + 0.5im*x[2]^2*conj(x[1])
+g1 = x[2] + conj(x[2])
+g2 = x[1]*conj(x[1]) - 0.25*x[1]^2 - 0.25*conj(x[1])^2 - 1
+g3 = x[1]*conj(x[1]) + x[2]*conj(x[2]) - 3
+g4 = im*x[2] - im*conj(x[2])
+pop = [f, g1, g2, g3, g4]
 order = 2 # set the relaxation order
-opt,sol,data = cs_tssos_first(pop, x, n, order, numeq=3) # compute the first TS step of the CS-TSSOS hierarchy
-opt,sol,data = cs_tssos_higher!(data) # compute higher TS steps of the CS-TSSOS hierarchy
+opt,sol,data = complex_tssos_first(pop, z, order, numeq=3, TS="block", solution=true) # no correlative sparsity
+opt,sol,data = complex_cs_tssos_first(pop, z, order, numeq=3, TS="block", solution=true)
 ```
 
 ### Keyword arguments
@@ -57,8 +51,10 @@ QUIET | Silence the output| false
 solve | Solve the SDP relaxation | true
 dualize | Solve the dual SDP problem | false
 Gram | Output Gram matrices | false
-solution | Extract an approximately optimal solution | false
-tol | Tolerance for certifying global optimality | 1e-4
+solution | Extract an optimal solution | false
+rtol | tolerance for rank | 1e-2
+gtol | tolerance for global optimality gap | 1e-2
+ftol | tolerance for feasibility | 1e-3
 
 ### References
 

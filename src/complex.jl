@@ -1,10 +1,10 @@
 mutable struct ccpop_data
-    cpop # complex polynomial optimiztion problem
+    pop # complex polynomial optimiztion problem
     z # complex variables
     rlorder # relaxation order
-    n # number of all variables
+    n # number of variables
     nb # number of binary variables
-    m # number of all constraints
+    m # number of constraints
     numeq # number of equality constraints
     ipart # include the imaginary part
     ConjugateBasis # include conjugate variables in monomial bases
@@ -28,14 +28,17 @@ mutable struct ccpop_data
     moment # Moment matrix
     solver # SDP solver
     SDP_status
-    tol # tolerance to certify global optimality
+    rtol # tolerance for rank
+    gtol # tolerance for global optimality gap
+    ftol # tolerance for feasibility
     flag # 0 if global optimality is certified; 1 otherwise
 end
 
 """
-    opt,sol,data = cs_tssos_first(pop, z, n, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", reducebasis=false, 
+    opt,sol,data = complex_cs_tssos_first(pop, z, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", reducebasis=false, 
     merge=false, md=3, solver="Mosek", QUIET=false, solve=true, solution=false, dualize=false, Gram=false, 
-    MomentOne=false, ConjugateBasis=false, normality=!ConjugateBasis, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+    MomentOne=false, ConjugateBasis=false, normality=!ConjugateBasis, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
+    rtol=1e-2, gtol=1e-2, ftol=1e-3)
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained complex polynomial optimization. 
 If `ConjugateBasis=true`, then include conjugate variables in monomial bases.
@@ -47,7 +50,6 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 # Input arguments
 - `pop`: vector of the objective, inequality constraints, and equality constraints
 - `z`: CPOP variables and their conjugate
-- `n`: number of CPOP variables
 - `d`: relaxation order
 - `nb`: number of unit-norm variables in `x`
 - `numeq`: number of equality constraints
@@ -57,34 +59,49 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `md`: tunable parameter for merging blocks
 - `normality`: normal order
 - `QUIET`: run in the quiet mode (`true`, `false`)
+- `rtol`: tolerance for rank
+- `gtol`: tolerance for global optimality gap
+- `ftol`: tolerance for feasibility
 
 # Output arguments
 - `opt`: optimum
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function cs_tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, z, n::Int, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], TS="block", 
+function complex_cs_tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, z, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], TS="block", 
     merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, 
-    ConjugateBasis=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=!ConjugateBasis) where {V, M, T<:Number}
-    supp,coe = polys_info(pop, z, n, ctype=T)
-    opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, RemSig=RemSig, nb=nb, CS=CS, cliques=cliques, TS=TS, merge=merge, 
+    ConjugateBasis=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=!ConjugateBasis, 
+    rtol=1e-2, gtol=1e-2, ftol=1e-3) where {V, M, T<:Number}
+    supp,coe = cpolys_info(pop, z, ctype=T)
+    return complex_cs_tssos_first(supp, coe, length(z), d, numeq=numeq, RemSig=RemSig, nb=nb, CS=CS, cliques=cliques, TS=TS, merge=merge, 
     md=md, solver=solver, reducebasis=reducebasis, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution,
     MomentOne=MomentOne, ConjugateBasis=ConjugateBasis, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
-    writetofile=writetofile, normality=normality, cpop=pop, z=z)
-    return opt,sol,data
+    writetofile=writetofile, normality=normality, pop=pop, z=z, rtol=rtol, gtol=gtol, ftol=ftol)
+end
+
+function complex_tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, z, d; numeq=0, RemSig=false, nb=0, cliques=[], TS="block", 
+    merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, 
+    ConjugateBasis=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=!ConjugateBasis, 
+    rtol=1e-2, gtol=1e-2, ftol=1e-3) where {V, M, T<:Number}
+    return complex_cs_tssos_first(pop, z, d, numeq=numeq, RemSig=RemSig, nb=nb, CS=false, cliques=cliques, TS=TS, merge=merge, 
+    md=md, solver=solver, reducebasis=reducebasis, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution,
+    MomentOne=MomentOne, ConjugateBasis=ConjugateBasis, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
+    writetofile=writetofile, normality=normality, rtol=rtol, gtol=gtol, ftol=ftol)
 end
 
 """
-    opt,sol,data = cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vector{Vector{T}}, n, d; 
+    opt,sol,data = complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vector{Vector{T}}, n, d; 
     nb=0, numeq=0, CS="MF", cliques=[], TS="block", merge=false, md=3, solver="Mosek", solution=false, dualize=false,
-    QUIET=false, solve=true, Gram=false, MomentOne=false, normality=!ConjugateBasis, cosmo_setting=cosmo_para(), mosek_setting=mosek_para()) where {T<:Number}
+    QUIET=false, solve=true, Gram=false, MomentOne=false, normality=!ConjugateBasis, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(),
+    rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained complex polynomial optimization. 
 Here the complex polynomial optimization problem is defined by `supp` and `coe`, corresponding to the supports and coeffients of `pop` respectively.
 """
-function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vector{Vector{T}}, n::Int, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], 
+function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vector{Vector{T}}, n::Int, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], 
     TS="block", merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, ConjugateBasis=false, 
-    Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=!ConjugateBasis, cpop=nothing, z=nothing) where {T<:Number}
+    Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=!ConjugateBasis, pop=nothing, z=nothing, 
+    rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     ipart = T <: Real ? false : true
@@ -94,9 +111,6 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vecto
     supp = copy(supp)
     coe = copy(coe)
     m = length(supp) - 1
-    ind = [supp[1][i][1] <= supp[1][i][2] for i=1:length(supp[1])]
-    supp[1] = supp[1][ind]
-    coe[1] = coe[1][ind]
     dc = zeros(Int, m)
     for i = 1:m
         if ConjugateBasis == false
@@ -194,8 +208,8 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vecto
             end
         end
     end
-    tsupp = copy(supp[1])
-    for i = 2:m+1, j = 1:length(supp[i])
+    tsupp = Vector{Vector{UInt16}}[]
+    for i = 1:m+1, j = 1:length(supp[i])
         if supp[i][j][1] <= supp[i][j][2]
             push!(tsupp, supp[i][j])
         end
@@ -211,8 +225,8 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vecto
         for i = 1:cql
             basis[i][1] = basis[i][1][union(blocks[i][1][blocksize[i][1] .> 1]...)]
         end
-        tsupp = copy(supp[1])
-        for i = 2:m+1, j = 1:length(supp[i])
+        tsupp = Vector{Vector{UInt16}}[]
+        for i = 1:m+1, j = 1:length(supp[i])
             if supp[i][j][1] <= supp[i][j][2]
                 push!(tsupp, supp[i][j])
             end
@@ -223,9 +237,9 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vecto
     end
     if reducebasis == true
         tsupp = get_gsupp(rlorder, basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, cliquesize, norm=true, nb=nb, ConjugateBasis=ConjugateBasis, normality=normality)
-        for i = 1:length(supp[1])
-            if supp[1][i][1] == supp[1][i][2]
-                push!(tsupp, supp[1][i][1])
+        for item in supp[1]
+            if item[1] == item[2]
+                push!(tsupp, item[1])
             end
         end
         sort!(tsupp)
@@ -240,8 +254,8 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vecto
             end
         end
         if flag == 1
-            tsupp = copy(supp[1])
-            for i = 2:m+1, j = 1:length(supp[i])
+            tsupp = Vector{Vector{UInt16}}[]
+            for i = 1:m+1, j = 1:length(supp[i])
                 if supp[i][j][1] <= supp[i][j][2]
                     push!(tsupp, supp[i][j])
                 end
@@ -256,41 +270,59 @@ function cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe::Vecto
         mb = maximum(maximum.([maximum.(blocksize[i]) for i = 1:cql]))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,GramMat,multiplier,SDP_status = solvesdp(m, rlorder, supp, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize,
-    numeq=numeq, QUIET=QUIET, TS=TS, ConjugateBasis=ConjugateBasis, solver=solver, solve=solve, MomentOne=MomentOne, ipart=ipart,
+    opt,ksupp,moment,sol,GramMat,multiplier,SDP_status = solvesdp(n, m, rlorder, supp, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize,
+    numeq=numeq, QUIET=QUIET, TS=TS, ConjugateBasis=ConjugateBasis, solver=solver, solve=solve, MomentOne=MomentOne, ipart=ipart, solution=solution,
     Gram=Gram, nb=nb, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, dualize=dualize, writetofile=writetofile, normality=normality)
-    sol = nothing
     flag = 1
     if solution == true
-        pop,x = complex_to_real(cpop, z)
-        _,rsupp,rcoe = polys_info(pop, x)
-        ub,sol,status = local_solution(2n, m, rsupp, rcoe, numeq=numeq, startpoint=rand(2n), QUIET=true)
-        sol = sol[1:n] + sol[n+1:2n]*im
-        if status == MOI.LOCALLY_SOLVED
-            gap = abs(opt-ub)/max(1, abs(ub))
-            if gap < 1e-2
-                flag = 0
-                println("------------------------------------------------")
-                @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
-                println("Successfully extracted one globally optimal solution.")
-                println("------------------------------------------------")
+        if TS != false
+            if pop !== nothing
+                asol = check_solution([sol], opt, pop, z, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+                if asol === nothing
+                    rsupp,rcoe = polys_info(complex_to_real(pop, z)...)
+                    rsol = [real(sol); imag(sol)]
+                    ub = eval(supp[1], coe[1], sol)
+                    gap = abs(opt-ub)/max(1, abs(ub))
+                    rsol = gap > 0.5 ? randn(2n) : rsol
+                    ub,rsol,status = local_solution(2n, m, rsupp, rcoe, numeq=numeq, startpoint=rsol, QUIET=true)
+                    if status == MOI.LOCALLY_SOLVED
+                        sol = rsol[1:n] + rsol[n+1:2n]*im
+                        ub = eval(supp[1], coe[1], sol)
+                        gap = abs(opt-ub)/max(1, abs(ub))
+                        if gap < gtol
+                            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+                            println("Successfully extracted one globally optimal solution.")
+                        else
+                            @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
+                        end
+                    end
+                end
             else
-                @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
+                sol = check_solution([sol], opt, supp, coe, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+            end
+        else
+            if cql == 1 && pop !== nothing
+                sol = extract_solutions_robust(moment[1][1], n, d, pop=pop, x=z, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
+            else
+                sol = extract_csolutions_robust(moment, n, d, cliques, cql, cliquesize, pop=pop, z=z, supp=supp, coe=coe, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
             end
         end
+        if sol !== nothing
+            flag = 0
+        end
     end
-    data = ccpop_data(cpop, z, rlorder, n, nb, m, numeq, ipart, ConjugateBasis, normality, supp, coe, basis, ebasis, ksupp, cql, cliquesize, cliques, I, J, ncc, blocksize, blocks, eblocks, 
-    GramMat, multiplier, moment, solver, SDP_status, 1e-2, flag)
+    data = ccpop_data(pop, z, rlorder, n, nb, m, numeq, ipart, ConjugateBasis, normality, supp, coe, basis, ebasis, ksupp, cql, cliquesize, cliques, I, J, ncc, blocksize, blocks, eblocks, 
+    GramMat, multiplier, moment, solver, SDP_status, rtol, gtol, ftol, flag)
     return opt,sol,data
 end
 
 """
-    opt,sol,data = cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, dualize=false,
+    opt,sol,data = complex_cs_tssos_higher!(data; TS="block", merge=false, md=3, QUIET=false, solve=true, dualize=false,
     solution=false, Gram=false, MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
 
 Compute higher TS steps of the CS-TSSOS hierarchy.
 """
-function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
+function complex_cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
     MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false)
     n = data.n
     nb = data.nb
@@ -319,26 +351,36 @@ function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET
             mb = maximum(maximum.([maximum.(blocksize[i]) for i = 1:cql]))
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
-        opt,ksupp,moment,GramMat,multiplier,SDP_status = solvesdp(m, data.rlorder, supp, data.coe, basis, ebasis, cliques, cql, cliquesize, I, J, data.ncc, blocks, eblocks, cl,
-        blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=data.solver, solve=solve, dualize=dualize, ipart=data.ipart, MomentOne=MomentOne, 
+        opt,ksupp,moment,sol,GramMat,multiplier,SDP_status = solvesdp(n, m, data.rlorder, supp, data.coe, basis, ebasis, cliques, cql, cliquesize, I, J, data.ncc, blocks, eblocks, cl,
+        blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=data.solver, solve=solve, dualize=dualize, ipart=data.ipart, MomentOne=MomentOne, solution=solution, 
         Gram=Gram, ConjugateBasis=data.ConjugateBasis, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile, normality=normality)
-        sol = nothing
         if solution == true
-            pop,x = complex_to_real(data.cpop, data.z)
-            _,rsupp,rcoe = polys_info(pop, x)
-            ub,sol,status = local_solution(2n, m, rsupp, rcoe, numeq=numeq, startpoint=rand(2n), QUIET=true)
-            sol = sol[1:n] + sol[n+1:2n]*im
-            if status == MOI.LOCALLY_SOLVED
-                gap = abs(opt-ub)/max(1, abs(ub))
-                if gap < data.tol
-                    data.flag = 0
-                    println("------------------------------------------------")
-                    @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
-                    println("Successfully extracted one globally optimal solution.")
-                    println("------------------------------------------------")
-                else
-                    @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
+            if data.pop !== nothing
+                asol = check_solution([sol], opt, data.pop, data.z, numeq=numeq, gtol=data.gtol, ftol=data.ftol, QUIET=QUIET)
+                if asol === nothing
+                    rsupp,rcoe = polys_info(complex_to_real(data.pop, data.z)...)
+                    rsol = [real(sol); imag(sol)]
+                    ub = eval(supp[1], data.coe[1], sol)
+                    gap = abs(opt-ub)/max(1, abs(ub))
+                    rsol = gap > 0.5 ? randn(2n) : rsol
+                    ub,rsol,status = local_solution(2n, m, rsupp, rcoe, numeq=numeq, startpoint=rsol, QUIET=true)
+                    if status == MOI.LOCALLY_SOLVED
+                        sol = rsol[1:n] + rsol[n+1:2n]*im
+                        ub = eval(supp[1], data.coe[1], sol)
+                        gap = abs(opt-ub)/max(1, abs(ub))
+                        if gap < data.gtol
+                            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
+                            println("Successfully extracted one globally optimal solution.")
+                        else
+                            @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
+                        end
+                    end
                 end
+            else
+                sol = check_solution([sol], opt, supp, coe, numeq=numeq, gtol=data.gtol, ftol=data.ftol, QUIET=QUIET)
+            end
+            if sol !== nothing
+                data.flag = 0
             end
         end
         data.blocks = blocks
@@ -351,6 +393,12 @@ function cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET
         data.SDP_status = SDP_status
     end
     return opt,sol,data
+end
+
+function complex_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
+    MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false)
+    return complex_cs_tssos_higher!(data, TS=TS, merge=merge, md=md, QUIET=QUIET, solve=solve, solution=solution, Gram=Gram, dualize=dualize, 
+    MomentOne=MomentOne, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile)
 end
 
 function reduce_unitnorm(a; nb=0)
@@ -442,8 +490,8 @@ function get_gsupp(rlorder, basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks
     return gsupp
 end
 
-function solvesdp(m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize; 
-    numeq=0, nb=0, QUIET=false, TS="block", ConjugateBasis=false, solver="Mosek", solve=true, dualize=false, Gram=false, MomentOne=false, ipart=true, 
+function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize; 
+    numeq=0, nb=0, QUIET=false, TS="block", ConjugateBasis=false, solver="Mosek", solve=true, dualize=false, Gram=false, MomentOne=false, ipart=true, solution=false, 
     cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=1)
     tsupp = Vector{Vector{UInt16}}[]
     for i = 1:cql
@@ -472,8 +520,8 @@ function solvesdp(m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe,
         gsupp = get_gsupp(rlorder, basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, cliquesize, ConjugateBasis=ConjugateBasis, nb=nb, normality=normality)
         append!(tsupp, gsupp)
     end
-    ksupp = copy(tsupp)
-    if MomentOne == true
+    if (MomentOne == true || solution == true) && TS != false
+        ksupp = copy(tsupp)
         for i = 1:cql, j = 1:cliquesize[i]
             push!(tsupp, [UInt16[], UInt16[cliques[i][j]]])
             for k = j+1:cliquesize[i]
@@ -487,13 +535,13 @@ function solvesdp(m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe,
     end
     sort!(tsupp)
     unique!(tsupp)
-    if MomentOne == true
+    if (MomentOne == true || solution == true) && TS != false
         sort!(ksupp)
         unique!(ksupp)
     else
         ksupp = tsupp
     end
-    objv = moment = GramMat = multiplier = SDP_status= nothing
+    objv = moment = sol = GramMat = multiplier = SDP_status= nothing
     if solve == true
         ltsupp = length(tsupp)
         if QUIET == false
@@ -514,7 +562,7 @@ function solvesdp(m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe,
             model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
         else
             @error "The solver is currently not supported!"
-            return nothing,nothing,nothing,nothing,nothing,nothing
+            return nothing,nothing,nothing,nothing,nothing,nothing,nothing
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
@@ -524,7 +572,7 @@ function solvesdp(m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe,
         end
         pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, cql)
         for i = 1:cql
-            if MomentOne == true
+            if (MomentOne == true || solution == true) && TS != false
                 bs = cliquesize[i] + 1
                 if ipart == true
                     pos0 = @variable(model, [1:2*bs, 1:2*bs], PSD)
@@ -758,16 +806,18 @@ function solvesdp(m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe,
         if QUIET == false
             println("There are $ncons affine constraints.")
         end
-        for i = 1:length(supp[1])
-            Locb = bfind(tsupp, ltsupp, supp[1][i])
+        ind = [supp[1][i][1] <= supp[1][i][2] for i=1:length(supp[1])]
+        nsupp,ncoe = supp[1][ind],coe[1][ind]
+        for (i,item) in enumerate(nsupp)
+            Locb = bfind(tsupp, ltsupp, item)
             if Locb === nothing
                @error "The monomial basis is not enough!"
-               return nothing,nothing,nothing,nothing,nothing,nothing
+               return nothing,nothing,nothing,nothing,nothing,nothing,nothing
             else
-               rbc[Locb] = real(coe[1][i])
-               if ipart == true && supp[1][i][1] != supp[1][i][2]
-                   Locb = bfind(itsupp, length(itsupp), supp[1][i])
-                   ibc[Locb] = imag(coe[1][i])
+               rbc[Locb] = real(ncoe[i])
+               if ipart == true && item[1] != item[2]
+                   Locb = bfind(itsupp, length(itsupp), item)
+                   ibc[Locb] = imag(ncoe[i])
                end
             end
         end
@@ -836,9 +886,15 @@ function solvesdp(m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe,
         if ipart == true
             imeasure = -dual(icon)
         end
+        if solution == true
+            sol = [rmeasure[bfind(tsupp, ltsupp, [UInt16[], UInt16[i]])] for i = 1:n]
+            if ipart == true
+                sol += [-imeasure[bfind(tsupp, ltsupp, [UInt16[], UInt16[i]])] for i = 1:n]*im
+            end          
+        end
         moment = get_cmoment(rmeasure, imeasure, tsupp, itsupp, cql, blocks, cl, blocksize, basis, ipart=ipart, nb=nb, ConjugateBasis=ConjugateBasis)
     end
-    return objv,ksupp,moment,GramMat,multiplier,SDP_status
+    return objv,ksupp,moment,sol,GramMat,multiplier,SDP_status
 end
 
 function get_eblock(tsupp::Vector{Vector{Vector{UInt16}}}, hsupp::Vector{Vector{Vector{UInt16}}}, basis::Vector{Vector{Vector{UInt16}}}; nb=nb)
@@ -1029,9 +1085,10 @@ function clique_decomp(n, m, dc, supp::Vector{Vector{Vector{Vector{UInt16}}}}; o
 end
 
 function get_cmoment(rmeasure, imeasure, tsupp, itsupp, cql, blocks, cl, blocksize, basis; ipart=true, nb=0, ConjugateBasis=false)
-    moment = Vector{Vector{Matrix{Union{Float64,ComplexF64}}}}(undef, cql)
+    ctype = ipart == true ? ComplexF64 : Float64
+    moment = Vector{Vector{Matrix{ctype}}}(undef, cql)
     for i = 1:cql
-        moment[i] = Vector{Matrix{Union{Float64,ComplexF64}}}(undef, cl[i][1])
+        moment[i] = Vector{Matrix{ctype}}(undef, cl[i][1])
         for l = 1:cl[i][1]
             bs = blocksize[i][1][l]
             rtemp = zeros(Float64, bs, bs)

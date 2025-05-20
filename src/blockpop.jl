@@ -1,10 +1,10 @@
 mutable struct cpop_data
+    pop # polynomial optimization problem
+    x # variables
     n # number of variables
     nb # number of binary variables
     m # number of constraints
     numeq # number of equality constraints
-    x # set of variables
-    pop # polynomial optimization problem
     gb # Grobner basis
     leadsupp # leader terms of the Grobner basis
     supp # support data
@@ -20,14 +20,16 @@ mutable struct cpop_data
     moment # Moment matrix
     solver # SDP solver
     SDP_status
-    tol # tolerance to certify global optimality
+    rtol # tolerance for rank
+    gtol # tolerance for global optimality gap
+    ftol # tolerance for feasibility
     flag # 0 if global optimality is certified; 1 otherwise
 end
 
 """
     opt,sol,data = tssos_first(pop, x, d; nb=0, numeq=0, GroebnerBasis=true, basis=[], reducebasis=false, TS="block", 
-    merge=false, md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, tol=1e-2, 
-    cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=false)
+    merge=false, md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, 
+    cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=false, rtol=1e-2, gtol=1e-2, ftol=1e-3)
 
 Compute the first TS step of the TSSOS hierarchy for constrained polynomial optimization.
 If `reducebasis=true`, then remove monomials from the monomial basis by diagonal inconsistency.
@@ -47,7 +49,9 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `md`: tunable parameter for merging blocks
 - `normality`: impose the normality condtions (`true`, `false`)
 - `QUIET`: run in the quiet mode (`true`, `false`)
-- `tol`: relative tolerance to certify global optimality
+- `rtol`: tolerance for rank
+- `gtol`: tolerance for global optimality gap
+- `ftol`: tolerance for feasibility
 
 # Output arguments
 - `opt`: optimum
@@ -55,7 +59,8 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `data`: other auxiliary data 
 """
 function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, newton=false, feasibility=false, GroebnerBasis=true, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
-    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-2, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=false) where {V, M, T<:Number}
+    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=false, 
+    rtol=1e-2, gtol=1e-2, ftol=1e-3) where {V, M, T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     n = length(x)
@@ -76,31 +81,20 @@ function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, n
         SemialgebraicSets.gröbner_basis!(gb)
         cpop[1] = rem(cpop[1], gb)
         lead = SemialgebraicSets.leading_monomial.(gb)
-        llead = length(lead)
-        leadsupp = zeros(UInt8, n, llead)
-        for i = 1:llead, j = 1:n
+        leadsupp = zeros(UInt8, n, length(lead))
+        for i = 1:length(lead), j = 1:n
             @inbounds leadsupp[j,i] = MP.degree(lead[i], x[j])
         end
     else
         cpop = pop
-        gb = []
-        leadsupp = []
+        gb = leadsupp = []
     end
     ss = nothing
     if normality == true || TS == "signsymmetry"
         ss = get_signsymmetry(pop, x)
     end
     m = length(cpop) - 1
-    coe = Vector{Vector{Float64}}(undef, m+1)
-    supp = Vector{Array{UInt8,2}}(undef, m+1)
-    for k = 1:m+1
-        mons = MP.monomials(cpop[k])
-        coe[k] = MP.coefficients(cpop[k])
-        supp[k] = zeros(UInt8, n, length(mons))
-        for i in eachindex(mons), j = 1:n
-            @inbounds supp[k][j,i] = MP.degree(mons[i], x[j])
-        end
-    end
+    supp,coe = npolys_info(cpop, x)
     isupp = reduce(hcat, supp)
     neq = isempty(gb) ? numeq : 0
     if isempty(basis)
@@ -153,17 +147,17 @@ function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, n
     opt,ksupp,moment,momone,GramMat,multiplier,SDP_status = solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize, nb=nb, numeq=numeq, gb=gb, x=x, dualize=dualize, TS=TS,
     lead=leadsupp, solver=solver, QUIET=QUIET, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile, 
     signsymmetry=ss, normality=normality)
-    data = cpop_data(n, nb, m, numeq, x, pop, gb, leadsupp, supp, coe, basis, ebasis, ksupp, blocksize, blocks, eblocks, GramMat, multiplier, moment, solver, SDP_status, tol, 1)
+    data = cpop_data(pop, x, n, nb, m, numeq, gb, leadsupp, supp, coe, basis, ebasis, ksupp, blocksize, blocks, eblocks, GramMat, multiplier, moment, solver, SDP_status, rtol, gtol, ftol, 1)
     sol = nothing
     if solution == true
         if TS != false || (numeq > 0 && GroebnerBasis == true)
-            sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, gtol=tol, QUIET=QUIET)
+            sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
             if data.flag == 1
                 sol = gap > 0.5 ? randn(n) : sol
-                sol,data.flag = refine_sol(opt, sol, data, QUIET=true, tol=tol)
+                sol,data.flag = refine_sol(opt, sol, data, QUIET=true, gtol=gtol)
             end
         else
-            sol = extract_solutions_robust(moment[1], n, d, pop=pop, x=x, lb=opt, numeq=numeq, basis=basis[1], gtol=tol, QUIET=QUIET)[1]
+            sol = extract_solutions_robust(moment[1], n, d, pop=pop, x=x, lb=opt, numeq=numeq, basis=basis[1], check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
             if sol !== nothing
                 data.flag = 0
             end
@@ -173,8 +167,8 @@ function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, n
 end
 
 """
-    opt,sol,data = tssos_first(f, x; newton=true, reducebasis=false, TS="block", merge=false, md=3, feasibility=false, solver="Mosek", 
-    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-2, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+    opt,sol,data = tssos_first(f, x; newton=true, reducebasis=false, TS="block", merge=false, md=3, feasibility=false, solver="Mosek", QUIET=false, solve=true, 
+    dualize=false, MomentOne=false, Gram=false, solution=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), rtol=1e-2, gtol=1e-2, ftol=1e-3)
 
 Compute the first TS step of the TSSOS hierarchy for unconstrained polynomial optimization.
 If `newton=true`, then compute a monomial basis by the Newton polytope method.
@@ -192,17 +186,19 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `TS`: type of term sparsity (`"block"`, `"signsymmetry"`, `"MD"`, `"MF"`, `false`)
 - `md`: tunable parameter for merging blocks
 - `QUIET`: run in the quiet mode (`true`, `false`)
-- `tol`: relative tolerance to certify global optimality
+- `rtol`: tolerance for rank
+- `gtol`: tolerance for global optimality gap
+- `ftol`: tolerance for feasibility
 
 # Output arguments
 - `opt`: optimum
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function tssos_first(f::DP.Polynomial{V, M, T}, x; newton=true, reducebasis=false, TS="block", merge=false, md=3, feasibility=false, solver="Mosek", 
-    QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, tol=1e-2, cosmo_setting=cosmo_para(), mosek_setting=mosek_para()) where {V, M, T<:Number}
+function tssos_first(f::DP.Polynomial{V, M, T}, x; newton=true, reducebasis=false, TS="block", merge=false, md=3, feasibility=false, solver="Mosek", QUIET=false, solve=true, 
+    dualize=false, MomentOne=false, Gram=false, solution=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), rtol=1e-2, gtol=1e-2, ftol=1e-3) where {V, M, T<:Number}
     return tssos_first([f], x, Int(ceil(maxdegree(f)/2)), newton=newton, feasibility=feasibility, GroebnerBasis=false, reducebasis=reducebasis, TS=TS, merge=merge, md=md, solver=solver, 
-    QUIET=QUIET, solve=solve, dualize=dualize, MomentOne=MomentOne, Gram=Gram, solution=solution, tol=tol, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
+    QUIET=QUIET, solve=solve, dualize=dualize, MomentOne=MomentOne, Gram=Gram, solution=solution, rtol=rtol, gtol=gtol, ftol=ftol, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
 end
 
 """
@@ -226,7 +222,6 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
     ebasis = data.ebasis
     ksupp = data.ksupp
     solver = data.solver
-    tol = data.tol
     ksupp = sortslices(ksupp, dims=2)
     ksupp = unique(ksupp, dims=2)
     if QUIET == false
@@ -249,10 +244,10 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
         normality=normality, writetofile=writetofile)
         sol = nothing
         if solution == true
-            sol,gap,data.flag = extract_solution(momone, opt, data.pop, x, numeq=numeq, gtol=tol)
+            sol,gap,data.flag = extract_solution(momone, opt, data.pop, x, numeq=numeq, gtol=data.gtol, ftol=data.ftol)
             if data.flag == 1
                 sol = gap > 0.5 ? randn(n) : sol
-                sol,data.flag = refine_sol(opt, sol, data, QUIET=true, tol=tol)
+                sol,data.flag = refine_sol(opt, sol, data, QUIET=true, gtol=data.gtol)
             end
         end
         data.blocks = blocks

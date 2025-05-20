@@ -302,94 +302,79 @@ function generate_basis!(supp, basis)
     return basis[:,indexb]
 end
 
-function seval(supp, coe, x)
-    val = 0
-    for i in eachindex(supp)
-        temp = isempty(supp[i]) ? 1 : prod(x[supp[i][j]] for j=1:length(supp[i]))
-        val += coe[i]*temp
-    end
-    return val
+function eval(supp::Vector{Vector{UInt16}}, coe, x)
+    return coe'*[prod(x[item]) for item in supp]
 end
 
-function npolys_info(p, x)
-    m = length(p)
-    n = length(x)
-    dp = zeros(Int, m)
-    pcoe = Vector{Vector{Union{Number, AffExpr}}}(undef, m)
-    psupp = Vector{Matrix{UInt8}}(undef, m)
-    plt = Vector{Int}(undef, m)
-    for i = 1:m
-        dp[i] = maxdegree(p[i])
-        mon = MP.monomials(p[i])
-        pcoe[i] = MP.coefficients(p[i])
-        plt[i] = length(mon)
-        psupp[i] = zeros(UInt8, n, plt[i])
-        for j = 1:plt[i], k = 1:n
-            psupp[i][k, j] = MP.degree(mon[j], x[k])
-        end
+function eval(supp::Vector{Vector{Vector{UInt16}}}, coe, z)
+    return real(transpose(coe)*[prod(z[item[1]])*conj(prod(z[item[2]])) for item in supp])
+end
+
+function npolys_info(pop, x; nb=0)
+    if nb > 0
+        gb = x[1:nb].^2 .- 1
+        pop = [rem(p, gb) for p in pop]
     end
-    return psupp,pcoe,plt,dp
+    coe = Vector{Vector{Union{Number, AffExpr}}}(undef, length(pop))
+    supp = Vector{Matrix{UInt8}}(undef, length(pop))
+    for (k, p) in enumerate(pop)
+        supp[k],coe[k] = poly_info(p, x)
+    end
+    return supp,coe
 end
 
 function poly_info(p, x)
-    n = length(x)
-    mon = MP.monomials(p)
-    plt = length(mon)
-    pcoe = MP.coefficients(p)
-    psupp = zeros(UInt8, n, plt)
-    for j = 1:plt, k = 1:n
-        psupp[k, j] = MP.degree(mon[j], x[k])
+    mons = MP.monomials(p)
+    coe = MP.coefficients(p)
+    supp = zeros(UInt8, length(x), length(mons))
+    for (j, mon) in enumerate(mons)
+        supp[:, j] = MP.degree.(mon, x)
     end
-    return psupp,pcoe
+    return supp,coe
 end
 
 function polys_info(pop, x; nb=0)
     n = length(x)
-    m = length(pop) - 1
     if nb > 0
         gb = x[1:nb].^2 .- 1
-        for i in eachindex(pop)
-            pop[i] = rem(pop[i], gb)
-        end
+        pop = [rem(p, gb) for p in pop]
     end
-    coe = Vector{Vector{Union{Number, AffExpr}}}(undef, m+1)
-    supp = Vector{Vector{Vector{UInt16}}}(undef, m+1)
-    for k = 1:m+1
-        mon = MP.monomials(pop[k])
-        coe[k] = MP.coefficients(pop[k])
-        lm = length(mon)
-        supp[k] = [UInt16[] for i=1:lm]
-        for i = 1:lm
-            ind = mon[i].z .> 0
-            vars = mon[i].vars[ind]
-            exp = mon[i].z[ind]
+    coe = Vector{Vector{Union{Number, AffExpr}}}(undef, length(pop))
+    supp = Vector{Vector{Vector{UInt16}}}(undef, length(pop))
+    for (k, p) in enumerate(pop)
+        mons = MP.monomials(p)
+        coe[k] = MP.coefficients(p)
+        supp[k] = [UInt16[] for i=1:length(mons)]
+        for (i,mon) in enumerate(mons)
+            ind = mon.z .> 0
+            vars = mon.vars[ind]
+            exp = mon.z[ind]
             for j in eachindex(vars)
-                l = ncbfind(x, n, vars[j])
-                append!(supp[k][i], l*ones(UInt16, exp[j]))
+                append!(supp[k][i], ncbfind(x, n, vars[j])*ones(UInt16, exp[j]))
             end
         end
     end
-    return n,supp,coe
+    return supp,coe
 end
 
-function polys_info(pop, z, n; ctype=ComplexF64)
+function cpolys_info(pop, x; ctype=ComplexF64)
+    n = length(x)
+    cx = conj.(x)
     coe = Vector{Vector{ctype}}(undef, length(pop))
     supp = Vector{Vector{Vector{Vector{UInt16}}}}(undef, length(pop))
     for k in eachindex(pop)
-        mon = MP.monomials(pop[k])
+        mons = MP.monomials(pop[k])
         coe[k] = MP.coefficients(pop[k])
-        lm = length(mon)
-        supp[k] = [[[], []] for i=1:lm]
-        for i = 1:lm
-            ind = mon[i].z .> 0
-            vars = mon[i].vars[ind]
-            exp = mon[i].z[ind]
+        supp[k] = [[[], []] for i=1:length(mons)]
+        for (i,mon) in enumerate(mons)
+            ind = mon.z .> 0
+            vars = mon.vars[ind]
+            exp = mon.z[ind]
             for j in eachindex(vars)
-                l = ncbfind(z, 2n, vars[j])
-                if l <= n
-                    append!(supp[k][i][1], l*ones(UInt16, exp[j]))
+                if isconj(vars[j])
+                    append!(supp[k][i][2], ncbfind(cx, n, vars[j])*ones(UInt16, exp[j]))
                 else
-                    append!(supp[k][i][2], (l-n)*ones(UInt16, exp[j]))
+                    append!(supp[k][i][1], ncbfind(x, n, vars[j])*ones(UInt16, exp[j]))
                 end
             end
         end
@@ -531,11 +516,11 @@ function show_blocks(data::mcpop_data)
 end
 
 function complex_to_real(cpop, z)
-    n = Int(length(z)/2)
+    n = length(z)
     @polyvar x[1:2n]
     pop = Vector{DP.Polynomial}(undef, length(cpop))
     for (i,cp) in enumerate(cpop)
-        temp = cp(z[1:n]=>x[1:n]+im*x[n+1:2n], z[n+1:2n]=>x[1:n]-im*x[n+1:2n])
+        temp = cp(z => x[1:n]+im*x[n+1:2n])
         pop[i] = real.(MP.coefficients(temp))'*MP.monomials(temp)
     end
     return pop,x

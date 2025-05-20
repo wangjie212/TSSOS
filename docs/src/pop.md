@@ -15,8 +15,8 @@ g = 1 - x[1]^2 - 2*x[2]^2
 h = x[2]^2 + x[3]^2 - 1
 pop = [f, g, h]
 d = 2 # set the relaxation order
-opt,sol,data = tssos_first(pop, x, d, numeq=1, TS="MD") # compute the first TS step of the TSSOS hierarchy
-opt,sol,data = tssos_higher!(data, TS="MD") # compute higher TS steps of the TSSOS hierarchy
+opt,sol,data = tssos_first(pop, x, d, numeq=1, TS="block", solution=true) # compute the first TS step of the TSSOS hierarchy
+opt,sol,data = tssos_higher!(data, TS="block", solution=true) # compute higher TS steps of the TSSOS hierarchy
 ```
 
 ### Keyword arguments
@@ -40,7 +40,9 @@ solve | Solve the SDP relaxation | true
 dualize | Solve the dual SDP problem | false
 Gram | Output Gram matrices | false
 solution | Extract optimal solutions | false
-tol | Tolerance for certifying global optimality | 1e-4
+rtol | tolerance for rank | 1e-2
+gtol | tolerance for global optimality gap | 1e-2
+ftol | tolerance for feasibility | 1e-3
 
 ## Correlative sparsity
 The following is an example where one exploits correlative sparsity and term sparsity simultaneously.
@@ -52,8 +54,8 @@ n = 6
 f = 1 + sum(x.^4) + x[1]*x[2]*x[3] + x[3]*x[4]*x[5] + x[3]*x[4]*x[6]+x[3]*x[5]*x[6] + x[4]*x[5]*x[6]
 pop = [f, 1-sum(x[1:3].^2), 1-sum(x[3:6].^2)]
 order = 2 # set the relaxation order
-opt,sol,data = cs_tssos_first(pop, x, order, numeq=0, TS="MD") # compute the first TS step of the CS-TSSOS hierarchy
-opt,sol,data = cs_tssos_higher!(data, TS="MD") # compute higher TS steps of the CS-TSSOS hierarchy
+opt,sol,data = cs_tssos_first(pop, x, order, numeq=0, TS="MD", solution=true) # compute the first TS step of the CS-TSSOS hierarchy
+opt,sol,data = cs_tssos_higher!(data, TS="MD", solution=true) # compute higher TS steps of the CS-TSSOS hierarchy
 ```
 
 ### Keyword arguments
@@ -76,8 +78,10 @@ QUIET | Silence the output| false
 solve | Solve the SDP relaxation | true
 dualize | Solve the dual SDP problem | false
 Gram | Output Gram matrices | false
-solution | Extract an approximately optimal solution | false
-tol | Tolerance for certifying global optimality | 1e-4
+solution | Extract an optimal solution | false
+rtol | tolerance for rank | 1e-2
+gtol | tolerance for global optimality gap | 1e-2
+ftol | tolerance for feasibility | 1e-3
 
 ## Compute a locally optimal solution
 Moment-SOS relaxations provide lower bounds on the optimum of the polynomial optimization problem. As the complementary side, one could compute a locally optimal solution which provides an upper bound on the optimum of the polynomial optimization problem. The upper bound is useful in evaluating the quality (tightness) of those lower bounds provided by moment-SOS relaxations. In TSSOS, for a given polynomial optimization problem, a locally optimal solution could be obtained via the nonlinear programming solver [Ipopt](https://github.com/jump-dev/Ipopt.jl):

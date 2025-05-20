@@ -37,12 +37,39 @@ opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=false, TS=false, Gr
 opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=false, TS="signsymmetry", Gram=true, solution=true, QUIET=true)
 @test opt ≈ 0.68619257 atol = 1e-6
 
+@polyvar x[1:2]
+pop = [-x[1]-x[2], 2x[1]^4-8x[1]^3+8x[1]^2+2-x[2], 4x[1]^4-32x[1]^3+88x[1]^2-96x[1]+36-x[2], (3-x[1])*x[1], (4-x[2])*x[2]]
+opt,sol,data = tssos_first(pop, x, 3, TS="block", Gram=true, solution=true, QUIET=true)
+@test opt ≈ -5.508013 atol = 1e-6
+
+@polyvar x[1:3]
+pop = [x[1]^2*x[2]^2*(x[1]^2+x[2]^2-3x[3]^2)+x[3]^6, 1-x[1]^2-x[2]^2-x[3]^2]
+opt,sol,data = tssos_first(pop, x, 3, TS=false, Gram=true, solution=true, QUIET=true)
+@test opt ≈ -0.0045964 atol = 1e-6
+
+@polyvar x[1:3]
+pop = [1, 5x[1]^9-6x[1]^5*x[2]+x[1]*x[2]^4+2x[1]*x[3], -2x[1]^6*x[2]+2x[1]^2*x[2]^3+2x[2]*x[3], x[1]^2+x[2]^2-0.265625]
+opt,sol,data = tssos_first(pop, x, 5, numeq=3, TS=false, GroebnerBasis=false, Gram=true, solution=true, QUIET=true)
+@test opt ≈ 1 atol = 1e-6
+
 @polyvar x[1:4]
 pop = [3-x[1]^2-x[3]^2+x[1]*x[2]^2+2x[2]*x[3]*x[4]-x[1]*x[4]^2, x[2], x[1]^2+3x[3]^2-2, x[4], x[1]^2+x[2]^2+x[3]^2+x[4]^2-3]
 opt,sol,data = cs_tssos_first(pop, x, 2, numeq=3, TS="block", Gram=true, solution=true, QUIET=true)
 @test opt ≈ -0.4142135 atol = 1e-6
 opt,sol,data = cs_tssos_higher!(data, TS="block", Gram=true, solution=true, QUIET=true)
 @test opt ≈ -0.4142135 atol = 1e-6
+
+n = 6
+@polyvar x[1:n]
+f = -25*(x[1]-2)^2-(x[2]-2)^2-(x[3]-1)^2-(x[4]-4)^2-(x[5]-1)^2-(x[6]-4)^2
+pop = [f, (x[3]-3)^2+x[4]-4, (x[5]-3)^2+x[6]-4, 2-x[1]+3*x[2], 2+x[1]-x[2], 
+6-x[1]-x[2], x[1]+x[2]-2, (5-x[3])*(x[3]-1), (6-x[4])*x[4], (5-x[5])*(x[5]-1),
+(10-x[6])*x[6], x[1], x[2]]
+d = 2
+opt,sol,data = tssos_first(pop, x, d, TS="block", Gram=true, solution=true, QUIET=true)
+@test opt ≈ -310 atol = 1e-3
+opt,sol,data = cs_tssos_first(pop, x, d, TS="block", Gram=true, solution=true, QUIET=true)
+@test opt ≈ -310 atol = 1e-3
 
 n = 6
 @polyvar x[1:n]

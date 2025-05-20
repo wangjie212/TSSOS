@@ -24,7 +24,8 @@ import MultivariatePolynomials as MP
 
 import CliqueTrees
 
-export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, LinearPMI_first, LinearPMI_higher!, sparseobj
+export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, complex_tssos_first, complex_tssos_higher!, complex_cs_tssos_first, 
+complex_cs_tssos_higher!, LinearPMI_first, LinearPMI_higher!, sparseobj
 export cosmo_para, mosek_para
 export local_solution, refine_sol, extract_solutions, extract_solutions_robust, extract_solutions_pmo, extract_solutions_pmo_robust, extract_weight_matrix
 export add_SOS!, add_SOSMatrix!, add_poly!, add_psatz!, add_psatz_cheby!, add_poly_cheby!
@@ -52,52 +53,10 @@ end
 
 mosek_para() = mosek_para(1e-8, 1e-8, 1e-8, -1, 0)
 
-function chordal_cliques!(G; method="MF", minimize=false)
-    # choose algorithm
-    alg = method == "MF" && minimize ? CliqueTrees.MinimalChordal(CliqueTrees.MF())  :
-          method == "MD" && minimize ? CliqueTrees.MinimalChordal(CliqueTrees.MMD()) :
-          method == "MF" && !minimize ? CliqueTrees.MF()                              :
-          method == "MD" && !minimize ? CliqueTrees.MMD()                             :
-          error()
-
-    # compute maximal cliques
-    label, tree = CliqueTrees.cliquetree(G; alg)
-    
-    # triangulate graph
-    F = CliqueTrees.FilledGraph(tree)
-    
-    for edge in edges(F)
-        add_edge!(G, label[src(edge)], label[dst(edge)])
-    end
-    
-    # return maximal cliques
-    maximal_cliques = Vector{Vector{UInt16}}(undef, length(tree))
-    
-    for (i, clique) in enumerate(tree)
-        maximal_cliques[i] = sort!(label[clique])
-    end
-    
-    cliquesize = length.(maximal_cliques)
-    cql = length(cliquesize)
-    return maximal_cliques, cql, cliquesize
-end
-
-function add_clique!(G, nodes)
-    for i in 1:length(nodes)-1, j in i+1:length(nodes)
-        add_edge!(G, nodes[i], nodes[j])
-    end
-end
-
-function max_cliques(G)
-    cliques = convert(Vector{Vector{UInt16}}, maximal_cliques(G))
-    sort!.(cliques)
-    cliquesize = length.(cliques)
-    cql = length(cliquesize)
-    return cliques,cql,cliquesize
-end
-
 const Poly = DP.Polynomial{DP.Commutative{DP.CreationOrder}, Graded{LexOrder}, Float64}
+export Poly
 
+include("chordal_extension.jl")
 include("clique_merge.jl")
 include("blockpop.jl")
 include("nblockmix.jl")

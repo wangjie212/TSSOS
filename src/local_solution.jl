@@ -84,7 +84,7 @@ end
 Refine the obtained solution by a local solver.
 Return the refined solution, and `flag=0` if global optimality is certified, `flag=1` otherwise.
 """
-function refine_sol(opt, sol, data::Union{cpop_data,mcpop_data}; QUIET=false, tol=1e-2)
+function refine_sol(opt, sol, data::Union{cpop_data,mcpop_data}; QUIET=false, gtol=1e-2)
     n = data.n
     nb = data.nb
     numeq = data.numeq
@@ -115,7 +115,7 @@ function refine_sol(opt, sol, data::Union{cpop_data,mcpop_data}; QUIET=false, to
     ub,rsol,status = local_solution(n, m, supp, coe, nb=nb, numeq=numeq, startpoint=sol, QUIET=QUIET)
     if status == MOI.LOCALLY_SOLVED
         gap = abs(opt-ub)/max(1, abs(ub))
-        if gap < tol
+        if gap < gtol
             println("------------------------------------------------")
             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
             println("Successfully extracted one globally optimal solution.")

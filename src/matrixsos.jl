@@ -63,7 +63,7 @@ function cs_tssos_first(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{Matrix{DP.
     dG = [maximum(maxdegree.(vec(G[i]))) for i=1:m]
     obj_matrix = poly_matrix(size(F,1), Vector{poly_data}(undef, Int((size(F,1)+1)*size(F,1)/2)))
     for i = 1:obj_matrix.m, j = i:obj_matrix.m
-        _,supp,coe = polys_info([F[i,j]], x)
+        supp,coe = polys_info([F[i,j]], x)
         obj_matrix.poly[i+Int(j*(j-1)/2)] = poly_data(n, supp[1], coe[1])
     end
     cons_matrix = Vector{poly_matrix}(undef, m)
@@ -71,7 +71,7 @@ function cs_tssos_first(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{Matrix{DP.
     for k = 1:m
         cons_matrix[k] = poly_matrix(size(G[k],1), Vector{poly_data}(undef, Int((size(G[k],1)+1)*size(G[k],1)/2)))
         for i = 1:cons_matrix[k].m, j = i:cons_matrix[k].m
-            _,supp,coe = polys_info([G[k][i,j]], x)
+            supp,coe = polys_info([G[k][i,j]], x)
             # csupp = [csupp; supp[1]]
             cons_matrix[k].poly[i+Int(j*(j-1)/2)] = poly_data(n, supp[1], coe[1])
         end
@@ -452,7 +452,7 @@ function LinearPMI_first(b, F::Vector{Matrix{DP.Polynomial{V, M, T1}}}, G::Vecto
     for k = 1:s
         obj_matrix[k] = poly_matrix(size(F[k],1), Vector{poly_data}(undef, Int((size(F[k],1)+1)*size(F[k],1)/2)))
         for i = 1:obj_matrix[k].m, j = i:obj_matrix[k].m
-            _,supp,coe = polys_info([F[k][i,j]], x)
+            supp,coe = polys_info([F[k][i,j]], x)
             obj_matrix[k].poly[i+Int(j*(j-1)/2)] = poly_data(n, supp[1], coe[1])
         end
     end
@@ -464,7 +464,7 @@ function LinearPMI_first(b, F::Vector{Matrix{DP.Polynomial{V, M, T1}}}, G::Vecto
         gbasis[k] = get_basis(Vector(1:n), d-Int(ceil(dG[k]/2)))
         cons_matrix[k] = poly_matrix(size(G[k],1), Vector{poly_data}(undef, Int((size(G[k],1)+1)*size(G[k],1)/2)))
         for i = 1:cons_matrix[k].m, j = i:cons_matrix[k].m
-            _,supp,coe = polys_info([G[k][i,j]], x)
+            supp,coe = polys_info([G[k][i,j]], x)
             # csupp = [csupp; supp[1]]
             cons_matrix[k].poly[i+Int(j*(j-1)/2)] = poly_data(n, supp[1], coe[1])
         end
@@ -679,7 +679,7 @@ function add_SOSMatrix!(model, vars, m, d; constraint=nothing, TS=false, QUIET=t
             s = size(constraint, 1)
             cons_matrix = poly_matrix(s, Vector{poly_data}(undef, Int((s+1)*s/2)))
             for i = 1:s, j = i:s
-                _,supp,coe = polys_info([constraint[i,j]], vars)
+                supp,coe = polys_info([constraint[i,j]], vars)
                 cons_matrix.poly[i+Int(j*(j-1)/2)] = poly_data(length(vars), supp[1], coe[1])
             end
             G = get_mgraph(tsupp, cons_matrix, basis, Int(m/s))
@@ -748,7 +748,7 @@ function sparseobj(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{Matrix{DP.Polyn
         tsupp = Vector{Vector{Vector{UInt16}}}(undef, Int((m+1)*m/2))
         supp = Vector{UInt16}[]
         for i = 1:m, j = i:m
-            supp = [supp; polys_info([F[i,j]], x)[2][1]]
+            supp = [supp; polys_info([F[i,j]], x)[1][1]]
         end
         basis = get_basis(Vector(1:n), d)
         for item in basis
@@ -839,7 +839,7 @@ function sparseobj(b, F::Vector{Matrix{DP.Polynomial{V, M, T}}}, G, x, d; TS="bl
         tsupp = Vector{Vector{Vector{UInt16}}}(undef, Int((m+1)*m/2))
         supp = Vector{UInt16}[]
         for k = 1:length(F), i = 1:m, j = i:m
-            supp = [supp; polys_info([F[k][i,j]], x)[2][1]]
+            supp = [supp; polys_info([F[k][i,j]], x)[1][1]]
         end
         basis = get_basis(Vector(1:n), d)
         for item in basis
@@ -930,7 +930,7 @@ function add_psatz!(model, nonneg::Matrix{DP.Polynomial{V, M, T}}, vars, ineq_co
     m = size(nonneg, 1)
     obj_matrix = poly_matrix(m, Vector{poly_data}(undef, Int((m+1)*m/2)))
     for i = 1:m, j = i:m
-        _,supp,coe = polys_info([nonneg[i,j]], vars)
+        supp,coe = polys_info([nonneg[i,j]], vars)
         obj_matrix.poly[i+Int(j*(j-1)/2)] = poly_data(n, supp[1], coe[1])
     end
     ksupp = Vector{Vector{Vector{UInt16}}}(undef, Int((m+1)*m/2))

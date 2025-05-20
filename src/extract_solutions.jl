@@ -42,7 +42,7 @@ Extract a tuple of solutions from the moment matrix using Henrion-Lasserre's alg
 # Output arguments
 - `sol`: a tuple of solutions
 """
-function extract_solutions(moment, d; pop=nothing, x=nothing, lb=nothing, numeq=0, nb=0, basis=[], check=true, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
+function extract_solutions(moment, d; pop=nothing, x=nothing, lb=nothing, numeq=0, nb=0, basis=[], check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
     n = length(x)
     if rank(moment, rtol) == 1
         sol = [moment[2:n+1, 1]]
@@ -113,22 +113,22 @@ Extract a tuple of solutions from the moment matrix using the GNS robust algorit
 
 # Output arguments
 - `sol`: a tuple of solutions
+- `w`: weight vector
 """
-function extract_solutions_robust(moment, n, d; pop=nothing, x=nothing, lb=nothing, numeq=0, basis=[], check=true, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
+function extract_solutions_robust(moment, n, d; pop=nothing, x=nothing, lb=nothing, numeq=0, basis=[], check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
     if isempty(basis)
         basis = get_basis(n, d)
     end
     ls = binomial(n+d-1, n)
-    N = Vector{Matrix{Float64}}(undef, n)
+    N = Vector{Matrix{ComplexF64}}(undef, n)
     for i = 1:n
-        N[i] = zeros(Float64, ls, ls)
+        N[i] = zeros(ComplexF64, ls, ls)
         temp = zeros(UInt8, n)
         temp[i] = 1
-        for j = 1:ls, k = j:ls
+        for j = 1:ls, k = 1:ls
             loc = bfind_to(basis, size(basis, 2), basis[:,k] + temp, n)
-            N[i][j,k] = moment[j, loc]
+            N[i][k,j] = moment[loc, j]
         end
-        N[i] = Symmetric(N[i],:U)
     end
     F = svd(moment[1:ls, 1:ls])
     S = sqrt.(F.S[F.S/F.S[1] .> rtol])
@@ -140,19 +140,19 @@ function extract_solutions_robust(moment, n, d; pop=nothing, x=nothing, lb=nothi
     L = schur(sum(rands[i]*N[i] for i in 1:n)).Z
     sol = [[L[:,i]'*N[j]*L[:,i] for j = 1:n] for i = 1:length(S)]
     W = L'*Diagonal(S)*F.Vt[1:length(S),:]
-    w = W[:,1].^2
+    w = abs.(W[:,1]).^2
     if check == true
         sol = check_solution(sol, lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
     end
     return sol,w
 end
 
-function extract_solutions_robust(moment, n, d, cliques, cql, cliquesize; pop=nothing, x=nothing, supp=[], coe=[], lb=nothing, numeq=0, check=true, gtol=1e-2, ftol=1e-3, QUIET=true)
+function extract_solutions_robust(moment, n, d, cliques, cql, cliquesize; pop=nothing, x=nothing, supp=[], coe=[], lb=nothing, numeq=0, check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
     ssol = Vector{Vector{Vector{Float64}}}(undef, cql)
     sol = zeros(n)
     freq = zeros(n)
     for i = 1:cql
-        ssol[i],w = extract_solutions_robust(moment[i], cliquesize[i], d, check=false, gtol=gtol, ftol=ftol)
+        ssol[i],w = extract_solutions_robust(moment[i], cliquesize[i], d, check=false, rtol=rtol, gtol=gtol, ftol=ftol)
         sol[cliques[i]] += ssol[i][argmax(w)]
         freq[cliques[i]] .+= 1
     end
@@ -160,6 +160,26 @@ function extract_solutions_robust(moment, n, d, cliques, cql, cliquesize; pop=no
     if check == true
         if pop !== nothing
             sol = check_solution([sol], lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+        else
+            sol = check_solution([sol], lb, supp, coe, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+        end
+    end
+    return sol,ssol
+end
+
+function extract_csolutions_robust(moment, n, d, cliques, cql, cliquesize; pop=nothing, z=nothing, supp=[], coe=[], lb=nothing, numeq=0, check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
+    ssol = Vector{Vector{Vector{ComplexF64}}}(undef, cql)
+    sol = zeros(ComplexF64, n)
+    freq = zeros(n)
+    for i = 1:cql
+        ssol[i],w = extract_solutions_robust(moment[i][1], cliquesize[i], d, check=false, rtol=rtol, gtol=gtol, ftol=ftol)
+        sol[cliques[i]] += ssol[i][argmax(w)]
+        freq[cliques[i]] .+= 1
+    end
+    sol ./= freq
+    if check == true
+        if pop !== nothing
+            sol = check_solution([sol], lb, pop, z, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         else
             sol = check_solution([sol], lb, supp, coe, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         end
@@ -331,7 +351,7 @@ function approx_sol(moment, lb, n, cliques, cql, cliquesize, supp, coe; numeq=0,
     end
     sol = (A'*A)\(A'*qsol)
     flag = 1
-    ub = seval(supp[1], coe[1], sol)
+    ub = eval(supp[1], coe[1], sol)
     gap = abs(lb-ub)/max(1, abs(ub))
     if check_optimality(sol, lb, supp, coe, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         flag = 0
@@ -356,7 +376,7 @@ function check_optimality(sol, lb, pop::Vector{DP.Polynomial{V, M, T}}, x; numeq
     m = length(pop) - 1 - numeq
     if m > 0
         vio = [pop[j](x => sol) for j = 2:m+1]
-        mvio = max(-minimum(vio), 0)
+        mvio = max(-minimum(real.(vio)), 0)
         if mvio > ftol
             flag = 0
         end
@@ -377,9 +397,9 @@ function check_optimality(sol, lb, pop::Vector{DP.Polynomial{V, M, T}}, x; numeq
     return flag == 1
 end
 
-function check_optimality(sol, lb, supp::Vector{Vector{Vector{UInt16}}}, coe; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
+function check_optimality(sol, lb, supp::Union{Vector{Vector{Vector{UInt16}}}, Vector{Vector{Vector{Vector{UInt16}}}}}, coe; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
     flag = 1
-    ub = seval(supp[1], coe[1], sol)
+    ub = eval(supp[1], coe[1], sol)
     gap = abs(lb-ub)/max(1, abs(ub))
     if QUIET == false
         @printf "Global optimality gap = %.6f%%!\n" 100*gap
@@ -389,7 +409,7 @@ function check_optimality(sol, lb, supp::Vector{Vector{Vector{UInt16}}}, coe; nu
     end
     m = length(supp) - 1 - numeq
     if m > 0
-        vio = [seval(supp[j], coe[j], sol) for j = 2:m+1]
+        vio = [eval(supp[j], coe[j], sol) for j = 2:m+1]
         mvio = max(-minimum(vio), 0)
         if mvio > ftol
             flag = 0
@@ -399,7 +419,7 @@ function check_optimality(sol, lb, supp::Vector{Vector{Vector{UInt16}}}, coe; nu
         end
     end
     if numeq > 0
-        vio = [seval(supp[j], coe[j], sol) for j = m+2:length(supp)]
+        vio = [eval(supp[j], coe[j], sol) for j = m+2:length(supp)]
         mvio = maximum(abs.(vio))
         if mvio > ftol
             flag = 0
@@ -412,7 +432,7 @@ function check_optimality(sol, lb, supp::Vector{Vector{Vector{UInt16}}}, coe; nu
 end
 
 function check_solution(candidate_sol, lb, pop::Vector{DP.Polynomial{V, M, T}}, x; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true) where {V, M, T<:Number}
-    sol = Vector{Float64}[]
+    sol = typeof(candidate_sol[1])[]
     for (i, cand) in enumerate(candidate_sol)
         if QUIET == false
             println("------------------------------------------------")
@@ -431,7 +451,7 @@ function check_solution(candidate_sol, lb, pop::Vector{DP.Polynomial{V, M, T}}, 
             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
             println("Successfully extracted one globally optimal solution.")
         else
-            ub = minimum([MP.polynomial(pop[1])(x => s) for s in sol])
+            ub = minimum([real(MP.polynomial(pop[1])(x => s)) for s in sol])
             gap = abs(lb-ub)/max(1, abs(ub))
             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
             println("Successfully extracted ", nsol, " globally optimal solutions.")
@@ -443,8 +463,8 @@ function check_solution(candidate_sol, lb, pop::Vector{DP.Polynomial{V, M, T}}, 
     return sol
 end
 
-function check_solution(candidate_sol, lb, supp::Vector{Vector{Vector{UInt16}}}, coe; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
-    sol = Vector{Float64}[]
+function check_solution(candidate_sol, lb, supp::Union{Vector{Vector{Vector{UInt16}}}, Vector{Vector{Vector{Vector{UInt16}}}}}, coe; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
+    sol = typeof(candidate_sol[1])[]
     for (i, cand) in enumerate(candidate_sol)
         if QUIET == false
             println("------------------------------------------------")
@@ -458,12 +478,12 @@ function check_solution(candidate_sol, lb, supp::Vector{Vector{Vector{UInt16}}},
     if nsol > 0
         println("------------------------------------------------")
         if nsol == 1
-            ub = seval(supp[1], coe[1], sol[1])
+            ub = eval(supp[1], coe[1], sol[1])
             gap = abs(lb-ub)/max(1, abs(ub))
             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
             println("Successfully extracted one globally optimal solution.")
         else
-            ub = minimum([seval(supp[1], coe[1], s) for s in sol])
+            ub = minimum([eval(supp[1], coe[1], s) for s in sol])
             gap = abs(lb-ub)/max(1, abs(ub))
             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
             println("Successfully extracted ", nsol, " globally optimal solutions.")

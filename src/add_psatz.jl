@@ -42,13 +42,17 @@ function add_psatz!(model, nonneg::DP.Polynomial{V, M, T}, vars, ineq_cons, eq_c
     n = length(vars)
     m = length(ineq_cons)
     if ineq_cons != []
-        gsupp,gcoe,glt,dg = npolys_info(ineq_cons, vars)
+        gsupp,gcoe = npolys_info(ineq_cons, vars)
+        glt = length.(gcoe)
+        dg = maxdegree.(ineq_cons)
     else
         gsupp = Matrix{UInt8}[]
         glt = dg = Int[]
     end
     if eq_cons != []
-        hsupp,hcoe,hlt,dh = npolys_info(eq_cons, vars)
+        hsupp,hcoe = npolys_info(eq_cons, vars)
+        hlt = length.(hcoe)
+        dh = maxdegree.(ineq_cons)
     else
         hsupp = Matrix{UInt8}[]
         hlt = dh = Int[]

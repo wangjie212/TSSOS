@@ -16,28 +16,25 @@ end
 # minimizing a random complex quartic polynomial over the unit sphere
 Random.seed!(1)
 n = 5
-@polyvar z[1:2n]
-basis1 = cbasis(z[1:n])
-basis2 = cbasis(z[n+1:2n])
-P = randn(length(basis1), length(basis1))
-Q = randn(length(basis1), length(basis1))
-f = basis2'*((P+P')/2+im*(Q-Q')/2)*basis1
-h = sum(z[i]*z[i+n] for i = 1:n) - 1
-@time opt,sol,data = cs_tssos_first([f; h], z, n, 2, numeq=1, QUIET=false, solve=true, CS=false, TS=false)
-@time opt,sol,data = cs_tssos_first([f; h], z, n, 3, numeq=1, QUIET=false, solve=true, CS=false, TS=false)
+@complex_polyvar z[1:n]
+basis = cbasis(z)
+P = randn(length(basis), length(basis))
+Q = randn(length(basis), length(basis))
+f = basis'*((P+P')/2+im*(Q-Q')/2)*basis
+@time opt,sol,data = complex_tssos_first([f; z'*z - 1], z, 2, numeq=1, QUIET=false, solve=true, TS=false)
+@time opt,sol,data = complex_tssos_first([f; z'*z - 1], z, 3, numeq=1, QUIET=false, solve=true, TS=false)
 
 # minimizing a random complex quartic polynomial with unit-norm variables
 Random.seed!(1)
 n = 5
-@polyvar z[1:2n]
-basis1 = cbasis(z[1:n])
-basis2 = cbasis(z[n+1:2n])
-P = rand(length(basis1), length(basis1))
-Q = rand(length(basis1), length(basis1))
-pop = [basis2'*((P+P')/2+im*(Q-Q')/2)*basis1]
-# pop = [basis2'*((P+P')/2)*basis1]
-@time opt1,sol,data = cs_tssos_first(pop, z, n, 2, nb=n, QUIET=true, CS=false, TS=false, ConjugateBasis=false)
-@time opt2,sol,data = cs_tssos_first(pop, z, n, 2, nb=n, QUIET=true, CS=false, TS=false, ConjugateBasis=true)
+@complex_polyvar z[1:n]
+basis = cbasis(z)
+P = rand(length(basis), length(basis))
+Q = rand(length(basis), length(basis))
+pop = [basis'*((P+P')/2+im*(Q-Q')/2)*basis]
+# pop = [basis'*((P+P')/2)*basis]
+@time opt1,sol,data = complex_tssos_first(pop, z, 2, nb=n, QUIET=true, CS=false, ConjugateBasis=false)
+@time opt2,sol,data = complex_tssos_first(pop, z, 2, nb=n, QUIET=true, CS=false, ConjugateBasis=true)
 
 # minimizing large-scale randomly generated complex QCQPs
 Random.seed!(1)
@@ -75,7 +72,7 @@ for i = 1:l
     coe[i+1] = [1; -ones(b)]
 end
 
-@time opt,sol,data = cs_tssos_first(supp, coe, n, 2, numeq=l, TS="MD")
+@time opt,sol,data = complex_cs_tssos_first(supp, coe, n, 2, numeq=l, TS="MD")
 
 # AC-OPF problem
 include("D:/Programs/TSSOS/example/modelopf.jl")
@@ -95,7 +92,7 @@ mc = maximum(abs.(coe[1]))
 coe[1] = coe[1]./mc
 
 t = @elapsed begin
-opt,_,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, CS="MF", TS="block", QUIET=true, MomentOne=false)
+opt,_,popd = complex_cs_tssos_first(supp, coe, n, "min", numeq=numeq, CS="MF", TS="block", QUIET=true, MomentOne=false)
 end
 opt *= mc
 maxc = maximum(popd.cliquesize) # maximal clique size

@@ -1,7 +1,9 @@
 mutable struct mcpop_data
-    n # number of all variables
+    pop # polynomial optimiztion problem
+    x # variables
+    n # number of variables
     nb # number of binary variables
-    m # number of all constraints
+    m # number of constraints
     numeq # number of equality constraints
     supp # support data
     coe # coefficient data
@@ -22,13 +24,16 @@ mutable struct mcpop_data
     moment # Moment matrix
     solver # SDP solver
     SDP_status
-    tol # tolerance to certify global optimality
+    rtol # tolerance for rank
+    gtol # tolerance for global optimality gap
+    ftol # tolerance for feasibility
     flag # 0 if global optimality is certified; 1 otherwise
 end
 
 """
     opt,sol,data = cs_tssos_first(pop, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", merge=false, md=3, solver="Mosek", 
-    dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, tol=1e-2, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+    dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
+    rtol=1e-2, gtol=1e-2, ftol=1e-3)
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained polynomial optimization.
 If `merge=true`, perform the PSD block merging. 
@@ -47,7 +52,9 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `TS`: type of term sparsity (`"block"`, `"signsymmetry"`, `"MD"`, `"MF"`, `false`)
 - `md`: tunable parameter for merging blocks
 - `QUIET`: run in the quiet mode (`true`, `false`)
-- `tol`: relative tolerance to certify global optimality
+- `rtol`: tolerance for rank
+- `gtol`: tolerance for global optimality gap
+- `ftol`: tolerance for feasibility
 
 # Output arguments
 - `opt`: optimum
@@ -55,25 +62,26 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `data`: other auxiliary data 
 """
 function cs_tssos_first(pop::Vector{P}, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", merge=false, md=3, solver="Mosek", 
-    dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, tol=1e-2, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false) where {P<:AbstractPolynomial}
-    n,supp,coe = polys_info(pop, x, nb=nb)
-    opt,sol,data = cs_tssos_first(supp, coe, n, d, numeq=numeq, nb=nb, CS=CS, cliques=cliques, basis=basis, ebasis=ebasis, TS=TS,
+    dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
+    writetofile=false, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {P<:AbstractPolynomial}
+    supp,coe = polys_info(pop, x, nb=nb)
+    opt,sol,data = cs_tssos_first(supp, coe, length(x), d, numeq=numeq, nb=nb, CS=CS, cliques=cliques, basis=basis, ebasis=ebasis, TS=TS,
     merge=merge, md=md, QUIET=QUIET, solver=solver, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
-    tol=tol, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile)
+    cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile, rtol=rtol, gtol=gtol, ftol=ftol, pop=pop, x=x)
     return opt,sol,data
 end
 
 """
     opt,sol,data = cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", 
-    merge=false, md=3, QUIET=false, solver="Mosek", dualize=false, solve=true, solution=false, Gram=false, MomentOne=false, tol=1e-2, 
-    cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+    merge=false, md=3, QUIET=false, solver="Mosek", dualize=false, solve=true, solution=false, Gram=false, MomentOne=false, 
+    cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), rtol=1e-2, gtol=1e-2, ftol=1e-3)
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained polynomial optimization. 
 Here the polynomial optimization problem is defined by `supp` and `coe`, corresponding to the supports and coeffients of `pop` respectively.
 """
 function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0, nb=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", 
     merge=false, md=3, QUIET=false, solver="Mosek", dualize=false, solve=true, solution=false, MomentOne=false, Gram=false, 
-    tol=1e-2, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false)
+    cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, pop=nothing, x=nothing)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     m = length(supp) - 1
@@ -139,18 +147,18 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
     opt,ksupp,momone,moment,GramMat,multiplier,SDP_status = solvesdp(m, supp, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, 
     eblocks, cl, blocksize, numeq=numeq, nb=nb, QUIET=QUIET, TS=TS, solver=solver, dualize=dualize, solve=solve, solution=solution, MomentOne=MomentOne, 
     Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile)
-    data = mcpop_data(n, nb, m, numeq, supp, coe, basis, ebasis, ksupp, cql, cliquesize, cliques, I, J, ncc, blocksize, blocks, eblocks, GramMat, 
-    multiplier, moment, solver, SDP_status, tol, 1)
+    data = mcpop_data(pop, x, n, nb, m, numeq, supp, coe, basis, ebasis, ksupp, cql, cliquesize, cliques, I, J, ncc, blocksize, blocks, eblocks, GramMat, 
+    multiplier, moment, solver, SDP_status, rtol, gtol, ftol, 1)
     sol = nothing
     if solution == true
         if TS != false
-            sol,gap,data.flag = approx_sol(momone, opt, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, gtol=tol, QUIET=QUIET)
+            sol,gap,data.flag = approx_sol(momone, opt, n, cliques, cql, cliquesize, supp, coe, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
             if data.flag == 1
                 sol = gap > 0.5 ? randn(n) : sol
-                sol,data.flag = refine_sol(opt, sol, data, QUIET=true, tol=tol)
+                sol,data.flag = refine_sol(opt, sol, data, QUIET=true, gtol=gtol)
             end
         else
-            sol = extract_solutions_robust(moment, n, d, cliques, cql, cliquesize, supp=supp, coe=coe, lb=opt, numeq=numeq, gtol=tol, QUIET=QUIET)[1]
+            sol = extract_solutions_robust(moment, n, d, cliques, cql, cliquesize, pop=pop, x=x, supp=supp, coe=coe, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
             if sol !== nothing
                 data.flag = 0
             end
@@ -178,7 +186,6 @@ function cs_tssos_higher!(data::mcpop_data; TS="block", merge=false, md=3, QUIET
     cliquesize = data.cliquesize
     I = data.I
     J = data.J
-    tol = data.tol
     if QUIET == false
         println("Starting to compute the block structure...")
     end
@@ -198,10 +205,10 @@ function cs_tssos_higher!(data::mcpop_data; TS="block", merge=false, md=3, QUIET
         Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile)
         sol = nothing
         if solution == true
-            sol,gap,data.flag = approx_sol(momone, opt, n, cliques, cql, cliquesize, supp, data.coe, numeq=numeq, gtol=tol, QUIET=QUIET)
+            sol,gap,data.flag = approx_sol(momone, opt, n, cliques, cql, cliquesize, supp, data.coe, numeq=numeq, gtol=data.gtol, ftol=data.ftol, QUIET=QUIET)
             if data.flag == 1
                 sol = gap > 0.5 ? randn(n) : sol
-                sol,data.flag = refine_sol(opt, sol, data, QUIET=true, tol=tol)
+                sol,data.flag = refine_sol(opt, sol, data, QUIET=true, gtol=data.gtol)
             end
         end
         data.blocks = blocks
@@ -243,8 +250,6 @@ function solvesdp(m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, ebasis, c
     end
     if (MomentOne == true || solution == true) && TS != false
         ksupp = copy(tsupp)
-    end
-    if (MomentOne == true || solution == true) && TS != false
         for i = 1:cql, j = 1:cliquesize[i]
             push!(tsupp, [cliques[i][j]])
             for k = j+1:cliquesize[i]

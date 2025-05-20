@@ -78,13 +78,13 @@ g = 1 - x[1]^2 - 2*x[2]^2
 h = x[2]^2 + x[3]^2 - 1
 pop = [f, g, h]
 d = 2 # set the relaxation order
-opt,sol,data = tssos_first(pop, x, d, numeq=1, TS="MD")
+opt,sol,data = tssos_first(pop, x, d, numeq=1, TS="block", solution=true)
 ```
 
 To compute higher TS steps of the TSSOS hierarchy, repeatedly run
 
 ```Julia
-opt,sol,data = tssos_higher!(data, TS="MD")
+opt,sol,data = tssos_higher!(data, TS="MD", solution=true)
 ```
 
 Options  
@@ -103,8 +103,8 @@ n = 6
 f = 1 + sum(x.^4) + x[1]*x[2]*x[3] + x[3]*x[4]*x[5] + x[3]*x[4]*x[6] + x[3]*x[5]*x[6] + x[4]*x[5]*x[6]
 pop = [f, 1 - sum(x[1:3].^2), 1 - sum(x[3:6].^2)]
 order = 2 # set the relaxation order
-opt,sol,data = cs_tssos_first(pop, x, order, numeq=0, TS="MD") # compute the first TS step of the CS-TSSOS hierarchy
-opt,sol,data = cs_tssos_higher!(data, TS="MD") # compute higher TS steps of the CS-TSSOS hierarchy
+opt,sol,data = cs_tssos_first(pop, x, order, numeq=0, TS="MD", solution=true) # compute the first TS step of the CS-TSSOS hierarchy
+opt,sol,data = cs_tssos_higher!(data, TS="block", solution=true) # compute higher TS steps of the CS-TSSOS hierarchy
 ```
 
 Options  
@@ -234,30 +234,25 @@ $$\mathbf{K}\coloneqq\lbrace \mathbf{z}\in\mathbb{C}^n \mid g_i(\mathbf{z},\bar{
 
 where $\bar{\mathbf{z}}$ stands for the conjugate of $\mathbf{z}:=(z_1,\ldots,z_n)$, and $f, g_i, i=1,\ldots,m, h_j, j=1,\ldots,\ell$ are real-valued complex polynomials satisfying $\bar{f}=f$ and $\bar{g}_j=g_j$.
 
-In TSSOS, we use $x_i$ to represent the complex variable $z_i$ and use $x_{n+i}$ to represent its conjugate $\bar{z}_i$. Consider the example
+Consider the following example:
 
 $$\mathrm{inf}\ 3-|z_1|^2-0.5\mathbf{i}z_1\bar{z}_2^2+0.5\mathbf{i}z_2^2\bar{z}_1$$
 
-$$\mathrm{s.t.}\ z_2+\bar{z}_2\ge0,|z_1|^2-0.25z_1^2-0.25\bar{z}_1^2=1,|z_1|^2+|z_2|^2=3,\mathbf{i}z_2-\mathbf{i}\bar{z}_2=0,$$
-
-which is represented in TSSOS as
-
-$$\mathrm{inf}\ 3-x_1x_3-0.5\mathbf{i}x_1x_4^2+0.5\mathbf{i}x_2^2x_3$$
-
-$$\mathrm{s.t.}\ x_2+x_4\ge0,x_1x_3-0.25x_1^2-0.25x_3^2=1,x_1x_3+x_2x_4=3,\mathbf{i}x_2-\mathbf{i}x_4=0.$$
+$$\mathrm{s.t.}\ z_2+\bar{z}_2\ge0,|z_1|^2-0.25z_1^2-0.25\bar{z}_1^2=1,|z_1|^2+|z_2|^2=3,\mathbf{i}z_2-\mathbf{i}\bar{z}_2=0.$$
 
 ```Julia
 using DynamicPolynomials
 n = 2 # set the number of complex variables
-@polyvar x[1:2n]
-f = 3 - x[1]*x[3] - 0.5im*x[1]*x[4]^2 + 0.5im*x[2]^2*x[3]
-g1 = x[2] + x[4]
-g2 = x[1]*x[3] - 0.25*x[1]^2 - 0.25 x[3]^2 - 1
-g3 = x[1]*x[3] + x[2]*x[4] - 3
-g4 = im*x[2] - im*x[4]
+@complex_polyvar z[1:n]
+f = 3 - x[1]*conj(x[1]) - 0.5im*x[1]*conj(x[2])^2 + 0.5im*x[2]^2*conj(x[1])
+g1 = x[2] + conj(x[2])
+g2 = x[1]*conj(x[1]) - 0.25*x[1]^2 - 0.25*conj(x[1])^2 - 1
+g3 = x[1]*conj(x[1]) + x[2]*conj(x[2]) - 3
+g4 = im*x[2] - im*conj(x[2])
 pop = [f, g1, g2, g3, g4]
 order = 2 # set the relaxation order
-opt,sol,data = cs_tssos_first(pop, x, n, order, numeq=3, TS="block")
+opt,sol,data = complex_tssos_first(pop, z, order, numeq=3, TS="block", solution=true) # no correlative sparsity
+opt,sol,data = complex_cs_tssos_first(pop, z, order, numeq=3, TS="block", solution=true)
 ```
 Options  
 **nb**: specify the first nb complex variables to be of unit norm (satisfying $|z_i|=1$)  
@@ -343,15 +338,6 @@ For more examples, please check out `example/pmi.jl`.
 - Scale the variables so that they take values in $[-1, 1]$ or $[0, 1]$.
 - Try to include more (redundant) inequality constraints.
 
-## Non-commutative polynomial optimization
-Visit [NCTSSOS](https://github.com/wangjie212/NCTSSOS)
-
-## Analysis of sparse dynamical systems
-Visit [SparseDynamicSystem](https://github.com/wangjie212/SparseDynamicSystem)
-
-## Joint spetral radii
-Visit [SparseJSR](https://github.com/wangjie212/SparseJSR)
-
 ## Christoffel-Darboux Kernels 
 Given a measure $\mu$ supported on $\Omega \in \mathbb{R}^n$, and a degree $d \in \mathbb{N}^{*}$, one can define, whenever the moment matrix $M_d^{\mu}$ is invertible,  the Christoffel-Darboux kernel of order $d$:
 
@@ -367,6 +353,15 @@ In practice, when solving a particular POP instance via moment-SOS relaxations, 
 The sublevel sets of $\Lambda_d^{y}$ provide an approximation of the support of a measure that is concentrated on the global minimizers of the original POP.
 
 For more information on how to construct Christoffel polynomials and how to use them to strengthen the bounds from (correlatively-sparse) Moment-SOS relaxations, visit [CDK_Bound_Strengthening](https://github.com/SoDvc2226/CDK_Bound_Strengthening) or `docs/src/technique.md`.
+
+## Non-commutative polynomial optimization
+Visit [NCTSSOS](https://github.com/wangjie212/NCTSSOS)
+
+## Joint spetral radii
+Visit [SparseJSR](https://github.com/wangjie212/SparseJSR)
+
+## MATLAB implementation
+Visit [SPOT](https://github.com/ComputationalRobotics/SPOT/tree/main)
 
 ## References
 [1] [TSSOS: A Moment-SOS hierarchy that exploits term sparsity](https://arxiv.org/abs/1912.08899)  
