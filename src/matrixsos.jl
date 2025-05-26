@@ -384,7 +384,6 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
                 Locb = bfind(ksupp[ind], length(ksupp[ind]), obj_matrix.poly[ind].supp[k])
                 if Locb === nothing
                    @error "The monomial basis is not enough!"
-                   return nothing,nothing,nothing,nothing,nothing
                 else
                    bc[Locb] = obj_matrix.poly[ind].coe[k]
                 end
@@ -624,7 +623,6 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
                 Locb = bfind(ksupp[ind], length(ksupp[ind]), obj_matrix[1].poly[ind].supp[k])
                 if Locb === nothing
                     @error "The monomial basis is not enough!"
-                    return nothing,nothing,nothing,nothing
                 else
                     @inbounds add_to_expression!(bc[Locb], obj_matrix[1].poly[ind].coe[k])
                 end
@@ -633,7 +631,6 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
                 Locb = bfind(ksupp[ind], length(ksupp[ind]), obj_matrix[t].poly[ind].supp[k])
                 if Locb === nothing
                     @error "The monomial basis is not enough!"
-                    return nothing,nothing,nothing,nothing
                 else
                     @inbounds add_to_expression!(bc[Locb], λ[t-1], obj_matrix[t].poly[ind].coe[k])
                 end

@@ -287,7 +287,6 @@ function solvesdp(m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, ebasis, c
             model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
         else
             @error "The solver is currently not supported!"
-            return nothing,nothing,nothing,nothing,nothing,nothing,nothing
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
@@ -402,7 +401,6 @@ function solvesdp(m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, ebasis, c
             Locb = bfind(tsupp, ltsupp, supp[1][i])
             if Locb === nothing
                @error "The monomial basis is not enough!"
-               return nothing,nothing,nothing,nothing,nothing,nothing,nothing
             else
                bc[Locb] = coe[1][i]
             end

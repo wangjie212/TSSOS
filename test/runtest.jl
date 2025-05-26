@@ -21,21 +21,21 @@ opt,sol,data = tssos_higher!(data, TS="MD", solution=true, Gram=true, QUIET=true
 # Constrained Polynomial Optimization
 @polyvar x[1:3]
 f = 1+x[1]^4+x[2]^4+x[3]^4+x[1]*x[2]*x[3]+x[2]
-g = 1-x[1]^2-2*x[2]^2
-h = x[2]^2+x[3]^2-1
+g = 0.5-x[1]^2-2*x[2]^2
+h = x[1]^2+x[2]^2+x[3]^2-1
 pop = [f, g, h]
 opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=false, TS="block", Gram=true, solution=true, QUIET=true)
-@test opt ≈ 0.68619257 atol = 1e-6
+@test opt ≈ 0.9555474 atol = 1e-6
 opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=true, TS="block", Gram=true, solution=true, QUIET=true)
-@test opt ≈ 0.68619257 atol = 1e-6
+@test opt ≈ 0.9555474 atol = 1e-6
 opt,sol,data = tssos_higher!(data, TS="block", solution=true, Gram=true, QUIET=true)
-@test opt ≈ 0.68619257 atol = 1e-6
+@test opt ≈ 0.9555474 atol = 1e-6
 opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=true, TS="MD", Gram=true, solution=true, QUIET=true)
-@test opt ≈ 0.68619257 atol = 1e-6
+@test opt ≈ 0.9555474 atol = 1e-6
 opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=false, TS=false, Gram=true, solution=true, QUIET=true)
-@test opt ≈ 0.68619257 atol = 1e-6
+@test opt ≈ 0.9555474 atol = 1e-6
 opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=false, TS="signsymmetry", Gram=true, solution=true, QUIET=true)
-@test opt ≈ 0.68619257 atol = 1e-6
+@test opt ≈ 0.9555474 atol = 1e-6
 
 @polyvar x[1:2]
 pop = [-x[1]-x[2], 2x[1]^4-8x[1]^3+8x[1]^2+2-x[2], 4x[1]^4-32x[1]^3+88x[1]^2-96x[1]+36-x[2], (3-x[1])*x[1], (4-x[2])*x[2]]

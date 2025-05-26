@@ -579,7 +579,6 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
             model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
         else
             @error "The solver is currently not supported!"
-            return nothing,nothing,nothing,nothing,nothing,nothing,nothing
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
@@ -829,7 +828,6 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
             Locb = bfind(tsupp, ltsupp, item)
             if Locb === nothing
                @error "The monomial basis is not enough!"
-               return nothing,nothing,nothing,nothing,nothing,nothing,nothing
             else
                rbc[Locb] = real(ncoe[i])
                if ipart == true && item[1] != item[2]

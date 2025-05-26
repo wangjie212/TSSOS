@@ -60,7 +60,6 @@ function tssos_symmetry_first(pop, x, d, group; numeq=0, TS="block", QUIET=false
         invbas = [minimum(monos_2d[item.nzind]) for item in wedderburn.invariants] # This is the basis for the invariant ring
         for i = 1:numeq
             ebasis[i] = invbas[maxdegree.(invbas) .<= 2d-maxdegree(pop[length(pop)-numeq+i])]
-            # ebasis[i] = MP.monomials(x, 0:2d-maxdegree(pop[length(pop)-numeq+i]))
         end
     end
     tsupp = nothing
@@ -135,7 +134,6 @@ function solvesdp(pop, basis, ebasis, cl, blocksize, blocks, eblocks, group, act
         model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
     else
         @error "The solver is currently not supported!"
-        return nothing,nothing,nothing,nothing,nothing
     end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     lambda = @variable(model)
@@ -277,7 +275,7 @@ function get_blocks(m::Int, l::Int, tsupp, pop, basis::Vector{Vector{Vector{Poly
                 if k == 1
                     G = get_graph(tsupp, ba, group, action)
                 else
-                    G = get_graph(tsupp, ba, g=pop[k-1], group, action)
+                    G = get_graph(tsupp, ba, group, action, g=pop[k-1])
                 end
                 if TS == "block"
                     blocks[k][i] = connected_components(G)
@@ -333,4 +331,147 @@ function get_eblock(tsupp, h, basis::Vector{Poly}, group, action)
         end
     end
     return eblock
+end
+
+function add_psatz_symmetry!(model, nonneg::DP.Polynomial{V, M, T}, vars, ineq_cons, eq_cons, order, group; TS="block", SO=1, merge=false, md=3, QUIET=false) where {V, M, T<:Union{Number,AffExpr}}
+    m = length(ineq_cons)
+    l = length(eq_cons)
+    action = VariablePermutation(vars)
+    monos_2d = MP.monomials(vars, 0:2*order)
+    monos_d = MP.monomials(vars, 0:order)
+    wedderburn = WedderburnDecomposition(Float64, group, action, monos_2d, monos_d)
+    basis = Vector{Vector{Vector{Poly}}}(undef, m+1)
+    basis[1] = [[item'*monos_d for item in eachrow(ele.basis)] for ele in wedderburn.Uπs]
+    for i = 1:m
+        basis[i+1] = Vector{Poly}[]
+        for bas in basis[1]
+            ind = maxdegree.(bas) .<= order - ceil(Int, maxdegree(ineq_cons[i])/2)
+            if any(ind)
+                push!(basis[i+1], bas[ind])
+            end
+        end
+    end
+    ebasis = Vector{Vector{Poly}}(undef, l)
+    if l > 0
+        invbas = [minimum(monos_2d[item.nzind]) for item in wedderburn.invariants] # This is the basis for the invariant ring
+        for i = 1:l
+            ebasis[i] = invbas[maxdegree.(invbas) .<= 2*order-maxdegree(eq_cons[i])]
+        end
+    end
+    tsupp = nothing
+    if TS != false
+        pop = [nonneg]
+        if !isempty(ineq_cons)
+            pop = [pop; ineq_cons]
+        end
+        if !isempty(eq_cons)
+            pop = [pop; eq_cons]
+        end
+        tsupp = vcat([poly_norm(p, group, action)[1] for p in pop]...)
+        unique!(tsupp)
+        sort!(tsupp)
+    end
+    blocks,cl,blocksize,eblocks = get_blocks(m, l, tsupp, ineq_cons, eq_cons, basis, ebasis, group, action, TS=TS, SO=SO, merge=merge, md=md, QUIET=QUIET)
+    poly = nonneg
+    pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, 1+m)
+    pos[1] = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, length(basis[1]))
+    for (i, bas) in enumerate(basis[1])
+        pos[1][i] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[1][i])
+        for (l, bs) in enumerate(blocksize[1][i])
+            if bs == 1
+               pos[1][i][l] = @variable(model, lower_bound=0)
+               poly -= bas[blocks[1][i][l][1]]^2 * pos[1][i][l]
+            else
+               pos[1][i][l] = @variable(model, [1:bs, 1:bs], PSD)
+               poly -= bas[blocks[1][i][l]]' * pos[1][i][l] * bas[blocks[1][i][l]]
+            end
+        end
+    end
+    for k = 1:m
+        pos[k+1] = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, length(basis[k+1]))
+        for (i, bas) in enumerate(basis[k+1])
+            pos[k+1][i] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[k+1][i])
+            for (l, bs) in enumerate(blocksize[k+1][i])
+                if bs == 1
+                    pos[k+1][i][l] = @variable(model, lower_bound=0)
+                    poly -= bas[blocks[k+1][i][l][1]]^2 * pos[k+1][i][l] * ineq_cons[k]
+                else
+                    pos[k+1][i][l] = @variable(model, [1:bs, 1:bs], PSD)
+                    poly -= bas[blocks[k+1][i][l]]' * pos[k+1][i][l] * bas[blocks[k+1][i][l]] * ineq_cons[k]
+                end
+            end
+        end
+    end
+    mul = nothing
+    if l > 0
+        mul = Vector{Vector{VariableRef}}(undef, l)
+        for k = 1:l
+            mul[k] = @variable(model, [1:length(eblocks[k])])
+            poly -= ebasis[k][eblocks[k]]' * mul[k] * eq_cons[k]
+        end
+    end
+    tsupp,coe = poly_norm(poly, group, action)
+    @constraint(model, coe .== 0)
+    info = poly_basis(nothing, l, group, action, basis, ebasis, tsupp, blocksize, blocks, eblocks, pos, mul, nothing)
+    return info
+end
+
+function get_blocks(m::Int, l::Int, tsupp, ineq_cons, eq_cons, basis, ebasis, group, action; TS="block", SO=1, merge=false, md=3, QUIET=false)
+    blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, m+1)
+    eblocks = Vector{Vector{Int}}(undef, l)
+    blocksize = Vector{Vector{Vector{Int}}}(undef, m+1)
+    cl = Vector{Vector{Int}}(undef, m+1)
+    if TS == false
+        for k = 1:m+1
+            blocks[k],blocksize[k],cl[k] = [[Vector(1:length(basis[k][i]))] for i = 1:length(basis[k])],[[length(basis[k][i])] for i = 1:length(basis[k])],ones(Int, length(basis[k]))
+        end
+        for k = 1:l
+            eblocks[k] = Vector(1:length(ebasis[k]))
+        end
+    else
+        for i = 1:SO
+            if i > 1
+                oblocksize = deepcopy(blocksize)
+                oeblocks = deepcopy(eblocks)
+            end
+            for k = 1:m+1
+                blocks[k] = Vector{Vector{Vector{Int}}}(undef, length(basis[k]))
+                blocksize[k] = Vector{Vector{Int}}(undef, length(basis[k]))
+                cl[k] = Vector{Int}(undef, length(basis[k]))
+                for (i, ba) in enumerate(basis[k])
+                    if k == 1
+                        G = get_graph(tsupp, ba, group, action)
+                    else
+                        G = get_graph(tsupp, ba, g=ineq_cons[k-1], group, action)
+                    end
+                    if TS == "block"
+                        blocks[k][i] = connected_components(G)
+                        blocksize[k][i] = length.(blocks[k][i])
+                        cl[k][i] = length(blocksize[k][i])
+                    else
+                        blocks[k][i],cl[k][i],blocksize[k][i] = chordal_cliques!(G, method=TS)
+                        if merge == true
+                            blocks[k][i],cl[k][i],blocksize[k][i] = clique_merge!(blocks[k], d=md, QUIET=true)
+                        end
+                    end
+                end
+            end
+            for k = 1:l
+                eblocks[k] = get_eblock(tsupp, eq_cons[k], ebasis[k], group, action)
+            end
+            if i > 1 && blocksize == oblocksize && eblocks == oeblocks
+                println("No higher TS step of the TSSOS hierarchy!")
+                break
+            end
+            if i < SO
+                tsupp = DP.Monomial[]
+                for t = 1:length(blocks[1]), s = 1:length(blocksize[1][t]), j = 1:blocksize[1][t][s], r = j:blocksize[1][t][s]  
+                    append!(tsupp, poly_norm(basis[1][t][blocks[1][t][s][j]]*basis[1][t][blocks[1][t][s][r]], group, action)[1])
+                end
+                unique!(tsupp)
+                sort!(tsupp)
+            end
+        end
+    end
+    return blocks,cl,blocksize,eblocks
 end

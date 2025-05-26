@@ -65,10 +65,7 @@ function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, n
     println("TSSOS is launching...")
     n = length(x)
     if nb > 0
-        gb = x[1:nb].^2 .- 1
-        for i in eachindex(pop)
-            pop[i] = rem(pop[i], gb)
-        end
+        pop = Groebner.normalform(x[1:nb].^2 .- 1, pop)
     end
     if numeq > 0 && GroebnerBasis == true
         cpop = copy(pop)
@@ -76,12 +73,12 @@ function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, n
         cpop = cpop[1:end-numeq]
         println("Computing the Gröbner basis...")
         println("This might be slow. You can set GroebnerBasis=false to close it.")
-        SemialgebraicSets.gröbner_basis!(gb)
-        cpop[1] = rem(cpop[1], gb)
-        lead = SemialgebraicSets.leading_monomial.(gb)
+        gb = groebner(gb, ordering=DegRevLex())
+        cpop[1] = Groebner.normalform(gb, cpop[1], ordering=DegRevLex())
+        lead = leading_ideal(gb, ordering=DegRevLex())
         leadsupp = zeros(UInt8, n, length(lead))
         for i = 1:length(lead), j = 1:n
-            @inbounds leadsupp[j,i] = MP.degree(lead[i], x[j])
+            @inbounds leadsupp[j,i] = MP.degree(convert(DP.Monomial, lead[i]), x[j])
         end
     else
         cpop = pop
@@ -453,8 +450,9 @@ function get_blocks(m, l, tsupp, supp, basis, ebasis; nb=0, TS="block", QUIET=tr
             if QUIET == false
                 sb = sort(Int.(unique(blocksize[k])), rev=true)
                 numb = [sum(blocksize[k].== i) for i in sb]
+                k0 = k - 1
                 println("-----------------------------------------------------------------------------")
-                println("The sizes of PSD blocks for the $k-th SOS multiplier:\n$sb\n$numb")
+                println("The sizes of PSD blocks for the $k0-th SOS multiplier:\n$sb\n$numb")
                 println("-----------------------------------------------------------------------------")
             end
         end
@@ -563,7 +561,6 @@ function solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize
             model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
         else
             @error "The solver is currently not supported!"
-            return nothing,nothing,nothing,nothing,nothing,nothing,nothing
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
@@ -735,7 +732,6 @@ function solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize
             Locb = bfind(tsupp, ltsupp, supp[1][:,i])
             if Locb === nothing
                 @error "The monomial basis is not enough!"
-                return nothing,nothing,nothing,nothing,nothing,nothing,nothing
             else
                bc[Locb] = coe[1][i]
             end

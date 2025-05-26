@@ -3,7 +3,7 @@ using TSSOS
 using Random
 
 function cbasis(z)
-    basis = Monomial{true}[1]
+    basis = Poly[1]
     for i = 1:length(z)
         push!(basis, z[i])
     end
@@ -23,6 +23,20 @@ Q = randn(length(basis), length(basis))
 f = basis'*((P+P')/2+im*(Q-Q')/2)*basis
 @time opt,sol,data = complex_tssos_first([f; z'*z - 1], z, 2, numeq=1, QUIET=false, solve=true, TS=false)
 @time opt,sol,data = complex_tssos_first([f; z'*z - 1], z, 3, numeq=1, QUIET=false, solve=true, TS=false)
+
+using LinearAlgebra
+Random.seed!(1)
+n = 1
+@complex_polyvar x
+basis = cbasis([x])
+P = rand(length(basis), length(basis))
+# Q = rand(length(basis), length(basis))
+# A = (P+P')/2 + im*(Q-Q')/2 + 3*I(length(basis))
+A = (P+P')/2 + I(length(basis))
+A = [0 1 1; 1 1 0; 1 0 1]
+f = basis'*A*basis + 0.5
+@time opt,sol,data = complex_tssos_first([f], [x], 2, QUIET=true, normality=0, ConjugateBasis=false, TS=false)
+@time opt,sol,data = complex_tssos_first([f], [x], 2, QUIET=true, ConjugateBasis=true, Gram=true, TS=false)
 
 # minimizing a random complex quartic polynomial with unit-norm variables
 Random.seed!(1)

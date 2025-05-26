@@ -277,7 +277,6 @@ function add_psatz!(model, nonneg::DP.Polynomial{V, M, T}, vars, ineq_cons, eq_c
         Locb = bfind(tsupp, ltsupp, fsupp[:, i])
         if Locb === nothing
             @error "The monomial basis is not enough!"
-            return info
         else
             bc[Locb] = fcoe[i]
         end

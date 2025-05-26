@@ -9,6 +9,7 @@ using Ipopt
 using LinearAlgebra
 using MetaGraphs
 using SemialgebraicSets
+using Groebner
 using COSMO
 using Dualization
 using Printf
@@ -29,7 +30,7 @@ complex_cs_tssos_higher!, LinearPMI_first, LinearPMI_higher!, sparseobj
 export cosmo_para, mosek_para
 export local_solution, refine_sol, extract_solutions, extract_solutions_robust, extract_solutions_pmo, extract_solutions_pmo_robust, extract_weight_matrix
 export add_SOS!, add_SOSMatrix!, add_poly!, add_psatz!, add_psatz_cheby!, add_poly_cheby!
-export tssos_symmetry, get_signsymmetry, tssos_symmetry_first, tssos_symmetry_higher!
+export tssos_symmetry, get_signsymmetry, tssos_symmetry_first, tssos_symmetry_higher!, add_psatz_symmetry!
 export homogenize, solve_hpop, SumOfRatios, SparseSumOfRatios, get_dynamic_sparsity
 export show_blocks, complex_to_real, get_mmoment, get_basis, get_moment, get_moment_matrix, get_cmoment
 export run_H1, run_H1CS, run_H2, run_H2CS, construct_CDK, construct_marginal_CDK, construct_CDK_cs, construct_marginal_CDK_cs

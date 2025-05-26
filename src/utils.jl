@@ -312,8 +312,7 @@ end
 
 function npolys_info(pop, x; nb=0)
     if nb > 0
-        gb = x[1:nb].^2 .- 1
-        pop = [rem(p, gb) for p in pop]
+        pop = Groebner.normalform(x[1:nb].^2 .- 1, pop)
     end
     coe = Vector{Vector{Union{Number, AffExpr}}}(undef, length(pop))
     supp = Vector{Matrix{UInt8}}(undef, length(pop))
@@ -336,8 +335,7 @@ end
 function polys_info(pop, x; nb=0)
     n = length(x)
     if nb > 0
-        gb = x[1:nb].^2 .- 1
-        pop = [rem(p, gb) for p in pop]
+        pop = Groebner.normalform(x[1:nb].^2 .- 1, pop)
     end
     coe = Vector{Vector{Union{Number, AffExpr}}}(undef, length(pop))
     supp = Vector{Vector{Vector{UInt16}}}(undef, length(pop))
@@ -403,13 +401,13 @@ function divide(a, lead, n, llead)
 end
 
 function reminder(a, x, gb, n)
-    remind = rem(prod(x.^a), gb)
-    mon = MP.monomials(remind)
-    coe = MP.coefficients(remind)
+    rem = Groebner.normalform(gb, prod(x.^a), ordering=DegRevLex())
+    mon = MP.monomials(rem)
+    coe = MP.coefficients(rem)
     lm = length(mon)
-    supp = zeros(UInt8,n,lm)
+    supp = zeros(UInt8, n, lm)
     for i = 1:lm, j = 1:n
-        @inbounds supp[j,i]=MP.degree(mon[i],x[j])
+        @inbounds supp[j,i] = MP.degree(mon[i], x[j])
     end
     return lm,supp,coe
 end
@@ -481,8 +479,8 @@ Generate an unknown polynomial of given degree in the Chebyshev basis whose coef
 function add_poly_cheby!(model, vars, degree::Int)
     basis = basis_covering_monomials(ChebyshevBasis, MP.monomials(vars, 0:degree))
     coe = @variable(model, [1:length(basis)])
-    p = coe'*mon
-    return p,coe,mon
+    p = coe'*basis
+    return p,coe,basis
 end
 
 function add_poly!(model, vars, supp::Array{UInt8,2})
