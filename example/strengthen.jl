@@ -32,7 +32,7 @@ opt,sol,data = tssos_first(rpop, x, 2, numeq=n, GroebnerBasis=true, QUIET=true, 
 end
 
 function basis(x)
-    basis = Poly[1]
+    basis = Poly{Int}[1]
     push!(basis, x...)
     for i = 1:length(x), j = i:length(x)
         push!(basis, x[i]*x[j])

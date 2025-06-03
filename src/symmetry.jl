@@ -22,17 +22,18 @@ Compute the symmetry adapted moment-SOS relaxation for polynomial optimization p
 - `d`: relaxation order
 - `group`: permutation group acting on POP variables 
 - `numeq`: number of equality constraints
+- `SymmetricConstraint`: whether the constraints are symmetric or not
 - `QUIET`: run in the quiet mode (`true`, `false`)
 
 # Output arguments
 - `opt`: optimum
 - `data`: other auxiliary data 
 """
-function tssos_symmetry(pop, x, d, group; numeq=0, QUIET=false, dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
-    return tssos_symmetry_first(pop, x, d, group, numeq=numeq, TS=false, QUIET=QUIET, solver=solver, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
+function tssos_symmetry(pop, x, d, group; numeq=0, SymmetricConstraint=true, QUIET=false, dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+    return tssos_symmetry_first(pop, x, d, group, numeq=numeq, SymmetricConstraint=SymmetricConstraint, TS=false, QUIET=QUIET, solver=solver, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
 end
 
-function tssos_symmetry_first(pop, x, d, group; numeq=0, TS="block", QUIET=false, merge=false, md=3, dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+function tssos_symmetry_first(pop, x, d, group; numeq=0, SymmetricConstraint=true, TS="block", QUIET=false, merge=false, md=3, dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     if QUIET == false
@@ -44,22 +45,33 @@ function tssos_symmetry_first(pop, x, d, group; numeq=0, TS="block", QUIET=false
     monos_2d = MP.monomials(x, 0:2d)
     monos_d = MP.monomials(x, 0:d)
     wedderburn = WedderburnDecomposition(Float64, group, action, monos_2d, monos_d)
-    basis = Vector{Vector{Vector{Poly}}}(undef, m+1)
+    basis = Vector{Vector{Vector{Poly{Float64}}}}(undef, m+1)
     basis[1] = [[item'*monos_d for item in eachrow(ele.basis)] for ele in wedderburn.Uπs] # This is the symmetry adapted basis
     for i = 2:m+1
-        basis[i] = Vector{Poly}[]
-        for bas in basis[1]
-            ind = maxdegree.(bas) .<= d - ceil(Int, maxdegree(pop[i])/2)
-            if any(ind)
-                push!(basis[i], bas[ind])
+        basis[i] = Vector{Poly{Float64}}[]
+        if SymmetricConstraint == true
+            for bas in basis[1]
+                ind = maxdegree.(bas) .<= d - ceil(Int, maxdegree(pop[i])/2)
+                if any(ind)
+                    push!(basis[i], bas[ind])
+                end
             end
+        else
+            ind = maxdegree.(monos_d) .<= d - ceil(Int, maxdegree(pop[i])/2)
+            push!(basis[i], monos_d[ind])
         end
     end
-    ebasis = Vector{Vector{Poly}}(undef, numeq)
+    ebasis = Vector{Vector{Poly{Float64}}}(undef, numeq)
     if numeq > 0
-        invbas = [minimum(monos_2d[item.nzind]) for item in wedderburn.invariants] # This is the basis for the invariant ring
-        for i = 1:numeq
-            ebasis[i] = invbas[maxdegree.(invbas) .<= 2d-maxdegree(pop[length(pop)-numeq+i])]
+        if SymmetricConstraint == true
+            invbas = [minimum(monos_2d[item.nzind]) for item in wedderburn.invariants] # This is the basis for the invariant ring
+            for i = 1:numeq
+                ebasis[i] = invbas[maxdegree.(invbas) .<= 2d-maxdegree(pop[length(pop)-numeq+i])]
+            end
+        else
+            for i = 1:numeq
+                ebasis[i] = monos_2d[maxdegree.(monos_2d) .<= 2d-maxdegree(pop[length(pop)-numeq+i])]
+            end
         end
     end
     tsupp = nothing
@@ -254,7 +266,7 @@ function normalform(mon, group, action)
     return minimum([SymbolicWedderburn.action(action, g, mon) for g in group])
 end
 
-function get_blocks(m::Int, l::Int, tsupp, pop, basis::Vector{Vector{Vector{Poly}}}, ebasis::Vector{Vector{Poly}}, group, action; TS="block", merge=false, md=3)
+function get_blocks(m::Int, l::Int, tsupp, pop, basis::Vector{Vector{Vector{Poly{Float64}}}}, ebasis::Vector{Vector{Poly{Float64}}}, group, action; TS="block", merge=false, md=3)
     blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, m+1)
     eblocks = Vector{Vector{Int}}(undef, l)
     blocksize = Vector{Vector{Vector{Int}}}(undef, m+1)
@@ -296,7 +308,7 @@ function get_blocks(m::Int, l::Int, tsupp, pop, basis::Vector{Vector{Vector{Poly
     return blocks,cl,blocksize,eblocks
 end
 
-function get_graph(tsupp, basis::Vector{Poly}, group, action; g=1)
+function get_graph(tsupp, basis::Vector{Poly{Float64}}, group, action; g=1)
     lb = length(basis)
     G = SimpleGraph(lb)
     ltsupp = length(tsupp)
@@ -315,7 +327,7 @@ function get_graph(tsupp, basis::Vector{Poly}, group, action; g=1)
     return G
 end
 
-function get_eblock(tsupp, h, basis::Vector{Poly}, group, action)
+function get_eblock(tsupp, h, basis::Vector{Poly{Float64}}, group, action)
     ltsupp = length(tsupp)
     eblock = Int[]
     for (i, ba) in enumerate(basis)
@@ -333,29 +345,40 @@ function get_eblock(tsupp, h, basis::Vector{Poly}, group, action)
     return eblock
 end
 
-function add_psatz_symmetry!(model, nonneg::DP.Polynomial{V, M, T}, vars, ineq_cons, eq_cons, order, group; TS="block", SO=1, merge=false, md=3, QUIET=false) where {V, M, T<:Union{Number,AffExpr}}
+function add_psatz_symmetry!(model, nonneg::DP.Polynomial{V, M, T}, vars, ineq_cons, eq_cons, order, group; SymmetricConstraint=true, TS="block", SO=1, merge=false, md=3, QUIET=false) where {V, M, T<:Union{Number,AffExpr}}
     m = length(ineq_cons)
     l = length(eq_cons)
     action = VariablePermutation(vars)
     monos_2d = MP.monomials(vars, 0:2*order)
     monos_d = MP.monomials(vars, 0:order)
     wedderburn = WedderburnDecomposition(Float64, group, action, monos_2d, monos_d)
-    basis = Vector{Vector{Vector{Poly}}}(undef, m+1)
+    basis = Vector{Vector{Vector{Poly{Float64}}}}(undef, m+1)
     basis[1] = [[item'*monos_d for item in eachrow(ele.basis)] for ele in wedderburn.Uπs]
     for i = 1:m
-        basis[i+1] = Vector{Poly}[]
-        for bas in basis[1]
-            ind = maxdegree.(bas) .<= order - ceil(Int, maxdegree(ineq_cons[i])/2)
-            if any(ind)
-                push!(basis[i+1], bas[ind])
+        basis[i+1] = Vector{Poly{Float64}}[]
+        if SymmetricConstraint == true
+            for bas in basis[1]
+                ind = maxdegree.(bas) .<= order - ceil(Int, maxdegree(ineq_cons[i])/2)
+                if any(ind)
+                    push!(basis[i+1], bas[ind])
+                end
             end
+        else
+            ind = maxdegree.(monos_d) .<= order - ceil(Int, maxdegree(ineq_cons[i])/2)
+            push!(basis[i+1], monos_d[ind])
         end
     end
-    ebasis = Vector{Vector{Poly}}(undef, l)
+    ebasis = Vector{Vector{Poly{Float64}}}(undef, l)
     if l > 0
-        invbas = [minimum(monos_2d[item.nzind]) for item in wedderburn.invariants] # This is the basis for the invariant ring
-        for i = 1:l
-            ebasis[i] = invbas[maxdegree.(invbas) .<= 2*order-maxdegree(eq_cons[i])]
+        if SymmetricConstraint == true
+            invbas = [minimum(monos_2d[item.nzind]) for item in wedderburn.invariants] # This is the basis for the invariant ring
+            for i = 1:l
+                ebasis[i] = invbas[maxdegree.(invbas) .<= 2*order-maxdegree(eq_cons[i])]
+            end
+        else
+            for i = 1:l
+                ebasis[i] = monos_2d[maxdegree.(monos_2d) .<= 2*order-maxdegree(eq_cons[i])]
+            end
         end
     end
     tsupp = nothing

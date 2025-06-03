@@ -4,7 +4,7 @@ using MultivariatePolynomials
 using Random
 
 function cbasis(z)
-    basis = Poly[1]
+    basis = Poly{Int}[1]
     for i = 1:length(z)
         push!(basis, z[i])
     end

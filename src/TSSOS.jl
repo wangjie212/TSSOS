@@ -19,10 +19,6 @@ using SymbolicWedderburn
 using AbstractPermutations
 import DynamicPolynomials as DP
 import MultivariatePolynomials as MP
-# using Hypatia
-# using SDPT3
-# using SDPNAL
-
 import CliqueTrees
 
 export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, complex_tssos_first, complex_tssos_higher!, complex_cs_tssos_first, 
@@ -54,8 +50,10 @@ end
 
 mosek_para() = mosek_para(1e-8, 1e-8, 1e-8, -1, 0)
 
-const Poly = DP.Polynomial{DP.Commutative{DP.CreationOrder}, Graded{LexOrder}, Float64}
-export Poly
+const Mono = DP.Monomial{DP.Commutative{DP.CreationOrder}, Graded{LexOrder}}
+const Poly{T} = DP.Polynomial{DP.Commutative{DP.CreationOrder}, Graded{LexOrder}, T}
+const PolyLike = Union{Mono,Term,Poly}
+export Mono,Poly
 
 include("chordal_extension.jl")
 include("clique_merge.jl")

@@ -1,7 +1,7 @@
 name = "TSSOS"
 uuid = "81648402-ffe6-11e9-2394-0de17a9afdad"
 authors = ["jwang <wangjie212@amss.ac.cn>"]
-version = "1.4.4"
+version = "1.4.5"
 
 [deps]
 AbstractAlgebra = "c3fe647b-3220-5bb0-a1ea-a7954cac585d"
@@ -29,6 +29,4 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SymbolicWedderburn = "858aa9a9-4c7c-4c62-b466-2421203962a2"
 
 [compat]
-Groebner = "0.9.4"
 MultivariateBases = "0.2.2"
-SemialgebraicSets = "0.3.3"

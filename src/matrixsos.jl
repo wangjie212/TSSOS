@@ -28,34 +28,34 @@ mutable struct mpop_data
     SDP_status
 end
 
-function tssos_first(F::Matrix{DP.Polynomial{V, M, T}}, G, x, d; TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {V, M, T<:Number}
-    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment)
+function tssos_first(F::Matrix{T}, G, x, d; TS="block", QUIET=false, solve=true, Gram=false, Moment=false, mosek_setting=mosek_para(), merge=false, md=3) where {T<:PolyLike}
+    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment, mosek_setting=mosek_setting, merge=merge, md=md)
 end
 
-function tssos_first(F::DP.Polynomial{V, M, T1}, G::Vector{Matrix{DP.Polynomial{V, M, T2}}}, x, d; TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {V, M, T1,T2<:Number}
-    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment)
+function tssos_first(F::T1, G::Vector{Matrix{T2}}, x, d; TS="block", QUIET=false, solve=true, Gram=false, Moment=false, mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
+    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment, mosek_setting=mosek_setting, merge=merge, md=md)
 end
 
-function tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, Gram=false)
-    return cs_tssos_higher!(data, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram)
+function tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, Gram=false, mosek_setting=mosek_para(), merge=false, md=3)
+    return cs_tssos_higher!(data, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, mosek_setting=mosek_setting, merge=merge, md=md)
 end
 
-function cs_tssos_first(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{DP.Polynomial{V, M, T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {V, M, T1,T2<:Number}
-    nG = Vector{Matrix{DP.Polynomial{V, M, T2}}}(undef, length(G))
+function cs_tssos_first(F::Matrix{T1}, G::Vector{T2}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false, mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
+    nG = Vector{Matrix{T2}}(undef, length(G))
     for i = 1:length(G)
-        nG[i] = Matrix{DP.Polynomial{V, M, T2}}(undef, 1, 1)
+        nG[i] = Matrix{T2}(undef, 1, 1)
         nG[i][1,1] = G[i]
     end
-    return cs_tssos_first(F, nG, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment)
+    return cs_tssos_first(F, nG, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment, mosek_setting=mosek_setting, merge=merge, md=md)
 end
 
-function cs_tssos_first(F::DP.Polynomial{V, M, T1}, G::Vector{Matrix{DP.Polynomial{V, M, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {V, M, T1,T2<:Number}
-    nF = Matrix{DP.Polynomial{V, M, T1}}(undef, 1, 1)
+function cs_tssos_first(F::T1, G::Vector{Matrix{T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false, mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
+    nF = Matrix{T1}(undef, 1, 1)
     nF[1,1] = F
-    return cs_tssos_first(nF, G, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment)
+    return cs_tssos_first(nF, G, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment, mosek_setting=mosek_setting, merge=merge, md=md)
 end
 
-function cs_tssos_first(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{Matrix{DP.Polynomial{V, M, T2}}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false) where {V, M, T1,T2<:Number}
+function cs_tssos_first(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false, mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     n = length(x)
@@ -67,12 +67,12 @@ function cs_tssos_first(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{Matrix{DP.
         obj_matrix.poly[i+Int(j*(j-1)/2)] = poly_data(n, supp[1], coe[1])
     end
     cons_matrix = Vector{poly_matrix}(undef, m)
-    # csupp = Vector{UInt16}[]
+    csupp = Vector{UInt16}[]
     for k = 1:m
         cons_matrix[k] = poly_matrix(size(G[k],1), Vector{poly_data}(undef, Int((size(G[k],1)+1)*size(G[k],1)/2)))
         for i = 1:cons_matrix[k].m, j = i:cons_matrix[k].m
             supp,coe = polys_info([G[k][i,j]], x)
-            # csupp = [csupp; supp[1]]
+            csupp = [csupp; supp[1]]
             cons_matrix[k].poly[i+Int(j*(j-1)/2)] = poly_data(n, supp[1], coe[1])
         end
     end
@@ -92,8 +92,11 @@ function cs_tssos_first(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{Matrix{DP.
     if TS != false
         for i = 1:obj_matrix.m, j = i:obj_matrix.m
             ind = i + Int(j*(j-1)/2)
-            ksupp[ind] = copy(obj_matrix.poly[ind].supp)
-            # ksupp[ind] = [obj_matrix.poly[ind].supp; csupp]
+            # if TS == "block"
+                ksupp[ind] = copy(obj_matrix.poly[ind].supp)
+            # else
+            #     ksupp[ind] = [obj_matrix.poly[ind].supp; csupp]
+            # end
             if i == j
                 for k = 1:cql, item in basis[k]
                     push!(ksupp[ind], sadd(item, item))
@@ -103,23 +106,23 @@ function cs_tssos_first(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{Matrix{DP.
         unique!.(ksupp)
         sort!.(ksupp)
     end
-    blocks,cl,blocksize = get_mblocks(I, obj_matrix.m, cons_matrix, cliques, cql, ksupp, basis, gbasis, QUIET=QUIET, TS=TS)
-    opt,ksupp,GramMat,moment,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment)
+    blocks,cl,blocksize = get_mblocks(I, obj_matrix.m, cons_matrix, cliques, cql, ksupp, basis, gbasis, QUIET=QUIET, TS=TS, merge=merge, md=md)
+    opt,ksupp,GramMat,moment,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment, mosek_setting=mosek_setting)
     data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocksize, blocks, cql, cliquesize, cliques, I, ncc, GramMat, moment, SDP_status)
     return opt,data
 end
 
-function cs_tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, Gram=false)
+function cs_tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, Gram=false, mosek_setting=mosek_para(), merge=false, md=3)
     basis = data.basis
     gbasis = data.gbasis
     obj_matrix = data.obj_matrix
     cons_matrix = data.cons_matrix
-    blocks,cl,blocksize = get_mblocks(data.I, obj_matrix.m, cons_matrix, data.cliques, data.cql, data.ksupp, basis, gbasis, TS=TS, QUIET=QUIET)
+    blocks,cl,blocksize = get_mblocks(data.I, obj_matrix.m, cons_matrix, data.cliques, data.cql, data.ksupp, basis, gbasis, TS=TS, QUIET=QUIET, merge=merge, md=md)
     if blocksize == data.blocksize
         opt = nothing
         println("No higher TS step of the CS-TSSOS hierarchy!")
     else
-        opt,ksupp,GramMat,_,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, data.cql, data.I, data.ncc, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram)
+        opt,ksupp,GramMat,_,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, data.cql, data.I, data.ncc, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, mosek_setting=mosek_setting)
         data.ksupp = ksupp
         data.blocks = blocks
         data.blocksize = blocksize
@@ -212,7 +215,7 @@ function get_mgraph(tsupp, cons_matrix, gbasis, om)
     return G
 end
 
-function get_mblocks(om, cons_matrix, tsupp, basis, gbasis; TS="block")
+function get_mblocks(om, cons_matrix, tsupp, basis, gbasis; TS="block", merge=false, md=3)
     blocks = Vector{Vector{Vector{Int}}}(undef, length(cons_matrix)+1)
     blocksize = Vector{Vector{Int}}(undef, length(cons_matrix)+1)
     cl = Vector{Int}(undef, length(cons_matrix)+1)
@@ -234,13 +237,16 @@ function get_mblocks(om, cons_matrix, tsupp, basis, gbasis; TS="block")
                 cl[k] = length(blocksize[k])            
             else
                 blocks[k],cl[k],blocksize[k] = chordal_cliques!(G, method=TS)
+                if merge == true
+                    blocks[k],cl[k],blocksize[k] = clique_merge!(blocks[k], d=md, QUIET=true)
+                end
             end
         end
     end
     return blocks,cl,blocksize
 end
 
-function get_mblocks(I, om, cons_matrix, cliques, cql, tsupp, basis, gbasis; TS="block", QUIET=true)
+function get_mblocks(I, om, cons_matrix, cliques, cql, tsupp, basis, gbasis; TS="block", QUIET=true, merge=false, md=3)
     if TS != false && QUIET == false
         println("Starting to compute the block structure...")
     end
@@ -254,7 +260,7 @@ function get_mblocks(I, om, cons_matrix, cliques, cql, tsupp, basis, gbasis; TS=
             ind = [[issubset(item[j], cliques[i]) for j in eachindex(item)] for item in tsupp]
             nsupp = [tsupp[k][ind[k]] for k = 1:length(tsupp)]
         end
-        blocks[i],cl[i],blocksize[i] = get_mblocks(om, cons_matrix[I[i]], nsupp, basis[i], gbasis[i], TS=TS)
+        blocks[i],cl[i],blocksize[i] = get_mblocks(om, cons_matrix[I[i]], nsupp, basis[i], gbasis[i], TS=TS, merge=merge, md=md)
     end
     end
     if QUIET == false
@@ -264,7 +270,7 @@ function get_mblocks(I, om, cons_matrix, cliques, cql, tsupp, basis, gbasis; TS=
     return blocks,cl,blocksize
 end
 
-function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc; TS="block", solve=true, QUIET=false, Gram=false, Moment=false)
+function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc; TS="block", solve=true, QUIET=false, Gram=false, Moment=false, mosek_setting=mosek_para())
     om = obj_matrix.m
     ksupp = [Vector{UInt16}[] for i = 1:length(obj_matrix.poly)]
     for u = 1:cql, i = 1:cl[u][1], j = 1:blocksize[u][1][i], k = j:blocksize[u][1][i]
@@ -302,7 +308,8 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
             println("Assembling the SDP...")
             println("There are $ncons affine constraints.")
         end
-        model = Model(optimizer_with_attributes(Mosek.Optimizer))
+        model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
+                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
         cons = Vector{Vector{AffExpr}}(undef, length(obj_matrix.poly))
@@ -431,16 +438,16 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
     return objv,ksupp,GramMat,moment,SDP_status
 end
 
-function LinearPMI_first(b, F::Vector{Matrix{DP.Polynomial{V, M, T1}}}, G::Vector{DP.Polynomial{V, M, T2}}, x, d; TS="block", QUIET=false, solve=true) where {V, M, T1,T2<:Number}
-    nG = Vector{Matrix{DP.Polynomial{V, M, T2}}}(undef, length(G))
+function LinearPMI_first(b, F::Vector{Matrix{T1}}, G::Vector{T2}, x, d; TS="block", QUIET=false, solve=true) where {T1<:PolyLike,T2<:PolyLike}
+    nG = Vector{Matrix{T2}}(undef, length(G))
     for i = 1:length(G)
-        nG[i] = Matrix{DP.Polynomial{V, M, T2}}(undef, 1, 1)
+        nG[i] = Matrix{T2}(undef, 1, 1)
         nG[i][1,1] = G[i]
     end
     return LinearPMI_first(b, F, nG, x, d, TS=TS, QUIET=QUIET, solve=solve)
 end
 
-function LinearPMI_first(b, F::Vector{Matrix{DP.Polynomial{V, M, T1}}}, G::Vector{Matrix{DP.Polynomial{V, M, T2}}}, x, d; TS="block", QUIET=false, solve=true) where {V, M, T1,T2<:Number}
+function LinearPMI_first(b, F::Vector{Matrix{T1}}, G::Vector{Matrix{T2}}, x, d; TS="block", QUIET=false, solve=true) where {T1<:PolyLike,T2<:PolyLike}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     n = length(x)
@@ -663,7 +670,7 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
     return objv,ksupp,moment,SDP_status
 end
 
-function add_SOSMatrix!(model, vars, m, d; constraint=nothing, TS=false, QUIET=true, tsupp=[])
+function add_SOSMatrix!(model, vars, m, d; constraint=nothing, TS=false, QUIET=true, tsupp=[], merge=false, md=3)
     mons = vcat([MP.monomials(vars, i) for i = 0:d]...)
     if TS == false
         lb = m*length(mons)
@@ -687,6 +694,9 @@ function add_SOSMatrix!(model, vars, m, d; constraint=nothing, TS=false, QUIET=t
             cl = length(blocksize)            
         else
             blocks,cl,blocksize = chordal_cliques!(G, method=TS)
+            if merge == true
+                blocks,cl,blocksize = clique_merge!(blocks, d=md, QUIET=true)
+            end
         end
     end
     if QUIET == false
@@ -696,7 +706,7 @@ function add_SOSMatrix!(model, vars, m, d; constraint=nothing, TS=false, QUIET=t
         println("The sizes of PSD blocks:\n$sb\n$numb")
         println("-----------------------------------------------------------------------------")
     end
-    sosmatrix = Matrix{Polynomial{true, AffExpr}}(undef, m, m)
+    sosmatrix = Matrix{Poly{AffExpr}}(undef, m, m)
     for i = 1:m, j = 1:m
         sosmatrix[i,j] = 0
     end
@@ -718,16 +728,16 @@ function add_SOSMatrix!(model, vars, m, d; constraint=nothing, TS=false, QUIET=t
     return sosmatrix,maximum(blocksize)
 end
 
-function sparseobj(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{DP.Polynomial{V, M, T2}}, x, d; TS="block", QUIET=false) where {V, M, T1,T2<:Number}
-    nG = Vector{Matrix{DP.Polynomial{V, M, T2}}}(undef, length(G))
+function sparseobj(F::Matrix{T1}, G::Vector{T2}, x, d; TS="block", QUIET=false, merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
+    nG = Vector{Matrix{T2}}(undef, length(G))
     for i = 1:length(G)
-        nG[i] = Matrix{DP.Polynomial{V, M, T2}}(undef, 1, 1)
+        nG[i] = Matrix{T2}(undef, 1, 1)
         nG[i][1,1] = G[i]
     end
-    return sparseobj(F, nG, x, d, TS=TS, QUIET=QUIET)
+    return sparseobj(F, nG, x, d, TS=TS, QUIET=QUIET, merge=merge, md=md)
 end
 
-function sparseobj(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{Matrix{DP.Polynomial{V, M, T2}}}, x, d; TS="block", QUIET=false) where {V, M, T1,T2<:Number}
+function sparseobj(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; TS="block", QUIET=false, merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     m = size(F, 1)
@@ -759,20 +769,20 @@ function sparseobj(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{Matrix{DP.Polyn
     end
     model = Model(optimizer_with_attributes(Mosek.Optimizer))
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
-    sos = Vector{Vector{Matrix{Polynomial{true, AffExpr}}}}(undef, length(G)+1)
+    sos = Vector{Vector{Matrix{Poly{AffExpr}}}}(undef, length(G)+1)
     mb = zeros(Int, length(G)+1, cl)
     for i = 1:length(G) + 1
-        sos[i] = Vector{Matrix{Polynomial{true, AffExpr}}}(undef, cl)
+        sos[i] = Vector{Matrix{Poly{AffExpr}}}(undef, cl)
         for j = 1:cl
             if i == 1
-                sos[1][j],mb[1,j] = add_SOSMatrix!(model, x, blocksize[j], d, TS=TS, QUIET=QUIET, tsupp=tsupp)
+                sos[1][j],mb[1,j] = add_SOSMatrix!(model, x, blocksize[j], d, TS=TS, QUIET=QUIET, tsupp=tsupp, merge=merge, md=md)
             else
-                sos[i][j],mb[i,j] = add_SOSMatrix!(model, x, blocksize[j]*size(G[i-1],1), d-Int(ceil(dG[i-1]/2)), constraint=G[i-1], TS=TS, QUIET=QUIET, tsupp=tsupp)
+                sos[i][j],mb[i,j] = add_SOSMatrix!(model, x, blocksize[j]*size(G[i-1],1), d-Int(ceil(dG[i-1]/2)), constraint=G[i-1], TS=TS, QUIET=QUIET, tsupp=tsupp, merge=merge, md=md)
             end
         end
     end
     @variable(model, lower)
-    temp = Matrix{Polynomial{true, AffExpr}}(undef, m ,m)
+    temp = Matrix{Poly{AffExpr}}(undef, m ,m)
     for i = 1:m, j = i:m
         temp[i,j] = F[i,j]
         if i == j
@@ -788,9 +798,9 @@ function sparseobj(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{Matrix{DP.Polyn
             else
                 for s = (j-1)*sG+1:j*sG, t = s:j*sG
                     if s == t
-                        temp[blocks[i][j], blocks[i][k]] -= sum(sos[l+1][i][s,t]*G[l][s-((j-1)*sG),t-((j-1)*sG)])
+                        temp[blocks[i][j], blocks[i][k]] -= sos[l+1][i][s,t]*G[l][s-((j-1)*sG),t-((j-1)*sG)]
                     else
-                        temp[blocks[i][j], blocks[i][k]] -= 2*sum(sos[l+1][i][s,t]*G[l][s-((j-1)*sG),t-((j-1)*sG)])
+                        temp[blocks[i][j], blocks[i][k]] -= 2*sos[l+1][i][s,t]*G[l][s-((j-1)*sG),t-((j-1)*sG)]
                     end
                 end
             end
@@ -818,7 +828,7 @@ function sparseobj(F::Matrix{DP.Polynomial{V, M, T1}}, G::Vector{Matrix{DP.Polyn
     return optimum,maximum(mb)
 end
 
-function sparseobj(b, F::Vector{Matrix{DP.Polynomial{V, M, T}}}, G, x, d; TS="block", QUIET=false) where {V, M, T<:Number}
+function sparseobj(b, F::Vector{Matrix{T}}, G, x, d; TS="block", QUIET=false, merge=false, md=3) where {T<:PolyLike}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     m = size(F[1], 1)
@@ -850,20 +860,20 @@ function sparseobj(b, F::Vector{Matrix{DP.Polynomial{V, M, T}}}, G, x, d; TS="bl
     end
     model = Model(optimizer_with_attributes(Mosek.Optimizer))
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
-    sos = Vector{Vector{Matrix{Polynomial{true, AffExpr}}}}(undef, length(G)+1)
+    sos = Vector{Vector{Matrix{Poly{AffExpr}}}}(undef, length(G)+1)
     mb = zeros(Int, length(G)+1, cl)
     for i = 1:length(G) + 1
-        sos[i] = Vector{Matrix{Polynomial{true, AffExpr}}}(undef, cl)
+        sos[i] = Vector{Matrix{Poly{AffExpr}}}(undef, cl)
         for j = 1:cl
             if i == 1
-                sos[1][j],mb[1,j] = add_SOSMatrix!(model, x, blocksize[j], d, TS=TS, QUIET=QUIET, tsupp=tsupp)
+                sos[1][j],mb[1,j] = add_SOSMatrix!(model, x, blocksize[j], d, TS=TS, QUIET=QUIET, tsupp=tsupp, merge=merge, md=md)
             else
-                sos[i][j],mb[i,j] = add_SOSMatrix!(model, x, blocksize[j]*size(G[i-1],1), d-Int(ceil(dG[i-1]/2)), constraint=G[i-1], TS=TS, QUIET=QUIET, tsupp=tsupp)
+                sos[i][j],mb[i,j] = add_SOSMatrix!(model, x, blocksize[j]*size(G[i-1],1), d-Int(ceil(dG[i-1]/2)), constraint=G[i-1], TS=TS, QUIET=QUIET, tsupp=tsupp, merge=merge, md=md)
             end
         end
     end
     λ = @variable(model, [1:length(b)])
-    temp = Matrix{Polynomial{true, AffExpr}}(undef, m ,m)
+    temp = Matrix{Poly{AffExpr}}(undef, m ,m)
     for i = 1:m, j = i:m
         temp[i,j] = F[1][i,j]
         for k = 1:length(b)
@@ -922,7 +932,7 @@ function get_mmoment(measure, tsupp, cql, basis, om)
     return moment
 end
 
-function add_psatz!(model, nonneg::Matrix{DP.Polynomial{V, M, T}}, vars, ineq_cons, eq_cons, order; TS="block", QUIET=false) where {V, M, T<:Union{Number,AffExpr}}
+function add_psatz!(model, nonneg::Matrix{T}, vars, ineq_cons, eq_cons, order; TS="block", QUIET=false) where {T<:PolyLike}
     n = length(vars)
     m = size(nonneg, 1)
     obj_matrix = poly_matrix(m, Vector{poly_data}(undef, Int((m+1)*m/2)))
@@ -950,7 +960,7 @@ function add_psatz!(model, nonneg::Matrix{DP.Polynomial{V, M, T}}, vars, ineq_co
     #     println("The maximal size of blocks is $mb.")
     # end
     for g in ineq_cons
-        G = Matrix{Polynomial{true, T}}(undef, 1, 1)
+        G = Matrix{Poly}(undef, 1, 1)
         G[1,1] = g
         sos += add_SOSMatrix!(model, vars, m, order - Int(ceil(maxdegree(g)/2)), constraint=G, TS=TS, QUIET=QUIET, tsupp=ksupp)[1]*g
     end

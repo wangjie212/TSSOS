@@ -3,7 +3,7 @@ using TSSOS
 using Random
 
 function cbasis(z)
-    basis = Poly[1]
+    basis = Poly{Int}[1]
     for i = 1:length(z)
         push!(basis, z[i])
     end
@@ -15,14 +15,14 @@ end
 
 # minimizing a random complex quartic polynomial over the unit sphere
 Random.seed!(1)
-n = 5
+n = 10
 @complex_polyvar z[1:n]
 basis = cbasis(z)
 P = randn(length(basis), length(basis))
 Q = randn(length(basis), length(basis))
 f = basis'*((P+P')/2+im*(Q-Q')/2)*basis
-@time opt,sol,data = complex_tssos_first([f; z'*z - 1], z, 2, numeq=1, QUIET=false, solve=true, TS=false)
-@time opt,sol,data = complex_tssos_first([f; z'*z - 1], z, 3, numeq=1, QUIET=false, solve=true, TS=false)
+@time opt,sol,data = complex_tssos_first([f; z'*z - 1], z, 2, numeq=1, QUIET=true, solve=true, TS=false)
+@time opt,sol,data = complex_tssos_first([f; z'*z - 1], z, 3, numeq=1, QUIET=true, solve=true, TS=false)
 
 using LinearAlgebra
 Random.seed!(1)
