@@ -1,8 +1,7 @@
-using MultivariateBases
-
 mutable struct poly_basis
     pop # polynomial optimization problem
     numeq # number of equality constraints
+    coe_type # type of coefficients
     group
     action
     basis # polynomial bases
@@ -84,7 +83,7 @@ function add_psatz_cheby!(model, nonneg::DP.Polynomial{V, M, T}, vars, ineq_cons
     remove_nearly_zero_terms!(model, coefs)
     drop_zeros!.(coefs)
     @constraint(model, coefs .== 0)
-    info = poly_basis(nothing, nothing, nothing, nothing, basis, nothing, nothing, blocksize, blocks, eblocks, pos, mul, nothing)
+    info = poly_basis(nothing, nothing, nothing, nothing, nothing, basis, nothing, nothing, blocksize, blocks, eblocks, pos, mul, nothing)
     return info
 end
 

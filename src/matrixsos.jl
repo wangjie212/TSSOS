@@ -22,40 +22,41 @@ mutable struct mpop_data
     cliquesize # sizes of cliques
     cliques # cliques of variables
     I # index sets of inequality constraints
-    ncc # constraints associated to no clique
+    ncc # global constraints
+    solver # SDP solver
     GramMat # Gram matrices
     moment # Moment matrix
     SDP_status
 end
 
-function tssos_first(F::Matrix{T}, G, x, d; TS="block", QUIET=false, solve=true, Gram=false, Moment=false, mosek_setting=mosek_para(), merge=false, md=3) where {T<:PolyLike}
-    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment, mosek_setting=mosek_setting, merge=merge, md=md)
+function tssos_first(F::Matrix{T}, G, x, d; TS="block", QUIET=false, solve=true, solver="Mosek", Gram=false, Moment=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3) where {T<:PolyLike}
+    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, solver=solver, Gram=Gram, Moment=Moment, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, merge=merge, md=md)
 end
 
-function tssos_first(F::T1, G::Vector{Matrix{T2}}, x, d; TS="block", QUIET=false, solve=true, Gram=false, Moment=false, mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
-    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment, mosek_setting=mosek_setting, merge=merge, md=md)
+function tssos_first(F::T1, G::Vector{Matrix{T2}}, x, d; TS="block", QUIET=false, solve=true, solver="Mosek", Gram=false, Moment=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
+    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, solver=solver, Gram=Gram, Moment=Moment, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, merge=merge, md=md)
 end
 
-function tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, Gram=false, mosek_setting=mosek_para(), merge=false, md=3)
-    return cs_tssos_higher!(data, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, mosek_setting=mosek_setting, merge=merge, md=md)
+function tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, Gram=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3)
+    return cs_tssos_higher!(data, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, merge=merge, md=md)
 end
 
-function cs_tssos_first(F::Matrix{T1}, G::Vector{T2}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false, mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
+function cs_tssos_first(F::Matrix{T1}, G::Vector{T2}, x, d; CS="MF", TS="block", QUIET=false, solve=true, solver="Mosek", Gram=false, Moment=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
     nG = Vector{Matrix{T2}}(undef, length(G))
     for i = 1:length(G)
         nG[i] = Matrix{T2}(undef, 1, 1)
         nG[i][1,1] = G[i]
     end
-    return cs_tssos_first(F, nG, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment, mosek_setting=mosek_setting, merge=merge, md=md)
+    return cs_tssos_first(F, nG, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, solver=solver, Gram=Gram, Moment=Moment, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, merge=merge, md=md)
 end
 
-function cs_tssos_first(F::T1, G::Vector{Matrix{T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false, mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
+function cs_tssos_first(F::T1, G::Vector{Matrix{T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, solver="Mosek", Gram=false, Moment=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
     nF = Matrix{T1}(undef, 1, 1)
     nF[1,1] = F
-    return cs_tssos_first(nF, G, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment, mosek_setting=mosek_setting, merge=merge, md=md)
+    return cs_tssos_first(nF, G, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, solver=solver, Gram=Gram, Moment=Moment, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, merge=merge, md=md)
 end
 
-function cs_tssos_first(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, Gram=false, Moment=false, mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
+function cs_tssos_first(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, solver="Mosek", Gram=false, Moment=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     n = length(x)
@@ -107,12 +108,12 @@ function cs_tssos_first(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; CS="MF", TS=
         sort!.(ksupp)
     end
     blocks,cl,blocksize = get_mblocks(I, obj_matrix.m, cons_matrix, cliques, cql, ksupp, basis, gbasis, QUIET=QUIET, TS=TS, merge=merge, md=md)
-    opt,ksupp,GramMat,moment,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, Moment=Moment, mosek_setting=mosek_setting)
-    data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocksize, blocks, cql, cliquesize, cliques, I, ncc, GramMat, moment, SDP_status)
+    opt,ksupp,GramMat,moment,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc, TS=TS, QUIET=QUIET, solve=solve, solver=solver, Gram=Gram, Moment=Moment, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
+    data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocksize, blocks, cql, cliquesize, cliques, I, ncc, solver, GramMat, moment, SDP_status)
     return opt,data
 end
 
-function cs_tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, Gram=false, mosek_setting=mosek_para(), merge=false, md=3)
+function cs_tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, Gram=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3)
     basis = data.basis
     gbasis = data.gbasis
     obj_matrix = data.obj_matrix
@@ -122,7 +123,7 @@ function cs_tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, 
         opt = nothing
         println("No higher TS step of the CS-TSSOS hierarchy!")
     else
-        opt,ksupp,GramMat,_,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, data.cql, data.I, data.ncc, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, mosek_setting=mosek_setting)
+        opt,ksupp,GramMat,_,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, data.cql, data.I, data.ncc, TS=TS, QUIET=QUIET, solve=solve, solver=data.solver, Gram=Gram, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
         data.ksupp = ksupp
         data.blocks = blocks
         data.blocksize = blocksize
@@ -270,7 +271,7 @@ function get_mblocks(I, om, cons_matrix, cliques, cql, tsupp, basis, gbasis; TS=
     return blocks,cl,blocksize
 end
 
-function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc; TS="block", solve=true, QUIET=false, Gram=false, Moment=false, mosek_setting=mosek_para())
+function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc; TS="block", solve=true, solver="Mosek", QUIET=false, Gram=false, Moment=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
     om = obj_matrix.m
     ksupp = [Vector{UInt16}[] for i = 1:length(obj_matrix.poly)]
     for u = 1:cql, i = 1:cl[u][1], j = 1:blocksize[u][1][i], k = j:blocksize[u][1][i]
@@ -308,8 +309,22 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
             println("Assembling the SDP...")
             println("There are $ncons affine constraints.")
         end
-        model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
+        if solver == "Mosek"
+            if dualize == false
+                model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
                 "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
+            else
+                model = Model(dual_optimizer(Mosek.Optimizer))
+            end
+        elseif solver == "COSMO"
+            model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter, "time_limit" => cosmo_setting.time_limit))
+        elseif solver == "SDPT3"
+            model = Model(optimizer_with_attributes(SDPT3.Optimizer))
+        elseif solver == "SDPNAL"
+            model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
+        else
+            @error "The solver is currently not supported!"
+        end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
         cons = Vector{Vector{AffExpr}}(undef, length(obj_matrix.poly))
@@ -438,16 +453,16 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
     return objv,ksupp,GramMat,moment,SDP_status
 end
 
-function LinearPMI_first(b, F::Vector{Matrix{T1}}, G::Vector{T2}, x, d; TS="block", QUIET=false, solve=true) where {T1<:PolyLike,T2<:PolyLike}
+function LinearPMI_first(b, F::Vector{Matrix{T1}}, G::Vector{T2}, x, d; TS="block", solver="Mosek", dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), QUIET=false, solve=true) where {T1<:PolyLike,T2<:PolyLike}
     nG = Vector{Matrix{T2}}(undef, length(G))
     for i = 1:length(G)
         nG[i] = Matrix{T2}(undef, 1, 1)
         nG[i][1,1] = G[i]
     end
-    return LinearPMI_first(b, F, nG, x, d, TS=TS, QUIET=QUIET, solve=solve)
+    return LinearPMI_first(b, F, nG, x, d, TS=TS, QUIET=QUIET, solve=solve, solver=solver, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
 end
 
-function LinearPMI_first(b, F::Vector{Matrix{T1}}, G::Vector{Matrix{T2}}, x, d; TS="block", QUIET=false, solve=true) where {T1<:PolyLike,T2<:PolyLike}
+function LinearPMI_first(b, F::Vector{Matrix{T1}}, G::Vector{Matrix{T2}}, x, d; TS="block", solver="Mosek", dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), QUIET=false, solve=true) where {T1<:PolyLike,T2<:PolyLike}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     n = length(x)
@@ -500,12 +515,12 @@ function LinearPMI_first(b, F::Vector{Matrix{T1}}, G::Vector{Matrix{T2}}, x, d; 
         mb = maximum(maximum.(blocksize))
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
-    opt,ksupp,moment,SDP_status = LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, TS=TS, QUIET=QUIET, solve=solve)
-    data = mpop_data(b, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocksize, blocks, nothing, nothing, nothing, nothing, nothing, nothing, moment, SDP_status)
+    opt,ksupp,moment,SDP_status = LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, TS=TS, QUIET=QUIET, solve=solve, solver=solver, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
+    data = mpop_data(b, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocksize, blocks, nothing, nothing, nothing, nothing, nothing, solver, nothing, moment, SDP_status)
     return opt,data
 end
 
-function LinearPMI_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
+function LinearPMI_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
     basis = data.basis
     gbasis = data.gbasis
     obj_matrix = data.obj_matrix
@@ -524,7 +539,7 @@ function LinearPMI_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
         opt = nothing
         println("No higher TS step of the TSSOS hierarchy!")
     else
-        opt,ksupp,moment,SDP_status = LinearPMI_sdp(data.b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, TS=TS, QUIET=QUIET, solve=solve)
+        opt,ksupp,moment,SDP_status = LinearPMI_sdp(data.b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, TS=TS, QUIET=QUIET, solve=solve, solver=data.solver, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
         data.ksupp = ksupp
         data.blocks = blocks
         data.blocksize = blocksize
@@ -534,7 +549,7 @@ function LinearPMI_higher!(data::mpop_data; TS="block", QUIET=false, solve=true)
     return opt,data
 end
 
-function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize; TS="block", solve=true, QUIET=false)
+function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize; TS="block", solve=true, solver="Mosek", dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), QUIET=false)
     om = obj_matrix[1].m
     ksupp = [Vector{UInt16}[] for i = 1:length(obj_matrix[1].poly)]
     for i = 1:cl[1], j = 1:blocksize[1][i], k = j:blocksize[1][i]
@@ -572,7 +587,22 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
             println("Assembling the SDP...")
             println("There are $ncons affine constraints.")
         end
-        model = Model(optimizer_with_attributes(Mosek.Optimizer))
+        if solver == "Mosek"
+            if dualize == false
+                model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
+                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
+            else
+                model = Model(dual_optimizer(Mosek.Optimizer))
+            end
+        elseif solver == "COSMO"
+            model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter, "time_limit" => cosmo_setting.time_limit))
+        elseif solver == "SDPT3"
+            model = Model(optimizer_with_attributes(SDPT3.Optimizer))
+        elseif solver == "SDPNAL"
+            model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
+        else
+            @error "The solver is currently not supported!"
+        end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
         cons = Vector{Vector{AffExpr}}(undef, length(obj_matrix[1].poly))
@@ -728,16 +758,16 @@ function add_SOSMatrix!(model, vars, m, d; constraint=nothing, TS=false, QUIET=t
     return sosmatrix,maximum(blocksize)
 end
 
-function sparseobj(F::Matrix{T1}, G::Vector{T2}, x, d; TS="block", QUIET=false, merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
+function sparseobj(F::Matrix{T1}, G::Vector{T2}, x, d; TS="block", QUIET=false, solver="Mosek", dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
     nG = Vector{Matrix{T2}}(undef, length(G))
     for i = 1:length(G)
         nG[i] = Matrix{T2}(undef, 1, 1)
         nG[i][1,1] = G[i]
     end
-    return sparseobj(F, nG, x, d, TS=TS, QUIET=QUIET, merge=merge, md=md)
+    return sparseobj(F, nG, x, d, TS=TS, QUIET=QUIET, merge=merge, md=md, solver=solver, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
 end
 
-function sparseobj(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; TS="block", QUIET=false, merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
+function sparseobj(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; TS="block", QUIET=false, solver="Mosek", dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     m = size(F, 1)
@@ -767,7 +797,22 @@ function sparseobj(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; TS="block", QUIET
             tsupp[i + Int(j*(j-1)/2)] = supp
         end
     end
-    model = Model(optimizer_with_attributes(Mosek.Optimizer))
+    if solver == "Mosek"
+        if dualize == false
+            model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
+                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
+        else
+            model = Model(dual_optimizer(Mosek.Optimizer))
+        end
+    elseif solver == "COSMO"
+        model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter, "time_limit" => cosmo_setting.time_limit))
+    elseif solver == "SDPT3"
+        model = Model(optimizer_with_attributes(SDPT3.Optimizer))
+    elseif solver == "SDPNAL"
+        model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
+    else
+        @error "The solver is currently not supported!"
+    end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     sos = Vector{Vector{Matrix{Poly{AffExpr}}}}(undef, length(G)+1)
     mb = zeros(Int, length(G)+1, cl)
@@ -828,7 +873,7 @@ function sparseobj(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; TS="block", QUIET
     return optimum,maximum(mb)
 end
 
-function sparseobj(b, F::Vector{Matrix{T}}, G, x, d; TS="block", QUIET=false, merge=false, md=3) where {T<:PolyLike}
+function sparseobj(b, F::Vector{Matrix{T}}, G, x, d; TS="block", QUIET=false, solver="Mosek", dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3) where {T<:PolyLike}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     m = size(F[1], 1)
@@ -858,7 +903,22 @@ function sparseobj(b, F::Vector{Matrix{T}}, G, x, d; TS="block", QUIET=false, me
             tsupp[i + Int(j*(j-1)/2)] = supp
         end
     end
-    model = Model(optimizer_with_attributes(Mosek.Optimizer))
+    if solver == "Mosek"
+        if dualize == false
+            model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
+                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
+        else
+            model = Model(dual_optimizer(Mosek.Optimizer))
+        end
+    elseif solver == "COSMO"
+        model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter, "time_limit" => cosmo_setting.time_limit))
+    elseif solver == "SDPT3"
+        model = Model(optimizer_with_attributes(SDPT3.Optimizer))
+    elseif solver == "SDPNAL"
+        model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
+    else
+        @error "The solver is currently not supported!"
+    end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     sos = Vector{Vector{Matrix{Poly{AffExpr}}}}(undef, length(G)+1)
     mb = zeros(Int, length(G)+1, cl)

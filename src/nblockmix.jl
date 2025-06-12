@@ -15,7 +15,7 @@ mutable struct mcpop_data
     cliques # cliques of variables
     I # index sets of inequality constraints
     J # index sets of equality constraints
-    ncc # constraints associated to no clique
+    ncc # global constraints
     blocksize # sizes of blocks
     blocks # block structure
     eblocks # block structrue for equality constraints
