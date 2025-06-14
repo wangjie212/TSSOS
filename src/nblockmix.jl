@@ -61,9 +61,9 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function cs_tssos_first(pop::Vector{P}, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", merge=false, md=3, solver="Mosek", 
+function cs_tssos_first(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", merge=false, md=3, solver="Mosek", 
     dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), 
-    writetofile=false, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {P<:AbstractPolynomial}
+    writetofile=false, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     supp,coe = polys_info(pop, x, nb=nb)
     opt,sol,data = cs_tssos_first(supp, coe, length(x), d, numeq=numeq, nb=nb, CS=CS, cliques=cliques, basis=basis, ebasis=ebasis, TS=TS,
     merge=merge, md=md, QUIET=QUIET, solver=solver, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
@@ -138,7 +138,7 @@ function cs_tssos_first(supp::Vector{Vector{Vector{UInt16}}}, coe, n, d; numeq=0
     if TS == "signsymmetry"
         ss = get_signsymmetry(supp, n)
     end
-    blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, ksupp, basis, ebasis, nb=nb, TS=TS, merge=merge, md=md, nvar=n, signsymmetry=ss)
+    blocks,cl,blocksize,eblocks = get_blocks(I, J, supp, cliques, cql, ksupp, basis, ebasis, nb=nb, TS=TS, merge=merge, md=md, nvar=n, signsymmetry=ss)
     end
     if QUIET == false
         mb = maximum(maximum.([maximum.(blocksize[i]) for i = 1:cql]))
@@ -190,7 +190,7 @@ function cs_tssos_higher!(data::mcpop_data; TS="block", merge=false, md=3, QUIET
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,eblocks,cl,blocksize = get_blocks(I, J, supp, cliques, cql, data.ksupp, basis, ebasis, nb=nb, TS=TS, merge=merge, md=md)
+    blocks,cl,blocksize,eblocks = get_blocks(I, J, supp, cliques, cql, data.ksupp, basis, ebasis, nb=nb, TS=TS, merge=merge, md=md)
     end
     if blocksize == data.blocksize && eblocks == data.eblocks
         println("No higher TS step of the CS-TSSOS hierarchy!")
@@ -396,18 +396,17 @@ function solvesdp(m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, ebasis, c
                 @inbounds add_to_expression!(cons[Locb], coe[i+1][j], pos0)
             end
         end
-        bc = zeros(ltsupp)
         for i = 1:length(supp[1])
             Locb = bfind(tsupp, ltsupp, supp[1][i])
             if Locb === nothing
                @error "The monomial basis is not enough!"
             else
-               bc[Locb] = coe[1][i]
+               cons[Locb] -= coe[1][i]
             end
         end
         @variable(model, lower)
         cons[1] += lower
-        @constraint(model, con, cons==bc)
+        @constraint(model, con, cons==zeros(ltsupp))
         @objective(model, Max, lower)
         end
         if QUIET == false
@@ -456,7 +455,7 @@ function solvesdp(m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, ebasis, c
     return objv,ksupp,momone,moment,GramMat,multiplier,SDP_status
 end
 
-function get_eblock(tsupp::Vector{Vector{UInt16}}, hsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=nb, nvar=0, signsymmetry=nothing)
+function get_eblock(tsupp::Vector{Vector{UInt16}}, hsupp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0, nvar=0, signsymmetry=nothing)
     ltsupp = length(tsupp)
     hlt = length(hsupp)
     eblock = Int[]
@@ -481,15 +480,15 @@ end
 function get_blocks(I, J, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql, tsupp, basis, ebasis; blocks=[], eblocks=[], cl=[], blocksize=[], TS="block",
     nb=0, merge=false, md=3, nvar=0, signsymmetry=nothing)
     blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
-    eblocks = Vector{Vector{Vector{Int}}}(undef, cql)
     cl = Vector{Vector{Int}}(undef, cql)
     blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
+    eblocks = Vector{Vector{Vector{Int}}}(undef, cql)
     for i = 1:cql
         ksupp = TS == false ? nothing : tsupp[[issubset(tsupp[j], cliques[i]) for j in eachindex(tsupp)]]
-        blocks[i],eblocks[i],cl[i],blocksize[i] = get_blocks(length(I[i]), length(J[i]), ksupp, supp[[I[i]; J[i]].+1], basis[i],
+        blocks[i],cl[i],blocksize[i],eblocks[i] = get_blocks(length(I[i]), length(J[i]), ksupp, supp[[I[i]; J[i]].+1], basis[i],
         ebasis[i], TS=TS, nb=nb, QUIET=true, merge=merge, md=md, nvar=nvar, signsymmetry=signsymmetry)
     end
-    return blocks,eblocks,cl,blocksize
+    return blocks,cl,blocksize,eblocks
 end
 
 function assign_constraint(m, numeq, supp::Vector{Vector{Vector{UInt16}}}, cliques, cql)
@@ -556,7 +555,7 @@ end
 
 function clique_decomp(n, m, numeq, dc, supp::Vector{Vector{Vector{UInt16}}}; order="min", alg="MF")
     if alg == false
-        cliques,cql,cliquesize = [UInt16[i for i=1:n]],1,[n]
+        cliques,cql,cliquesize = [Vector(1:n)],1,[n]
     else
         G = SimpleGraph(n)
         for i = 1:m+1

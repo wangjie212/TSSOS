@@ -1,5 +1,7 @@
 using TSSOS
 using DynamicPolynomials
+using JuMP
+using MosekTools
 using Test
 
 @testset begin
@@ -104,5 +106,36 @@ for k = 1:N-2
 end
 opt,sol,data = complex_cs_tssos_first([f; cons], z, 3, nb=N+1, CS=false, TS="block", ConjugateBasis=true, QUIET=true, Gram=true)
 @test opt ≈ 1 atol = 1e-6
+
+# A complex HSOS program 
+@complex_polyvar z[1:2]
+f = 3-z[1]*conj(z[1])-0.5im*z[1]*conj(z[2])^2+0.5im*z[2]^2*conj(z[1])
+g = [z[2]+conj(z[2])]
+h = [-1+z[1]*conj(z[1])-0.25*z[1]^2-0.25*conj(z[1])^2, -3+z[1]*conj(z[1])+z[2]*conj(z[2]), im*z[2]-im*conj(z[2])]
+
+model = Model(optimizer_with_attributes(Mosek.Optimizer))
+set_optimizer_attribute(model, MOI.Silent(), true)
+@variable(model, lower)
+add_complex_psatz!(model, f - lower, z, g, h, 2, CS=true, TS="block", SO=2, ConjugateBasis=false, normality=1, QUIET=true)
+@objective(model, Max, lower)
+optimize!(model)
+opt = objective_value(model)
+@test opt ≈ 0.4281746 atol = 1e-6
+
+# exploiting symmetry for complex polynomial optimization
+@complex_polyvar z[1:2]
+f = z[1]^2*conj(z[1]^2) + z[2]^2*conj(z[2]^2) + z[1]*conj(z[2]) + z[2]*conj(z[1]) + (1+im)*z[1] + 
+(1-im)*conj(z[1]) + (1+im)*z[2] + (1-im)*conj(z[2]) + 1
+G = PermGroup(perm"(1,2)")
+opt,data = complex_tssos_symmetry_first([f, 1-z[1]*conj(z[1])-z[2]*conj(z[2])], z, 2, G, TS=false, ConjugateBasis=false, QUIET=true)
+@test opt ≈ -1.69150468 atol = 1e-6
+opt,data = complex_tssos_symmetry_first([f, 1-z[1]*conj(z[1])-z[2]*conj(z[2])], z, 2, G, TS="block", ConjugateBasis=false, QUIET=true)
+@test opt ≈ -2 atol = 1e-6
+opt,data = complex_tssos_symmetry_first([f, 1-z[1]*conj(z[1])-z[2]*conj(z[2])], z, 2, G, numeq=1, TS="block", ConjugateBasis=true, QUIET=true)
+@test opt ≈ -1.5 atol = 1e-6
+opt,data = complex_tssos_symmetry_higher!(data, QUIET=true)
+@test opt ≈ -1.5 atol = 1e-6
+opt,data = complex_tssos_symmetry_first([f, 1-z[1]*conj(z[1]), 1-z[2]*conj(z[2])], z, 2, G, numeq=2, SymmetricConstraint=false, TS="block", ConjugateBasis=true, QUIET=true)
+@test opt ≈ -1 atol = 1e-6
 
 end

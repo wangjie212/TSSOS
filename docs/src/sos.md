@@ -254,6 +254,7 @@ The outer approximation obtained at the 8-th relaxation order is represented in 
 ## Methods
 ```@docs
 add_psatz!
+add_complex_psatz!
 add_poly!
 add_SOS!
 ```

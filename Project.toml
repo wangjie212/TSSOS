@@ -1,7 +1,7 @@
 name = "TSSOS"
 uuid = "81648402-ffe6-11e9-2394-0de17a9afdad"
 authors = ["jwang <wangjie212@amss.ac.cn>"]
-version = "1.4.6"
+version = "1.4.7"
 
 [deps]
 AbstractAlgebra = "c3fe647b-3220-5bb0-a1ea-a7954cac585d"

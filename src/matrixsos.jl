@@ -27,36 +27,49 @@ mutable struct mpop_data
     GramMat # Gram matrices
     moment # Moment matrix
     SDP_status
+    rtol # tolerance for rank
+    gtol # tolerance for global optimality gap
+    ftol # tolerance for feasibility
+    flag # 0 if global optimality is certified; 1 otherwise
 end
 
-function tssos_first(F::Matrix{T}, G, x, d; TS="block", QUIET=false, solve=true, solver="Mosek", Gram=false, Moment=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3) where {T<:PolyLike}
-    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, solver=solver, Gram=Gram, Moment=Moment, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, merge=merge, md=md)
+function tssos_first(F::Matrix{T}, G, x, d; TS="block", QUIET=false, solve=true, solver="Mosek", Gram=false, Moment=false, 
+    solution=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:PolyLike}
+    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, solver=solver, Gram=Gram, Moment=Moment, 
+    solution=solution, rtol=rtol, gtol=gtol, ftol=ftol, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, merge=merge, md=md)
 end
 
-function tssos_first(F::T1, G::Vector{Matrix{T2}}, x, d; TS="block", QUIET=false, solve=true, solver="Mosek", Gram=false, Moment=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
-    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, solver=solver, Gram=Gram, Moment=Moment, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, merge=merge, md=md)
+function tssos_first(F::T1, G::Vector{Matrix{T2}}, x, d; TS="block", QUIET=false, solve=true, solver="Mosek", Gram=false, Moment=false, 
+    solution=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T1<:PolyLike,T2<:PolyLike}
+    return cs_tssos_first(F, G, x, d, CS=false, TS=TS, QUIET=QUIET, solve=solve, solver=solver, Gram=Gram, Moment=Moment, 
+    solution=solution, rtol=rtol, gtol=gtol, ftol=ftol, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, merge=merge, md=md)
 end
 
 function tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, Gram=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3)
     return cs_tssos_higher!(data, TS=TS, QUIET=QUIET, solve=solve, Gram=Gram, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, merge=merge, md=md)
 end
 
-function cs_tssos_first(F::Matrix{T1}, G::Vector{T2}, x, d; CS="MF", TS="block", QUIET=false, solve=true, solver="Mosek", Gram=false, Moment=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
+function cs_tssos_first(F::Matrix{T1}, G::Vector{T2}, x, d; CS="MF", TS="block", QUIET=false, solve=true, solver="Mosek", Gram=false, Moment=false, 
+    solution=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T1<:PolyLike,T2<:PolyLike}
     nG = Vector{Matrix{T2}}(undef, length(G))
     for i = 1:length(G)
         nG[i] = Matrix{T2}(undef, 1, 1)
         nG[i][1,1] = G[i]
     end
-    return cs_tssos_first(F, nG, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, solver=solver, Gram=Gram, Moment=Moment, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, merge=merge, md=md)
+    return cs_tssos_first(F, nG, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, solver=solver, Gram=Gram, Moment=Moment, 
+    solution=solution, rtol=rtol, gtol=gtol, ftol=ftol, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, merge=merge, md=md)
 end
 
-function cs_tssos_first(F::T1, G::Vector{Matrix{T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, solver="Mosek", Gram=false, Moment=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
+function cs_tssos_first(F::T1, G::Vector{Matrix{T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, solver="Mosek", Gram=false, Moment=false, 
+    solution=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T1<:PolyLike,T2<:PolyLike}
     nF = Matrix{T1}(undef, 1, 1)
     nF[1,1] = F
-    return cs_tssos_first(nF, G, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, solver=solver, Gram=Gram, Moment=Moment, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, merge=merge, md=md)
+    return cs_tssos_first(nF, G, x, d, CS=CS, TS=TS, QUIET=QUIET, solve=solve, solver=solver, Gram=Gram, Moment=Moment, 
+    solution=solution, rtol=rtol, gtol=gtol, ftol=ftol, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, merge=merge, md=md)
 end
 
-function cs_tssos_first(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, solver="Mosek", Gram=false, Moment=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
+function cs_tssos_first(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; CS="MF", TS="block", QUIET=false, solve=true, solver="Mosek", Gram=false, Moment=false, 
+    solution=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T1<:PolyLike,T2<:PolyLike}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     n = length(x)
@@ -108,9 +121,18 @@ function cs_tssos_first(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; CS="MF", TS=
         sort!.(ksupp)
     end
     blocks,cl,blocksize = get_mblocks(I, obj_matrix.m, cons_matrix, cliques, cql, ksupp, basis, gbasis, QUIET=QUIET, TS=TS, merge=merge, md=md)
-    opt,ksupp,GramMat,moment,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc, TS=TS, QUIET=QUIET, solve=solve, solver=solver, Gram=Gram, Moment=Moment, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
-    data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocksize, blocks, cql, cliquesize, cliques, I, ncc, solver, GramMat, moment, SDP_status)
-    return opt,data
+    opt,ksupp,GramMat,moment,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc, TS=TS, QUIET=QUIET, 
+    solve=solve, solver=solver, Gram=Gram, Moment=Moment, solution=solution, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
+    sol = nothing
+    flag = 1
+    if solution == true && CS == false && TS == false
+        sol = extract_solutions_pmo_robust(moment[1], n, d, size(F,1), pop=[[F]; G], x=x, lb=opt, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)
+        if sol !== nothing
+            flag = 0
+        end
+    end
+    data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocksize, blocks, cql, cliquesize, cliques, I, ncc, solver, GramMat, moment, SDP_status, rtol, gtol, ftol, flag)
+    return opt,sol,data
 end
 
 function cs_tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, Gram=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), merge=false, md=3)
@@ -130,12 +152,12 @@ function cs_tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, 
         data.GramMat = GramMat
         data.SDP_status = SDP_status
     end
-    return opt,data
+    return opt,nothing,data
 end
 
 function clique_decomp(n, m, d, dG, obj_matrix, cons_matrix; alg="MF")
     if alg == false
-        cliques,cql,cliquesize = [UInt16[i for i=1:n]],1,[n]
+        cliques,cql,cliquesize = [Vector(1:n)],1,[n]
     else
         G = SimpleGraph(n)
         for i = 1:Int((obj_matrix.m + 1)*obj_matrix.m/2)
@@ -271,7 +293,7 @@ function get_mblocks(I, om, cons_matrix, cliques, cql, tsupp, basis, gbasis; TS=
     return blocks,cl,blocksize
 end
 
-function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc; TS="block", solve=true, solver="Mosek", QUIET=false, Gram=false, Moment=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc; TS="block", solve=true, solver="Mosek", QUIET=false, Gram=false, Moment=false, solution=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
     om = obj_matrix.m
     ksupp = [Vector{UInt16}[] for i = 1:length(obj_matrix.poly)]
     for u = 1:cql, i = 1:cl[u][1], j = 1:blocksize[u][1][i], k = j:blocksize[u][1][i]
@@ -401,19 +423,18 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
         @variable(model, lower)
         for i = 1:om, j = i:om
             ind = i + Int(j*(j-1)/2)
-            bc = zeros(length(ksupp[ind]))
             for k = 1:length(obj_matrix.poly[ind].supp)
                 Locb = bfind(ksupp[ind], length(ksupp[ind]), obj_matrix.poly[ind].supp[k])
                 if Locb === nothing
                    @error "The monomial basis is not enough!"
                 else
-                   bc[Locb] = obj_matrix.poly[ind].coe[k]
+                   cons[ind][Locb] -= obj_matrix.poly[ind].coe[k]
                 end
             end
             if i == j
                 cons[ind][1] += lower
             end
-            @constraint(model, cons[ind]==bc, base_name="con$ind")
+            @constraint(model, cons[ind]==zeros(length(ksupp[ind])), base_name="con$ind")
         end
         @objective(model, Max, lower)
         end
@@ -445,7 +466,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
                 end
             end
         end
-        if Moment == true
+        if Moment == true || solution == true
             measure = [-dual(constraint_by_name(model, "con$i")) for i = 1:length(ksupp)]
             moment = get_mmoment(measure, ksupp[1], cql, basis, om)
         end
@@ -516,7 +537,7 @@ function LinearPMI_first(b, F::Vector{Matrix{T1}}, G::Vector{Matrix{T2}}, x, d; 
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
     opt,ksupp,moment,SDP_status = LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, TS=TS, QUIET=QUIET, solve=solve, solver=solver, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
-    data = mpop_data(b, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocksize, blocks, nothing, nothing, nothing, nothing, nothing, solver, nothing, moment, SDP_status)
+    data = mpop_data(b, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocksize, blocks, nothing, nothing, nothing, nothing, nothing, solver, nothing, moment, SDP_status, nothing, nothing, nothing, nothing)
     return opt,data
 end
 
@@ -655,13 +676,12 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
         λ = @variable(model, [1:length(b)])
         for i = 1:om, j = i:om
             ind = i + Int(j*(j-1)/2)
-            bc = [AffExpr(0) for k = 1:length(ksupp[ind])]
             for k = 1:length(obj_matrix[1].poly[ind].supp)
                 Locb = bfind(ksupp[ind], length(ksupp[ind]), obj_matrix[1].poly[ind].supp[k])
                 if Locb === nothing
                     @error "The monomial basis is not enough!"
                 else
-                    @inbounds add_to_expression!(bc[Locb], obj_matrix[1].poly[ind].coe[k])
+                    @inbounds add_to_expression!(cons[ind][Locb], -obj_matrix[1].poly[ind].coe[k])
                 end
             end
             for t = 2:length(obj_matrix), k = 1:length(obj_matrix[t].poly[ind].supp)
@@ -669,10 +689,10 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
                 if Locb === nothing
                     @error "The monomial basis is not enough!"
                 else
-                    @inbounds add_to_expression!(bc[Locb], λ[t-1], obj_matrix[t].poly[ind].coe[k])
+                    @inbounds add_to_expression!(cons[ind][Locb], -λ[t-1], obj_matrix[t].poly[ind].coe[k])
                 end
             end
-            @constraint(model, cons[ind]==bc, base_name="con$ind")
+            @constraint(model, cons[ind]==zeros(length(ksupp[ind])), base_name="con$ind")
         end
         @objective(model, Min, b'*λ)
         end

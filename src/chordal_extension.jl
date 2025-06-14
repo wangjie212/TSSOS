@@ -17,7 +17,7 @@ function chordal_cliques!(G; method="MF", minimize=false)
     end
     
     # return maximal cliques
-    maximal_cliques = Vector{Vector{UInt16}}(undef, length(tree))
+    maximal_cliques = Vector{Vector{Int}}(undef, length(tree))
     
     for (i, clique) in enumerate(tree)
         maximal_cliques[i] = sort!(label[clique])
@@ -35,7 +35,7 @@ function add_clique!(G, nodes)
 end
 
 function max_cliques(G)
-    cliques = convert(Vector{Vector{UInt16}}, maximal_cliques(G))
+    cliques = maximal_cliques(G)
     sort!.(cliques)
     cliquesize = length.(cliques)
     cql = length(cliquesize)

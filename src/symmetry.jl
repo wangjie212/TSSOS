@@ -677,7 +677,7 @@ function get_eblock(tsupp, h, basis::Vector{Poly{Float64}}, group, action)
     return eblock
 end
 
-function add_psatz_symmetry!(model, nonneg::DP.Polynomial{V, M, T}, vars, ineq_cons, eq_cons, order, group; action=nothing, semisimple=false, SymmetricConstraint=true, TS="block", SO=1, merge=false, md=3, QUIET=false) where {V, M, T<:Union{Number,AffExpr}}
+function add_psatz_symmetry!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, order, group; action=nothing, semisimple=false, SymmetricConstraint=true, TS="block", SO=1, merge=false, md=3, QUIET=false) where {T<:Union{Number,AffExpr}}
     m = length(ineq_cons)
     l = length(eq_cons)
     if action === nothing

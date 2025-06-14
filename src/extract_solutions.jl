@@ -188,21 +188,23 @@ function extract_csolutions_robust(moment, n, d, cliques, cql, cliquesize; pop=n
 end
 
 """
-    sol = extract_solutions_pmo(n, d, p, moment; rtol=1e-2)
+    sol = extract_solutions_pmo(moment, n, d, p; rtol=1e-2)
 
 Extract a tuple of solutions for a polynomial matrix optimization problem using Henrion-Lasserre's algorithm.
 
 # Input arguments
+- `moment`: moment matrix
 - `n`: number of variables
 - `d`: relaxation order
 - `p`: size of the objective matrix
-- `moment`: moment matrix
 - `rtol`: tolerance for rank
+- `gtol`: tolerance for global optimality gap
+- `ftol`: tolerance for feasibility
 
 # Output arguments
 - `sol`: a tuple of solutions
 """
-function extract_solutions_pmo(n, d, p, moment; basis=[], rtol=1e-2)
+function extract_solutions_pmo(moment, n, d, p; basis=[], rtol=1e-2)
     U,pivots = rref_with_pivots!(Matrix(moment), rtol)
     U = U[1:length(pivots), :]'
     if isempty(basis)
@@ -234,21 +236,23 @@ function extract_solutions_pmo(n, d, p, moment; basis=[], rtol=1e-2)
 end
 
 """
-    sol = extract_solutions_pmo_robust(n, d, p, moment; rtol=1e-2)
+    sol = extract_solutions_pmo_robust(moment, n, d, p; rtol=1e-2)
 
 Extract a tuple of solutions for a polynomial matrix optimization problem using the GNS robust algorithm.
 
 # Input arguments
+- `moment`: moment matrix
 - `n`: number of variables
 - `d`: relaxation order
 - `p`: size of the objective matrix
-- `moment`: moment matrix
 - `rtol`: tolerance for rank
+- `gtol`: tolerance for global optimality gap
+- `ftol`: tolerance for feasibility
 
 # Output arguments
 - `sol`: a tuple of solutions
 """
-function extract_solutions_pmo_robust(n, d, p, moment; basis=[], rtol=1e-2)
+function extract_solutions_pmo_robust(moment, n, d, p; basis=[], pop=nothing, x=nothing, lb=nothing, numeq=0, check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
     if isempty(basis)
         basis = get_basis(n, d)
     end
@@ -274,10 +278,13 @@ function extract_solutions_pmo_robust(n, d, p, moment; basis=[], rtol=1e-2)
     rands = rands/sum(rands)
     L = schur(sum(rands[i]*N[i] for i in 1:n)).Z
     sol = [[L[:,i]'*N[j]*L[:,i] for j = 1:n] for i = 1:length(S)]
+    if check == true
+        sol = check_solution(sol, lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+    end
     return sol
 end
 
-function extract_weight_matrix(n, d, q, sol, moment; tol=1e-2)
+function extract_weight_matrix(moment, n, d, q, sol; tol=1e-2)
     ind = [1]
     for i = 2:length(sol)
         if abs(norm(sol[i]-sol[i-1])) > tol
@@ -363,9 +370,17 @@ function approx_sol(moment, lb, n, cliques, cql, cliquesize, supp, coe; numeq=0,
     return sol,gap,flag
 end
 
-function check_optimality(sol, lb, pop::Vector{DP.Polynomial{V, M, T}}, x; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true) where {V, M, T<:Number}
+function eval_pm(F, x, v)
+    if ndims(F) == 0
+        return F(x=>v)
+    else
+        return eigmin([F[i,j](x=>v) for i = 1:size(F,1), j = 1:size(F,2)])
+    end
+end
+
+function check_optimality(sol, lb, pop::Vector{P}, x; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true) where {T<:Number, P<:Union{Poly{T},Matrix{Poly{T}}}}
     flag = 1
-    ub = pop[1](x => sol)
+    ub = eval_pm(pop[1], x, sol)
     gap = abs(lb-ub)/max(1, abs(ub))
     if QUIET == false
         @printf "Global optimality gap = %.6f%%!\n" 100*gap
@@ -375,7 +390,7 @@ function check_optimality(sol, lb, pop::Vector{DP.Polynomial{V, M, T}}, x; numeq
     end
     m = length(pop) - 1 - numeq
     if m > 0
-        vio = [pop[j](x => sol) for j = 2:m+1]
+        vio = [eval_pm(pop[j], x, sol) for j = 2:m+1]
         mvio = max(-minimum(real.(vio)), 0)
         if mvio > ftol
             flag = 0
@@ -431,7 +446,7 @@ function check_optimality(sol, lb, supp::Union{Vector{Vector{Vector{UInt16}}}, V
     return flag == 1
 end
 
-function check_solution(candidate_sol, lb, pop::Vector{DP.Polynomial{V, M, T}}, x; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true) where {V, M, T<:Number}
+function check_solution(candidate_sol, lb, pop::Vector{P}, x; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true) where {T<:Number, P<:Union{Poly{T},Matrix{Poly{T}}}}
     sol = typeof(candidate_sol[1])[]
     for (i, cand) in enumerate(candidate_sol)
         if QUIET == false
@@ -446,12 +461,12 @@ function check_solution(candidate_sol, lb, pop::Vector{DP.Polynomial{V, M, T}}, 
     if nsol > 0
         println("------------------------------------------------")
         if nsol == 1
-            ub = MP.polynomial(pop[1])(x => sol[1])
+            ub = eval_pm(pop[1], x, sol[1])
             gap = abs(lb-ub)/max(1, abs(ub))
             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
             println("Successfully extracted one globally optimal solution.")
         else
-            ub = minimum([real(MP.polynomial(pop[1])(x => s)) for s in sol])
+            ub = minimum([real(eval_pm(pop[1], x, s)) for s in sol])
             gap = abs(lb-ub)/max(1, abs(ub))
             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
             println("Successfully extracted ", nsol, " globally optimal solutions.")

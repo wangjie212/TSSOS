@@ -53,7 +53,7 @@ function ncbfind(A, l, a)
     return nothing
 end
 
-function get_signsymmetry(polys::Vector{DP.Polynomial{V, M, T}}, x) where {V, M, T<:Number}
+function get_signsymmetry(polys::Vector{Poly{T}}, x) where {T<:Number}
     n = length(x)
     supp = zeros(UInt8, 1, n)
     for k = 1:length(polys)
@@ -183,7 +183,7 @@ function get_basis(n::Int, d::Int; nb=0, lead=[], var=[])
 end
 
 # generate the standard monomial basis in the sparse form
-function get_basis(var::Vector{T}, d::Int; nb=0) where T <: Union{UInt16, Int}
+function get_basis(var::Vector{Int}, d::Int; nb=0)
     n = length(var)
     lb = binomial(n+d, d)
     basis = Vector{Vector{UInt16}}(undef, lb)
@@ -217,7 +217,7 @@ function get_basis(var::Vector{T}, d::Int; nb=0) where T <: Union{UInt16, Int}
     return basis
 end
 
-function get_conjugate_basis(var::Vector{UInt16}, d::Int; nb=0)
+function get_conjugate_basis(var::Vector{Int}, d::Int; nb=0)
     temp = get_basis(var, d)
     basis = vec([[item1, item2] for item1 in temp, item2 in temp])
     basis = basis[[length(item[1]) + length(item[2]) <= d for item in basis]]
@@ -516,7 +516,7 @@ end
 function complex_to_real(cpop, z)
     n = length(z)
     @polyvar x[1:2n]
-    pop = Vector{DP.Polynomial}(undef, length(cpop))
+    pop = Vector{Poly{Float64}}(undef, length(cpop))
     for (i,cp) in enumerate(cpop)
         temp = cp(z => x[1:n]+im*x[n+1:2n])
         pop[i] = real.(MP.coefficients(temp))'*MP.monomials(temp)

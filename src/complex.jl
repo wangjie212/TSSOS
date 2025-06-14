@@ -68,10 +68,10 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function complex_cs_tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, z, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], TS="block", 
+function complex_cs_tssos_first(pop::Vector{Poly{T}}, z, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], TS="block", 
     merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, 
     ConjugateBasis=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=!ConjugateBasis, 
-    rtol=1e-2, gtol=1e-2, ftol=1e-3) where {V, M, T<:Number}
+    rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     supp,coe = cpolys_info(pop, z, ctype=T)
     return complex_cs_tssos_first(supp, coe, length(z), d, numeq=numeq, RemSig=RemSig, nb=nb, CS=CS, cliques=cliques, TS=TS, merge=merge, 
     md=md, solver=solver, reducebasis=reducebasis, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution,
@@ -79,10 +79,10 @@ function complex_cs_tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, z, d; numeq
     writetofile=writetofile, normality=normality, pop=pop, z=z, rtol=rtol, gtol=gtol, ftol=ftol)
 end
 
-function complex_tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, z, d; numeq=0, RemSig=false, nb=0, TS="block", 
+function complex_tssos_first(pop::Vector{Poly{T}}, z, d; numeq=0, RemSig=false, nb=0, TS="block", 
     merge=false, md=3, solver="Mosek", reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, 
     ConjugateBasis=false, Gram=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=!ConjugateBasis, 
-    rtol=1e-2, gtol=1e-2, ftol=1e-3) where {V, M, T<:Number}
+    rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     return complex_cs_tssos_first(pop, z, d, numeq=numeq, RemSig=RemSig, nb=nb, CS=false, TS=TS, merge=merge, 
     md=md, solver=solver, reducebasis=reducebasis, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution,
     MomentOne=MomentOne, ConjugateBasis=ConjugateBasis, Gram=Gram, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, 
@@ -162,7 +162,7 @@ function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, co
                 basis[i][1] = get_basis(cliques[i], rlorder[i])
                 for s = 1:cliquesize[i]
                     temp = get_basis(cliques[i], Int(normality))
-                    basis[i][s+1] = [[[item, UInt16[]] for item in temp]; [[item, [cliques[i][s]]] for item in temp]]
+                    basis[i][s+1] = [[[item, UInt16[]] for item in temp]; [[item, UInt16[cliques[i][s]]] for item in temp]]
                     if nb > 0
                         basis[i][s+1] = reduce_unitnorm.(basis[i][s+1], nb=nb)
                         unique!(basis[i][s+1])
@@ -196,7 +196,7 @@ function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, co
                 basis[i][1] = get_conjugate_basis(cliques[i], rlorder[i], nb=nb)
                 for s = 1:cliquesize[i]
                     temp = get_basis(cliques[i], normality)
-                    basis[i][s+1] = [[[item, UInt16[]] for item in temp]; [[item, [cliques[i][s]]] for item in temp]]
+                    basis[i][s+1] = [[[item, UInt16[]] for item in temp]; [[item, UInt16[cliques[i][s]]] for item in temp]]
                     if nb > 0
                         basis[i][s+1] = reduce_unitnorm.(basis[i][s+1], nb=nb)
                         unique!(basis[i][s+1])
@@ -211,40 +211,26 @@ function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, co
             end
         end
     end
-    tsupp = Vector{Vector{UInt16}}[]
-    for i = 1:m+1, j = 1:length(supp[i])
-        if supp[i][j][1] <= supp[i][j][2]
-            push!(tsupp, supp[i][j])
-        end
-    end
+    tsupp = filter(item -> item[1] <= item[2], vcat(supp...))
     sort!(tsupp)
     unique!(tsupp)
     if TS != false && QUIET == false
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,eblocks,cl,blocksize = get_blocks(rlorder, I, J, supp, cliques, cliquesize, cql, tsupp, basis, ebasis, TS=TS, ConjugateBasis=ConjugateBasis, normality=normality, merge=merge, md=md, nb=nb)
+    blocks,cl,blocksize,eblocks = get_blocks(rlorder, I, J, supp, cliques, cliquesize, cql, tsupp, basis, ebasis, TS=TS, ConjugateBasis=ConjugateBasis, normality=normality, merge=merge, md=md, nb=nb)
     if RemSig == true
         for i = 1:cql
             basis[i][1] = basis[i][1][union(blocks[i][1][blocksize[i][1] .> 1]...)]
         end
-        tsupp = Vector{Vector{UInt16}}[]
-        for i = 1:m+1, j = 1:length(supp[i])
-            if supp[i][j][1] <= supp[i][j][2]
-                push!(tsupp, supp[i][j])
-            end
-        end
+        tsupp = filter(item -> item[1] <= item[2], vcat(supp...))
         sort!(tsupp)
         unique!(tsupp)
-        blocks,eblocks,cl,blocksize = get_blocks(rlorder, I, J, supp, cliques, cliquesize, cql, tsupp, basis, ebasis, TS=TS, ConjugateBasis=ConjugateBasis, normality=normality, merge=merge, md=md, nb=nb)
+        blocks,cl,blocksize,eblocks = get_blocks(rlorder, I, J, supp, cliques, cliquesize, cql, tsupp, basis, ebasis, TS=TS, ConjugateBasis=ConjugateBasis, normality=normality, merge=merge, md=md, nb=nb)
     end
     if reducebasis == true
-        tsupp = get_gsupp(rlorder, basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, cliquesize, norm=true, nb=nb, ConjugateBasis=ConjugateBasis, normality=normality)
-        for item in supp[1]
-            if item[1] == item[2]
-                push!(tsupp, item[1])
-            end
-        end
+        tsupp = get_csupp(rlorder, basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, cliquesize, norm=true, nb=nb, ConjugateBasis=ConjugateBasis, normality=normality)
+        foreach(item -> item[1] == item[2] ? push!(tsupp, item[1]) : nothing, supp[1])
         sort!(tsupp)
         unique!(tsupp)
         ltsupp = length(tsupp)
@@ -257,15 +243,10 @@ function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, co
             end
         end
         if flag == 1
-            tsupp = Vector{Vector{UInt16}}[]
-            for i = 1:m+1, j = 1:length(supp[i])
-                if supp[i][j][1] <= supp[i][j][2]
-                    push!(tsupp, supp[i][j])
-                end
-            end
+            tsupp = filter(item -> item[1] <= item[2], vcat(supp...))
             sort!(tsupp)
             unique!(tsupp)
-            blocks,eblocks,cl,blocksize = get_blocks(rlorder, I, J, supp, cliques, cliquesize, cql, tsupp, basis, ebasis, TS=TS, nb=nb, ConjugateBasis=ConjugateBasis, normality=normality, merge=merge, md=md)
+            blocks,cl,blocksize,eblocks = get_blocks(rlorder, I, J, supp, cliques, cliquesize, cql, tsupp, basis, ebasis, TS=TS, nb=nb, ConjugateBasis=ConjugateBasis, normality=normality, merge=merge, md=md)
         end
     end
     end
@@ -274,7 +255,7 @@ function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, co
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
     opt,ksupp,moment,sol,GramMat,multiplier,SDP_status = solvesdp(n, m, rlorder, supp, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize,
-    numeq=numeq, QUIET=QUIET, TS=TS, ConjugateBasis=ConjugateBasis, solver=solver, solve=solve, MomentOne=MomentOne, ipart=ipart, solution=solution,
+    numeq=numeq, z=z, QUIET=QUIET, TS=TS, ConjugateBasis=ConjugateBasis, solver=solver, solve=solve, MomentOne=MomentOne, ipart=ipart, solution=solution,
     Gram=Gram, nb=nb, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, dualize=dualize, writetofile=writetofile, normality=normality)
     flag = 1
     if solution == true
@@ -351,7 +332,7 @@ function complex_cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,eblocks,cl,blocksize = get_blocks(data.rlorder, I, J, supp, cliques, cliquesize, cql, data.ksupp, basis, ebasis, nb=nb, TS=TS, ConjugateBasis=data.ConjugateBasis, normality=normality, merge=merge, md=md)
+    blocks,cl,blocksize,eblocks = get_blocks(data.rlorder, I, J, supp, cliques, cliquesize, cql, data.ksupp, basis, ebasis, nb=nb, TS=TS, ConjugateBasis=data.ConjugateBasis, normality=normality, merge=merge, md=md)
     end
     if blocksize == data.blocksize && eblocks == data.eblocks
         println("No higher TS step of the CS-TSSOS hierarchy!")
@@ -362,7 +343,7 @@ function complex_cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
         opt,ksupp,moment,sol,GramMat,multiplier,SDP_status = solvesdp(n, m, data.rlorder, supp, data.coe, basis, ebasis, cliques, cql, cliquesize, I, J, data.ncc, blocks, eblocks, cl,
-        blocksize, numeq=numeq, nb=nb, QUIET=QUIET, solver=data.solver, solve=solve, dualize=dualize, ipart=data.ipart, MomentOne=MomentOne, solution=solution, 
+        blocksize, numeq=numeq, nb=nb, z=data.z, QUIET=QUIET, solver=data.solver, solve=solve, dualize=dualize, ipart=data.ipart, MomentOne=MomentOne, solution=solution, 
         Gram=Gram, ConjugateBasis=data.ConjugateBasis, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting, writetofile=writetofile, normality=normality)
         if solution == true
             if data.pop !== nothing
@@ -440,12 +421,8 @@ function reduce_unitnorm(a; nb=0)
     return a
 end
 
-function get_gsupp(rlorder, basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, cliquesize; norm=false, nb=0, ConjugateBasis=false, normality=1)
-    if norm == true
-        gsupp = Vector{UInt16}[]
-    else
-        gsupp = Vector{Vector{UInt16}}[]
-    end
+function get_csupp(rlorder::Vector{Int}, basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, cliquesize; norm=false, nb=0, ConjugateBasis=false, normality=1)
+    gsupp = norm == true ? Vector{UInt16}[] : Vector{Vector{UInt16}}[]
     for i = 1:cql
         if ConjugateBasis == false
             a = normality > 0 ? 1 + cliquesize[i] : 1
@@ -460,55 +437,35 @@ function get_gsupp(rlorder, basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks
             else
                 @inbounds bi = [sadd(sadd(basis[i][j+a][ind1][1], item[1]), basis[i][j+a][ind2][2]), sadd(sadd(basis[i][j+a][ind1][2], item[2]), basis[i][j+a][ind2][1])]
             end
-            if nb > 0
-                bi = reduce_unitnorm(bi, nb=nb)
-            end
+            nb > 0 ? bi = reduce_unitnorm(bi, nb=nb) : nothing
             if norm == true
-                if bi[1] == bi[2]
-                    push!(gsupp, bi[1])
-                end
+                bi[1] == bi[2] ? push!(gsupp, bi[1]) : nothing
             else
-                if bi[1] <= bi[2]
-                    push!(gsupp, bi)
-                else
-                    push!(gsupp, bi[2:-1:1])
-                end
+                bi[1] <= bi[2] ? push!(gsupp, bi) : push!(gsupp, bi[2:-1:1])
             end
         end
         for (j, w) in enumerate(J[i]), k in eblocks[i][j], item in supp[w+1]
             @inbounds bi = [sadd(ebasis[i][j][k][1], item[1]), sadd(ebasis[i][j][k][2], item[2])]
-            if nb > 0
-                bi = reduce_unitnorm(bi, nb=nb)
-            end
+            nb > 0 ? bi = reduce_unitnorm(bi, nb=nb) : nothing
             if norm == true
-                if bi[1] == bi[2]
-                    push!(gsupp, bi[1])
-                end
+                bi[1] == bi[2] ? push!(gsupp, bi[1]) : nothing
             else
-                if bi[1] <= bi[2]
-                    push!(gsupp, bi)
-                else
-                    push!(gsupp, bi[2:-1:1])
-                end
+                bi[1] <= bi[2] ? push!(gsupp, bi) : push!(gsupp, bi[2:-1:1])
             end
         end
     end
     for i ∈ ncc, j = 1:length(supp[i+1])
         if norm == true
-            if supp[i+1][j][1] == supp[i+1][j][2]
-                push!(gsupp, supp[i+1][j][1])
-            end
+            supp[i+1][j][1] == supp[i+1][j][2] ? push!(gsupp, supp[i+1][j][1]) : nothing
         else
-            if supp[i+1][j][1] <= supp[i+1][j][2]
-                push!(gsupp, supp[i+1][j])
-            end
+            supp[i+1][j][1] <= supp[i+1][j][2] ? push!(gsupp, supp[i+1][j]) : nothing
         end
     end
     return gsupp
 end
 
 function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, coe, basis, ebasis, cliques, cql, cliquesize, I, J, ncc, blocks, eblocks, cl, blocksize; 
-    numeq=0, nb=0, QUIET=false, TS="block", ConjugateBasis=false, solver="Mosek", solve=true, dualize=false, Gram=false, MomentOne=false, ipart=true, solution=false, 
+    numeq=0, nb=0, z=nothing, QUIET=false, TS="block", ConjugateBasis=false, solver="Mosek", solve=true, dualize=false, Gram=false, MomentOne=false, ipart=true, solution=false, 
     cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=1)
     tsupp = Vector{Vector{UInt16}}[]
     for i = 1:cql
@@ -523,18 +480,12 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
             else
                 @inbounds bi = [sadd(basis[i][s][blocks[i][s][j][k]][1], basis[i][s][blocks[i][s][j][r]][2]), sadd(basis[i][s][blocks[i][s][j][k]][2], basis[i][s][blocks[i][s][j][r]][1])]
             end
-            if nb > 0
-                bi = reduce_unitnorm(bi, nb=nb)
-            end
-            if bi[1] <= bi[2]
-                push!(tsupp, bi)
-            else
-                push!(tsupp, bi[2:-1:1])
-            end
+            nb > 0 ? bi = reduce_unitnorm(bi, nb=nb) : nothing
+            bi[1] <= bi[2] ? push!(tsupp, bi) : push!(tsupp, bi[2:-1:1])
         end
     end
     if TS != false
-        gsupp = get_gsupp(rlorder, basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, cliquesize, ConjugateBasis=ConjugateBasis, nb=nb, normality=normality)
+        gsupp = get_csupp(rlorder, basis, ebasis, supp, cql, I, J, ncc, blocks, eblocks, cl, blocksize, cliquesize, ConjugateBasis=ConjugateBasis, nb=nb, normality=normality)
         append!(tsupp, gsupp)
     end
     if (MomentOne == true || solution == true) && TS != false
@@ -543,9 +494,7 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
             push!(tsupp, [UInt16[], UInt16[cliques[i][j]]])
             for k = j+1:cliquesize[i]
                 bi = [UInt16[cliques[i][j]], UInt16[cliques[i][k]]]
-                if nb > 0
-                    bi = reduce_unitnorm(bi, nb=nb)
-                end
+                nb > 0 ? bi = reduce_unitnorm(bi, nb=nb) : nothing
                 push!(tsupp, bi)
             end
         end
@@ -602,9 +551,7 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                         bi = [UInt16[], UInt16[cliques[i][r-1]]]
                     else
                         bi = [UInt16[cliques[i][t-1]], UInt16[cliques[i][r-1]]]
-                        if nb > 0
-                            bi = reduce_unitnorm(bi, nb=nb)
-                        end
+                        nb > 0 ? bi = reduce_unitnorm(bi, nb=nb) : nothing
                     end
                     Locb = bfind(tsupp, ltsupp, bi)
                     if ipart == true
@@ -632,9 +579,7 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                         else
                             @inbounds bi = [sadd(basis[i][j][blocks[i][j][l][1]][1], basis[i][j][blocks[i][j][l][1]][2]), sadd(basis[i][j][blocks[i][j][l][1]][1], basis[i][j][blocks[i][j][l][1]][2])]
                         end
-                        if nb > 0
-                            bi = reduce_unitnorm(bi, nb=nb)
-                        end
+                        nb > 0 ? bi = reduce_unitnorm(bi, nb=nb) : nothing
                         Locb = bfind(tsupp, ltsupp, bi)
                         @inbounds add_to_expression!(rcons[Locb], pos[i][j][l])
                     else
@@ -651,9 +596,7 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                             else
                                 @inbounds bi = [sadd(basis[i][j][ind1][1], basis[i][j][ind2][2]), sadd(basis[i][j][ind1][2], basis[i][j][ind2][1])]
                             end
-                            if nb > 0
-                                bi = reduce_unitnorm(bi, nb=nb)
-                            end
+                            nb > 0 ? bi = reduce_unitnorm(bi, nb=nb) : nothing
                             if bi[1] <= bi[2]
                                 Locb = bfind(tsupp, ltsupp, bi)
                                 if ipart == true && bi[1] != bi[2]
@@ -701,9 +644,7 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                         else
                             @inbounds bi = [sadd(sadd(basis[i][j+a][ind][1], supp[w+1][s][1]), basis[i][j+a][ind][2]), sadd(sadd(basis[i][j+a][ind][2], supp[w+1][s][2]), basis[i][j+a][ind][1])]
                         end
-                        if nb > 0
-                            bi = reduce_unitnorm(bi, nb=nb)
-                        end
+                        nb > 0 ? bi = reduce_unitnorm(bi, nb=nb) : nothing
                         if bi[1] <= bi[2]
                             Locb = bfind(tsupp, ltsupp, bi)
                             if ipart == true
@@ -727,9 +668,7 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                             else
                                 @inbounds bi = [sadd(sadd(basis[i][j+a][ind1][1], supp[w+1][s][1]), basis[i][j+a][ind2][2]), sadd(sadd(basis[i][j+a][ind1][2], supp[w+1][s][2]), basis[i][j+a][ind2][1])]
                             end
-                            if nb > 0
-                                bi = reduce_unitnorm(bi, nb=nb)
-                            end
+                            nb > 0 ? bi = reduce_unitnorm(bi, nb=nb) : nothing
                             if bi[1] <= bi[2]
                                 Locb = bfind(tsupp, ltsupp, bi)
                                 if ipart == true
@@ -764,9 +703,7 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                         end
                         for k in eblocks[i][j], s = 1:length(supp[w+1])
                             @inbounds bi = [sadd(ebasis[i][j][k][1], supp[w+1][s][1]), sadd(ebasis[i][j][k][2], supp[w+1][s][2])]
-                            if nb > 0
-                                bi = reduce_unitnorm(bi, nb=nb)
-                            end
+                            nb > 0 ? bi = reduce_unitnorm(bi, nb=nb) : nothing
                             if bi[1] <= bi[2]
                                 Locb = bfind(tsupp, ltsupp, bi)
                                 if ebasis[i][j][k][1] <= ebasis[i][j][k][2]
@@ -809,38 +746,36 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                 end
             end
         end
-        rbc = zeros(ltsupp)
         ncons = ltsupp
         itsupp = nothing
         if ipart == true
             ind = [item[1] != item[2] for item in tsupp]
             itsupp = tsupp[ind]
             icons = icons[ind]
-            ibc = zeros(length(itsupp))
             ncons += length(itsupp)
         end
         if QUIET == false
             println("There are $ncons affine constraints.")
         end
-        ind = [supp[1][i][1] <= supp[1][i][2] for i=1:length(supp[1])]
+        ind = [item[1] <= item[2] for item in supp[1]]
         nsupp,ncoe = supp[1][ind],coe[1][ind]
         for (i,item) in enumerate(nsupp)
             Locb = bfind(tsupp, ltsupp, item)
             if Locb === nothing
                @error "The monomial basis is not enough!"
             else
-               rbc[Locb] = real(ncoe[i])
+               rcons[Locb] -= real(ncoe[i])
                if ipart == true && item[1] != item[2]
                    Locb = bfind(itsupp, length(itsupp), item)
-                   ibc[Locb] = imag(ncoe[i])
+                   icons[Locb] -= imag(ncoe[i])
                end
             end
         end
         @variable(model, lower)
         rcons[1] += lower
-        @constraint(model, rcon, rcons==rbc)
+        @constraint(model, rcon, rcons == zeros(ltsupp))
         if ipart == true
-            @constraint(model, icon, icons==ibc)
+            @constraint(model, icon, icons == zeros(length(itsupp)))
         end
         @objective(model, Max, lower)
         end
@@ -868,16 +803,17 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
         println("optimum = $objv")
         if Gram == true
             ctype = ipart==true ? ComplexF64 : Float64
-            GramMat = Vector{Vector{Vector{Union{Float64,ComplexF64,Matrix{ctype}}}}}(undef, cql)
+            GramMat = Vector{Vector{Vector{Union{Float64,Matrix{ctype}}}}}(undef, cql)
+            multiplier = Vector{Vector{Poly{ctype}}}(undef, cql)
             for i = 1:cql
                 if ConjugateBasis == false
                     a = normality > 0 ? 1 + length(I[i]) + cliquesize[i] : 1 + length(I[i])
                 else
                     a = normality >= rlorder[i] ? 1 + length(I[i]) + cliquesize[i] : 1 + length(I[i])
                 end
-                GramMat[i] = Vector{Vector{Union{ctype,Matrix{ctype}}}}(undef, a)
+                GramMat[i] = Vector{Vector{Union{Float64,Matrix{ctype}}}}(undef, a)
                 for j = 1:a
-                    GramMat[i][j] = Vector{Union{ctype,Matrix{ctype}}}(undef, cl[i][j])
+                    GramMat[i][j] = Vector{Union{Float64,Matrix{ctype}}}(undef, cl[i][j])
                     for l = 1:cl[i][j]
                         if ipart == true && blocksize[i][j][l] > 1
                             bs = blocksize[i][j][l]
@@ -888,11 +824,18 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                         end
                     end
                 end
-            end
-            multiplier = Vector{Vector{Vector{Float64}}}(undef, cql)
-            for i = 1:cql
                 if !isempty(J[i])
-                    multiplier[i] = [value.(free[i][j]) for j = 1:length(J[i])]
+                    multiplier[i] = Vector{Poly{ctype}}(undef, length(J[i]))
+                    for k = 1:length(J[i])
+                        temp = ebasis[i][k][eblocks[i][k]][[item[1] <= item[2] for item in ebasis[i][k][eblocks[i][k]]]]
+                        lb = length(temp)
+                        if ctype == Float64
+                            tau = sum(prod(z[temp[j][1]])*conj(prod(z[temp[j][2]]))*value(free[i][k][j]) for j = 1:lb)
+                        else
+                            tau = sum(prod(z[temp[j][1]])*conj(prod(z[temp[j][2]]))*(value(free[i][k][j])+value(free[i][k][lb+j])*im) for j = 1:lb)
+                        end
+                        multiplier[i][k] = tau + conj(tau)
+                    end
                 end
             end
         end
@@ -912,16 +855,14 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
     return objv,ksupp,moment,sol,GramMat,multiplier,SDP_status
 end
 
-function get_eblock(tsupp::Vector{Vector{Vector{UInt16}}}, hsupp::Vector{Vector{Vector{UInt16}}}, basis::Vector{Vector{Vector{UInt16}}}; nb=nb)
+function get_eblock(tsupp::Vector{Vector{Vector{UInt16}}}, hsupp::Vector{Vector{Vector{UInt16}}}, basis::Vector{Vector{Vector{UInt16}}}; nb=0)
     ltsupp = length(tsupp)
     eblock = Int[]
     for (i,item) in enumerate(basis)
         flag = 0
         for temp in hsupp
             bi = [sadd(item[1], temp[1]), sadd(item[2], temp[2])]
-            if nb > 0
-                bi = reduce_unitnorm(bi, nb=nb)
-            end
+            nb > 0 ? bi = reduce_unitnorm(bi, nb=nb) : nothing
             if (bi[1] <= bi[2] && bfind(tsupp, ltsupp, bi) !== nothing) || (bi[1] > bi[2] && bfind(tsupp, ltsupp, bi[2:-1:1]) !== nothing)
                 flag = 1
                 break
@@ -978,20 +919,20 @@ function get_blocks(m, l, d, tsupp, supp::Vector{Vector{Vector{Vector{UInt16}}}}
             eblocks[k] = get_eblock(tsupp, supp[k+m], ebasis[k], nb=nb)
         end
     end
-    return blocks,eblocks,cl,blocksize
+    return blocks,cl,blocksize,eblocks
 end
 
 function get_blocks(rlorder, I, J, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques, cliquesize, cql, tsupp, basis, ebasis; TS="block", ConjugateBasis=false, nb=0, normality=1, merge=false, md=3)
     blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
-    eblocks = Vector{Vector{Vector{Int}}}(undef, cql)
     cl = Vector{Vector{Int}}(undef, cql)
     blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
+    eblocks = Vector{Vector{Vector{Int}}}(undef, cql)
     for i = 1:cql
-        ksupp = TS == false ? nothing : tsupp[[issubset(union(tsupp[j][1], tsupp[j][2]), cliques[i]) for j in eachindex(tsupp)]]
-        blocks[i],eblocks[i],cl[i],blocksize[i] = get_blocks(length(I[i]), length(J[i]), rlorder[i], ksupp, supp[[I[i]; J[i]].+1], basis[i], 
+        ksupp = TS == false ? nothing : tsupp[[issubset(union(item[1], item[2]), cliques[i]) for item in tsupp]]
+        blocks[i],cl[i],blocksize[i],eblocks[i] = get_blocks(length(I[i]), length(J[i]), rlorder[i], ksupp, supp[[I[i]; J[i]].+1], basis[i], 
         ebasis[i], TS=TS, ConjugateBasis=ConjugateBasis, merge=merge, md=md, nb=nb, normality=normality, nvar=cliquesize[i])
     end
-    return blocks,eblocks,cl,blocksize
+    return blocks,cl,blocksize,eblocks
 end
 
 function assign_constraint(m, numeq, supp::Vector{Vector{Vector{Vector{UInt16}}}}, cliques, cql)
@@ -999,7 +940,7 @@ function assign_constraint(m, numeq, supp::Vector{Vector{Vector{Vector{UInt16}}}
     J = [Int[] for i=1:cql]
     ncc = Int[]
     for i = 1:m
-        ind = findall(k->issubset(unique(reduce(vcat, [item[1] for item in supp[i+1]])), cliques[k]), 1:cql)
+        ind = findall(k -> issubset(unique(reduce(vcat, [item[1] for item in supp[i+1]])), cliques[k]), 1:cql)
         if isempty(ind)
             push!(ncc, i)
         elseif i <= m - numeq
@@ -1021,12 +962,8 @@ function get_graph(tsupp::Vector{Vector{Vector{UInt16}}}, basis; nb=0, Conjugate
         else
             bi = [sadd(basis[i][1], basis[j][2]), sadd(basis[i][2], basis[j][1])]
         end
-        if nb > 0
-            bi = reduce_unitnorm(bi, nb=nb)
-        end
-        if bi[1] > bi[2]
-            bi = bi[2:-1:1]
-        end
+        nb > 0 ? bi = reduce_unitnorm(bi, nb=nb) : nothing
+        bi[1] > bi[2] ? bi = bi[2:-1:1] : nothing
         if bfind(tsupp, ltsupp, bi) !== nothing
             add_edge!(G, i, j)
         end
@@ -1046,12 +983,8 @@ function get_graph(tsupp::Vector{Vector{Vector{UInt16}}}, supp, basis; nb=0, Con
             else
                 bi = [sadd(sadd(basis[i][1], supp[r][1]), basis[j][2]), sadd(sadd(basis[i][2], supp[r][2]), basis[j][1])]
             end
-            if nb > 0
-                bi = reduce_unitnorm(bi, nb=nb)
-            end
-            if bi[1] > bi[2]
-                bi = bi[2:-1:1]
-            end
+            nb > 0 ? bi = reduce_unitnorm(bi, nb=nb) : nothing
+            bi[1] > bi[2] ? bi = bi[2:-1:1] : nothing
             if bfind(tsupp, ltsupp, bi) !== nothing
                break
             else
@@ -1065,24 +998,16 @@ function get_graph(tsupp::Vector{Vector{Vector{UInt16}}}, supp, basis; nb=0, Con
     return G
 end
 
-function clique_decomp(n, m, dc, supp::Vector{Vector{Vector{Vector{UInt16}}}}; order="min", alg="MF")
+function clique_decomp(n, m, dc, supp::Vector{Vector{Vector{Vector{UInt16}}}}; order="min", alg="MF", ReducedCS=true)
     if alg == false
-        cliques = [UInt16[i for i=1:n]]
-        cql = 1
-        cliquesize = [n]
+        cliques,cql,cliquesize = [Vector(1:n)],1,[n]
     else
         G = SimpleGraph(n)
         for i = 1:m+1
-            if order == "min" || i == 1 || order == dc[i-1]
-                for j = 1:length(supp[i])
-                    add_clique!(G, unique([supp[i][j][1];supp[i][j][2]]))
-                end
+            if i == 1 || order == "min" || (ReducedCS == true && order == dc[i-1])
+                foreach(x -> add_clique!(G, unique([x[1]; x[2]])), supp[i])
             else
-                temp = copy(supp[i][1][1])
-                for j = 2:length(supp[i])
-                    append!(temp, supp[i][j][1])
-                end
-                add_clique!(G, unique(temp))
+                add_clique!(G, unique(vcat([item[1] for item in supp[i]]...)))
             end
         end
         if alg == "NC"
@@ -1118,9 +1043,7 @@ function get_cmoment(rmeasure, imeasure, tsupp, itsupp, cql, blocks, cl, blocksi
                 else
                     bi = [sadd(basis[i][1][ind1][1], basis[i][1][ind2][2]), sadd(basis[i][1][ind1][2], basis[i][1][ind2][1])]
                 end
-                if nb > 0
-                    bi = reduce_unitnorm(bi, nb=nb)
-                end
+                nb > 0 ? bi = reduce_unitnorm(bi, nb=nb) : nothing
                 if ipart == true
                     if bi[1] < bi[2]
                         Locb = bfind(itsupp, length(itsupp), bi)
@@ -1130,11 +1053,8 @@ function get_cmoment(rmeasure, imeasure, tsupp, itsupp, cql, blocks, cl, blocksi
                         itemp[t,r] = -imeasure[Locb]
                     end
                 end
-                if bi[1] <= bi[2]
-                    Locb = bfind(tsupp, length(tsupp), bi)
-                else
-                    Locb = bfind(tsupp, length(tsupp), bi[2:-1:1])
-                end
+                bi[1] > bi[2] ? bi = bi[2:-1:1] : nothing
+                Locb = bfind(tsupp, length(tsupp), bi)
                 rtemp[t,r] = rmeasure[Locb]
             end
             rtemp = (rtemp + rtemp')/2

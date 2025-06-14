@@ -58,9 +58,9 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, newton=false, feasibility=false, GroebnerBasis=false, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
+function tssos_first(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, newton=false, feasibility=false, GroebnerBasis=false, basis=[], reducebasis=false, TS="block", merge=false, md=3, solver="Mosek", 
     QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), writetofile=false, normality=false, 
-    rtol=1e-2, gtol=1e-2, ftol=1e-3) where {V, M, T<:Number}
+    rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     n = length(x)
@@ -69,7 +69,7 @@ function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, n
     end
     if numeq > 0 && GroebnerBasis == true
         cpop = copy(pop)
-        gb = convert.(DP.Polynomial{V, M, Float64}, cpop[end-numeq+1:end])
+        gb = convert.(Poly{Float64}, cpop[end-numeq+1:end])
         cpop = cpop[1:end-numeq]
         println("Computing the Gröbner basis...")
         println("This might be slow. You can set GroebnerBasis=false to close it.")
@@ -121,9 +121,9 @@ function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, n
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,eblocks,cl,blocksize = get_blocks(m-neq, neq, tsupp, supp[2:end], basis, ebasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, signsymmetry=ss)
+    blocks,cl,blocksize,eblocks = get_blocks(m-neq, neq, tsupp, supp[2:end], basis, ebasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, signsymmetry=ss)
     if reducebasis == true && GroebnerBasis == false
-        gsupp = get_gsupp(n, m, numeq, supp, basis[2:end], ebasis, blocks[2:end], eblocks, cl[2:end], blocksize[2:end], nb=nb)
+        gsupp = get_csupp(n, m, numeq, supp, basis[2:end], ebasis, blocks[2:end], eblocks, cl[2:end], blocksize[2:end], nb=nb)
         psupp = [supp[1] zeros(UInt8,n)]
         psupp = [psupp gsupp]
         basis[1],flag = reducebasis!(psupp, basis[1], blocks[1], cl[1], blocksize[1], nb=nb)
@@ -131,7 +131,7 @@ function tssos_first(pop::Vector{DP.Polynomial{V, M, T}}, x, d; nb=0, numeq=0, n
             tsupp = [isupp bin_add(basis[1], basis[1], nb)]
             tsupp = sortslices(tsupp, dims=2)
             tsupp = unique(tsupp, dims=2)
-            blocks,eblocks,cl,blocksize = get_blocks(m-numeq, numeq, tsupp, supp[2:end], basis, ebasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, signsymmetry=ss)
+            blocks,cl,blocksize,eblocks = get_blocks(m-numeq, numeq, tsupp, supp[2:end], basis, ebasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, signsymmetry=ss)
         end
     end
     end
@@ -190,8 +190,8 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function tssos_first(f::DP.Polynomial{V, M, T}, x; newton=true, reducebasis=false, TS="block", merge=false, md=3, feasibility=false, solver="Mosek", QUIET=false, solve=true, 
-    dualize=false, MomentOne=false, Gram=false, solution=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), rtol=1e-2, gtol=1e-2, ftol=1e-3) where {V, M, T<:Number}
+function tssos_first(f::Poly{T}, x; newton=true, reducebasis=false, TS="block", merge=false, md=3, feasibility=false, solver="Mosek", QUIET=false, solve=true, 
+    dualize=false, MomentOne=false, Gram=false, solution=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     return tssos_first([f], x, Int(ceil(maxdegree(f)/2)), newton=newton, feasibility=feasibility, GroebnerBasis=false, reducebasis=reducebasis, TS=TS, merge=merge, md=md, solver=solver, 
     QUIET=QUIET, solve=solve, dualize=dualize, MomentOne=MomentOne, Gram=Gram, solution=solution, rtol=rtol, gtol=gtol, ftol=ftol, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
 end
@@ -224,7 +224,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
     end
     time = @elapsed begin
     neq = isempty(gb) ? numeq : 0
-    blocks,eblocks,cl,blocksize = get_blocks(m-neq, neq, ksupp, supp[2:end], basis, ebasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
+    blocks,cl,blocksize,eblocks = get_blocks(m-neq, neq, ksupp, supp[2:end], basis, ebasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
     end
     if blocksize == data.blocksize && eblocks == data.eblocks
         println("No higher TS step of the TSSOS hierarchy!")
@@ -257,7 +257,7 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
     return opt,sol,data
 end
 
-function get_gsupp(n, m, numeq, supp, gbasis, ebasis, blocks, eblocks, cl, blocksize; nb=0)
+function get_csupp(n, m, numeq, supp, gbasis, ebasis, blocks, eblocks, cl, blocksize; nb=0)
     s = 0
     if m > numeq
         s += sum(size(supp[k+1],2)*Int(sum(Int.(blocksize[k]).^2+blocksize[k])/2) for k=1:m-numeq)
@@ -460,7 +460,7 @@ function get_blocks(m, l, tsupp, supp, basis, ebasis; nb=0, TS="block", QUIET=tr
             eblocks[k] = get_eblock(tsupp, supp[k+m], ebasis[k], nb=nb, nvar=nvar, signsymmetry=signsymmetry)
         end
     end
-    return blocks,eblocks,cl,blocksize
+    return blocks,cl,blocksize,eblocks
 end
 
 function solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize; nb=0, numeq=0, gb=[], x=[], lead=[], solver="Mosek", TS="block",
@@ -475,7 +475,7 @@ function solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize
     end
     neq = isempty(gb) ? numeq : 0
     if TS != false && TS != "signsymmetry"
-        gsupp = get_gsupp(n, m, neq, supp, basis[2:end], ebasis, blocks[2:end], eblocks, cl[2:end], blocksize[2:end], nb=nb)
+        gsupp = get_csupp(n, m, neq, supp, basis[2:end], ebasis, blocks[2:end], eblocks, cl[2:end], blocksize[2:end], nb=nb)
         ksupp = [ksupp gsupp]
     end
     objv = moment = momone = GramMat = multiplier = SDP_status = nothing
@@ -727,13 +727,12 @@ function solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize
                 end
             end
         end
-        bc = zeros(ltsupp)
         for i = 1:size(supp[1], 2)
             Locb = bfind(tsupp, ltsupp, supp[1][:,i])
             if Locb === nothing
                 @error "The monomial basis is not enough!"
             else
-               bc[Locb] = coe[1][i]
+               cons[Locb] -= coe[1][i]
             end
         end
         if feasibility == false
@@ -751,7 +750,7 @@ function solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize
             end
             @objective(model, Min, tnorm)
         end
-        @constraint(model, con, cons==bc)
+        @constraint(model, con, cons==zeros(ltsupp))
         end
         if QUIET == false
             println("SDP assembling time: $time seconds.")

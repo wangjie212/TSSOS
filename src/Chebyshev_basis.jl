@@ -34,10 +34,10 @@ Add a Putinar's style SOS representation of the polynomial `nonneg` in the Cheby
 # Output arguments
 - `info`: auxiliary data
 """
-function add_psatz_cheby!(model, nonneg::DP.Polynomial{V, M, T}, vars, ineq_cons, eq_cons, order; TS="block", SO=1, merge=false, md=3, QUIET=false) where {V, M, T<:Union{Number,AffExpr}}
+function add_psatz_cheby!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, order; TS="block", SO=1, merge=false, md=3, QUIET=false) where {T<:Union{Number,AffExpr}}
     m = length(ineq_cons)
     l = length(eq_cons)
-    basis = Vector{ChebyshevBasisFirstKind{DP.Polynomial{V, M, Float64}}}(undef, m+l+1)
+    basis = Vector{ChebyshevBasisFirstKind{Poly{Float64}}}(undef, m+l+1)
     basis[1] = basis_covering_monomials(ChebyshevBasis, MP.monomials(vars, 0:order))
     basis[2:m+1] = [basis_covering_monomials(ChebyshevBasis, MP.monomials(vars, 0:order-ceil(Int, maxdegree(g)/2))) for g in ineq_cons]
     basis[m+2:m+1+l] = [basis_covering_monomials(ChebyshevBasis, MP.monomials(vars, 0:2*order-maxdegree(h))) for h in eq_cons]
@@ -87,7 +87,7 @@ function add_psatz_cheby!(model, nonneg::DP.Polynomial{V, M, T}, vars, ineq_cons
     return info
 end
 
-function get_blocks(m::Int, l::Int, tsupp, ineq_cons, eq_cons, basis::Vector{ChebyshevBasisFirstKind{DP.Polynomial{V, M, Float64}}}; TS="block", SO=1, merge=false, md=3, QUIET=false) where {V, M}
+function get_blocks(m::Int, l::Int, tsupp, ineq_cons, eq_cons, basis::Vector{ChebyshevBasisFirstKind{Poly{Float64}}}; TS="block", SO=1, merge=false, md=3, QUIET=false)
     blocks = Vector{Vector{Vector{Int}}}(undef, m+1)
     eblocks = Vector{Vector{Int}}(undef, l)
     blocksize = Vector{Vector{Int}}(undef, m+1)
@@ -130,7 +130,7 @@ function get_blocks(m::Int, l::Int, tsupp, ineq_cons, eq_cons, basis::Vector{Che
                 break
             end
             if i < SO
-                tsupp = DP.Polynomial{V, M, Float64}[]
+                tsupp = Poly{Float64}[]
                 for t = 1:length(blocks[1]), j = 1:blocksize[1][t], r = j:blocksize[1][t]
                     append!(tsupp, basis_covering_monomials(ChebyshevBasis, MP.monomials(basis[1][blocks[1][t][j]] * basis[1][blocks[1][t][r]])))
                 end
@@ -142,7 +142,7 @@ function get_blocks(m::Int, l::Int, tsupp, ineq_cons, eq_cons, basis::Vector{Che
     return blocks,cl,blocksize,eblocks
 end
 
-function get_graph(tsupp, basis::ChebyshevBasisFirstKind{DP.Polynomial{V, M, Float64}}; g=1) where {V, M}
+function get_graph(tsupp, basis::ChebyshevBasisFirstKind{Poly{Float64}}; g=1)
     lb = length(basis)
     G = SimpleGraph(lb)
     ltsupp = length(tsupp)
@@ -161,7 +161,7 @@ function get_graph(tsupp, basis::ChebyshevBasisFirstKind{DP.Polynomial{V, M, Flo
     return G
 end
 
-function get_eblock(tsupp, h, basis::ChebyshevBasisFirstKind{DP.Polynomial{V, M, Float64}}) where {V, M}
+function get_eblock(tsupp, h, basis::ChebyshevBasisFirstKind{Poly{Float64}})
     ltsupp = length(tsupp)
     eblock = Int[]
     for (i, ba) in enumerate(basis)
