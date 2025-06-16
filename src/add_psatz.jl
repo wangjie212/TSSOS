@@ -54,7 +54,7 @@ function add_psatz!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, order; CS=
     if eq_cons != []
         hsupp,hcoe = npolys_info(eq_cons, vars)
         hlt = length.(hcoe)
-        dh = maxdegree.(ineq_cons)
+        dh = maxdegree.(eq_cons)
     else
         hsupp = Matrix{UInt8}[]
         hlt = dh = Int[]

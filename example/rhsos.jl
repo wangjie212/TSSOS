@@ -16,7 +16,7 @@ end
 
 # minimizing a random complex quadratic polynomial over the unit sphere
 Random.seed!(1)
-n = 50
+n = 10
 @complex_polyvar z[1:n]
 Q = rand(n+1, n+1)
 Q = (Q+Q')/2
@@ -30,7 +30,7 @@ end
 rf = f(z=>x[1:n]+im*x[n+1:2n])
 rpop = [real.(coefficients(rf))'*monomials(rf), 1-sum(x.^2)]
 @time begin
-opt,sol,data = tssos_first(rpop, x, 1, numeq=1, GroebnerBasis=false, QUIET=true, TS="block")
+opt,sol,data = tssos_first(rpop, x, 1, numeq=1, GroebnerBasis=false, QUIET=false, TS="block")
 end
 
 opt,sol = local_solution(2n, 1, data.supp, data.coe, numeq=1, startpoint=rand(2n), QUIET=true)
