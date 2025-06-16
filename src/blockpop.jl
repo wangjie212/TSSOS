@@ -267,15 +267,13 @@ function get_csupp(n, m, numeq, supp, gbasis, ebasis, blocks, eblocks, cl, block
     end
     gsupp = zeros(UInt8, n, s)
     l = 1
-    for k = 1:m-numeq, i = 1:cl[k], j = 1:blocksize[k][i], r = j:blocksize[k][i], s = 1:size(supp[k+1],2)
+    for k = 1:m-numeq, i = 1:cl[k], j = 1:blocksize[k][i], r = j:blocksize[k][i], col in eachcol(supp[k+1])
         @inbounds bi = bin_add(gbasis[k][:,blocks[k][i][j]], gbasis[k][:,blocks[k][i][r]], nb)
-        @inbounds bi = bin_add(bi, supp[k+1][:,s], nb)
-        @inbounds gsupp[:,l] = bi
+        @inbounds gsupp[:,l] = bin_add(bi, col, nb)
         l += 1
     end
-    for k = 1:numeq, i in eblocks[k], s = 1:size(supp[k+1],2)
-        @inbounds bi = bin_add(ebasis[k][:,i], supp[k+m-numeq+1][:,s], nb)
-        @inbounds gsupp[:,l] = bi
+    for k = 1:numeq, i in eblocks[k], col in eachcol(supp[k+m-numeq+1])
+        @inbounds gsupp[:,l] = bin_add(ebasis[k][:,i], col, nb)
         l += 1
     end
     return gsupp
