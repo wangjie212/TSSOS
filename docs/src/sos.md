@@ -254,7 +254,7 @@ The outer approximation obtained at the 8-th relaxation order is represented in 
 Section 4 from [arXiv:2506.](https://arxiv.org/abs/2506.). 
 The goal is to approximate the order 2 quantum Wasserstein distance with the hierarchy of SOS programs given by
 
-$$\mathrm{sup}\ \text{Trace} (\rho \Lambda + \nu \Gamma) $$
+$$\mathrm{sup}\ \mathrm{Trace} (\rho \Lambda + \nu \Gamma) $$
 
 $$\mathrm{s.t.} f - \mathbf{x}^{\star} \Lambda \mathbf{x} - \mathbf{y}^{\star} \Gamma \mathbf{y} =\sigma+p(1 - \|\mathbf{x}\|^2)+q(1 - \|\mathbf{y}\|^2),$$
 
