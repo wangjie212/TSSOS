@@ -97,26 +97,6 @@ function bin_add(bi, bj, nb)
     return bs
 end
 
-function sadd(a, b; nb=0)
-    c = [a; b]
-    sort!(c)
-    if nb > 0
-        i = 1
-        while i < length(c)
-            if c[i] <= nb
-                if c[i] == c[i+1]
-                    deleteat!(c, i:i+1)
-                else
-                    i += 1
-                end
-            else
-                break
-            end
-        end
-    end
-    return c
-end
-
 # generate the standard monomial basis
 function get_basis(n::Int, d::Int; nb=0, lead=[], var=[])
     if isempty(var)
@@ -219,7 +199,7 @@ end
 
 function get_conjugate_basis(var::Vector{Int}, d::Int; nb=0)
     temp = get_basis(var, d)
-    basis = vec([[item1, item2] for item1 in temp, item2 in temp])
+    basis = vec([tuple(item1, item2) for item1 in temp, item2 in temp])
     basis = basis[[length(item[1]) + length(item[2]) <= d for item in basis]]
     if nb > 0
         basis = reduce_unitnorm.(basis, nb=nb)
@@ -492,25 +472,6 @@ end
 
 function numele(a)
     return Int(sum(Int.(a).^2+a)/2)
-end
-
-"""
-    show_blocks(data)
-
-Display the block structure
-"""
-function show_blocks(data::cpop_data)
-    for j = 1:length(data.blocks[1])
-        print("block $j: ")
-        println([prod(data.x.^data.basis[1][:, data.blocks[1][j][k]]) for k = 1:data.blocksize[1][j]])
-    end
-end
-
-function show_blocks(data::mcpop_data)
-    for l = 1:data.cql, j = 1:length(data.blocks[l][1])
-        print("clique $l, block $j: ")
-        println([prod(data.x[data.basis[l][1][data.blocks[l][1][j][k]]]) for k = 1:data.blocksize[l][1][j]])
-    end
 end
 
 function complex_to_real(cpop, z)

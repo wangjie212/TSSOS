@@ -3,10 +3,10 @@ function get_dynamic_sparsity(f, g, x, d; TS=["block","block"], SO=[1,1], merge=
     m = length(g)
     fsupp = npolys_info(f, x)[1]
     flt = size.(fsupp, 2)
-    df = maxdegree.(f)
+    df = MP.maxdegree.(f)
     gsupp = npolys_info(g, x)[1]
     glt = size.(gsupp, 2)
-    dg = maxdegree.(g)
+    dg = MP.maxdegree.(g)
     basis = Vector{Array{UInt8,2}}(undef, m+1)
     basis[1] = get_basis(n, d)
     for i = 1:m

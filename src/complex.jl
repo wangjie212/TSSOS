@@ -138,18 +138,18 @@ function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, co
     else
         rlorder = d*ones(Int, cql)
     end
-    ebasis = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, cql)
+    ebasis = Vector{Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}}(undef, cql)
     if ConjugateBasis == false
         if normality == 0
             basis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
         else
-            basis = Vector{Vector{Vector{Union{Vector{UInt16}, Vector{Vector{UInt16}}}}}}(undef, cql)
+            basis = Vector{Vector{Vector{Union{Vector{UInt16}, Tuple{Vector{UInt16},Vector{UInt16}}}}}}(undef, cql)
         end
     else
-        basis = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, cql)
+        basis = Vector{Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}}(undef, cql)
     end
     for i = 1:cql
-        ebasis[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, length(J[i]))
+        ebasis[i] = Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}(undef, length(J[i]))
         if ConjugateBasis == false
             if normality == 0
                 basis[i] = Vector{Vector{Vector{UInt16}}}(undef, length(I[i])+1)
@@ -158,11 +158,11 @@ function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, co
                     basis[i][s+1] = get_basis(cliques[i], rlorder[i]-dc[I[i][s]])
                 end
             else
-                basis[i] = Vector{Vector{Union{Vector{UInt16}, Vector{Vector{UInt16}}}}}(undef, length(I[i])+1+cliquesize[i])
+                basis[i] = Vector{Vector{Union{Vector{UInt16}, Tuple{Vector{UInt16},Vector{UInt16}}}}}(undef, length(I[i])+1+cliquesize[i])
                 basis[i][1] = get_basis(cliques[i], rlorder[i])
                 for s = 1:cliquesize[i]
                     temp = get_basis(cliques[i], Int(normality))
-                    basis[i][s+1] = [[[item, UInt16[]] for item in temp]; [[item, UInt16[cliques[i][s]]] for item in temp]]
+                    basis[i][s+1] = [[tuple(item, UInt16[]) for item in temp]; [tuple(item, UInt16[cliques[i][s]]) for item in temp]]
                     if nb > 0
                         basis[i][s+1] = reduce_unitnorm.(basis[i][s+1], nb=nb)
                         unique!(basis[i][s+1])
@@ -177,7 +177,7 @@ function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, co
                     @error "The relaxation order is too small!"
                 end
                 temp = get_basis(cliques[i], rlorder[i]-dc[J[i][s]])
-                ebasis[i][s] = vec([[item1, item2] for item1 in temp, item2 in temp])
+                ebasis[i][s] = vec([tuple(item1, item2) for item1 in temp, item2 in temp])
                 if nb > 0
                     ebasis[i][s] = reduce_unitnorm.(ebasis[i][s], nb=nb)
                     unique!(ebasis[i][s])
@@ -186,17 +186,17 @@ function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, co
             end
         else
             if normality < d
-                basis[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, length(I[i])+1)
+                basis[i] = Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}(undef, length(I[i])+1)
                 basis[i][1] = get_conjugate_basis(cliques[i], rlorder[i], nb=nb)
                 for s = 1:length(I[i])
                     basis[i][s+1] = get_conjugate_basis(cliques[i], rlorder[i]-Int(ceil(dc[I[i][s]]/2)), nb=nb)
                 end
             else
-                basis[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, length(I[i])+1+cliquesize[i])
+                basis[i] = Vector{Tuple{Vector{UInt16},Vector{UInt16}}}(undef, length(I[i])+1+cliquesize[i])
                 basis[i][1] = get_conjugate_basis(cliques[i], rlorder[i], nb=nb)
                 for s = 1:cliquesize[i]
                     temp = get_basis(cliques[i], normality)
-                    basis[i][s+1] = [[[item, UInt16[]] for item in temp]; [[item, UInt16[cliques[i][s]]] for item in temp]]
+                    basis[i][s+1] = [[tuple(item, UInt16[]) for item in temp]; [tuple(item, UInt16[cliques[i][s]]) for item in temp]]
                     if nb > 0
                         basis[i][s+1] = reduce_unitnorm.(basis[i][s+1], nb=nb)
                         unique!(basis[i][s+1])
@@ -400,7 +400,11 @@ function complex_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=3, 
 end
 
 function reduce_unitnorm(a; nb=0)
-    a = [copy(a[1]), copy(a[2])]
+    if isa(a, Vector{Vector{UInt16}})
+        a = [copy(a[1]), copy(a[2])]
+    else
+        a = tuple(copy(a[1]), copy(a[2]))
+    end
     i = 1
     while i <= length(a[1])
         if length(a[2]) == 0
@@ -528,6 +532,7 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
             model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
         else
             @error "The solver is currently not supported!"
+            return nothing,nothing,nothing,nothing,nothing,nothing,nothing
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
@@ -679,7 +684,7 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                                         @inbounds add_to_expression!(icons[Locb], real(coe[w+1][s]), pos[i][j+a][l][t,r+bs]-pos[i][j+a][l][r,t+bs])
                                     end
                                 else
-                                    @inbounds add_to_expression!(rcons[Locb], real(coe[w+1][s]), pos[i][j+a][l][t,r])
+                                    @inbounds add_to_expression!(rcons[Locb], coe[w+1][s], pos[i][j+a][l][t,r])
                                 end
                             end
                         end
@@ -722,7 +727,7 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                                         @inbounds add_to_expression!(icons[Locb], tag*real(coe[w+1][s])*free[i][j][loc+lb]+imag(coe[w+1][s])*free[i][j][loc])
                                     end
                                 else
-                                    @inbounds add_to_expression!(rcons[Locb], real(coe[w+1][s]), free[i][j][loc])
+                                    @inbounds add_to_expression!(rcons[Locb], coe[w+1][s], free[i][j][loc])
                                 end
                             end
                         end
@@ -746,40 +751,32 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
                 end
             end
         end
-        ncons = ltsupp
-        itsupp = nothing
-        if ipart == true
-            ind = [item[1] != item[2] for item in tsupp]
-            itsupp = tsupp[ind]
-            icons = icons[ind]
-            ncons += length(itsupp)
-        end
-        if QUIET == false
-            println("There are $ncons affine constraints.")
-        end
-        ind = [item[1] <= item[2] for item in supp[1]]
-        nsupp,ncoe = supp[1][ind],coe[1][ind]
-        for (i,item) in enumerate(nsupp)
-            Locb = bfind(tsupp, ltsupp, item)
-            if Locb === nothing
-               @error "The monomial basis is not enough!"
-            else
-               rcons[Locb] -= real(ncoe[i])
-               if ipart == true && item[1] != item[2]
-                   Locb = bfind(itsupp, length(itsupp), item)
-                   icons[Locb] -= imag(ncoe[i])
-               end
+        for (i,bi) in enumerate(supp[1])
+            if bi[1] <= bi[2]
+                Locb = bfind(tsupp, ltsupp, bi)
+                if Locb === nothing
+                    @error "The monomial basis is not enough!"
+                    return nothing,nothing,nothing,nothing,nothing,nothing,nothing
+                else
+                    rcons[Locb] -= real(coe[1][i])
+                    if ipart == true && bi[1] != bi[2]
+                        icons[Locb] -= imag(coe[1][i])
+                    end
+                end
             end
         end
         @variable(model, lower)
         rcons[1] += lower
         @constraint(model, rcon, rcons == zeros(ltsupp))
         if ipart == true
-            @constraint(model, icon, icons == zeros(length(itsupp)))
+            icons = icons[[item[1] != item[2] for item in tsupp]]
+            @constraint(model, icon, icons == zeros(length(icons)))
+            ltsupp += length(icons)
         end
         @objective(model, Max, lower)
         end
         if QUIET == false
+            println("There are $ltsupp affine constraints.")
             println("SDP assembling time: $time seconds.")
             println("Solving the SDP...")
         end
@@ -845,17 +842,17 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
             imeasure = -dual(icon)
         end
         if solution == true
-            sol = [rmeasure[bfind(tsupp, ltsupp, [UInt16[], UInt16[i]])] for i = 1:n]
+            sol = [rmeasure[bfind(tsupp, length(tsupp), [UInt16[], UInt16[i]])] for i = 1:n]
             if ipart == true
-                sol += [-imeasure[bfind(tsupp, ltsupp, [UInt16[], UInt16[i]])] for i = 1:n]*im
+                sol += [-imeasure[bfind(tsupp, length(tsupp), [UInt16[], UInt16[i]])] for i = 1:n]*im
             end          
         end
-        moment = get_cmoment(rmeasure, imeasure, tsupp, itsupp, cql, blocks, cl, blocksize, basis, ipart=ipart, nb=nb, ConjugateBasis=ConjugateBasis)
+        moment = get_cmoment(rmeasure, imeasure, tsupp, cql, blocks, cl, blocksize, basis, ipart=ipart, nb=nb, ConjugateBasis=ConjugateBasis)
     end
     return objv,ksupp,moment,sol,GramMat,multiplier,SDP_status
 end
 
-function get_eblock(tsupp::Vector{Vector{Vector{UInt16}}}, hsupp::Vector{Vector{Vector{UInt16}}}, basis::Vector{Vector{Vector{UInt16}}}; nb=0)
+function get_eblock(tsupp::Vector{Vector{Vector{UInt16}}}, hsupp::Vector{Vector{Vector{UInt16}}}, basis::Vector{Tuple{Vector{UInt16},Vector{UInt16}}}; nb=0)
     ltsupp = length(tsupp)
     eblock = Int[]
     for (i,item) in enumerate(basis)
@@ -1024,9 +1021,12 @@ function clique_decomp(n, m, dc, supp::Vector{Vector{Vector{Vector{UInt16}}}}; o
     return cliques,cql,cliquesize
 end
 
-function get_cmoment(rmeasure, imeasure, tsupp, itsupp, cql, blocks, cl, blocksize, basis; ipart=true, nb=0, ConjugateBasis=false)
+function get_cmoment(rmeasure, imeasure, tsupp, cql, blocks, cl, blocksize, basis; ipart=true, nb=0, ConjugateBasis=false)
     ctype = ipart == true ? ComplexF64 : Float64
     moment = Vector{Vector{Matrix{ctype}}}(undef, cql)
+    if ipart == true
+        itsupp = tsupp[[item[1] != item[2] for item in tsupp]]
+    end
     for i = 1:cql
         moment[i] = Vector{Matrix{ctype}}(undef, cl[i][1])
         for l = 1:cl[i][1]

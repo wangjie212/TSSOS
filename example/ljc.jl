@@ -19,7 +19,7 @@ push!(pop, 3N - sum(x.^2) - sum(y.^2) - sum(z.^2))
 for i = 1:N-1, j = i+1:N
     push!(pop, τ[(i-1)*N - Int(i*(i+1)/2) + j]*((x[i]-x[j])^2 + (y[i]-y[j])^2 + (z[i]-z[j])^2) - 1)
 end
-opt,sol,data = cs_tssos_first(pop, [x;y;z;τ], 3, numeq=Int(N*(N-1)/2), TS="MD")
+opt,sol,data = cs_tssos_first(pop, [x;y;z;τ], 3, numeq=Int(N*(N-1)/2), TS="MD", GroebnerBasis=true)
 
 
 using JuMP

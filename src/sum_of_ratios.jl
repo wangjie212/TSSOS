@@ -32,7 +32,7 @@ function SumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=
     else
         ss = TS = false
     end
-    dq = maxdegree.(q)
+    dq = MP.maxdegree.(q)
     time = @elapsed begin
     if dualize == false
         model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
@@ -95,7 +95,7 @@ function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSym
         ss = get_signsymmetry(polys, x)
     end
     TS = SignSymmetry == true ? "block" : false
-    dq = maxdegree.(q)
+    dq = MP.maxdegree.(q)
     vp = Vector{Vector{PolyVar{true}}}(undef, N)
     for i = 1:N
         if typeof(p[i]) == Polynomial

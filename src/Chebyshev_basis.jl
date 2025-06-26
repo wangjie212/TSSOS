@@ -1,6 +1,7 @@
 mutable struct poly_basis
-    pop # polynomial optimization problem
-    numeq # number of equality constraints
+    cost # cost function
+    ineq_cons # inequality constraints
+    eq_cons # equality constraints
     coe_type # type of coefficients
     group
     action
@@ -39,23 +40,23 @@ function add_psatz_cheby!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, orde
     l = length(eq_cons)
     basis = Vector{ChebyshevBasisFirstKind{Poly{Float64}}}(undef, m+l+1)
     basis[1] = basis_covering_monomials(ChebyshevBasis, MP.monomials(vars, 0:order))
-    basis[2:m+1] = [basis_covering_monomials(ChebyshevBasis, MP.monomials(vars, 0:order-ceil(Int, maxdegree(g)/2))) for g in ineq_cons]
-    basis[m+2:m+1+l] = [basis_covering_monomials(ChebyshevBasis, MP.monomials(vars, 0:2*order-maxdegree(h))) for h in eq_cons]
+    basis[2:m+1] = [basis_covering_monomials(ChebyshevBasis, MP.monomials(vars, 0:order-ceil(Int, MP.maxdegree(g)/2))) for g in ineq_cons]
+    basis[m+2:m+1+l] = [basis_covering_monomials(ChebyshevBasis, MP.monomials(vars, 0:2*order-MP.maxdegree(h))) for h in eq_cons]
     tsupp = basis_covering_monomials(ChebyshevBasis, unique([MP.monomials(nonneg); MP.monomials.(ineq_cons)...; MP.monomials.(eq_cons)...]))
     tsupp = [item for item in tsupp]
     sort!(tsupp)
     blocks,cl,blocksize,eblocks = get_blocks(m, l, tsupp, ineq_cons, eq_cons, basis, TS=TS, SO=SO, merge=merge, md=md, QUIET=QUIET)
-    poly = nonneg
+    pol = nonneg
     pos = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, 1+m)
     pos[1] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[1])
     for i = 1:cl[1]
         bs = blocksize[1][i]
         if bs == 1
             pos[1][i] = @variable(model, lower_bound=0)
-            poly -= basis[1][blocks[1][i][1]]^2 * pos[1][i]
+            pol -= basis[1][blocks[1][i][1]]^2 * pos[1][i]
         else
             pos[1][i] = @variable(model, [1:bs, 1:bs], PSD)
-            poly -= sum(basis[1][blocks[1][i][j]] * pos[1][i][j,k] * basis[1][blocks[1][i][k]] for j = 1:bs, k = 1:bs)
+            pol -= sum(basis[1][blocks[1][i][j]] * pos[1][i][j,k] * basis[1][blocks[1][i][k]] for j = 1:bs, k = 1:bs)
         end
     end
     for k = 1:m
@@ -64,10 +65,10 @@ function add_psatz_cheby!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, orde
             bs = blocksize[k+1][i]
             if bs == 1
                 pos[k+1][i] = @variable(model, lower_bound=0)
-                poly -= basis[k+1][blocks[k+1][i][1]]^2 * pos[k+1][i] * ineq_cons[k]
+                pol -= basis[k+1][blocks[k+1][i][1]]^2 * pos[k+1][i] * ineq_cons[k]
             else
                 pos[k+1][i] = @variable(model, [1:bs, 1:bs], PSD)
-                poly -= sum(basis[k+1][blocks[k+1][i][j]] * pos[k+1][i][j,r] * basis[k+1][blocks[k+1][i][r]] for j = 1:bs, r = 1:bs) * ineq_cons[k]
+                pol -= sum(basis[k+1][blocks[k+1][i][j]] * pos[k+1][i][j,r] * basis[k+1][blocks[k+1][i][r]] for j = 1:bs, r = 1:bs) * ineq_cons[k]
             end
         end
     end
@@ -76,14 +77,14 @@ function add_psatz_cheby!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, orde
         mul = Vector{Vector{VariableRef}}(undef, l)
         for k = 1:l
             mul[k] = @variable(model, [1:length(eblocks[k])])
-            poly -= sum(basis[k+m+1][eblocks[k][j]] * mul[k][j] for j = 1:length(eblocks[k])) * eq_cons[k]
+            pol -= sum(basis[k+m+1][eblocks[k][j]] * mul[k][j] for j = 1:length(eblocks[k])) * eq_cons[k]
         end
     end
-    coefs = MP.coefficients(poly, basis_covering_monomials(ChebyshevBasis, MP.monomials(poly)))
+    coefs = MP.coefficients(pol, basis_covering_monomials(ChebyshevBasis, MP.monomials(pol)))
     remove_nearly_zero_terms!(model, coefs)
     drop_zeros!.(coefs)
     @constraint(model, coefs .== 0)
-    info = poly_basis(nothing, nothing, nothing, nothing, nothing, basis, nothing, nothing, blocksize, blocks, eblocks, pos, mul, nothing)
+    info = poly_basis(nonneg, ineq_cons, eq_cons, nothing, nothing, nothing, basis, nothing, nothing, blocksize, blocks, eblocks, pos, mul, nothing)
     return info
 end
 

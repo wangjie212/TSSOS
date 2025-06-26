@@ -4,16 +4,16 @@ using TSSOS
 using JuMP
 using MosekTools
 
-@polyvar x[1:4]
+@polyvar x[1:6]
 f = sum(x) + sum(x.^2)
-G = PermGroup([perm"(1,2,3,4)"]) # define the symmetry group
-opt,data = tssos_symmetry([f], x, 1, G)
+G = PermGroup([perm"(1,2)", perm"(1,2,3,4,5,6)"]) # define the symmetry group
+VSCodeServer.@profview opt,data = tssos_symmetry_first([f], x, 2, G)
 # optimum = -1
 
-@polyvar x[1:4]
-f = prod(x) + sum(x.^4)
-G = PermGroup([perm"(1,2,3,4)"]) # define the symmetry group
-opt,data = tssos_symmetry_first([f], x, 2, G)
+@polyvar x[1:7]
+f = sum(x) + sum(x.^6)
+G = PermGroup([perm"(1,2)", perm"(1,2,3,4,5,6,7)"]) # define the symmetry group
+opt,data = tssos_symmetry_first([f], x, 3, G)
 opt,data = tssos_symmetry_higher!(data)
 # optimum = 0
 
@@ -33,16 +33,24 @@ opt,data = tssos_symmetry([f], x, 2, G)
 f = sum(x) + sum(x.^4)
 pop = [f, 1 - sum(x.^2)]
 G = PermGroup([perm"(1,2,3)", perm"(1,2)"])
-opt,data = tssos_symmetry(pop, x, 2, G)
+opt,data = tssos_symmetry_first(pop, x, 2, G, numeq=1)
 # optimum = -1.3987174
 
 @polyvar x[1:3]
 f = sum(x) + sum(x.^4)
-pop = [f, 1 - sum(x.^2)]
-opt,sol,data = tssos_first(pop, x, 2, TS="block")
+pop = [f; 1 .- x.^2]
 G = PermGroup([perm"(1,2,3)", perm"(1,2)"])
-opt,data = tssos_symmetry_first(pop, x, 2, G, SymmetricConstraint=true)
-# optimum = -1.3987174
+opt,data = tssos_symmetry_first(pop, x, 2, G, SymmetricConstraint=false)
+# optimum = -1.4174111
+
+@polyvar x[1:3]
+f = sum(x.^2) + sum(x.^4)
+pop = [f, 1 - sum(x.^2)]
+G = PermGroup([perm"(1,2,3)", perm"(1,2)"])
+opt,data = tssos_symmetry_first(pop, x, 2, G, numeq=0, TS="block")
+# optimum = 0
+opt,data = tssos_symmetry_higher!(data, TS="block")
+# optimum = 0
 
 d = 2
 model = Model(optimizer_with_attributes(Mosek.Optimizer))
@@ -55,13 +63,6 @@ objv = objective_value(model)
 @show objv
 # optimum = -1.3987174
 
-@polyvar x[1:3]
-f = sum(x) + sum(x.^4)
-pop = [f, 1 - sum(x.^2)]
-G = PermGroup([perm"(1,2,3)", perm"(1,2)"])
-opt,data = tssos_symmetry(pop, x, 2, G, numeq=1)
-# optimum = -1.3987174
-
 d = 2
 model = Model(optimizer_with_attributes(Mosek.Optimizer))
 set_optimizer_attribute(model, MOI.Silent(), true)
@@ -72,15 +73,6 @@ optimize!(model)
 objv = objective_value(model)
 @show objv
 # optimum = -1.3987174
-
-@polyvar x[1:3]
-f = sum(x.^2) + sum(x.^4)
-pop = [f, 1 - sum(x.^2)]
-G = PermGroup([perm"(1,2,3)", perm"(1,2)"])
-opt,data = tssos_symmetry_first(pop, x, 2, G, numeq=0, TS="block")
-# optimum = 0
-opt,data = tssos_symmetry_higher!(data, TS="block")
-# optimum = 0
 
 using SymbolicWedderburn
 import GroupsCore
@@ -152,7 +144,7 @@ SymbolicWedderburn.coeff_type(::DihedralAction) = Float64
 
 @polyvar x y
 f = x^6 + y^6 - x^4 * y^2 - y^4 * x^2 - x^4 - y^4 - x^2 - y^2 + 3x^2 * y^2 + 1
-opt,data = tssos_symmetry_first([f], [x;y], 3, DihedralGroup(4), action=DihedralAction(), semisimple=false, TS=false)
+opt,data = tssos_symmetry_first([f], [x;y], 3, DihedralGroup(4), action=DihedralAction(), semisimple=false, TS="block")
 
 G = PermGroup(perm"(1,2)")
 opt,data = tssos_symmetry_first([f], [x;y], 3, G)
@@ -163,6 +155,14 @@ opt,data = tssos_symmetry_higher!(data)
 f = z[1]^2*conj(z[1]^2) + z[2]^2*conj(z[2]^2) + z[1]*conj(z[2]) + z[2]*conj(z[1]) + (1+im)*z[1] + 
 (1-im)*conj(z[1]) + (1+im)*z[2] + (1-im)*conj(z[2]) + 1
 G = PermGroup(perm"(1,2)")
-opt,data = complex_tssos_symmetry_first([f, 1-z[1]*conj(z[1])-z[2]*conj(z[2])], z, 2, G, numeq=1, TS="block", ConjugateBasis=true)
+opt,data = complex_tssos_symmetry_first([f, 1-z[1]*conj(z[1])-z[2]*conj(z[2])], z, 2, G, numeq=1, TS=false, ConjugateBasis=true)
 opt,data = complex_tssos_symmetry_higher!(data)
 opt,data = complex_tssos_symmetry_first([f, 1-z[1]*conj(z[1]), 1-z[2]*conj(z[2])], z, 2, G, numeq=2, SymmetricConstraint=false, TS="block", ConjugateBasis=true)
+
+opt,sol,data = complex_tssos_first([f, 1-z[1]*conj(z[1]), 1-z[2]*conj(z[2])], z, 2, numeq=2, TS=false, ConjugateBasis=true)
+
+f = z[1]^2*conj(z[1]^2) + z[2]^2*conj(z[2]^2) + z[1]*conj(z[2]) + z[2]*conj(z[1]) + z[1] + 
+conj(z[1]) + z[2] + conj(z[2]) + 1
+G = PermGroup(perm"(1,2)")
+opt,data = complex_tssos_symmetry_first([f, 1-z[1]*conj(z[1]), 1-z[2]*conj(z[2])], z, 2, G, numeq=2, SymmetricConstraint=false, TS="block", ConjugateBasis=true)
+opt,sol,data = complex_tssos_first([f, 1-z[1]*conj(z[1]), 1-z[2]*conj(z[2])], z, 2, numeq=2, TS=false, ConjugateBasis=true)

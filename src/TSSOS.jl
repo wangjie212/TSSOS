@@ -52,17 +52,13 @@ end
 
 mosek_para() = mosek_para(1e-8, 1e-8, 1e-8, -1, 0)
 
-const Mono = DP.Monomial{DP.Commutative{DP.CreationOrder}, Graded{LexOrder}}
-const Poly{T} = DP.Polynomial{DP.Commutative{DP.CreationOrder}, Graded{LexOrder}, T}
-const PolyLike = Union{Mono,Term,Poly}
-export Mono,Poly
-
+include("polynomial.jl")
+include("utils.jl")
 include("chordal_extension.jl")
 include("clique_merge.jl")
 include("blockpop.jl")
 include("nblockmix.jl")
 include("complex.jl")
-include("utils.jl")
 include("local_solution.jl")
 include("extract_solutions.jl")
 include("add_psatz.jl")

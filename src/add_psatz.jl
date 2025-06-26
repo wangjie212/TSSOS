@@ -46,7 +46,7 @@ function add_psatz!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, order; CS=
     if ineq_cons != []
         gsupp,gcoe = npolys_info(ineq_cons, vars)
         glt = length.(gcoe)
-        dg = maxdegree.(ineq_cons)
+        dg = MP.maxdegree.(ineq_cons)
     else
         gsupp = Matrix{UInt8}[]
         glt = dg = Int[]
@@ -54,7 +54,7 @@ function add_psatz!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, order; CS=
     if eq_cons != []
         hsupp,hcoe = npolys_info(eq_cons, vars)
         hlt = length.(hcoe)
-        dh = maxdegree.(eq_cons)
+        dh = MP.maxdegree.(eq_cons)
     else
         hsupp = Matrix{UInt8}[]
         hlt = dh = Int[]
@@ -97,7 +97,7 @@ function add_psatz!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, order; CS=
         end
         ss = get_signsymmetry(permutedims(temp, [2,1]))
     end
-    dmin = ceil(Int, maximum([maxdegree(nonneg); dg; dh])/2)
+    dmin = ceil(Int, maximum([MP.maxdegree(nonneg); dg; dh])/2)
     order = order < dmin ? dmin : order
     I,J = assign_constraint(m, l, gsupp, hsupp, cliques, cql)
     basis = Vector{Vector{Matrix{UInt8}}}(undef, cql)
@@ -369,31 +369,31 @@ function add_complex_psatz!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, or
     end
     I = assign_constraint(gsupp, cliques, cql)
     J = assign_constraint(hsupp, cliques, cql)
-    ebasis = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, cql)
+    ebasis = Vector{Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}}(undef, cql)
     if ConjugateBasis == false
         if normality == 0
-            basis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
+            basis = Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}(undef, cql)
         else
-            basis = Vector{Vector{Vector{Union{Vector{UInt16}, Vector{Vector{UInt16}}}}}}(undef, cql)
+            basis = Vector{Vector{Vector{Union{Vector{UInt16}, Tuple{Vector{UInt16},Vector{UInt16}}}}}}(undef, cql)
         end
     else
-        basis = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, cql)
+        basis = Vector{Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}}(undef, cql)
     end
     for i = 1:cql
-        ebasis[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, length(J[i]))
+        ebasis[i] = Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}(undef, length(J[i]))
         if ConjugateBasis == false
             if normality == 0
-                basis[i] = Vector{Vector{Vector{UInt16}}}(undef, length(I[i])+1)
+                basis[i] = Vector{Tuple{Vector{UInt16},Vector{UInt16}}}(undef, length(I[i])+1)
                 basis[i][1] = get_basis(cliques[i], order)
                 for s = 1:length(I[i])
                     basis[i][s+1] = get_basis(cliques[i], order-dg[I[i][s]])
                 end
             else
-                basis[i] = Vector{Vector{Union{Vector{UInt16}, Vector{Vector{UInt16}}}}}(undef, length(I[i])+1+cliquesize[i])
+                basis[i] = Vector{Vector{Union{Vector{UInt16}, Tuple{Vector{UInt16},Vector{UInt16}}}}}(undef, length(I[i])+1+cliquesize[i])
                 basis[i][1] = get_basis(cliques[i], order)
                 for s = 1:cliquesize[i]
                     temp = get_basis(cliques[i], Int(normality))
-                    basis[i][s+1] = [[[item, UInt16[]] for item in temp]; [[item, UInt16[cliques[i][s]]] for item in temp]]
+                    basis[i][s+1] = [[tuple(item, UInt16[]) for item in temp]; [tuple(item, UInt16[cliques[i][s]]) for item in temp]]
                 end
                 for s = 1:length(I[i])
                     basis[i][s+1+cliquesize[i]] = get_basis(cliques[i], order-dg[I[i][s]])
@@ -404,22 +404,22 @@ function add_complex_psatz!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, or
                     @error "The relaxation order is too small!"
                 end
                 temp = get_basis(cliques[i], order-dh[J[i][s]])
-                ebasis[i][s] = vec([[item1, item2] for item1 in temp, item2 in temp])
+                ebasis[i][s] = vec([tuple(item1, item2) for item1 in temp, item2 in temp])
                 sort!(ebasis[i][s])
             end
         else
             if normality < order
-                basis[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, length(I[i])+1)
+                basis[i] = Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}(undef, length(I[i])+1)
                 basis[i][1] = get_conjugate_basis(cliques[i], order)
                 for s = 1:length(I[i])
                     basis[i][s+1] = get_conjugate_basis(cliques[i], order-dg[I[i][s]])
                 end
             else
-                basis[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, length(I[i])+1+cliquesize[i])
+                basis[i] = Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}(undef, length(I[i])+1+cliquesize[i])
                 basis[i][1] = get_conjugate_basis(cliques[i], order)
                 for s = 1:cliquesize[i]
                     temp = get_basis(cliques[i], normality)
-                    basis[i][s+1] = [[[item, UInt16[]] for item in temp]; [[item, UInt16[cliques[i][s]]] for item in temp]]
+                    basis[i][s+1] = [[tuple(item, UInt16[]) for item in temp]; [tuple(item, UInt16[cliques[i][s]]) for item in temp]]
                 end
                 for s = 1:length(I[i])
                     basis[i][s+1+cliquesize[i]] = get_conjugate_basis(cliques[i], order-dg[I[i][s]])

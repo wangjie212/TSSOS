@@ -1,7 +1,7 @@
 # Homogenize the polynomial f with the homogenization variable z
 function homogenize(f, z)
-    d = maxdegree(f)
-    ts = [term*z^(d-maxdegree(term)) for term in MP.terms(f)]
+    d = MP.maxdegree(f)
+    ts = [term*z^(d-MP.maxdegree(term)) for term in MP.terms(f)]
     return sum(ts)
 end
 
@@ -25,7 +25,7 @@ function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF",
     @polyvar z
     if ineq_cons != []
         ineq_cons = homogenize.(ineq_cons, z)
-        dg = maxdegree.(ineq_cons)
+        dg = MP.maxdegree.(ineq_cons)
     else
         dg = [0]
     end
@@ -33,7 +33,7 @@ function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF",
         eq_cons = homogenize.(eq_cons, z)
     end
     cost = homogenize(cost, z)
-    d = maxdegree(cost)
+    d = MP.maxdegree(cost)
     if nnhomovar == true || isodd(d) || any(isodd.(dg))
         push!(ineq_cons, z)
     end

@@ -27,6 +27,18 @@ mutable struct cpop_data
 end
 
 """
+    show_blocks(data)
+
+Display the block structure
+"""
+function show_blocks(data::cpop_data)
+    for j = 1:length(data.blocks[1])
+        print("block $j: ")
+        println([prod(data.x.^data.basis[1][:, data.blocks[1][j][k]]) for k = 1:data.blocksize[1][j]])
+    end
+end
+
+"""
     opt,sol,data = tssos_first(pop, x, d; nb=0, numeq=0, GroebnerBasis=true, basis=[], reducebasis=false, TS="block", 
     merge=false, md=3, solver="Mosek", QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, 
     cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), normality=false, rtol=1e-2, gtol=1e-2, ftol=1e-3)
@@ -104,13 +116,13 @@ function tssos_first(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, newton=false, fe
             basis[1] = get_basis(n, d, nb=nb, lead=leadsupp)
         end
         for k = 1:m-neq
-            basis[k+1] = get_basis(n, d-Int(ceil(maxdegree(pop[k+1])/2)), nb=nb, lead=leadsupp)
+            basis[k+1] = get_basis(n, d-Int(ceil(MP.maxdegree(pop[k+1])/2)), nb=nb, lead=leadsupp)
         end
         ebasis = nothing
         if isempty(gb) && numeq > 0
             ebasis = Vector{Array{UInt8,2}}(undef, numeq)
             for k = 1:numeq
-                ebasis[k] = get_basis(n, 2*d-maxdegree(pop[k+1+m-numeq]), nb=nb, lead=leadsupp)
+                ebasis[k] = get_basis(n, 2*d-MP.maxdegree(pop[k+1+m-numeq]), nb=nb, lead=leadsupp)
             end
         end
     end
@@ -192,7 +204,7 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 """
 function tssos_first(f::Poly{T}, x; newton=true, reducebasis=false, TS="block", merge=false, md=3, feasibility=false, solver="Mosek", QUIET=false, solve=true, 
     dualize=false, MomentOne=false, Gram=false, solution=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para(), rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
-    return tssos_first([f], x, Int(ceil(maxdegree(f)/2)), newton=newton, feasibility=feasibility, GroebnerBasis=false, reducebasis=reducebasis, TS=TS, merge=merge, md=md, solver=solver, 
+    return tssos_first([f], x, Int(ceil(MP.maxdegree(f)/2)), newton=newton, feasibility=feasibility, GroebnerBasis=false, reducebasis=reducebasis, TS=TS, merge=merge, md=md, solver=solver, 
     QUIET=QUIET, solve=solve, dualize=dualize, MomentOne=MomentOne, Gram=Gram, solution=solution, rtol=rtol, gtol=gtol, ftol=ftol, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
 end
 
@@ -559,6 +571,7 @@ function solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize
             model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
         else
             @error "The solver is currently not supported!"
+            return nothing,nothing,nothing,nothing,nothing,nothing,nothing
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
@@ -729,6 +742,7 @@ function solvesdp(n, m, supp, coe, basis, ebasis, blocks, eblocks, cl, blocksize
             Locb = bfind(tsupp, ltsupp, supp[1][:,i])
             if Locb === nothing
                 @error "The monomial basis is not enough!"
+                return nothing,nothing,nothing,nothing,nothing,nothing,nothing
             else
                cons[Locb] -= coe[1][i]
             end
