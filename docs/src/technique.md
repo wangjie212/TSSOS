@@ -5,7 +5,7 @@
 
 ## Christoffel-Darboux Kernels
 
-Here is the list of functions implemented in TSSOS that are based on computing Christiffel-Darboux kernels associated to a given POP:
+Here is the list of functions implemented in TSSOS that are based on computing Christoffel-Darboux kernels associated to a given POP:
 
 ```@docs
 run_H1

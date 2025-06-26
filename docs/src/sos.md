@@ -250,6 +250,71 @@ plot!(p, xt[1500:end], yt[1500:end], color=:black, legend=false, ylimits=(-xb,xb
 The black curve corresponds to the boundary of the true region of attraction. 
 The outer approximation obtained at the 8-th relaxation order is represented in light gray.
 
+## Order 2 quantum Wasserstein distances
+Section 4 from [arXiv:2506.](https://arxiv.org/abs/2506.). 
+The goal is to approximate the order 2 quantum Wasserstein distance with the hierarchy of SOS programs given by
+
+$$\mathrm{sup}\ \mathrm{Trace} (\rho \Lambda + \nu \Gamma) $$
+
+$$\mathrm{s.t.} f - \mathbf{x}^{\star} \Lambda \mathbf{x} - \mathbf{y}^{\star} \Gamma \mathbf{y} =\sigma+p(1 - \|\mathbf{x}\|^2)+q(1 - \|\mathbf{y}\|^2),$$
+
+$$\sigma\in\mathrm{SOS},\deg(\sigma)\le 2t,\ p,q\in\mathbb{C}[\mathbf{x},\overline{\mathbf{x}},\mathbf{y},\overline{\mathbf{y}}],\deg(p),\deg(q)\le2t-2, \ \Lambda, \Gamma \text{ Hermitian }$$
+
+```Julia
+using JuMP
+using MosekTools
+using DynamicPolynomials
+using TSSOS
+using LinearAlgebra
+
+@polyvar a[1:2] b[1:2] c[1:2] d[1:2]  
+
+# Example 4
+# rho = [1 0; 0 0]; nu = 1/2*[1 1; 1 1];
+
+# Example 5
+# rho = [3/4 0; 0 1/4]; nu = 1/2*[1 0; 0 1];
+
+# Saturating example
+rho = 1/2*[1 -1; -1 1]; nu = 1/2*[1 1; 1 1];
+
+xxT = [a[1]^2 + b[1]^2  a[1]*a[2] + b[1]*b[2] + im*(a[2]*b[1] - a[1]*b[2]);
+       a[1]*a[2] + b[1]*b[2] - im*(a[2]*b[1] - a[1]*b[2])  a[2]^2 + b[2]^2]
+
+yyT = [c[1]^2 + d[1]^2  c[1]*c[2] + d[1]*d[2] + im*(c[2]*d[1] - c[1]*d[2]);
+       c[1]*c[2] + d[1]*d[2] - im*(c[2]*d[1] - c[1]*d[2])  c[2]^2 + d[2]^2]
+
+M = xxT - yyT
+f = tr(M * adjoint(M))
+
+trace_XX = monomials(f)' * real.(coefficients(f))
+
+model = Model(optimizer_with_attributes(Mosek.Optimizer))
+
+@variable(model, l1)
+@variable(model, l2)
+@variable(model, l3)
+@variable(model, m1)
+@variable(model, m2)
+@variable(model, m3)
+
+tr_L1_xx = l1 * (a[1]^2 + b[1]^2) + 2*l2 * (a[1]*a[2] + b[1]*b[2]) + l3 * (a[2]^2 + b[2]^2);
+tr_M2_yy = m1 * (c[1]^2 + d[1]^2) + 2*m2 * (c[1]*c[2] + d[1]*d[2]) + m3 * (c[2]^2 + d[2]^2);
+
+x_norm2 = sum(a.^2) + sum(b.^2);
+y_norm2 = sum(c.^2) + sum(d.^2);
+h = [1 - x_norm2, 1 - y_norm2];
+
+nonneg = trace_XX - tr_L1_xx - tr_M2_yy;
+obj = tr([l1 l2; l2 l3] * rho) + tr([m1 m2; m2 m3] * nu);
+
+info = add_psatz!(model, nonneg, [a; b; c; d], [], h, 2; TS = false, GroebnerBasis=true)
+
+@objective(model, Max, real(obj));
+optimize!(model);
+val = objective_value(model);
+println("Optimal objective value: ", val)
+```
 
 ## Methods
 ```@docs
