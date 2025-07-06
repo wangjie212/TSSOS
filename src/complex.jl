@@ -778,76 +778,79 @@ function solvesdp(n, m, rlorder, supp::Vector{Vector{Vector{Vector{UInt16}}}}, c
         if QUIET == false
             println("There are $ltsupp affine constraints.")
             println("SDP assembling time: $time seconds.")
-            println("Solving the SDP...")
         end
         # println(all_constraints(model, include_variable_in_set_constraints=false))
-        time = @elapsed begin
-        optimize!(model)
-        end
-        if QUIET == false
-            println("SDP solving time: $time seconds.")
-        end
         if writetofile != false
             write_to_file(dualize(model), writetofile)
-        end
-        SDP_status = termination_status(model)
-        objv = objective_value(model)
-        if SDP_status != MOI.OPTIMAL
-           println("termination status: $SDP_status")
-           status = primal_status(model)
-           println("solution status: $status")
-        end
-        println("optimum = $objv")
-        if Gram == true
-            ctype = ipart==true ? ComplexF64 : Float64
-            GramMat = Vector{Vector{Vector{Union{Float64,Matrix{ctype}}}}}(undef, cql)
-            multiplier = Vector{Vector{Poly{ctype}}}(undef, cql)
-            for i = 1:cql
-                if ConjugateBasis == false
-                    a = normality > 0 ? 1 + length(I[i]) + cliquesize[i] : 1 + length(I[i])
-                else
-                    a = normality >= rlorder[i] ? 1 + length(I[i]) + cliquesize[i] : 1 + length(I[i])
-                end
-                GramMat[i] = Vector{Vector{Union{Float64,Matrix{ctype}}}}(undef, a)
-                for j = 1:a
-                    GramMat[i][j] = Vector{Union{Float64,Matrix{ctype}}}(undef, cl[i][j])
-                    for l = 1:cl[i][j]
-                        if ipart == true && blocksize[i][j][l] > 1
-                            bs = blocksize[i][j][l]
-                            temp = value.(pos[i][j][l][1:bs,bs+1:2bs])
-                            GramMat[i][j][l] = value.(pos[i][j][l][1:bs,1:bs]+pos[i][j][l][bs+1:2bs,bs+1:2bs]) + im*(temp-temp')
-                        else
-                            GramMat[i][j][l] = value.(pos[i][j][l])
+        else
+            if QUIET == false
+                println("Solving the SDP...")
+            end
+            time = @elapsed begin
+            optimize!(model)
+            end
+            if QUIET == false
+                println("SDP solving time: $time seconds.")
+            end
+            SDP_status = termination_status(model)
+            objv = objective_value(model)
+            if SDP_status != MOI.OPTIMAL
+                println("termination status: $SDP_status")
+                status = primal_status(model)
+                println("solution status: $status")
+            end
+            println("optimum = $objv")
+            if Gram == true
+                ctype = ipart==true ? ComplexF64 : Float64
+                GramMat = Vector{Vector{Vector{Union{Float64,Matrix{ctype}}}}}(undef, cql)
+                multiplier = Vector{Vector{Poly{ctype}}}(undef, cql)
+                for i = 1:cql
+                    if ConjugateBasis == false
+                        a = normality > 0 ? 1 + length(I[i]) + cliquesize[i] : 1 + length(I[i])
+                    else
+                        a = normality >= rlorder[i] ? 1 + length(I[i]) + cliquesize[i] : 1 + length(I[i])
+                    end
+                    GramMat[i] = Vector{Vector{Union{Float64,Matrix{ctype}}}}(undef, a)
+                    for j = 1:a
+                        GramMat[i][j] = Vector{Union{Float64,Matrix{ctype}}}(undef, cl[i][j])
+                        for l = 1:cl[i][j]
+                            if ipart == true && blocksize[i][j][l] > 1
+                                bs = blocksize[i][j][l]
+                                temp = value.(pos[i][j][l][1:bs,bs+1:2bs])
+                                GramMat[i][j][l] = value.(pos[i][j][l][1:bs,1:bs]+pos[i][j][l][bs+1:2bs,bs+1:2bs]) + im*(temp-temp')
+                            else
+                                GramMat[i][j][l] = value.(pos[i][j][l])
+                            end
                         end
                     end
-                end
-                if !isempty(J[i])
-                    multiplier[i] = Vector{Poly{ctype}}(undef, length(J[i]))
-                    for k = 1:length(J[i])
-                        temp = ebasis[i][k][eblocks[i][k]][[item[1] <= item[2] for item in ebasis[i][k][eblocks[i][k]]]]
-                        lb = length(temp)
-                        if ctype == Float64
-                            tau = sum(prod(z[temp[j][1]])*conj(prod(z[temp[j][2]]))*value(free[i][k][j]) for j = 1:lb)
-                        else
-                            tau = sum(prod(z[temp[j][1]])*conj(prod(z[temp[j][2]]))*(value(free[i][k][j])+value(free[i][k][lb+j])*im) for j = 1:lb)
+                    if !isempty(J[i])
+                        multiplier[i] = Vector{Poly{ctype}}(undef, length(J[i]))
+                        for k = 1:length(J[i])
+                            temp = ebasis[i][k][eblocks[i][k]][[item[1] <= item[2] for item in ebasis[i][k][eblocks[i][k]]]]
+                            lb = length(temp)
+                            if ctype == Float64
+                                tau = sum(prod(z[temp[j][1]])*conj(prod(z[temp[j][2]]))*value(free[i][k][j]) for j = 1:lb)
+                            else
+                                tau = sum(prod(z[temp[j][1]])*conj(prod(z[temp[j][2]]))*(value(free[i][k][j])+value(free[i][k][lb+j])*im) for j = 1:lb)
+                            end
+                            multiplier[i][k] = tau + conj(tau)
                         end
-                        multiplier[i][k] = tau + conj(tau)
                     end
                 end
             end
-        end
-        rmeasure = -dual(rcon)
-        imeasure = nothing
-        if ipart == true
-            imeasure = -dual(icon)
-        end
-        if solution == true
-            sol = [rmeasure[bfind(tsupp, length(tsupp), [UInt16[], UInt16[i]])] for i = 1:n]
+            rmeasure = -dual(rcon)
+            imeasure = nothing
             if ipart == true
-                sol += [-imeasure[bfind(tsupp, length(tsupp), [UInt16[], UInt16[i]])] for i = 1:n]*im
-            end          
+                imeasure = -dual(icon)
+            end
+            if solution == true
+                sol = [rmeasure[bfind(tsupp, length(tsupp), [UInt16[], UInt16[i]])] for i = 1:n]
+                if ipart == true
+                    sol += [-imeasure[bfind(tsupp, length(tsupp), [UInt16[], UInt16[i]])] for i = 1:n]*im
+                end          
+            end
+            moment = get_cmoment(rmeasure, imeasure, tsupp, cql, blocks, cl, blocksize, basis, ipart=ipart, nb=nb, ConjugateBasis=ConjugateBasis)
         end
-        moment = get_cmoment(rmeasure, imeasure, tsupp, cql, blocks, cl, blocksize, basis, ipart=ipart, nb=nb, ConjugateBasis=ConjugateBasis)
     end
     return objv,ksupp,moment,sol,GramMat,multiplier,SDP_status
 end

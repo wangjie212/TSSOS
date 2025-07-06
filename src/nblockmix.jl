@@ -426,46 +426,48 @@ function solvesdp(m, supp::Vector{Vector{Vector{UInt16}}}, coe, basis, ebasis, c
         end
         if QUIET == false
             println("SDP assembling time: $time seconds.")
-            println("Solving the SDP...")
-        end
-        time = @elapsed begin
-        optimize!(model)
-        end
-        if QUIET == false
-            println("SDP solving time: $time seconds.")
         end
         if writetofile != false
             write_to_file(dualize(model), writetofile)
-        end
-        SDP_status = termination_status(model)
-        objv = objective_value(model)
-        if SDP_status != MOI.OPTIMAL
-           println("termination status: $SDP_status")
-           status = primal_status(model)
-           println("solution status: $status")
-        end
-        println("optimum = $objv")
-        if Gram == true
-            GramMat = Vector{Vector{Vector{Union{Float64,Matrix{Float64}}}}}(undef, cql)
-            for i = 1:cql
-                GramMat[i] = Vector{Vector{Union{Float64,Matrix{Float64}}}}(undef, 1+length(I[i]))
-                for j = 1:1+length(I[i])
-                    GramMat[i][j] = [value.(pos[i][j][l]) for l = 1:cl[i][j]]
+        else
+            if QUIET == false
+                println("Solving the SDP...")
+            end
+            time = @elapsed begin
+            optimize!(model)
+            end
+            if QUIET == false
+                println("SDP solving time: $time seconds.")
+            end
+            SDP_status = termination_status(model)
+            objv = objective_value(model)
+            if SDP_status != MOI.OPTIMAL
+                println("termination status: $SDP_status")
+                status = primal_status(model)
+                println("solution status: $status")
+            end
+            println("optimum = $objv")
+            if Gram == true
+                GramMat = Vector{Vector{Vector{Union{Float64,Matrix{Float64}}}}}(undef, cql)
+                for i = 1:cql
+                    GramMat[i] = Vector{Vector{Union{Float64,Matrix{Float64}}}}(undef, 1+length(I[i]))
+                    for j = 1:1+length(I[i])
+                        GramMat[i][j] = [value.(pos[i][j][l]) for l = 1:cl[i][j]]
+                    end
+                end
+                multiplier = Vector{Vector{Vector{Float64}}}(undef, cql)
+                for i = 1:cql
+                    if !isempty(J[i])
+                        multiplier[i] = [value.(free[i][j]) for j = 1:length(J[i])]
+                    end
                 end
             end
-            multiplier = Vector{Vector{Vector{Float64}}}(undef, cql)
-            for i = 1:cql
-                if !isempty(J[i])
-                    multiplier[i] = [value.(free[i][j]) for j = 1:length(J[i])]
-                end
+            measure = -dual(con)
+            if solution == true  
+                momone = get_moment(measure, tsupp, cliques, cql, cliquesize, nb=nb)
             end
+            moment = get_moment(measure, tsupp, cliques, cql, cliquesize, basis=basis, nb=nb)
         end
-        measure = -dual(con)
-        momone = nothing
-        if solution == true  
-            momone = get_moment(measure, tsupp, cliques, cql, cliquesize, nb=nb)
-        end
-        moment = get_moment(measure, tsupp, cliques, cql, cliquesize, basis=basis, nb=nb)
     end
     return objv,ksupp,momone,moment,GramMat,multiplier,SDP_status
 end

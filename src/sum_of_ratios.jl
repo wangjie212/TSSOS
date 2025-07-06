@@ -41,7 +41,7 @@ function SumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=
         model = Model(dual_optimizer(Mosek.Optimizer))
     end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
-    hh = Vector{Polynomial{true, AffExpr}}(undef, N-1)
+    hh = Vector{Poly{AffExpr}}(undef, N-1)
     for i = 1:N-1
         hh[i] = add_poly!(model, x, 2d-max(dq[i], dq[N]), signsymmetry=ss)[1]
         add_psatz!(model, p[i]-hh[i]*q[i], x, g, h, d, QUIET=QUIET, CS=false, TS=TS, GroebnerBasis=GroebnerBasis)
@@ -96,12 +96,12 @@ function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSym
     end
     TS = SignSymmetry == true ? "block" : false
     dq = MP.maxdegree.(q)
-    vp = Vector{Vector{PolyVar{true}}}(undef, N)
+    vp = Vector{Vector{Variable{DP.Commutative{DP.CreationOrder}, Graded{LexOrder}}}}(undef, N)
     for i = 1:N
-        if typeof(p[i]) == Polynomial
+        if typeof(p[i]) <: Poly
             vp[i] = variables(p[i])
         else
-            vp[i] = PolyVar{true}[]
+            vp[i] = Variable{DP.Commutative{DP.CreationOrder}, Graded{LexOrder}}[]
         end
     end
     I = [unique([vp[i]; variables(q[i])]) for i=1:N]
@@ -119,9 +119,9 @@ function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSym
         model = Model(dual_optimizer(Mosek.Optimizer))
     end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
-    hh = Vector{Vector{Polynomial{true, AffExpr}}}(undef, N)
+    hh = Vector{Vector{Poly{AffExpr}}}(undef, N)
     for i = 1:N-1
-        hh[i] = Vector{Polynomial{true, AffExpr}}(undef, length(U[i]))
+        hh[i] = Vector{Poly{AffExpr}}(undef, length(U[i]))
         for (ind, j) in enumerate(U[i])
             Iij = intersect(I[i], I[j])
             if SignSymmetry == true
@@ -132,7 +132,7 @@ function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSym
             end
         end
     end
-    hh[N] = Polynomial{true, AffExpr}[]
+    hh[N] = Poly{AffExpr}[]
     c = @variable(model, [1:N])
     for i = 1:N
         if i == 1

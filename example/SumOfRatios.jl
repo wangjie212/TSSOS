@@ -138,7 +138,7 @@ s = 3
 p = -ones(N)
 mons = monomials(x, 0:d)
 ind = shuffle(Vector(1:length(mons)))[1:Int(floor(length(mons)*pp))]
-q = Vector{Polynomial{true, Float64}}(undef, N)
+q = Vector{Poly{Float64}}(undef, N)
 for i = 1:N
 	loc = shuffle(Vector(1:length(ind)))[1:s]
 	q[i] = 1 + (rand(s)'*mons[ind[loc]])^2
@@ -154,7 +154,7 @@ pop = [sum(w); g; [p[i]-w[i]*q[i] for i=1:N]]
 
 
 # Example 5.4
-N = 20
+N = 5
 n = 2*N + 2
 @polyvar x[1:n]
 p = [sum(x[2*i-1:2*i+1].^2)*prod(x[2*i-1:2*i+1].^2) + x[2*i+2]^8 for i=1:N]
@@ -227,8 +227,8 @@ Random.seed!(0)
 n = 4
 N = 10
 @polyvar x[1:2*n]	
-p = Polynomial{true, Float64}[]
-q = Polynomial{true, Float64}[]
+p = Poly{Float64}[]
+q = Poly{Float64}[]
 for i in 1:N
    	A = rand(n, n)
     B = rand(n, n)

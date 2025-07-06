@@ -3,12 +3,22 @@ using DynamicPolynomials
 using TSSOS
 using JuMP
 using MosekTools
+using Profile
+using ProfileView
 
-@polyvar x[1:6]
+@polyvar x[1:7]
 f = sum(x) + sum(x.^2)
-G = PermGroup([perm"(1,2)", perm"(1,2,3,4,5,6)"]) # define the symmetry group
-VSCodeServer.@profview opt,data = tssos_symmetry_first([f], x, 2, G)
+G = PermGroup([perm"(1,2)", perm"(1,2,3,4,5,6,7)"]) # define the symmetry group
+@profile opt,data = tssos_symmetry([f], x, 2, G)
+Profile.print()
 # optimum = -1
+
+action = TSSOS.VariablePermutation(x)
+supp_d = TSSOS.get_basis(Vector(1:length(x)), 2)
+supp_2d = TSSOS.get_basis(Vector(1:length(x)), 4)
+monos_d = Mono[prod(x[item]) for item in supp_d]
+monos_2d = Mono[prod(x[item]) for item in supp_2d]
+ProfileView.@profview WedderburnDecomposition(Float64, G, action, monos_2d, monos_d)
 
 @polyvar x[1:7]
 f = sum(x) + sum(x.^6)
