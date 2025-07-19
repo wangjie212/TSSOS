@@ -36,10 +36,16 @@ end
 Display the block structure
 """
 
-function show_blocks(data::mcpop_data)
-    for l = 1:data.cql, j = 1:length(data.blocks[l][1])
-        print("clique $l, block $j: ")
-        println([prod(data.x[data.basis[l][1][data.blocks[l][1][j][k]]]) for k = 1:data.blocksize[l][1][j]])
+function show_blocks(data::mcpop_data; include_constraints=false)
+    for i = 1:data.cql, j = 1:length(data.blocks[i][1])
+        print("clique $i, block $j: ")
+        println([prod(data.x[data.basis[i][1][data.blocks[i][1][j][k]]]) for k = 1:data.blocksize[i][1][j]])
+    end
+    if include_constraints == true
+        for i = 1:data.cql, (l,s) in enumerate(data.I[i]), j = 1:length(data.blocks[i][l+1])
+            print("clique $i, constraint $s, block $j: ")
+            println([prod(data.x[data.basis[i][l+1][data.blocks[i][l+1][j][k]]]) for k = 1:data.blocksize[i][l+1][j]])
+        end
     end
 end
 

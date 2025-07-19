@@ -31,10 +31,16 @@ end
 
 Display the block structure
 """
-function show_blocks(data::cpop_data)
+function show_blocks(data::cpop_data; include_constraints=false)
     for j = 1:length(data.blocks[1])
         print("block $j: ")
         println([prod(data.x.^data.basis[1][:, data.blocks[1][j][k]]) for k = 1:data.blocksize[1][j]])
+    end
+    if include_constraints == true
+        for i = 1:length(data.blocks)-1, j = 1:length(data.blocks[i+1])
+            print("constraint $i, block $j: ")
+            println([prod(data.x.^data.basis[i+1][:, data.blocks[i+1][j][k]]) for k = 1:data.blocksize[i+1][j]])
+        end
     end
 end
 

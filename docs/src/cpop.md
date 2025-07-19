@@ -20,11 +20,11 @@ $$\mathrm{s.t.}\ z_2+\bar{z}_2\ge0,|z_1|^2-0.25z_1^2-0.25\bar{z}_1^2=1,|z_1|^2+|
 using DynamicPolynomials
 n = 2 # set the number of complex variables
 @complex_polyvar z[1:n]
-f = 3 - x[1]*conj(x[1]) - 0.5im*x[1]*conj(x[2])^2 + 0.5im*x[2]^2*conj(x[1])
-g1 = x[2] + conj(x[2])
-g2 = x[1]*conj(x[1]) - 0.25*x[1]^2 - 0.25*conj(x[1])^2 - 1
-g3 = x[1]*conj(x[1]) + x[2]*conj(x[2]) - 3
-g4 = im*x[2] - im*conj(x[2])
+f = 3 - z[1]*conj(z[1]) - 0.5im*z[1]*conj(z[2])^2 + 0.5im*z[2]^2*conj(z[1])
+g1 = z[2] + conj(z[2])
+g2 = z[1]*conj(z[1]) - 0.25*z[1]^2 - 0.25*conj(z[1])^2 - 1
+g3 = z[1]*conj(z[1]) + z[2]*conj(z[2]) - 3
+g4 = im*z[2] - im*conj(z[2])
 pop = [f, g1, g2, g3, g4]
 order = 2 # set the relaxation order
 opt,sol,data = complex_tssos_first(pop, z, order, numeq=3, TS="block", solution=true) # no correlative sparsity
@@ -59,3 +59,12 @@ ftol | tolerance for feasibility | 1e-3
 ### References
 
 1. [Exploiting Sparsity in Complex Polynomial Optimization](https://link.springer.com/article/10.1007/s10957-021-01975-z), Jie Wang and Victor Magron, 2021.
+
+## Methods
+```@docs
+complex_tssos_first
+complex_tssos_higher!
+complex_cs_tssos_first
+complex_cs_tssos_higher!
+add_complex_psatz!
+```
