@@ -40,7 +40,7 @@ function SymbolicWedderburn.decompose(
 end
 
 """
-    opt,data = tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=true, SymmetricConstraint=true, QUIET=false)
+    opt,data = tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, QUIET=false)
 
 Compute the symmetry adapted moment-SOS relaxation for polynomial optimization problems.
 
@@ -59,12 +59,12 @@ Compute the symmetry adapted moment-SOS relaxation for polynomial optimization p
 - `opt`: optimum
 - `data`: other auxiliary data 
 """
-function tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=true, SymmetricConstraint=true, QUIET=false, dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+function tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, QUIET=false, dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
     return tssos_symmetry_first(pop, x, d, group, numeq=numeq, action=action, semisimple=semisimple, DiagSquare=DiagSquare, SymmetricConstraint=SymmetricConstraint, TS=false, QUIET=QUIET, solver=solver, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
 end
 
 """
-    opt,data = tssos_symmetry_first(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=true, SymmetricConstraint=true, TS="block", QUIET=false)
+    opt,data = tssos_symmetry_first(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, TS="block", QUIET=false)
 
 Compute the symmetry adapted moment-SOS relaxation for polynomial optimization problems.
 
@@ -84,7 +84,7 @@ Compute the symmetry adapted moment-SOS relaxation for polynomial optimization p
 - `opt`: optimum
 - `data`: other auxiliary data 
 """
-function tssos_symmetry_first(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=true, SymmetricConstraint=true, TS="block", QUIET=false, merge=false, md=3, dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+function tssos_symmetry_first(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, TS="block", QUIET=false, merge=false, md=3, dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     cost = poly(pop[1], x)
@@ -169,7 +169,7 @@ function tssos_symmetry_first(pop, x, d, group; numeq=0, action=nothing, semisim
 end
 
 """
-    opt,data = complex_tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=true, SymmetricConstraint=true, ConjugateBasis=false, QUIET=false)
+    opt,data = complex_tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, ConjugateBasis=false, QUIET=false)
 
 Compute the symmetry adapted moment-HSOS relaxation for complex polynomial optimization problems.
 
@@ -188,12 +188,12 @@ Compute the symmetry adapted moment-HSOS relaxation for complex polynomial optim
 - `opt`: optimum
 - `data`: other auxiliary data 
 """
-function complex_tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=true, SymmetricConstraint=true, ConjugateBasis=false, QUIET=false, dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+function complex_tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, ConjugateBasis=false, QUIET=false, dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
     return complex_tssos_symmetry_first(pop, x, d, group, numeq=numeq, action=action, DiagSquare=DiagSquare, semisimple=semisimple, SymmetricConstraint=SymmetricConstraint, ConjugateBasis=ConjugateBasis, TS=false, QUIET=QUIET, solver=solver, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
 end
 
 """
-    opt,data = complex_tssos_symmetry_first(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=true, SymmetricConstraint=true, ConjugateBasis=false, TS="block", QUIET=false)
+    opt,data = complex_tssos_symmetry_first(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, ConjugateBasis=false, TS="block", QUIET=false)
 
 Compute the symmetry adapted moment-HSOS relaxation for complex polynomial optimization problems.
 
@@ -213,7 +213,7 @@ Compute the symmetry adapted moment-HSOS relaxation for complex polynomial optim
 - `opt`: optimum
 - `data`: other auxiliary data 
 """
-function complex_tssos_symmetry_first(pop::Vector{Poly{T}}, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=true, SymmetricConstraint=true, ConjugateBasis=false, TS="block", QUIET=false, merge=false, md=3, 
+function complex_tssos_symmetry_first(pop::Vector{Poly{T}}, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, ConjugateBasis=false, TS="block", QUIET=false, merge=false, md=3, 
     dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para()) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
