@@ -3,8 +3,16 @@ using DynamicPolynomials
 using TSSOS
 using JuMP
 using MosekTools
-using Profile
-using ProfileView
+# using Profile
+# using ProfileView
+
+@polyvar x[1:5]
+f = 1/5*sum(x.^4) + 1/5*(x[1]*x[2]*x[3]*x[4]+x[1]*x[2]*x[3]*x[5]+x[1]*x[2]*x[4]*x[5]+x[1]*x[3]*x[4]*x[5]+x[2]*x[3]*x[4]*x[5]) + 
+1/10*(x[1]*x[2]*x[3]+x[1]*x[2]*x[4]+x[1]*x[3]*x[4]+x[2]*x[3]*x[4]+x[1]*x[2]*x[5]+x[1]*x[3]*x[5]+x[1]*x[4]*x[5]+x[2]*x[3]*x[5]+x[2]*x[4]*x[5]+x[3]*x[4]*x[5]) + 1/5*sum(x)
+G = PermGroup([perm"(1,2)", perm"(1,2,3,4,5)"])
+opt,data = tssos_symmetry_first([f], x, 2, G, TS="MD")
+opt,data = tssos_symmetry_higher!(data, TS="MD")
+
 
 @polyvar x[1:4]
 f = sum(x) + sum(x.^2) + prod(x)
