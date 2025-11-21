@@ -174,7 +174,7 @@ f = x^6 + y^6 - x^4 * y^2 - y^4 * x^2 - x^4 - y^4 - x^2 - y^2 + 3x^2 * y^2 + 1
 opt,data = tssos_symmetry_first([f], [x;y], 3, DihedralGroup(4), action=DihedralAction(), semisimple=false, TS="block")
 
 G = PermGroup(perm"(1,2)")
-opt,data = tssos_symmetry_first([f], [x;y], 3, G)
+opt,data = tssos_symmetry_first([f], [x;y], 3, G, DiagSquare=false, TS="MD")
 opt,data = tssos_symmetry_higher!(data)
 
 
