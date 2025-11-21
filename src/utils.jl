@@ -282,11 +282,11 @@ function generate_basis!(supp, basis)
     return basis[:,indexb]
 end
 
-function eval(supp::Vector{Vector{UInt16}}, coe, x)
+function evaluate(supp::Vector{Vector{UInt16}}, coe, x)
     return coe'*[prod(x[item]) for item in supp]
 end
 
-function eval(supp::Vector{Vector{Vector{UInt16}}}, coe, z)
+function evaluate(supp::Vector{Vector{Vector{UInt16}}}, coe, z)
     return real(transpose(coe)*[prod(z[item[1]])*conj(prod(z[item[2]])) for item in supp])
 end
 

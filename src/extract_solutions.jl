@@ -358,7 +358,7 @@ function approx_sol(moment, lb, n, cliques, cql, cliquesize, supp, coe; numeq=0,
     end
     sol = (A'*A)\(A'*qsol)
     flag = 1
-    ub = eval(supp[1], coe[1], sol)
+    ub = evaluate(supp[1], coe[1], sol)
     gap = abs(lb-ub)/max(1, abs(ub))
     if check_optimality(sol, lb, supp, coe, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         flag = 0
@@ -414,7 +414,7 @@ end
 
 function check_optimality(sol, lb, supp::Union{Vector{Vector{Vector{UInt16}}}, Vector{Vector{Vector{Vector{UInt16}}}}}, coe; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
     flag = 1
-    ub = eval(supp[1], coe[1], sol)
+    ub = evaluate(supp[1], coe[1], sol)
     gap = abs(lb-ub)/max(1, abs(ub))
     if QUIET == false
         @printf "Global optimality gap = %.6f%%!\n" 100*gap
@@ -424,7 +424,7 @@ function check_optimality(sol, lb, supp::Union{Vector{Vector{Vector{UInt16}}}, V
     end
     m = length(supp) - 1 - numeq
     if m > 0
-        vio = [eval(supp[j], coe[j], sol) for j = 2:m+1]
+        vio = [evaluate(supp[j], coe[j], sol) for j = 2:m+1]
         mvio = max(-minimum(vio), 0)
         if mvio > ftol
             flag = 0
@@ -434,7 +434,7 @@ function check_optimality(sol, lb, supp::Union{Vector{Vector{Vector{UInt16}}}, V
         end
     end
     if numeq > 0
-        vio = [eval(supp[j], coe[j], sol) for j = m+2:length(supp)]
+        vio = [evaluate(supp[j], coe[j], sol) for j = m+2:length(supp)]
         mvio = maximum(abs.(vio))
         if mvio > ftol
             flag = 0
@@ -493,12 +493,12 @@ function check_solution(candidate_sol, lb, supp::Union{Vector{Vector{Vector{UInt
     if nsol > 0
         println("------------------------------------------------")
         if nsol == 1
-            ub = eval(supp[1], coe[1], sol[1])
+            ub = evaluate(supp[1], coe[1], sol[1])
             gap = abs(lb-ub)/max(1, abs(ub))
             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
             println("Successfully extracted one globally optimal solution.")
         else
-            ub = minimum([eval(supp[1], coe[1], s) for s in sol])
+            ub = minimum([evaluate(supp[1], coe[1], s) for s in sol])
             gap = abs(lb-ub)/max(1, abs(ub))
             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
             println("Successfully extracted ", nsol, " globally optimal solutions.")

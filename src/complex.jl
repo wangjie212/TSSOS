@@ -265,7 +265,7 @@ function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, co
                 if asol === nothing
                     rsupp,rcoe = polys_info(complex_to_real(pop, z)...)
                     rsol = [real(sol); imag(sol)]
-                    ub = eval(supp[1], coe[1], sol)
+                    ub = evaluate(supp[1], coe[1], sol)
                     gap = abs(opt-ub)/max(1, abs(ub))
                     rsol = gap > 0.5 ? randn(2n) : rsol
                     for i = 1:2n
@@ -276,7 +276,7 @@ function complex_cs_tssos_first(supp::Vector{Vector{Vector{Vector{UInt16}}}}, co
                     ub,rsol,status = local_solution(2n, m, rsupp, rcoe, numeq=numeq, startpoint=rsol, QUIET=true)
                     if status == MOI.LOCALLY_SOLVED
                         sol = rsol[1:n] + rsol[n+1:2n]*im
-                        ub = eval(supp[1], coe[1], sol)
+                        ub = evaluate(supp[1], coe[1], sol)
                         gap = abs(opt-ub)/max(1, abs(ub))
                         if gap < gtol
                             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
@@ -351,7 +351,7 @@ function complex_cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=
                 if asol === nothing
                     rsupp,rcoe = polys_info(complex_to_real(data.pop, data.z)...)
                     rsol = [real(sol); imag(sol)]
-                    ub = eval(supp[1], data.coe[1], sol)
+                    ub = evaluate(supp[1], data.coe[1], sol)
                     gap = abs(opt-ub)/max(1, abs(ub))
                     rsol = gap > 0.5 ? randn(2n) : rsol
                     for i = 1:2n
@@ -362,7 +362,7 @@ function complex_cs_tssos_higher!(data::ccpop_data; TS="block", merge=false, md=
                     ub,rsol,status = local_solution(2n, m, rsupp, rcoe, numeq=numeq, startpoint=rsol, QUIET=true)
                     if status == MOI.LOCALLY_SOLVED
                         sol = rsol[1:n] + rsol[n+1:2n]*im
-                        ub = eval(supp[1], data.coe[1], sol)
+                        ub = evaluate(supp[1], data.coe[1], sol)
                         gap = abs(opt-ub)/max(1, abs(ub))
                         if gap < data.gtol
                             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
