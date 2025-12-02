@@ -166,8 +166,14 @@ function tssos_first(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, newton=false, fe
         if TS != false || (numeq > 0 && GroebnerBasis == true)
             sol,gap,data.flag = extract_solution(momone, opt, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=true)
             if data.flag == 1
-                sol = gap > 0.5 ? randn(n) : sol
-                sol,data.flag = refine_sol(opt, sol, data, QUIET=true, gtol=gtol)
+                if gap > 1
+                    rsol,status,data.flag = refine_sol(opt, randn(n), data, QUIET=true, gtol=gtol)
+                    if status == MOI.LOCALLY_SOLVED
+                        sol = rsol
+                    end
+                else
+                    sol,_,data.flag = refine_sol(opt, sol, data, QUIET=true, gtol=gtol)
+                end
             end
         else
             sol = extract_solutions_robust(moment[1], n, d, pop=pop, x=x, lb=opt, numeq=numeq, basis=basis[1], check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
@@ -259,8 +265,14 @@ function tssos_higher!(data::cpop_data; TS="block", merge=false, md=3, QUIET=fal
         if solution == true
             sol,gap,data.flag = extract_solution(momone, opt, data.pop, x, numeq=numeq, QUIET=true, gtol=data.gtol, ftol=data.ftol)
             if data.flag == 1
-                sol = gap > 0.5 ? randn(n) : sol
-                sol,data.flag = refine_sol(opt, sol, data, QUIET=true, gtol=data.gtol)
+                if gap > 1
+                    rsol,status,data.flag = refine_sol(opt, randn(n), data, QUIET=true, gtol=data.gtol)
+                    if status == MOI.LOCALLY_SOLVED
+                        sol = rsol
+                    end
+                else
+                    sol,_,data.flag = refine_sol(opt, sol, data, QUIET=true, gtol=data.gtol)
+                end
             end
         end
         data.blocks = blocks

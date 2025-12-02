@@ -79,7 +79,7 @@ function local_solution(n, m, supp::Vector{Array{UInt8, 2}}, coe; nb=0, numeq=0,
 end
 
 """
-    ref_sol,flag = refine_sol(opt, sol, data, QUIET=false, tol=1e-2)
+    ref_sol,status,flag = refine_sol(opt, sol, data, QUIET=false, tol=1e-2)
 
 Refine the obtained solution by a local solver.
 Return the refined solution, and `flag=0` if global optimality is certified, `flag=1` otherwise.
@@ -120,13 +120,13 @@ function refine_sol(opt, sol, data::Union{cpop_data,mcpop_data}; QUIET=false, gt
             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
             println("Successfully extracted one globally optimal solution.")
             println("------------------------------------------------")
-            return rsol,0
+            return rsol,status,0
         else
             @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
-            return rsol,1
+            return rsol,status,1
         end
     else
         println("The local solver failed refining the solution!")
-        return sol,1
+        return sol,status,1
     end
 end

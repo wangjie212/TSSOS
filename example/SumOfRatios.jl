@@ -243,3 +243,57 @@ d = 2
 @time opt = SumOfRatios(-p, q, [], h, x, d, QUIET=true, SignSymmetry=true)
 @time opt = SumOfRatios(-p, q, [], h, x, d, QUIET=true, SignSymmetry=false)
 @time opt = SumOfRatios(-p, q, [], h, x, d, QUIET=true, dualize=true, SignSymmetry=false)
+
+
+@polyvar x[1:3]
+p = [x[1]^2 + x[2]^2, x[1]*x[2], x[1]^2 - x[3]]
+q = [x[1]^2 + 0.1, x[2]^2 + 0.1, 10*x[3]^2 + 0.1]
+g = [2 - x[1]^2 - x[2]^2 - x[3]^2]
+d = 3
+model = Model(Mosek.Optimizer)
+set_optimizer_attribute(model, MOI.Silent(), true)
+h1 = add_poly!(model, x, 2d-2)[1]
+info1 = add_psatz!(model, p[1]-h1*q[1], x, g, [], d, CS=false, TS=false, constrs="con1")
+h2 = add_poly!(model, x, 2d-2)[1]
+info2 = add_psatz!(model, p[2]-h2*q[2], x, g, [], d, CS=false, TS=false, constrs="con2")
+c = @variable(model)
+info3 = add_psatz!(model, p[3]+(h1+h2-c)*q[3], x, g, [], d, CS=false, TS=false, constrs="con3")
+@objective(model, Max, c)
+optimize!(model)
+optimum = objective_value(model)
+@show optimum
+
+MomMat1 = get_moment_matrix(-dual(constraint_by_name(model, "con1")), info1)
+sol1 = extract_solutions_robust(MomMat1[1], 3, d)
+println(sol1)
+MomMat2 = get_moment_matrix(-dual(constraint_by_name(model, "con2")), info2)
+sol2 = extract_solutions_robust(MomMat2[1], 3, d)
+println(sol2)
+MomMat3 = get_moment_matrix(-dual(constraint_by_name(model, "con3")), info3)
+sol3 = extract_solutions_robust(MomMat3[1], 3, d)
+println(sol3)
+
+
+
+@polyvar x[1:2]
+p = [x[1]^2 + x[2]^3, x[1]*x[2]]
+q = [x[1]^6 + 0.1, x[2]^6 + 0.1]
+g = [1 - x[1]^2 - x[2]^2]
+d = 3
+model = Model(Mosek.Optimizer)
+set_optimizer_attribute(model, MOI.Silent(), true)
+h = add_poly!(model, x, 1)[1]
+info1 = add_psatz!(model, p[1]-h*q[1], x, g, [], d, CS=false, TS=false, constrs="con1")
+c = @variable(model)
+info2 = add_psatz!(model, p[2]+(h-c)*q[2], x, g, [], d, CS=false, TS=false, constrs="con2")
+@objective(model, Max, c)
+optimize!(model)
+optimum = objective_value(model)
+@show optimum
+
+MomMat1 = get_moment_matrix(-dual(constraint_by_name(model, "con1")), info1)
+sol1 = extract_solutions_robust(MomMat1[1], 2, d)
+println(sol1)
+MomMat2 = get_moment_matrix(-dual(constraint_by_name(model, "con2")), info2)
+sol2 = extract_solutions_robust(MomMat2[1], 2, d)
+println(sol2)
