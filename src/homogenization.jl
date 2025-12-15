@@ -5,31 +5,23 @@ function homogenize(f, z)
     return sum(ts)
 end
 
-function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF", type=2, ε=0, TS="block", SO=1, nnhomovar=false, GroebnerBasis=false, Mommat=false)
+function solve_hpop(cost, x, ineq_cons, eq_cons, order; QUIET=false, CS="MF", type=2, ε=0, TS="block", SO=1, nnhomovar=false, GroebnerBasis=false, Mommat=false)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     if CS != false
-        fsupp = poly_info(cost, vars)[1]
-        if ineq_cons != []
-            gsupp = npolys_info(ineq_cons, vars)[1]
-        else
-            gsupp = Matrix{UInt8}[]
-        end
-        if eq_cons != []
-            hsupp = npolys_info(eq_cons, vars)[1]
-        else
-            hsupp = Matrix{UInt8}[]
-        end
-        cliques,cql,_ = clique_decomp(length(vars), length(ineq_cons), length(eq_cons), fsupp, gsupp, hsupp, alg="NC", QUIET=QUIET)  
+        f = poly(cost, x)
+        g = isempty(ineq_cons) ? poly[] : [poly(p, x) for p in ineq_cons]
+        h = isempty(eq_cons) ? poly[] : [poly(p, x) for p in eq_cons]
+        cliques,cql,_ = clique_decomp([f; g; h], length(x), length(h), alg="NC", QUIET=QUIET)  
     end
     @polyvar z
-    if ineq_cons != []
+    if !isempty(ineq_cons)
         ineq_cons = homogenize.(ineq_cons, z)
         dg = MP.maxdegree.(ineq_cons)
     else
         dg = [0]
     end
-    if eq_cons != []
+    if !isempty(eq_cons)
         eq_cons = homogenize.(eq_cons, z)
     end
     cost = homogenize(cost, z)
@@ -41,38 +33,38 @@ function solve_hpop(cost, vars, ineq_cons, eq_cons, order; QUIET=false, CS="MF",
         if type == 1
             @polyvar y[1:cql]
             for i = 1:cql
-                push!(eq_cons, sum(vars[cliques[i]].^2) + z^2 + y[i]^2 - 1)
+                push!(eq_cons, sum(x[cliques[i]].^2) + z^2 + y[i]^2 - 1)
             end
         else
-            freq = zeros(length(vars))
+            freq = zeros(length(x))
             for clique in cliques
                 freq[clique] .+= 1
             end
             if type == 2
                 @polyvar y[1:cql-1]
-                push!(ineq_cons, 2 - sum(vars[cliques[1]].^2) - z^2 - y[1]^2)
-                push!(eq_cons, sum(1 ./ freq[cliques[1]] .* vars[cliques[1]].^2) + 1/cql*z^2 - y[1]^2)
+                push!(ineq_cons, 2 - sum(x[cliques[1]].^2) - z^2 - y[1]^2)
+                push!(eq_cons, sum(1 ./ freq[cliques[1]] .* x[cliques[1]].^2) + 1/cql*z^2 - y[1]^2)
                 for i = 2:cql-1
-                    push!(ineq_cons, 3 - sum(vars[cliques[i]].^2) - z^2 - y[i-1]^2 - y[i]^2)
-                    push!(eq_cons, sum(1 ./ freq[cliques[i]] .* vars[cliques[i]].^2) + 1/cql*z^2 + y[i-1]^2 - y[i]^2)
+                    push!(ineq_cons, 3 - sum(x[cliques[i]].^2) - z^2 - y[i-1]^2 - y[i]^2)
+                    push!(eq_cons, sum(1 ./ freq[cliques[i]] .* x[cliques[i]].^2) + 1/cql*z^2 + y[i-1]^2 - y[i]^2)
                 end
-                push!(ineq_cons, 2 - sum(vars[cliques[end]].^2) - z^2 - y[end]^2)
-                push!(eq_cons, sum(1 ./ freq[cliques[end]] .* vars[cliques[end]].^2) + 1/cql*z^2 + y[end]^2 - 1)
+                push!(ineq_cons, 2 - sum(x[cliques[end]].^2) - z^2 - y[end]^2)
+                push!(eq_cons, sum(1 ./ freq[cliques[end]] .* x[cliques[end]].^2) + 1/cql*z^2 + y[end]^2 - 1)
             else
                 @polyvar y[1:cql]
                 for i = 1:cql
-                    push!(eq_cons, sum(1 ./ freq[cliques[i]] .* vars[cliques[i]].^2) + 1/cql*z^2 + y[i]^2 - 1)
+                    push!(eq_cons, sum(1 ./ freq[cliques[i]] .* x[cliques[i]].^2) + 1/cql*z^2 + y[i]^2 - 1)
                 end
                 push!(eq_cons, sum(y.^2) - cql + 1)
             end
-            # append!(ineq_cons, 1 .- vars.^2)
+            # append!(ineq_cons, 1 .- x.^2)
             # push!(ineq_cons, 1 - z^2)
             # append!(ineq_cons, 1 .- y.^2)
         end
-        nvars = [vars; z; y]
+        nvars = [x; z; y]
     else
-        push!(eq_cons, sum(vars.^2) + z^2 - 1)
-        nvars = [vars; z]
+        push!(eq_cons, sum(x.^2) + z^2 - 1)
+        nvars = [x; z]
     end
     if ε > 0
         d0 = iseven(d) ? d : d+1

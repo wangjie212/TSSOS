@@ -11,7 +11,7 @@ mutable struct mpop_data
     cliquesize # sizes of cliques
     cliques # cliques of variables
     I # index sets of inequality constraints
-    ncc # global constraints
+    Iprime # global inequality constraints
     solver # SDP solver
     GramMat # Gram matrices
     moment # Moment matrix
@@ -66,22 +66,21 @@ function cs_tssos_first(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; CS="MF", TS=
     dG = [maximum(MP.maxdegree.(vec(G[i]))) for i=1:m]
     obj_matrix = poly_matrix(size(F,1), Vector{poly}(undef, Int((size(F,1)+1)*size(F,1)/2)))
     for i = 1:obj_matrix.m, j = i:obj_matrix.m
-        supp,coe = polys_info([F[i,j]], x)
-        obj_matrix.polys[i+Int(j*(j-1)/2)] = poly(supp[1], coe[1])
+        obj_matrix.polys[i+Int(j*(j-1)/2)] = poly(F[i,j], x)
     end
     cons_matrix = Vector{poly_matrix}(undef, m)
     csupp = Vector{UInt16}[]
     for k = 1:m
         cons_matrix[k] = poly_matrix(size(G[k],1), Vector{poly}(undef, Int((size(G[k],1)+1)*size(G[k],1)/2)))
         for i = 1:cons_matrix[k].m, j = i:cons_matrix[k].m
-            supp,coe = polys_info([G[k][i,j]], x)
-            csupp = [csupp; supp[1]]
-            cons_matrix[k].polys[i+Int(j*(j-1)/2)] = poly(supp[1], coe[1])
+            temp = poly(G[k][i,j], x)
+            csupp = [csupp; temp.supp]
+            cons_matrix[k].polys[i+Int(j*(j-1)/2)] = temp
         end
     end
     CS = CS == true ? "MF" : CS
     cliques,cql,cliquesize = clique_decomp(n, m, d, dG, obj_matrix, cons_matrix, alg=CS)
-    I,ncc = assign_constraint(m, cons_matrix, cliques, cql)
+    I,Iprime = assign_constraint(m, cons_matrix, cliques, cql)
     basis = Vector{Vector{Vector{UInt16}}}(undef, cql)
     gbasis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
     for i = 1:cql
@@ -110,7 +109,7 @@ function cs_tssos_first(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; CS="MF", TS=
         sort!.(ksupp)
     end
     blocks,cl,blocksize = get_mblocks(I, obj_matrix.m, cons_matrix, cliques, cql, ksupp, basis, gbasis, QUIET=QUIET, TS=TS, merge=merge, md=md)
-    opt,ksupp,GramMat,moment,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc, TS=TS, QUIET=QUIET, 
+    opt,ksupp,GramMat,moment,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, Iprime, TS=TS, QUIET=QUIET, 
     solve=solve, solver=solver, Gram=Gram, Moment=Moment, solution=solution, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
     sol = nothing
     flag = 1
@@ -120,7 +119,7 @@ function cs_tssos_first(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; CS="MF", TS=
             flag = 0
         end
     end
-    data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocksize, blocks, cql, cliquesize, cliques, I, ncc, solver, GramMat, moment, SDP_status, rtol, gtol, ftol, flag)
+    data = mpop_data(nothing, obj_matrix, cons_matrix, basis, gbasis, ksupp, blocksize, blocks, cql, cliquesize, cliques, I, Iprime, solver, GramMat, moment, SDP_status, rtol, gtol, ftol, flag)
     return opt,sol,data
 end
 
@@ -134,7 +133,7 @@ function cs_tssos_higher!(data::mpop_data; TS="block", QUIET=false, solve=true, 
         opt = nothing
         println("No higher TS step of the CS-TSSOS hierarchy!")
     else
-        opt,ksupp,GramMat,_,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, data.cql, data.I, data.ncc, TS=TS, QUIET=QUIET, solve=solve, solver=data.solver, Gram=Gram, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
+        opt,ksupp,GramMat,_,SDP_status = pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, data.cql, data.I, data.Iprime, TS=TS, QUIET=QUIET, solve=solve, solver=data.solver, Gram=Gram, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
         data.ksupp = ksupp
         data.blocks = blocks
         data.blocksize = blocksize
@@ -175,24 +174,23 @@ function clique_decomp(n, m, d, dG, obj_matrix, cons_matrix; alg="MF")
     return cliques,cql,cliquesize
 end
 
-function assign_constraint(m, cons_matrix, cliques, cql)
+function assign_constraint(m::Int, cons_matrix, cliques, cql)
     I = [UInt16[] for i=1:cql]
-    ncc = UInt16[]
+    Iprime = UInt16[]
     for i = 1:m
         ind = findall(k->issubset(unique(vcat([isempty(cons_matrix[i].polys[s].supp) ? UInt16[] : reduce(vcat, cons_matrix[i].polys[s].supp) for s=1:Int((cons_matrix[i].m + 1)*cons_matrix[i].m/2)]...)), cliques[k]), 1:cql)
-        isempty(ind) ? push!(ncc, i) : push!.(I[ind], i)
+        isempty(ind) ? push!(Iprime, i) : push!.(I[ind], i)
     end
-    return I,ncc
+    return I,Iprime
 end
 
 function get_mgraph(tsupp, basis, om)
     lb = length(basis)
     G = SimpleGraph(lb*om)
     for i = 1:om, j = i:om
-        lt = length(tsupp[i+Int(j*(j-1)/2)])
         for k = 1:lb, l = 1:lb
             bi = sadd(basis[k], basis[l])
-            if bfind(tsupp[i+Int(j*(j-1)/2)], lt, bi) !== nothing
+            if bfind(tsupp[i+Int(j*(j-1)/2)], bi) !== nothing
                add_edge!(G, i+(k-1)*om, j+(l-1)*om)
             end
         end
@@ -215,7 +213,7 @@ function get_mgraph(tsupp, cons_matrix, gbasis, om)
         loc = t <= r ? t + Int(r*(r-1)/2) : r + Int(t*(t-1)/2)
         flag = 0
         for w = 1:length(cons_matrix.polys[loc].supp)
-            if bfind(tsupp[ind], length(tsupp[ind]), sadd(sadd(gbasis[ceil(Int, j/com)], gbasis[ceil(Int, k/com)]), cons_matrix.polys[loc].supp[w])) !== nothing
+            if bfind(tsupp[ind], sadd(sadd(gbasis[ceil(Int, j/com)], gbasis[ceil(Int, k/com)]), cons_matrix.polys[loc].supp[w])) !== nothing
                 flag = 1
                 break
             end
@@ -282,7 +280,7 @@ function get_mblocks(I, om, cons_matrix, cliques, cql, tsupp, basis, gbasis; TS=
     return blocks,cl,blocksize
 end
 
-function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, ncc; TS="block", solve=true, solver="Mosek", QUIET=false, Gram=false, Moment=false, solution=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, cql, I, Iprime; TS="block", solve=true, solver="Mosek", QUIET=false, Gram=false, Moment=false, solution=false, dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
     om = obj_matrix.m
     ksupp = [Vector{UInt16}[] for i = 1:length(obj_matrix.polys)]
     for u = 1:cql, i = 1:cl[u][1], j = 1:blocksize[u][1][i], k = j:blocksize[u][1][i]
@@ -343,17 +341,17 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
         for i = 1:length(obj_matrix.polys)
             cons[i] = [AffExpr(0) for j=1:length(ksupp[i])]
         end
-        pos = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, cql)
-        gpos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, cql)
+        pos = Vector{Vector{Symmetric{VariableRef}}}(undef, cql)
+        gpos = Vector{Vector{Vector{Symmetric{VariableRef}}}}(undef, cql)
         for u = 1:cql
-            pos[u] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[u][1])
+            pos[u] = Vector{Symmetric{VariableRef}}(undef, cl[u][1])
             for i = 1:cl[u][1]
                 pos[u][i] = @variable(model, [1:blocksize[u][1][i], 1:blocksize[u][1][i]], PSD)
                 for j = 1:blocksize[u][1][i], k = j:blocksize[u][1][i]
                     p = cmod(blocks[u][1][i][j], om)
                     q = cmod(blocks[u][1][i][k], om)
                     ind = p <= q ? p + Int(q*(q-1)/2) : q + Int(p*(p-1)/2)
-                    Locb = bfind(ksupp[ind], length(ksupp[ind]), sadd(basis[u][ceil(Int, blocks[u][1][i][j]/om)], basis[u][ceil(Int, blocks[u][1][i][k]/om)]))
+                    Locb = bfind(ksupp[ind], sadd(basis[u][ceil(Int, blocks[u][1][i][j]/om)], basis[u][ceil(Int, blocks[u][1][i][k]/om)]))
                     if p != q || j == k
                         @inbounds add_to_expression!(cons[ind][Locb], pos[u][i][j,k])
                     else
@@ -361,9 +359,9 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
                     end
                 end
             end
-            gpos[u] = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, length(I[u]))
+            gpos[u] = Vector{Vector{Symmetric{VariableRef}}}(undef, length(I[u]))
             for (s,v) in enumerate(I[u])
-                gpos[u][s] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[u][s+1])
+                gpos[u][s] = Vector{Symmetric{VariableRef}}(undef, cl[u][s+1])
                 com = cons_matrix[v].m*om
                 for i = 1:cl[u][s+1]
                     gpos[u][s][i] = @variable(model, [1:blocksize[u][s+1][i], 1:blocksize[u][s+1][i]], PSD)
@@ -379,7 +377,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
                         r = cmod(blocks[u][s+1][i][k], cons_matrix[v].m)
                         loc = t <= r ? t + Int(r*(r-1)/2) : r + Int(t*(t-1)/2)
                         for w = 1:length(cons_matrix[v].polys[loc].supp)
-                            Locb = bfind(ksupp[ind], length(ksupp[ind]), sadd(sadd(gbasis[u][s][p2], gbasis[u][s][q2]), cons_matrix[v].polys[loc].supp[w]))
+                            Locb = bfind(ksupp[ind], sadd(sadd(gbasis[u][s][p2], gbasis[u][s][q2]), cons_matrix[v].polys[loc].supp[w]))
                             if p1 != q1 || (p2 == q2 && t == r)
                                 @inbounds add_to_expression!(cons[ind][Locb], cons_matrix[v].polys[loc].coe[w], gpos[u][s][i][j,k])
                             else
@@ -390,7 +388,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
                 end
             end
         end
-        for i in ncc
+        for i in Iprime
             com = cons_matrix[i].m*om
             lpos = @variable(model, [1:com, 1:com], PSD)
             for j = 1:com, k = j:com
@@ -401,7 +399,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
                 r = cmod(k, cons_matrix[i].m)
                 loc = t <= r ? t + Int(r*(r-1)/2) : r + Int(t*(t-1)/2)
                 for w = 1:length(cons_matrix[i].polys[loc].supp)
-                    Locb = bfind(ksupp[ind], length(ksupp[ind]), cons_matrix[i].polys[loc].supp[w])
+                    Locb = bfind(ksupp[ind], cons_matrix[i].polys[loc].supp[w])
                     if p1 != q1 || t == r
                         @inbounds add_to_expression!(cons[ind][Locb], cons_matrix[i].polys[loc].coe[w], lpos[j,k])
                     else
@@ -414,7 +412,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
         for i = 1:om, j = i:om
             ind = i + Int(j*(j-1)/2)
             for k = 1:length(obj_matrix.polys[ind].supp)
-                Locb = bfind(ksupp[ind], length(ksupp[ind]), obj_matrix.polys[ind].supp[k])
+                Locb = bfind(ksupp[ind], obj_matrix.polys[ind].supp[k])
                 if Locb === nothing
                    @error "The monomial basis is not enough!"
                    return nothing,nothing,nothing,nothing,nothing
@@ -485,8 +483,7 @@ function LinearPMI_first(b, F::Vector{Matrix{T1}}, G::Vector{Matrix{T2}}, x, d; 
     for k = 1:s
         obj_matrix[k] = poly_matrix(size(F[k],1), Vector{poly}(undef, Int((size(F[k],1)+1)*size(F[k],1)/2)))
         for i = 1:obj_matrix[k].m, j = i:obj_matrix[k].m
-            supp,coe = polys_info([F[k][i,j]], x)
-            obj_matrix[k].polys[i+Int(j*(j-1)/2)] = poly(supp[1], coe[1])
+            obj_matrix[k].polys[i+Int(j*(j-1)/2)] = poly(F[k][i,j], x)
         end
     end
     basis = get_basis(Vector(1:n), d)
@@ -497,9 +494,9 @@ function LinearPMI_first(b, F::Vector{Matrix{T1}}, G::Vector{Matrix{T2}}, x, d; 
         gbasis[k] = get_basis(Vector(1:n), d-Int(ceil(dG[k]/2)))
         cons_matrix[k] = poly_matrix(size(G[k],1), Vector{poly}(undef, Int((size(G[k],1)+1)*size(G[k],1)/2)))
         for i = 1:cons_matrix[k].m, j = i:cons_matrix[k].m
-            supp,coe = polys_info([G[k][i,j]], x)
-            # csupp = [csupp; supp[1]]
-            cons_matrix[k].polys[i+Int(j*(j-1)/2)] = poly(supp[1], coe[1])
+            temp = poly(G[k][i,j], x)
+            # csupp = [csupp; temp.supp]
+            cons_matrix[k].polys[i+Int(j*(j-1)/2)] = temp
         end
     end
     ksupp = Vector{Vector{Vector{UInt16}}}(undef, Int((obj_matrix[1].m+1)*obj_matrix[1].m/2))
@@ -590,8 +587,8 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
             end
         end
     end
-    unique!.(ksupp)
     sort!.(ksupp)
+    unique!.(ksupp)
     objv = moment = SDP_status = nothing
     if solve == true
         if QUIET == false
@@ -629,7 +626,7 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
                 p = cmod(blocks[1][i][j], om)
                 q = cmod(blocks[1][i][k], om)
                 ind = p <= q ? p + Int(q*(q-1)/2) : q + Int(p*(p-1)/2)
-                Locb = bfind(ksupp[ind], length(ksupp[ind]), sadd(basis[ceil(Int, blocks[1][i][j]/om)], basis[ceil(Int, blocks[1][i][k]/om)]))
+                Locb = bfind(ksupp[ind], sadd(basis[ceil(Int, blocks[1][i][j]/om)], basis[ceil(Int, blocks[1][i][k]/om)]))
                 if p != q || j == k
                     @inbounds add_to_expression!(cons[ind][Locb], pos[i][j,k])
                 else
@@ -655,7 +652,7 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
                     r = cmod(blocks[s+1][i][k], cons_matrix[s].m)
                     loc = t <= r ? t + Int(r*(r-1)/2) : r + Int(t*(t-1)/2)
                     for w = 1:length(cons_matrix[s].polys[loc].supp)
-                        Locb = bfind(ksupp[ind], length(ksupp[ind]), sadd(sadd(gbasis[s][p2], gbasis[s][q2]), cons_matrix[s].polys[loc].supp[w]))
+                        Locb = bfind(ksupp[ind], sadd(sadd(gbasis[s][p2], gbasis[s][q2]), cons_matrix[s].polys[loc].supp[w]))
                         if p1 != q1 || (p2 == q2 && t == r)
                             @inbounds add_to_expression!(cons[ind][Locb], cons_matrix[s].polys[loc].coe[w], gpos[s][i][j,k])
                         else
@@ -669,7 +666,7 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
         for i = 1:om, j = i:om
             ind = i + Int(j*(j-1)/2)
             for k = 1:length(obj_matrix[1].polys[ind].supp)
-                Locb = bfind(ksupp[ind], length(ksupp[ind]), obj_matrix[1].polys[ind].supp[k])
+                Locb = bfind(ksupp[ind], obj_matrix[1].polys[ind].supp[k])
                 if Locb === nothing
                     @error "The monomial basis is not enough!"
                     return nothing,nothing,nothing,nothing
@@ -678,7 +675,7 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
                 end
             end
             for t = 2:length(obj_matrix), k = 1:length(obj_matrix[t].polys[ind].supp)
-                Locb = bfind(ksupp[ind], length(ksupp[ind]), obj_matrix[t].polys[ind].supp[k])
+                Locb = bfind(ksupp[ind], obj_matrix[t].polys[ind].supp[k])
                 if Locb === nothing
                     @error "The monomial basis is not enough!"
                 else
@@ -713,21 +710,20 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
     return objv,ksupp,moment,SDP_status
 end
 
-function add_SOSMatrix!(model, vars, m, d; constraint=nothing, TS=false, QUIET=true, tsupp=[], merge=false, md=3)
-    mons = vcat([MP.monomials(vars, i) for i = 0:d]...)
+function add_SOSMatrix!(model, x, m, d; constraint=nothing, TS=false, QUIET=true, tsupp=[], merge=false, md=3)
+    mons = vcat([MP.monomials(x, i) for i = 0:d]...)
     if TS == false
         lb = m*length(mons)
         blocks,blocksize,cl = [Vector(1:lb)],[lb],1
     else
-        basis = get_basis(Vector(1:length(vars)), d)
+        basis = get_basis(Vector(1:length(x)), d)
         if constraint === nothing
             G = get_mgraph(tsupp, basis, m)
         else
             s = size(constraint, 1)
             cons_matrix = poly_matrix(s, Vector{poly}(undef, Int((s+1)*s/2)))
             for i = 1:s, j = i:s
-                supp,coe = polys_info([constraint[i,j]], vars)
-                cons_matrix.polys[i+Int(j*(j-1)/2)] = poly(supp[1], coe[1])
+                cons_matrix.polys[i+Int(j*(j-1)/2)] = poly(constraint[i,j], x)
             end
             G = get_mgraph(tsupp, cons_matrix, basis, Int(m/s))
         end
@@ -798,7 +794,7 @@ function sparseobj(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; TS="block", QUIET
         tsupp = Vector{Vector{Vector{UInt16}}}(undef, Int((m+1)*m/2))
         supp = Vector{UInt16}[]
         for i = 1:m, j = i:m
-            supp = [supp; polys_info([F[i,j]], x)[1][1]]
+            append!(supp, poly(F[i,j], x).supp)
         end
         basis = get_basis(Vector(1:n), d)
         for item in basis
@@ -904,7 +900,7 @@ function sparseobj(b, F::Vector{Matrix{T}}, G, x, d; TS="block", QUIET=false, so
         tsupp = Vector{Vector{Vector{UInt16}}}(undef, Int((m+1)*m/2))
         supp = Vector{UInt16}[]
         for k = 1:length(F), i = 1:m, j = i:m
-            supp = [supp; polys_info([F[k][i,j]], x)[1][1]]
+            append!(supp, poly(F[k][i,j], x).supp)
         end
         basis = get_basis(Vector(1:n), d)
         for item in basis
@@ -984,13 +980,12 @@ end
 
 function get_mmoment(measure, tsupp, cql, basis, om)
     moment = Vector{Union{Symmetric{Float64}, Array{Float64,2}}}(undef, cql)
-    ltsupp = length(tsupp)
     for i = 1:cql
         lb = length(basis[i])
         moment[i] = zeros(Float64, om*lb, om*lb)
         for j = 1:lb, k = j:lb
             bi = sadd(basis[i][j], basis[i][k])
-            Locb = bfind(tsupp, ltsupp, bi)
+            Locb = bfind(tsupp, bi)
             for s = 1:om, t = 1:om
                 ind = s <= t ? s + Int(t*(t-1)/2) : t + Int(s*(s-1)/2)
                 if s == t
@@ -1005,13 +1000,12 @@ function get_mmoment(measure, tsupp, cql, basis, om)
     return moment
 end
 
-function add_psatz!(model, nonneg::Matrix{T}, vars, ineq_cons, eq_cons, order; TS="block", QUIET=false) where {T<:PolyLike}
-    n = length(vars)
+function add_psatz!(model, nonneg::Matrix{T}, x, ineq_cons, eq_cons, order; TS="block", QUIET=false) where {T<:PolyLike}
+    n = length(x)
     m = size(nonneg, 1)
     obj_matrix = poly_matrix(m, Vector{poly}(undef, Int((m+1)*m/2)))
     for i = 1:m, j = i:m
-        supp,coe = polys_info([nonneg[i,j]], vars)
-        obj_matrix.polys[i+Int(j*(j-1)/2)] = poly(supp[1], coe[1])
+        obj_matrix.polys[i+Int(j*(j-1)/2)] = poly(nonneg[i,j], x)
     end
     ksupp = Vector{Vector{Vector{UInt16}}}(undef, Int((m+1)*m/2))
     if TS != false
@@ -1028,17 +1022,17 @@ function add_psatz!(model, nonneg::Matrix{T}, vars, ineq_cons, eq_cons, order; T
         unique!.(ksupp)
         sort!.(ksupp)
     end
-    sos = add_SOSMatrix!(model, vars, m, order, TS=TS, QUIET=QUIET, tsupp=ksupp)[1]
+    sos = add_SOSMatrix!(model, x, m, order, TS=TS, QUIET=QUIET, tsupp=ksupp)[1]
     # if QUIET == false
     #     println("The maximal size of blocks is $mb.")
     # end
     for g in ineq_cons
         G = Matrix{Poly}(undef, 1, 1)
         G[1,1] = g
-        sos += add_SOSMatrix!(model, vars, m, order - Int(ceil(MP.maxdegree(g)/2)), constraint=G, TS=TS, QUIET=QUIET, tsupp=ksupp)[1]*g
+        sos += add_SOSMatrix!(model, x, m, order - Int(ceil(MP.maxdegree(g)/2)), constraint=G, TS=TS, QUIET=QUIET, tsupp=ksupp)[1]*g
     end
     for h in eq_cons
-        basis = MP.monomials(vars, 0:2*order-MP.maxdegree(h))
+        basis = MP.monomials(x, 0:2*order-MP.maxdegree(h))
         for i = 1:m, j = i:m
             free = @variable(model, [1:length(basis)])
             sos[i,j] += free'*basis*h

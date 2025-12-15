@@ -9,7 +9,6 @@ Here is the list of functions implemented in TSSOS that are based on computing C
 
 ```@docs
 run_H1
-run_H1CS
 run_H2
 run_H2CS
 construct_CDK

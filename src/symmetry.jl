@@ -387,12 +387,11 @@ function solvesdp(cost::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
     end
     sort!(tsupp)
     unique!(tsupp)
-    ltsupp = length(tsupp)
     if QUIET == false
-        println("There are $ltsupp affine constraints.")
+        println("There are $(length(tsupp)) affine constraints.")
     end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
-    cons = [AffExpr(0) for i=1:ltsupp]
+    cons = [AffExpr(0) for i=1:length(tsupp)]
     pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, length(ineq_cons))
     for (k, g) in enumerate(ineq_cons)
         pos[k] = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, length(basis[k]))
@@ -402,13 +401,13 @@ function solvesdp(cost::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
                 if bs == 1
                     pos[k][i][l] = @variable(model, lower_bound=0)
                     for (s,item1) in enumerate(bas[blocks[k][i][l][1]].supp), (u,item2) in enumerate(bas[blocks[k][i][l][1]].supp), (v,item3) in enumerate(g.supp)
-                        @inbounds ind = bfind(tsupp, ltsupp, normalform(sadd(sadd(item1,item2),item3), group, action))
+                        @inbounds ind = bfind(tsupp, normalform(sadd(sadd(item1,item2),item3), group, action))
                         @inbounds add_to_expression!(cons[ind], bas[blocks[k][i][l][1]].coe[s]*bas[blocks[k][i][l][1]].coe[u]*g.coe[v], pos[k][i][l])
                     end
                 else
                     pos[k][i][l] = @variable(model, [1:bs, 1:bs], PSD)
                     for j = 1:blocksize[k][i][l], t = j:blocksize[k][i][l], (s,item1) in enumerate(bas[blocks[k][i][l][j]].supp), (u,item2) in enumerate(bas[blocks[k][i][l][t]].supp), (v,item3) in enumerate(g.supp) 
-                        @inbounds ind = bfind(tsupp, ltsupp, normalform(sadd(sadd(item1,item2),item3), group, action))
+                        @inbounds ind = bfind(tsupp, normalform(sadd(sadd(item1,item2),item3), group, action))
                         if j == t
                             @inbounds add_to_expression!(cons[ind], bas[blocks[k][i][l][j]].coe[s]*bas[blocks[k][i][l][t]].coe[u]*g.coe[v], pos[k][i][l][j,t])
                         else
@@ -423,14 +422,14 @@ function solvesdp(cost::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
     for (k, h) in enumerate(eq_cons)
         mul[k] = @variable(model, [1:length(eblocks[k])])
         for (j, i) in enumerate(eblocks[k]), (v, item) in enumerate(h.supp)
-            @inbounds ind = bfind(tsupp, ltsupp, normalform(sadd(ebasis[k][i].supp[1],item), group, action))
+            @inbounds ind = bfind(tsupp, normalform(sadd(ebasis[k][i].supp[1],item), group, action))
             @inbounds add_to_expression!(cons[ind], h.coe[v], mul[k][j])
         end
     end
     lambda = @variable(model)
     @objective(model, Max, lambda)
     for (i,item) in enumerate(cost.supp)
-        Locb = bfind(tsupp, ltsupp, normalform(item, group, action))
+        Locb = bfind(tsupp, normalform(item, group, action))
         if Locb === nothing
             @error "The basis is not enough!"
             return nothing,nothing,nothing,nothing,nothing
@@ -439,7 +438,7 @@ function solvesdp(cost::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
         end
     end
     cons[1] += lambda
-    @constraint(model, cons==zeros(ltsupp))
+    @constraint(model, cons .== 0)
     end
     if QUIET == false
         println("SDP assembling time: $time seconds.")
@@ -509,10 +508,9 @@ function solvesdp(cost::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize,
     end
     sort!(tsupp)
     unique!(tsupp)
-    ltsupp = length(tsupp)
-    rcons = [AffExpr(0) for i=1:ltsupp]
+    rcons = [AffExpr(0) for i=1:length(tsupp)]
     if coe_type == ComplexF64
-        icons = [AffExpr(0) for i=1:ltsupp]
+        icons = [AffExpr(0) for i=1:length(tsupp)]
     end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, length(ineq_cons))
@@ -526,7 +524,7 @@ function solvesdp(cost::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize,
                     for (s,item1) in enumerate(bas[blocks[k][i][l][1]].supp), (u,item2) in enumerate(bas[blocks[k][i][l][1]].supp), (v,item3) in enumerate(g.supp)
                         bi = normalform(sadd(sadd(item1,conj(item2)),item3), group, action)
                         if bi[1] <= bi[2]
-                            @inbounds ind = bfind(tsupp, ltsupp, bi)
+                            @inbounds ind = bfind(tsupp, bi)
                             c = bas[blocks[k][i][l][1]].coe[s]*conj(bas[blocks[k][i][l][1]].coe[u])*g.coe[v]
                             @inbounds add_to_expression!(rcons[ind], real(c), pos[k][i][l])
                             if coe_type == ComplexF64
@@ -543,7 +541,7 @@ function solvesdp(cost::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize,
                     for j = 1:blocksize[k][i][l], t = 1:blocksize[k][i][l], (s,item1) in enumerate(bas[blocks[k][i][l][j]].supp), (u,item2) in enumerate(bas[blocks[k][i][l][t]].supp), (v,item3) in enumerate(g.supp)
                         bi = normalform(sadd(sadd(item1,conj(item2)),item3), group, action)
                         if bi[1] <= bi[2]
-                            @inbounds ind = bfind(tsupp, ltsupp, bi)
+                            @inbounds ind = bfind(tsupp, bi)
                             if coe_type == ComplexF64
                                 c = bas[blocks[k][i][l][j]].coe[s]*conj(bas[blocks[k][i][l][t]].coe[u])*g.coe[v]
                                 @inbounds add_to_expression!(rcons[ind], real(c), pos[k][i][l][j,t]+pos[k][i][l][j+bs,t+bs])
@@ -574,12 +572,12 @@ function solvesdp(cost::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize,
             ba = ebasis[k][i].supp[1]
             bi = normalform(sadd(ba,item), group, action)
             if bi[1] <= bi[2]
-                @inbounds ind = bfind(tsupp, ltsupp, bi)
+                @inbounds ind = bfind(tsupp, bi)
                 if ba[1] <= ba[2]
-                    loc = bfind(temp, lb, ebasis[k][i])
+                    loc = bfind(temp, ebasis[k][i])
                     tag = ba[1] == ba[2] ? 0 : 1
                 else
-                    loc = bfind(temp, lb, conj(ebasis[k][i]))
+                    loc = bfind(temp, conj(ebasis[k][i]))
                     tag = -1
                 end
                 if coe_type == ComplexF64
@@ -596,7 +594,7 @@ function solvesdp(cost::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize,
     for (i,item) in enumerate(cost.supp)
         bi = normalform(item, group, action)
         if bi[1] <= bi[2]
-            Locb = bfind(tsupp, ltsupp, bi)
+            Locb = bfind(tsupp, bi)
             if Locb === nothing
                 @error "The basis is not enough!"
                 return nothing,nothing,nothing,nothing,nothing
@@ -612,14 +610,15 @@ function solvesdp(cost::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize,
     @objective(model, Max, lambda)
     rcons[1] += lambda
     @constraint(model, rcons .== 0)
+    m = length(tsupp)
     if coe_type == ComplexF64
         icons = icons[[item[1] != item[2] && icons[i] != 0 for (i,item) in enumerate(tsupp)]]
         @constraint(model, icons .== 0)
-        ltsupp += length(icons)
+        m += length(icons)
     end
     end
     if QUIET == false
-        println("There are $ltsupp affine constraints.")
+        println("There are $m affine constraints.")
         println("SDP assembling time: $time seconds.")
         println("Solving the SDP...")
     end
@@ -711,14 +710,13 @@ end
 function get_graph(tsupp, basis::Vector{T}, group, action; g=poly([UInt16[]], [1]), field="real") where {T <: Union{poly,cpoly}}
     lb = length(basis)
     G = SimpleGraph(lb)
-    ltsupp = length(tsupp)
     for i = 1:lb, j = i+1:lb
         if field == "real" 
             supp = supp_multi(basis[i], basis[j], group, action, g=g)
         else
             supp = supp_multi(basis[i], conj(basis[j]), group, action, g=g)
         end
-        if findfirst(item -> bfind(tsupp, ltsupp, item) !== nothing, supp) !== nothing
+        if findfirst(item -> bfind(tsupp, item) !== nothing, supp) !== nothing
             add_edge!(G, i, j)
         end
     end
@@ -726,32 +724,31 @@ function get_graph(tsupp, basis::Vector{T}, group, action; g=poly([UInt16[]], [1
 end
 
 function get_eblock(tsupp, h, basis::Vector{T}, group, action) where {T <: Union{poly,cpoly}}
-    ltsupp = length(tsupp)
     eblock = Int[]
     for (i, ba) in enumerate(basis)
         supp = supp_multi(ba, h, group, action)
-        if findfirst(item -> bfind(tsupp, ltsupp, item) !== nothing, supp) !== nothing
+        if findfirst(item -> bfind(tsupp, item) !== nothing, supp) !== nothing
             push!(eblock, i)
         end
     end
     return eblock
 end
 
-function add_psatz_symmetry!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, order, group; action=nothing, semisimple=false, SymmetricConstraint=true, TS="block", SO=1, merge=false, md=3, QUIET=false) where {T<:Union{Number,AffExpr}}
-    obj = poly(nonneg, vars)
-    ineq_cons = [poly([UInt16[]], [1]); [poly(p, vars) for p in ineq_cons]]
-    eq_cons = [poly(p, vars) for p in eq_cons]
+function add_psatz_symmetry!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order, group; action=nothing, semisimple=false, SymmetricConstraint=true, TS="block", SO=1, merge=false, md=3, QUIET=false) where {T<:Union{Number,AffExpr}}
+    obj = poly(nonneg, x)
+    ineq_cons = [poly([UInt16[]], [1]); [poly(p, x) for p in ineq_cons]]
+    eq_cons = [poly(p, x) for p in eq_cons]
     if QUIET == false
         println("Starting to compute the symmetry adapted basis...")
     end
     time = @elapsed begin
     if action === nothing
-        action = tuple(VariablePermutation(vars), VariablePermutation(Vector(1:length(vars))))
+        action = tuple(VariablePermutation(x), VariablePermutation(Vector(1:length(x))))
     end
-    supp_d = get_basis(Vector(1:length(vars)), order)
-    supp_2d = get_basis(Vector(1:length(vars)), 2*order)
-    monos_d = Mono[prod(vars[item]) for item in supp_d]
-    monos_2d = Mono[prod(vars[item]) for item in supp_2d]
+    supp_d = get_basis(Vector(1:length(x)), order)
+    supp_2d = get_basis(Vector(1:length(x)), 2*order)
+    monos_d = Mono[prod(x[item]) for item in supp_d]
+    monos_2d = Mono[prod(x[item]) for item in supp_2d]
     wedderburn = WedderburnDecomposition(Float64, group, action[1], monos_2d, monos_d, semisimple=semisimple)
     basis = Vector{Vector{Vector{poly}}}(undef, length(ineq_cons))
     basis[1] = Vector{Vector{poly}}(undef, length(wedderburn.Uπs))
@@ -813,8 +810,7 @@ function add_psatz_symmetry!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, o
     end
     sort!(tsupp)
     unique!(tsupp)
-    ltsupp = length(tsupp)
-    cons = [AffExpr(0) for i=1:ltsupp]
+    cons = [AffExpr(0) for i=1:length(tsupp)]
     pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, length(ineq_cons))
     for (k, g) in enumerate(ineq_cons)
         pos[k] = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, length(basis[k]))
@@ -824,13 +820,13 @@ function add_psatz_symmetry!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, o
                 if bs == 1
                     pos[k][i][l] = @variable(model, lower_bound=0)
                     for (s,item1) in enumerate(bas[blocks[k][i][l][1]].supp), (u,item2) in enumerate(bas[blocks[k][i][l][1]].supp), (v,item3) in enumerate(g.supp)
-                        @inbounds ind = bfind(tsupp, ltsupp, normalform(sadd(sadd(item1,item2),item3), group, action[2]))
+                        @inbounds ind = bfind(tsupp, normalform(sadd(sadd(item1,item2),item3), group, action[2]))
                         @inbounds add_to_expression!(cons[ind], bas[blocks[k][i][l][1]].coe[s]*bas[blocks[k][i][l][1]].coe[u]*g.coe[v], pos[k][i][l])
                     end
                 else
                     pos[k][i][l] = @variable(model, [1:bs, 1:bs], PSD)
                     for j = 1:blocksize[k][i][l], t = j:blocksize[k][i][l], (s,item1) in enumerate(bas[blocks[k][i][l][j]].supp), (u,item2) in enumerate(bas[blocks[k][i][l][t]].supp), (v,item3) in enumerate(g.supp) 
-                        @inbounds ind = bfind(tsupp, ltsupp, normalform(sadd(sadd(item1,item2),item3), group, action[2]))
+                        @inbounds ind = bfind(tsupp, normalform(sadd(sadd(item1,item2),item3), group, action[2]))
                         if j == t
                             @inbounds add_to_expression!(cons[ind], bas[blocks[k][i][l][j]].coe[s]*bas[blocks[k][i][l][t]].coe[u]*g.coe[v], pos[k][i][l][j,t])
                         else
@@ -845,12 +841,12 @@ function add_psatz_symmetry!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, o
     for (k, h) in enumerate(eq_cons)
         mul[k] = @variable(model, [1:length(eblocks[k])])
         for (j, i) in enumerate(eblocks[k]), (v, item) in enumerate(h.supp)
-            @inbounds ind = bfind(tsupp, ltsupp, normalform(sadd(ebasis[k][i].supp[1],item), group, action[2]))
+            @inbounds ind = bfind(tsupp, normalform(sadd(ebasis[k][i].supp[1],item), group, action[2]))
             @inbounds add_to_expression!(cons[ind], h.coe[v], mul[k][j])
         end
     end
     for (i,item) in enumerate(obj.supp)
-        Locb = bfind(tsupp, ltsupp, normalform(item, group, action[2]))
+        Locb = bfind(tsupp, normalform(item, group, action[2]))
         if Locb === nothing
             @error "The basis is not enough!"
             return nothing

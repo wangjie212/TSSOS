@@ -17,14 +17,14 @@ mutable struct poly_basis
 end
 
 """
-    info = add_psatz_cheby!(model, nonneg, vars, ineq_cons, eq_cons, order; TS="block", SO=1, QUIET=false)
+    info = add_psatz_cheby!(model, nonneg, x, ineq_cons, eq_cons, order; TS="block", SO=1, QUIET=false)
 
 Add a Putinar's style SOS representation of the polynomial `nonneg` in the Chebyshev basis to the JuMP `model`.
 
 # Input arguments
 - `model`: a JuMP optimization model
 - `nonneg`: a nonnegative polynomial constrained to be a Putinar's style SOS on a semialgebraic set
-- `vars`: the set of POP variables
+- `x`: the set of POP variables
 - `ineq_cons`: inequality constraints
 - `eq_cons`: equality constraints
 - `order`: relaxation order
@@ -35,13 +35,13 @@ Add a Putinar's style SOS representation of the polynomial `nonneg` in the Cheby
 # Output arguments
 - `info`: auxiliary data
 """
-function add_psatz_cheby!(model, nonneg::Poly{T}, vars, ineq_cons, eq_cons, order; TS="block", SO=1, merge=false, md=3, QUIET=false) where {T<:Union{Number,AffExpr}}
+function add_psatz_cheby!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; TS="block", SO=1, merge=false, md=3, QUIET=false) where {T<:Union{Number,AffExpr}}
     m = length(ineq_cons)
     l = length(eq_cons)
     basis = Vector{ChebyshevBasisFirstKind{Poly{Float64}}}(undef, m+l+1)
-    basis[1] = basis_covering_monomials(ChebyshevBasis, MP.monomials(vars, 0:order))
-    basis[2:m+1] = [basis_covering_monomials(ChebyshevBasis, MP.monomials(vars, 0:order-ceil(Int, MP.maxdegree(g)/2))) for g in ineq_cons]
-    basis[m+2:m+1+l] = [basis_covering_monomials(ChebyshevBasis, MP.monomials(vars, 0:2*order-MP.maxdegree(h))) for h in eq_cons]
+    basis[1] = basis_covering_monomials(ChebyshevBasis, MP.monomials(x, 0:order))
+    basis[2:m+1] = [basis_covering_monomials(ChebyshevBasis, MP.monomials(x, 0:order-ceil(Int, MP.maxdegree(g)/2))) for g in ineq_cons]
+    basis[m+2:m+1+l] = [basis_covering_monomials(ChebyshevBasis, MP.monomials(x, 0:2*order-MP.maxdegree(h))) for h in eq_cons]
     tsupp = basis_covering_monomials(ChebyshevBasis, unique([MP.monomials(nonneg); MP.monomials.(ineq_cons)...; MP.monomials.(eq_cons)...]))
     tsupp = [item for item in tsupp]
     sort!(tsupp)
@@ -146,11 +146,10 @@ end
 function get_graph(tsupp, basis::ChebyshevBasisFirstKind{Poly{Float64}}; g=1)
     lb = length(basis)
     G = SimpleGraph(lb)
-    ltsupp = length(tsupp)
     for i = 1:lb, j = i+1:lb
         flag = 0
         for item in basis_covering_monomials(ChebyshevBasis, MP.monomials(basis[i] * basis[j] * g))
-            if lbfind(tsupp, ltsupp, item) !== nothing
+            if bfind(tsupp, item) !== nothing
                 flag = 1
                 break
             end
@@ -163,12 +162,11 @@ function get_graph(tsupp, basis::ChebyshevBasisFirstKind{Poly{Float64}}; g=1)
 end
 
 function get_eblock(tsupp, h, basis::ChebyshevBasisFirstKind{Poly{Float64}})
-    ltsupp = length(tsupp)
     eblock = Int[]
     for (i, ba) in enumerate(basis)
         flag = 0
         for item in basis_covering_monomials(ChebyshevBasis, MP.monomials(ba * h))
-            if lbfind(tsupp, ltsupp, item) !== nothing
+            if bfind(tsupp, item) !== nothing
                 flag = 1
                 break
             end

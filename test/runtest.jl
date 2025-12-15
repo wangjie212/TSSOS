@@ -24,7 +24,7 @@ f = 1+x[1]^4+x[2]^4+x[3]^4+x[1]*x[2]*x[3]+x[2]
 g = 0.5-x[1]^2-2*x[2]^2
 h = x[1]^2+x[2]^2+x[3]^2-1
 pop = [f, g, h]
-opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=false, TS="block", Gram=true, solution=true, QUIET=true)
+opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=false, TS="block", Gram=true, solution=true, QUIET=true, normality=true)
 @test opt ≈ 0.9555474 atol = 1e-6
 opt,sol,data = tssos_first(pop, x, 2, numeq=1, GroebnerBasis=true, TS="block", Gram=true, solution=true, QUIET=true)
 @test opt ≈ 0.9555474 atol = 1e-6
@@ -115,7 +115,7 @@ Lv = v - sum(f .* differentiate(v, x))
 info1 = add_psatz!(model, Lv, x, g, [], d, TS="block", SO=1, constrs="con1")
 info2 = add_psatz!(model, w, x, g, [], d, TS="block", SO=1)
 info3 = add_psatz!(model, w-v-1, x, g, [], d, TS="block", SO=1)
-moment = get_moment(wb, -ones(n), ones(n))
+moment = get_moment(wb, x, -ones(n), ones(n))
 @objective(model, Min, sum(moment.*wc))
 optimize!(model)
 objv = objective_value(model)
@@ -263,7 +263,7 @@ Lv = v - sum(f .* differentiate(v, x))
 info1 = add_psatz!(model, Lv, x, g, [], d, blocks=[vblocks], constrs="con1")
 info2 = add_psatz!(model, w, x, g, [], d, blocks=[wblocks], constrs="con2")
 info3 = add_psatz!(model, w-v-1, x, g, [], d, blocks=[wblocks], constrs="con3")
-moment = get_moment(wb, -ones(n), ones(n))
+moment = get_moment(wb, x, -ones(n), ones(n))
 @objective(model, Min, sum(moment.*wc))
 optimize!(model)
 opt = objective_value(model)

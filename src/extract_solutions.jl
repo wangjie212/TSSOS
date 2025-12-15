@@ -8,7 +8,7 @@ function extract_solution(moment, lb, pop, x; numeq=0, gtol=1e-2, ftol=1e-3, QUI
         return nothing,1,1
     else
         sol = sol[2:end]/sol[1]
-        ub = MP.polynomial(pop[1])(x => sol)
+        ub = pop[1](x => sol)
         gap = abs(lb-ub)/max(1, abs(ub))
         flag = 1
         if check_optimality(sol, lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
@@ -60,32 +60,30 @@ function extract_solutions(moment, d; pop=nothing, x=nothing, lb=nothing, numeq=
         if isempty(basis)
             basis = get_basis(n, d)
         end
-        w = basis[:, pivots]
-        lw = size(w, 2)
-        if any([sum(w[:,j]) == d for j = 1:lw])
+        nbasis = reverse.(basis)
+        w = basis[pivots]
+        if any(length.(w) .== d)
             return nothing
         end
-        println("Rank of the moment matrix = ", lw)
+        println("Rank of the moment matrix = ", length(w))
         N = Vector{Matrix{Float64}}(undef, n)
         for i = 1:n
             kk = UInt16[]
-            temp = zeros(UInt8, n)
-            temp[i] = 1
-            for j = 1:lw
-                if w[i,j] == 1 && i <= nb
-                    xwj = w[:,j] - temp
+            for item in w
+                if any(item .== 1) && i <= nb
+                    xwj = item[item .!== 1]
                 else
-                    xwj = w[:,j] + temp
+                    xwj = sadd(item, UInt16[i])
                 end
-                locb = bfind_to(basis, size(basis, 2), xwj, n)
+                locb = nbfind(nbasis, reverse(xwj))
                 kk = push!(kk, locb)
             end
-            N[i] = U[kk,:]
+            N[i] = U[kk, :]
         end
         rands = rand(n)
         rands = rands/sum(rands)
         L = schur(sum(rands[i]*N[i] for i in 1:n)).Z
-        sol = [[L[:,i]'*N[j]*L[:,i] for j = 1:n] for i = 1:lw]
+        sol = [[L[:,i]'*N[j]*L[:,i] for j = 1:n] for i = 1:length(w)]
         if check == true
             sol = check_solution(sol, lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         end
@@ -119,14 +117,13 @@ function extract_solutions_robust(moment, n, d; type=Float64, pop=nothing, x=not
     if isempty(basis)
         basis = get_basis(n, d)
     end
+    nbasis = reverse.(basis)
     ls = binomial(n+d-1, n)
     N = Vector{Matrix{type}}(undef, n)
     for i = 1:n
         N[i] = zeros(type, ls, ls)
-        temp = zeros(UInt8, n)
-        temp[i] = 1
         for j = 1:ls, k = 1:ls
-            loc = bfind_to(basis, size(basis, 2), basis[:,k] + temp, n)
+            loc = nbfind(nbasis, reverse(sadd(basis[k], UInt16[i])))
             N[i][k,j] = moment[loc, j]
         end
     end
@@ -147,7 +144,7 @@ function extract_solutions_robust(moment, n, d; type=Float64, pop=nothing, x=not
     return sol,w
 end
 
-function extract_solutions_robust(moment, n, d, cliques, cql, cliquesize; pop=nothing, x=nothing, supp=[], coe=[], lb=nothing, numeq=0, check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
+function extract_solutions_robust(moment, n, d, cliques, cql, cliquesize; pop=nothing, x=nothing, npop=nothing, lb=nothing, numeq=0, check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
     ssol = Vector{Vector{Vector{Float64}}}(undef, cql)
     sol = zeros(n)
     freq = zeros(n)
@@ -161,13 +158,13 @@ function extract_solutions_robust(moment, n, d, cliques, cql, cliquesize; pop=no
         if pop !== nothing
             sol = check_solution([sol], lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         else
-            sol = check_solution([sol], lb, supp, coe, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+            sol = check_solution([sol], lb, npop, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         end
     end
     return sol,ssol
 end
 
-function extract_csolutions_robust(moment, n, d, cliques, cql, cliquesize; pop=nothing, z=nothing, supp=[], coe=[], lb=nothing, numeq=0, check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
+function extract_csolutions_robust(moment, n, d, cliques, cql, cliquesize; pop=nothing, z=nothing, npop=nothing, lb=nothing, numeq=0, check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
     ssol = Vector{Vector{Vector{ComplexF64}}}(undef, cql)
     sol = zeros(ComplexF64, n)
     freq = zeros(n)
@@ -181,7 +178,7 @@ function extract_csolutions_robust(moment, n, d, cliques, cql, cliquesize; pop=n
         if pop !== nothing
             sol = check_solution([sol], lb, pop, z, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         else
-            sol = check_solution([sol], lb, supp, coe, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+            sol = check_solution([sol], lb, npop, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         end
     end
     return sol,ssol
@@ -210,20 +207,17 @@ function extract_solutions_pmo(moment, n, d, p; basis=[], rtol=1e-2)
     if isempty(basis)
         basis = get_basis(n, d)
     end
-    w = basis[:, ceil.(Int, pivots./p)]
+    nbasis = reverse.(basis)
+    w = basis[ceil.(Int, pivots./p)]
     ind = cmod.(pivots, p)
-    lw = size(w, 2)
-    if any([sum(w[:,j]) == d for j = 1:lw])
+    if any(length.(w) .== d)
         return nothing
     end
     N = Vector{Matrix{Float64}}(undef, n)
     for i = 1:n
         kk = UInt16[]
-        temp = zeros(UInt8, n)
-        temp[i] = 1
-        for j = 1:lw
-            xwj = w[:,j] + temp
-            loc = bfind_to(basis, size(basis, 2), xwj, n)
+        for j = 1:length(w)
+            loc = nbfind(nbasis, reverse(sadd(w[j], UInt16[i])))
             kk = push!(kk, (loc-1)*p + ind[j])
         end
         N[i] = U[kk,:]
@@ -231,7 +225,7 @@ function extract_solutions_pmo(moment, n, d, p; basis=[], rtol=1e-2)
     rands = rand(n)
     rands = rands/sum(rands)
     L = schur(sum(rands[i]*N[i] for i in 1:n)).Z
-    sol = [[L[:,i]'*N[j]*L[:,i] for j = 1:n] for i = 1:lw]
+    sol = [[L[:,i]'*N[j]*L[:,i] for j = 1:n] for i = 1:length(w)]
     return sol
 end
 
@@ -256,17 +250,16 @@ function extract_solutions_pmo_robust(moment, n, d, p; basis=[], pop=nothing, x=
     if isempty(basis)
         basis = get_basis(n, d)
     end
+    nbasis = reverse.(basis)
     ls = p*binomial(n+d-1, n)
     N = Vector{Matrix{Float64}}(undef, n)
     for i = 1:n
         N[i] = zeros(Float64, ls, ls)
-        temp = zeros(UInt8, n)
-        temp[i] = 1
         for j = 1:ls, k = j:ls
-            loc = bfind_to(basis, size(basis, 2), basis[:,ceil(Int, k/p)] + temp, n)
+            loc = nbfind(nbasis, reverse(sadd(basis[ceil(Int, k/p)], UInt16[i])))
             N[i][j,k] = moment[j, (loc-1)*p + cmod(k, p)]
         end
-        N[i] = Symmetric(N[i],:U)
+        N[i] = Symmetric(N[i], :U)
     end
     F = svd(moment[1:ls, 1:ls])
     S = F.S[F.S/F.S[1] .> rtol]
@@ -293,51 +286,14 @@ function extract_weight_matrix(moment, n, d, q, sol; tol=1e-2)
     end
     sol = sol[ind]
     basis = get_basis(n, d)
-    A = kron([prod(v.^item) for item in eachcol(basis), v in sol], Diagonal(ones(q)))
+    A = kron([prod(v[item]) for item in basis, v in sol], Diagonal(ones(q)))
     ind = rref_with_pivots!(Matrix(A'), tol)[2]
     W = A[ind, :]^(-1)*moment[ind, 1:q]
     return [W[(i-1)*q+1:i*q, :] for i = 1:length(sol)]
 end
 
-function bfind_to(A, l, a, n)
-    low = 1
-    high = l
-    while low <= high
-        mid = Int(ceil(1/2*(low+high)))
-        order = comp_to(A[:,mid], a, n)
-        if order == 0
-           return mid
-        elseif order < 0
-           low = mid + 1
-        else
-           high = mid - 1
-        end
-    end
-    return nothing
-end
-
-function comp_to(a, b, n)
-    if sum(a) < sum(b)
-        return -1
-    elseif sum(a) > sum(b)
-        return 1
-    else
-        i = 1
-        while i <= n
-            if a[end+1-i] < b[end+1-i]
-                return -1
-            elseif a[end+1-i] > b[end+1-i]
-                return 1
-            else
-                i += 1
-            end
-        end
-    end
-    return 0
-end
-
 # extract an approximate solution from the moment matrix
-function approx_sol(moment, lb, n, cliques, cql, cliquesize, supp, coe; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
+function approx_sol(moment, lb, n, cliques, cql, cliquesize, npop; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
     qsol = Float64[]
     A = zeros(sum(cliquesize), n)
     q = 1
@@ -358,9 +314,9 @@ function approx_sol(moment, lb, n, cliques, cql, cliquesize, supp, coe; numeq=0,
     end
     sol = (A'*A)\(A'*qsol)
     flag = 1
-    ub = evaluate(supp[1], coe[1], sol)
+    ub = evaluate(npop[1], sol)
     gap = abs(lb-ub)/max(1, abs(ub))
-    if check_optimality(sol, lb, supp, coe, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+    if check_optimality(sol, lb, npop, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         flag = 0
         println("------------------------------------------------")
         @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
@@ -368,14 +324,6 @@ function approx_sol(moment, lb, n, cliques, cql, cliquesize, supp, coe; numeq=0,
         println("------------------------------------------------")
     end
     return sol,gap,flag
-end
-
-function eval_pm(F, x, v)
-    if ndims(F) == 0
-        return F(x=>v)
-    else
-        return eigmin([F[i,j](x=>v) for i = 1:size(F,1), j = 1:size(F,2)])
-    end
 end
 
 function check_optimality(sol, lb, pop::Vector{P}, x; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true) where {T<:Number, P<:Union{Poly{T},Matrix{Poly{T}}}}
@@ -412,9 +360,9 @@ function check_optimality(sol, lb, pop::Vector{P}, x; numeq=0, gtol=1e-2, ftol=1
     return flag == 1
 end
 
-function check_optimality(sol, lb, supp::Union{Vector{Vector{Vector{UInt16}}}, Vector{Vector{Vector{Vector{UInt16}}}}}, coe; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
+function check_optimality(sol, lb, npop; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
     flag = 1
-    ub = evaluate(supp[1], coe[1], sol)
+    ub = evaluate(npop[1], sol)
     gap = abs(lb-ub)/max(1, abs(ub))
     if QUIET == false
         @printf "Global optimality gap = %.6f%%!\n" 100*gap
@@ -422,10 +370,8 @@ function check_optimality(sol, lb, supp::Union{Vector{Vector{Vector{UInt16}}}, V
     if gap > gtol
         flag = 0
     end
-    m = length(supp) - 1 - numeq
-    if m > 0
-        vio = [evaluate(supp[j], coe[j], sol) for j = 2:m+1]
-        mvio = max(-minimum(vio), 0)
+    if length(npop) - numeq > 1
+        mvio = max(-minimum([evaluate(p, sol) for p in npop[2:end-numeq]]), 0)
         if mvio > ftol
             flag = 0
         end
@@ -434,8 +380,7 @@ function check_optimality(sol, lb, supp::Union{Vector{Vector{Vector{UInt16}}}, V
         end
     end
     if numeq > 0
-        vio = [evaluate(supp[j], coe[j], sol) for j = m+2:length(supp)]
-        mvio = maximum(abs.(vio))
+        mvio = maximum([abs(evaluate(p, sol)) for p in npop[end-numeq+1:end]])
         if mvio > ftol
             flag = 0
         end
@@ -478,14 +423,14 @@ function check_solution(candidate_sol, lb, pop::Vector{P}, x; numeq=0, gtol=1e-2
     return sol
 end
 
-function check_solution(candidate_sol, lb, supp::Union{Vector{Vector{Vector{UInt16}}}, Vector{Vector{Vector{Vector{UInt16}}}}}, coe; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
+function check_solution(candidate_sol, lb, npop; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
     sol = typeof(candidate_sol[1])[]
     for (i, cand) in enumerate(candidate_sol)
         if QUIET == false
             println("------------------------------------------------")
             println("Check the $i-th candidate solution:")
         end
-        if check_optimality(cand, lb, supp, coe, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+        if check_optimality(cand, lb, npop, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
             push!(sol, cand)
         end
     end
@@ -493,12 +438,12 @@ function check_solution(candidate_sol, lb, supp::Union{Vector{Vector{Vector{UInt
     if nsol > 0
         println("------------------------------------------------")
         if nsol == 1
-            ub = evaluate(supp[1], coe[1], sol[1])
+            ub = evaluate(npop[1], sol[1])
             gap = abs(lb-ub)/max(1, abs(ub))
             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
             println("Successfully extracted one globally optimal solution.")
         else
-            ub = minimum([evaluate(supp[1], coe[1], s) for s in sol])
+            ub = minimum([evaluate(npop[1], s) for s in sol])
             gap = abs(lb-ub)/max(1, abs(ub))
             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
             println("Successfully extracted ", nsol, " globally optimal solutions.")

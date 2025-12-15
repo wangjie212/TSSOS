@@ -31,37 +31,54 @@ function maxcdeg(p::cpoly)
     return maximum([max(length(item[1]), length(item[2])) for item in p.supp])
 end
 
+function evaluate(p::poly, x)
+    return p.coe'*[prod(x[item]) for item in p.supp]
+end
+
+function evaluate(p::cpoly, z)
+    return real(transpose(p.coe)*[prod(z[item[1]])*conj(prod(z[item[2]])) for item in p.supp])
+end
+
 function poly(p::Poly{T}, x) where {T<:Union{Number,AffExpr,GenericAffExpr}}
-    n = length(x)
     coe = MP.coefficients(p)
     mons = MP.monomials(p)
     supp = [UInt16[] for i=1:length(mons)]
-    for (i,mon) in enumerate(mons)
+    for (i, mon) in enumerate(mons)
         ind = mon.z .> 0
         vars = mon.vars[ind]
         exp = mon.z[ind]
         for j in eachindex(vars)
-            append!(supp[i], ncbfind(x, n, vars[j])*ones(UInt16, exp[j]))
+            append!(supp[i], bfind_rev(x, vars[j])*ones(UInt16, exp[j]))
         end
     end
     return poly{T}(supp,coe)
 end
 
+function exps(m::Mono, x)
+    exps = UInt16[]
+    ind = m.z .> 0
+    vars = m.vars[ind]
+    exp = m.z[ind]
+    for j in eachindex(vars)
+        append!(exps, bfind_rev(x, vars[j])*ones(UInt16, exp[j]))
+    end
+    return exps
+end
+
 function cpoly(p::Poly{T}, x) where {T<:Union{Number,AffExpr,GenericAffExpr}}
-    n = length(x)
     cx = MP.conj.(x)
     coe = MP.coefficients(p)
     mons = MP.monomials(p)
     supp = [tuple(UInt16[],UInt16[]) for i=1:length(mons)]
-    for (i,mon) in enumerate(mons)
+    for (i, mon) in enumerate(mons)
         ind = mon.z .> 0
         vars = mon.vars[ind]
         exp = mon.z[ind]
         for j in eachindex(vars)
             if isconj(vars[j])
-                append!(supp[i][2], ncbfind(cx, n, vars[j])*ones(UInt16, exp[j]))
+                append!(supp[i][2], bfind_rev(cx, vars[j])*ones(UInt16, exp[j]))
             else
-                append!(supp[i][1], ncbfind(x, n, vars[j])*ones(UInt16, exp[j]))
+                append!(supp[i][1], bfind_rev(x, vars[j])*ones(UInt16, exp[j]))
             end
         end
     end
@@ -74,29 +91,6 @@ end
 
 function conj(p::cpoly)
     return cpoly(conj.(p.supp), conj.(p.coe))
-end
-
-function sadd(a::Vector{UInt16}, b::Vector{UInt16}; nb=0)
-    c = sort!([a; b])
-    if nb > 0
-        i = 1
-        while i < length(c)
-            if c[i] <= nb
-                if c[i] == c[i+1]
-                    deleteat!(c, i:i+1)
-                else
-                    i += 1
-                end
-            else
-                break
-            end
-        end
-    end
-    return c
-end
-
-function sadd(a::Tuple{Vector{UInt16},Vector{UInt16}}, b::Tuple{Vector{UInt16},Vector{UInt16}})
-    return tuple(sort!([a[1]; b[1]]), sort!([a[2]; b[2]]))
 end
 
 function Base.isless(p::cpoly, q::cpoly)
@@ -120,8 +114,38 @@ function poly_multi(p::poly{T}, q::poly{T}, group, action; g=poly([UInt16[]], [1
     sort!(supp)
     coe = zeros(T, length(supp))
     for (i,item1) in enumerate(p.supp), (j,item2) in enumerate(q.supp), (k,item3) in enumerate(g.supp)
-        ind = bfind(supp, length(supp), normalform(sadd(sadd(item1, item2), item3), group, action))
+        ind = bfind(supp, normalform(sadd(sadd(item1, item2), item3), group, action))
         @inbounds coe[ind] += p.coe[i]*q.coe[j]*g.coe[k]
     end
     return poly{T}(supp,coe)
+end
+
+function eval_pm(F, x, v)
+    if ndims(F) == 0
+        return F(x=>v)
+    else
+        return eigmin([F[i,j](x=>v) for i = 1:size(F,1), j = 1:size(F,2)])
+    end
+end
+
+function reduce_unitnorm(a, nb)
+    a = tuple(copy(a[1]), copy(a[2]))
+    i = 1
+    while i <= length(a[1])
+        if length(a[2]) == 0
+            return a
+        end
+        if a[1][i] <= nb
+            loc = bfind(a[2], a[1][i])
+            if loc !== nothing
+                deleteat!(a[1], i)
+                deleteat!(a[2], loc)
+            else
+                i += 1
+            end
+        else
+            return a
+        end
+    end
+    return a
 end

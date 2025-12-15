@@ -1,89 +1,64 @@
-function get_dynamic_sparsity(f, g, x, d; TS=["block","block"], SO=[1,1], merge=false, md=3, QUIET=false)
-    n = length(x)
-    m = length(g)
-    fsupp = npolys_info(f, x)[1]
-    flt = size.(fsupp, 2)
-    df = MP.maxdegree.(f)
-    gsupp = npolys_info(g, x)[1]
-    glt = size.(gsupp, 2)
-    dg = MP.maxdegree.(g)
-    basis = Vector{Array{UInt8,2}}(undef, m+1)
-    basis[1] = get_basis(n, d)
-    for i = 1:m
-        basis[i+1] = get_basis(n, d-Int(ceil(dg[i]/2)))
-    end
-    dv = 2d + 1 - maximum(df)
+function get_dynamic_sparsity(f, g, x, d; TS=["block","block"], SO=[1,1], merge=false, md=3)
+    f = [poly(p, x) for p in f]
+    g = [poly([UInt16[]], [1]); [poly(p, x) for p in g]]
+    basis = [get_basis(length(x), d-Int(ceil(maxdeg(p)/2))) for p in g]
+    dv = 2d + 1 - maximum(maxdeg.(f))
     if TS[1] != false
-        tsupp = hcat(gsupp...)
-        tsupp = [tsupp get_Lsupp(n, tsupp, fsupp, flt)]
-        tsupp = sortslices(tsupp, dims=2)
-        tsupp = unique(tsupp, dims=2)
-        vsupp = tsupp[:, [sum(item) <= dv for item in eachcol(tsupp)]]
-        tsupp1 = [vsupp get_Lsupp(n, vsupp, fsupp, flt)]
-        tsupp1 = sortslices(tsupp1, dims=2)
-        tsupp1 = unique(tsupp1, dims=2)
+        supp = vcat([p.supp for p in g]...)
+        append!(supp, get_Lsupp(supp, f))
+        unique!(supp)
+        vsupp = supp[[length(item) <= dv for item in supp]]
+        supp = [vsupp; get_Lsupp(vsupp, f)]
+        sort!(supp)
+        unique!(supp)
     else
-        vsupp = get_basis(n, dv)
-        tsupp1 = tsupp = nothing
+        vsupp = get_basis(length(x), dv)
+        supp = nothing
     end
-    vblocks,vsupp,tsupp,status = get_vblocks(m, dv, tsupp1, tsupp, vsupp, fsupp, flt, gsupp, glt, basis, TS=TS[1], SO=SO[1], merge=merge, md=md, QUIET=QUIET)
+    vblocks,vsupp,tsupp,status = get_vblocks(dv, supp, vsupp, f, g, basis, TS=TS[1], SO=SO[1], merge=merge, md=md)
     wsupp = wblocks = nothing
     if status == 1
         if TS[1] != false
-            tsupp = sortslices(tsupp, dims=2)
-            tsupp = unique(tsupp, dims=2)
+            sort!(tsupp)
+            unique!(tsupp)
         end
-        wblocks,status = get_blocks(m, tsupp, gsupp, glt, basis, TS=TS[2], SO=SO[2], merge=merge, md=md, QUIET=QUIET)
+        wblocks,status = get_blocks(tsupp, g, basis, TS=TS[2], SO=SO[2], merge=merge, md=md)
         if status == 1
-            wsupp = get_tsupp(n, m, gsupp, glt, basis, wblocks)
+            wsupp = get_tsupp(g, basis, wblocks)
         end
     end
     return vsupp,vblocks,wsupp,wblocks,status
 end
 
-function get_Lsupp(n, vsupp, fsupp, flt)
-    Lsupp = zeros(UInt8, n, 1)
-    for i = 1:length(flt)
-        temp = zeros(UInt8, n)
-        temp[i] = 1
-        for j = 1:size(vsupp, 2)
-            if vsupp[i, j] > 0
-                for k = 1:flt[i]
-                    Lsupp = [Lsupp vsupp[:,j]-temp+fsupp[i][:,k]]
-                end
-            end
+function get_Lsupp(vsupp, f)
+    Lsupp = Vector{UInt16}[]
+    for (i, p) in enumerate(f), a in vsupp
+        loc = bfind(a, i)
+        if loc !== nothing
+            ca = copy(a)
+            deleteat!(ca, loc)
+            append!(Lsupp, [sadd(ca, item) for item in p.supp])
         end
     end
-    Lsupp = sortslices(Lsupp, dims=2)
-    Lsupp = unique(Lsupp, dims=2)
+    sort!(Lsupp)
+    unique!(Lsupp)
     return Lsupp
 end
 
-function get_tsupp(n, m, gsupp, glt, basis, blocks)
-    blocksize = [length.(blocks[i]) for i = 1:m+1]
-    cl = length.(blocksize)
-    supp1 = zeros(UInt8, n, Int(sum(Int.(blocksize[1]).^2+blocksize[1])/2))
-    k = 1
-    for i = 1:cl[1], j = 1:blocksize[1][i], r = j:blocksize[1][i]
-        supp1[:,k] = basis[1][:,blocks[1][i][j]] + basis[1][:,blocks[1][i][r]]
-        k += 1
+function get_tsupp(g, basis, blocks)
+    tsupp = Vector{UInt16}[]
+    for (k, p) in enumerate(g), block in blocks[k], i = 1:length(block), j = i:length(block), item in p.supp
+        push!(tsupp, sadd(basis[k][block[i]], item, basis[k][block[j]]))
     end
-    supp2 = zeros(UInt8, n, sum(glt[i]*Int(sum(Int.(blocksize[i+1]).^2+blocksize[i+1])/2) for i=1:m))
-    l = 1
-    for k = 1:m, i = 1:cl[k+1], j = 1:blocksize[k+1][i], r = j:blocksize[k+1][i], s = 1:glt[k]
-        supp2[:,l] = basis[k+1][:,blocks[k+1][i][j]] + basis[k+1][:,blocks[k+1][i][r]] + gsupp[k][:,s]
-        l += 1
-    end
-    tsupp = [supp1 supp2]
-    tsupp = sortslices(tsupp,dims=2)
-    tsupp = unique(tsupp,dims=2)
+    sort!(tsupp)
+    unique!(tsupp)
     return tsupp
 end
 
-function get_blocks(m::Int, tsupp, gsupp::Vector{Array{UInt8, 2}}, glt, basis::Vector{Array{UInt8, 2}}; TS="block", SO=1, merge=false, md=3, QUIET=false)
-    blocks = Vector{Vector{Vector{Int}}}(undef, m+1)
+function get_blocks(tsupp, g, basis; TS="block", SO=1, merge=false, md=3)
+    blocks = Vector{Vector{Vector{Int}}}(undef, length(g))
     if TS == false
-        blocks = [[Vector(1:size(basis[k],2))] for k = 1:m+1]
+        blocks = [[Vector(1:length(basis[k]))] for k = 1:length(g)]
         status = 1
     else
         status = 1
@@ -91,12 +66,8 @@ function get_blocks(m::Int, tsupp, gsupp::Vector{Array{UInt8, 2}}, glt, basis::V
             if i > 1
                 oblocks = deepcopy(blocks)
             end
-            for k = 1:m+1
-                if k == 1
-                    G = get_graph(tsupp, basis[1])
-                else
-                    G = get_graph(tsupp, gsupp[k-1], basis[k])
-                end
+            for (k, p) in enumerate(g)
+                G = get_graph(tsupp, p.supp, basis[k])
                 if TS == "block"
                     blocks[k] = connected_components(G)
                 else
@@ -108,15 +79,12 @@ function get_blocks(m::Int, tsupp, gsupp::Vector{Array{UInt8, 2}}, glt, basis::V
             end
             if i == 1 || oblocks != blocks
                 if i < SO
-                    blocksize = length.(blocks[1])
-                    tsupp = zeros(UInt8, size(gsupp[1], 1), numele(blocksize))
-                    s = 1
-                    for t = 1:length(blocks[1]), j = 1:blocksize[t], r = j:blocksize[t]
-                        tsupp[:,s] = basis[1][:,blocks[1][t][j]] + basis[1][:,blocks[1][t][r]]
-                        s += 1
+                    tsupp = Vector{UInt16}[]
+                    for block in blocks[1], j = 1:length(block), k = j:length(block)
+                        push!(tsupp, sadd(basis[1][block[j]], basis[1][block[k]]))
                     end
-                    tsupp = sortslices(tsupp, dims=2)
-                    tsupp = unique(tsupp, dims=2)
+                    sort!(tsupp)
+                    unique!(tsupp)
                 end
             else
                 println("No higher TS step of the TSSOS hierarchy!")
@@ -128,24 +96,21 @@ function get_blocks(m::Int, tsupp, gsupp::Vector{Array{UInt8, 2}}, glt, basis::V
     return blocks,status
 end
 
-function get_vblocks(m::Int, dv, tsupp1, tsupp, vsupp::Array{UInt8, 2}, fsupp, flt, gsupp::Vector{Array{UInt8, 2}}, glt, basis::Vector{Array{UInt8, 2}}; TS="block", SO=1, merge=false, md=3, QUIET=false)
-    blocks = Vector{Vector{Vector{Int}}}(undef, m+1)
+function get_vblocks(dv, supp, vsupp, f, g, basis; TS="block", SO=1, merge=false, md=3)
+    tsupp = Vector{UInt16}[]
     if TS == false
-        blocks = [[Vector(1:size(basis[k],2))] for k = 1:m+1]
+        blocks = [[Vector(1:length(basis[k]))] for k = 1:length(g)]
         status = 1
     else
+        blocks = Vector{Vector{Vector{Int}}}(undef, length(g))
         status = 1
         qvsupp = vsupp
         for i = 1:SO
             if i > 1
                 oblocks = deepcopy(blocks)
             end
-            for k = 1:m+1
-                if k == 1
-                    G = get_graph(tsupp1, basis[1])
-                else
-                    G = get_graph(tsupp1, gsupp[k-1], basis[k])
-                end
+            for (k, p) in enumerate(g)
+                G = get_graph(supp, p.supp, basis[k])
                 if TS == "block"
                     blocks[k] = connected_components(G)
                 else
@@ -155,22 +120,19 @@ function get_vblocks(m::Int, dv, tsupp1, tsupp, vsupp::Array{UInt8, 2}, fsupp, f
                     end
                 end
             end
-            if i == 1 || oblocks != blocks || size(vsupp, 2) != size(qvsupp, 2)
+            if i == 1 || oblocks != blocks || length(vsupp) != length(qvsupp)
                 vsupp = qvsupp
                 if i < SO
-                    blocksize = length.(blocks[1])
-                    tsupp = zeros(UInt8, size(gsupp[1], 1), Int(sum(Int.(blocksize).^2+blocksize)/2))
-                    s = 1
-                    for t = 1:length(blocks[1]), j = 1:blocksize[t], r = j:blocksize[t]
-                        tsupp[:,s] = basis[1][:,blocks[1][t][j]] + basis[1][:,blocks[1][t][r]]
-                        s += 1
+                    tsupp = Vector{UInt16}[]
+                    for block in blocks[1], j = 1:length(block), k = j:length(block)
+                        push!(tsupp, sadd(basis[1][block[j]], basis[1][block[k]]))
                     end
-                    tsupp = sortslices(tsupp, dims=2)
-                    tsupp = unique(tsupp, dims=2)
-                    qvsupp = tsupp[:, [sum(item) <= dv for item in eachcol(tsupp)]]
-                    tsupp1 = [tsupp get_Lsupp(size(gsupp[1], 1), qvsupp, fsupp, flt)]
-                    tsupp1 = sortslices(tsupp1, dims=2)
-                    tsupp1 = unique(tsupp1, dims=2)
+                    sort!(tsupp)
+                    unique!(tsupp)
+                    qvsupp = tsupp[[length(item) <= dv for item in tsupp]]
+                    supp = [tsupp; get_Lsupp(qvsupp, f)]
+                    sort!(supp)
+                    unique!(supp)
                 end
             else
                 println("No higher TS step of the TSSOS hierarchy!")

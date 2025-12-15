@@ -125,7 +125,7 @@ function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSym
         for (ind, j) in enumerate(U[i])
             Iij = intersect(I[i], I[j])
             if SignSymmetry == true
-                temp = [ncbfind(x, length(x), item) for item in Iij]
+                temp = [bfind_rev(x, item) for item in Iij]
                 hh[i][ind] = add_poly!(model, Iij, 2d-max(dq[i], dq[j]), signsymmetry=ss[temp, :])[1]
             else
                 hh[i][ind] = add_poly!(model, Iij, 2d-max(dq[i], dq[j]))[1]
@@ -138,7 +138,7 @@ function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSym
         if i == 1
             temp = 0
         else
-            ind = [bfind(U[j], length(U[j]), i) for j in V[i-1]]
+            ind = [bfind(U[j], i) for j in V[i-1]]
             temp = sum(hh[V[i-1][j]][ind[j]] for j=1:length(V[i-1]))
         end
         add_psatz!(model, p[i]-(c[i]+sum(hh[i])-temp)*q[i], I[i], g[J[i]], h[K[i]], d, QUIET=QUIET, CS=false, TS=TS, GroebnerBasis=GroebnerBasis)
