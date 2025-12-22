@@ -2,7 +2,7 @@
 
 ## Four dichotomic qubit measurements
 
-The following script allows to compute the bound for g=4 displayed in Section 7.2 from the paper [arXiv:2512.](https://arxiv.org/abs/2512.)
+The following script allows to compute the bound for g=4 displayed in Section 7.2 from the paper [arXiv:2512.17706](https://arxiv.org/abs/2512.17706)
 
 ```Julia
 using TSSOS
