@@ -14,7 +14,7 @@ solve_hpop(f, x, [], [], 5, QUIET=true, type=2, TS="block")
 # Homogenization with CS type 3
 solve_hpop(f, x, [], [], 5, QUIET=true, type=3, TS="block")
 # No homogenization with CS
-opt,sol,data = cs_tssos_first([f], x, 5, TS="block", solution=true, QUIET=true)
+opt,sol,data = cs_tssos([f], x, 5, TS="block", solution=true, QUIET=true)
 
 #######################################################################
 # Example 5.0
@@ -31,7 +31,7 @@ solve_hpop(f, x, [], [], 5, QUIET=true, type=2, TS="block", SO=2, nnhomovar=true
 solve_hpop(f, x, [], [], 5, QUIET=true, type=3, TS="block", SO=2, nnhomovar=true)
 # No homogenization with CS
 @time begin
-opt,sol,data = cs_tssos_first([f], x, 7, TS="block", solution=true, QUIET=true)
+opt,sol,data = cs_tssos([f], x, 7, TS="block", solution=true, QUIET=true)
 end
 # Find a local solution
 obj,sol,status = local_solution(data.n, data.m, data.supp, data.coe, startpoint=rand(data.n))
@@ -53,7 +53,7 @@ solve_hpop(f, x, [], [], 2, QUIET=true, type=2, TS="block")
 solve_hpop(f, x, [], [], 2, QUIET=true, type=3, TS="block")
 # No homogenization with CS
 @time begin
-opt,sol,data = cs_tssos_first([f], x, 4, TS="block", solution=true, QUIET=true)
+opt,sol,data = cs_tssos([f], x, 4, TS="block", solution=true, QUIET=true)
 end
 
 #######################################################################
@@ -76,7 +76,7 @@ solve_hpop(f, x, [], [], 3, QUIET=true, type=2, TS="block", SO=1, nnhomovar=true
 solve_hpop(f, x, [], [], 3, QUIET=true, type=3, TS="block", SO=1, nnhomovar=true)
 # No homogenization with CS
 @time begin
-opt,sol,data = cs_tssos_first([f], x, 2, TS="block", solution=false, QUIET=true)
+opt,sol,data = cs_tssos([f], x, 2, TS="block", solution=false, QUIET=true)
 end
 
 #######################################################################
@@ -94,7 +94,7 @@ solve_hpop(f, x, g, [], 4, QUIET=true, type=2, TS="block", SO=2)
 solve_hpop(f, x, g, [], 4, QUIET=true, type=3, TS="block", SO=2)
 # No homogenization with CS
 @time begin
-opt,sol,data = cs_tssos_first([f; g], x, 2, TS="block", solution=false, QUIET=true)
+opt,sol,data = cs_tssos([f; g], x, 2, TS="block", solution=false, QUIET=true)
 end
 # Find a local solution
 # obj,sol,status = local_solution(data.n, data.m, data.supp, data.coe, startpoint=rand(data.n))
@@ -115,7 +115,7 @@ solve_hpop(f, x, g, [], 5, QUIET=true, type=2, TS="block", SO=2, nnhomovar=true)
 solve_hpop(f, x, g, [], 5, QUIET=true, type=3, TS="block", SO=2, nnhomovar=true)
 # No homogenization with CS
 @time begin
-opt,sol,data = cs_tssos_first([f; g], x, 3, TS="block", solution=true, QUIET=true)
+opt,sol,data = cs_tssos([f; g], x, 3, TS="block", solution=true, QUIET=true)
 end
 
 #######################################################################
@@ -137,7 +137,7 @@ solve_hpop(f, x, g, [], 4, QUIET=true, type=2, TS="block")
 solve_hpop(f, x, g, [], 4, QUIET=true, type=3, TS="block")
 # No homogenization with CS
 @time begin
-opt,sol,data = cs_tssos_first([f; g], x, 4, TS="block", solution=true, QUIET=true)
+opt,sol,data = cs_tssos([f; g], x, 4, TS="block", solution=true, QUIET=true)
 end
 
 #######################################################################
@@ -171,7 +171,7 @@ solve_hpop(f, x, g, [], 4, QUIET=true, type=2, TS="block")
 solve_hpop(f, x, g, [], 4, QUIET=true, type=3, TS="block")
 # No homogenization with CS
 @time begin
-opt,sol,data = cs_tssos_first([f; g], x, 2, TS="block", solution=false, QUIET=true)
+opt,sol,data = cs_tssos([f; g], x, 2, TS="block", solution=false, QUIET=true)
 end
 # Find a local solution
 obj,sol,status = local_solution(data.n, data.m, data.supp, data.coe, startpoint=rand(data.n))

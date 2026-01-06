@@ -14,7 +14,7 @@ h3 = 9*z1*z2*conj(z1)*conj(z2) - 1
 cpop = [f; g1; g2; h1; h2; h3]
 
 @time begin
-opt,sol,data = complex_tssos_first(cpop, z, 2, numeq=3, TS="block", QUIET=true)
+opt,sol,data = complex_tssos(cpop, z, 2, numeq=3, TS="block", QUIET=true)
 end
 println(sqrt(-opt))
 
@@ -43,9 +43,9 @@ h3 = 16*z1*z2*z3*conj(z1)*conj(z2)*conj(z3) - 1
 cpop = [f; g1; g2; g3; h1; h2; h3]
 
 @time begin
-opt,sol,data = complex_tssos_first(cpop, z, 5, numeq=3, TS="block", QUIET=true, solve=false)
-opt,sol,data = complex_tssos_higher!(data, TS="block", QUIET=true, solve=false)
-opt,sol,data = complex_tssos_higher!(data, TS="block", QUIET=true)  
+opt,sol,data = complex_tssos(cpop, z, 5, numeq=3, TS="block", QUIET=true, solve=false)
+opt,sol,data = complex_tssos(data, TS="block", QUIET=true, solve=false)
+opt,sol,data = complex_tssos(data, TS="block", QUIET=true)  
 end
 println(sqrt(-opt))
 
@@ -112,10 +112,10 @@ h3 = 25*z1*z2*z3*z4*conj(z1)*conj(z2)*conj(z3)*conj(z4) - 1
 cpop = [f; g1; g2; g3; g4; h1; h2; h3]
 
 @time begin
-opt,sol,data = complex_tssos_first(cpop, z, 4, numeq=3, TS="block", QUIET=true, normality=1, solve=false)
-opt,sol,data = complex_tssos_higher!(data, TS="block", QUIET=true, solve=false)
-opt,sol,data = complex_tssos_higher!(data, TS="block", QUIET=true, solve=false)
-opt,sol,data = complex_tssos_higher!(data, TS="block", QUIET=true)  
+opt,sol,data = complex_tssos(cpop, z, 4, numeq=3, TS="block", QUIET=true, normality=1, solve=false)
+opt,sol,data = complex_tssos(data, TS="block", QUIET=true, solve=false)
+opt,sol,data = complex_tssos(data, TS="block", QUIET=true, solve=false)
+opt,sol,data = complex_tssos(data, TS="block", QUIET=true)  
 end
 println(sqrt(-opt))
 
@@ -485,10 +485,10 @@ h3 = 36*z1*z2*z3*z4*z5*conj(z1)*conj(z2)*conj(z3)*conj(z4)*conj(z5) - 1
 cpop = [f; g1; g2; g3; g4; g5; h1; h2; h3]
 
 @time begin
-opt,sol,data = complex_tssos_first(cpop, z, 5, numeq=3, TS="block", QUIET=true, solve=false, normality=1)
-opt,sol,data = complex_tssos_higher!(data, TS="block", QUIET=true, solve=false)
-opt,sol,data = complex_tssos_higher!(data, TS="block", QUIET=true, solve=false)
-opt,sol,data = complex_tssos_higher!(data, TS="block", QUIET=true)
+opt,sol,data = complex_tssos(cpop, z, 5, numeq=3, TS="block", QUIET=true, solve=false, normality=1)
+opt,sol,data = complex_tssos(data, TS="block", QUIET=true, solve=false)
+opt,sol,data = complex_tssos(data, TS="block", QUIET=true, solve=false)
+opt,sol,data = complex_tssos(data, TS="block", QUIET=true)
 end
 println(sqrt(-opt))
 
@@ -514,7 +514,7 @@ h = z1*conj(z1) + z2*conj(z2) + z3*conj(z3) + z4*conj(z4) + (z1+z2+z3+z4)*(conj(
 
 cpop = [-f; h]
 @time begin
-opt,sol,data = complex_tssos_first(cpop, z, 6, numeq=1, TS="block", normality=5, solve=false, QUIET=true)
-opt,sol,data = complex_tssos_higher!(data, TS="block", QUIET=true, solve=false)
-opt,sol,data = complex_tssos_higher!(data, TS="block", QUIET=true)
+opt,sol,data = complex_tssos(cpop, z, 6, numeq=1, TS="block", normality=5, solve=false, QUIET=true)
+opt,sol,data = complex_tssos(data, TS="block", QUIET=true, solve=false)
+opt,sol,data = complex_tssos(data, TS="block", QUIET=true)
 end

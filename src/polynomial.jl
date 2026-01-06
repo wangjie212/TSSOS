@@ -2,7 +2,8 @@ import Base: conj
 const Mono = DP.Monomial{DP.Commutative{DP.CreationOrder}, Graded{LexOrder}}
 const Poly{T} = DP.Polynomial{DP.Commutative{DP.CreationOrder}, Graded{LexOrder}, T}
 const PolyLike = Union{Mono,Term,Poly}
-export Mono,Poly
+export Mono, Poly
+export poly, poly_matrix, cpoly
 
 mutable struct poly{T}
     supp::Vector{Vector{UInt16}}

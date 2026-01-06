@@ -13,7 +13,7 @@ end
 
 order = 4
 @time begin
-opt,sol,data = complex_tssos_first([f; cons], z, order, nb=N+1, TS="block", ConjugateBasis=true, normality=0, QUIET=false)
+opt,sol,data = complex_tssos([f; cons], z, order, nb=N+1, TS="block", ConjugateBasis=true, normality=0, QUIET=false)
 end
 println(opt^0.5)
 
@@ -31,8 +31,8 @@ end
 
 order = 3
 @time begin
-opt,sol,data = complex_tssos_first([f; cons], z, order, numeq=N-2, nb=2N-1, CS=false, TS="block", QUIET=false)
-opt,sol,data = complex_tssos_higher!(data, TS="block", solve=true, QUIET=false)
+opt,sol,data = complex_tssos([f; cons], z, order, numeq=N-2, nb=2N-1, CS=false, TS="block", QUIET=false)
+opt,sol,data = complex_tssos(data, TS="block", solve=true, QUIET=false)
 end
 println(opt^0.5)
 
@@ -68,8 +68,8 @@ for k = 1:N
 end
 
 @time begin
-opt,sol,data = tssos_first(pop, [x;y;t], 2, numeq=N, GroebnerBasis=false, TS=false, QUIET=true, solve=false)
-# opt,sol,data = tssos_higher!(data, TS="block", QUIET=true)
+opt,sol,data = tssos(pop, [x;y;t], 2, numeq=N, GroebnerBasis=false, TS=false, QUIET=true, solve=false)
+# opt,sol,data = tssos(data, TS="block", QUIET=true)
 end
 # println(opt^0.5)
 
@@ -82,7 +82,7 @@ N = 6
 f = sum(sum(z[i]*conj(z[i+j]) for i = 1:N-j)*sum(conj(z[i])*z[i+j] for i = 1:N-j) for j = 1:N-2)
 order = 4
 @time begin
-opt,sol,data = complex_tssos_first([f], z, order, nb=N, TS="block", QUIET=false)
+opt,sol,data = complex_tssos([f], z, order, nb=N, TS="block", QUIET=false)
 end
 
 N = 12
@@ -94,8 +94,8 @@ for k = 1:N
     cons[k] = 1 - x[k]^2 - y[k]^2
 end
 @time begin
-opt,sol,data = tssos_first([f; cons], [x;y], 2, numeq=N, TS=false, GroebnerBasis=false, QUIET=true, solve=false)
-# opt,sol,data = tssos_higher!(data, TS="block", QUIET=true)
+opt,sol,data = tssos([f; cons], [x;y], 2, numeq=N, TS=false, GroebnerBasis=false, QUIET=true, solve=false)
+# opt,sol,data = tssos(data, TS="block", QUIET=true)
 end
 
 opt,sol = local_solution(data.n, data.m, data.supp, data.coe, numeq=N, startpoint=rand(2N), QUIET=false)
@@ -120,7 +120,7 @@ f = basis'*Q*basis
 # f = z'*Q*z + c'*(z+conj(z))
 # f = (1+im)*z[1]*z[2]*z[3] + (1+im)*z[2]*z[3]*z[4] + (1-im)*conj(z[1]*z[2]*z[3]) + (1-im)*conj(z[2]*z[3]*z[4])
 h = 1 - z'*z
-opt,sol,data = complex_tssos_first([f; h], z, 2, numeq=1, QUIET=true, TS=false)
+opt,sol,data = complex_tssos([f; h], z, 2, numeq=1, QUIET=true, TS=false)
 M = Matrix{Float64}(data.moment[1][1][1:n+1,1:n+1])
 F = ldl(M)
 ind = findall(diag(F.D).>1e-4)

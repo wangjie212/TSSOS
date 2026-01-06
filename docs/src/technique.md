@@ -29,7 +29,7 @@ d = 1
 ```
 We can solve the problem using the dense moment-SOS hierarchy:
 ```julia
-opt, sol, data = cs_tssos_first(pop, x, d, TS=false, CS=false, solution=true)
+opt, sol, data = cs_tssos(pop, x, d, TS=false, CS=false, solution=true)
 ```
 Afterwards, one can try strenghtening the bound via **H1**:
 ```julia
@@ -48,7 +48,7 @@ resultH2 = run_H2(pop,x,d,dc,local_sol,tau)
 ```
 Alternatively, the problem can be solved using the correlatively sparse moment-SOS hierarchy:
 ```julia
-opt, sol, data = cs_tssos_first(pop, x, d, TS=false, solution=true)
+opt, sol, data = cs_tssos(pop, x, d, TS=false, solution=true)
 ```
 Afterwards, the bound can be strengthened either via **H1CS**:
 ```julia
@@ -70,7 +70,7 @@ Moreover, here is how different Christoffel polynomials can be constructed using
 - dense Moment-SOS relaxation of order 2
 ```julia
 d = 2
-opt, sol, data = cs_tssos_first(pop, x, d, TS=false, CS=false, solution=true, Mommat=true)
+opt, sol, data = cs_tssos(pop, x, d, TS=false, CS=false, solution=true, Mommat=true)
 
 k = 4
 dc = 1
@@ -85,7 +85,7 @@ CDK_4_order2 = construct_marginal_CDK(x, k, dc, data.moment[1])  # Constructs ma
 - sparse Moment-SOS relaxation of order 2
 ```julia
 d = 2
-opt, sol, data = cs_tssos_first(pop, x, d, TS=false, solution=true, Mommat=true)
+opt, sol, data = cs_tssos(pop, x, d, TS=false, solution=true, Mommat=true)
 
 k = 4
 dc = 1

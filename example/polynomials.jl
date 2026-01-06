@@ -18,7 +18,7 @@ end
 f += ((3-2*x[n])*x[n]-x[n-1]+1)^2
 pop = [f]
 for i = 1:l
-    push!(pop,1-sum(x[(i-1)*p+1:i*p].^2))
+    push!(pop, 1-sum(x[(i-1)*p+1:i*p].^2))
 end
 
 # Chained singular polynomial
@@ -32,34 +32,32 @@ for i = 3:2:n-3
 end
 pop = [f]
 for i = 1:l
-    push!(pop,1-sum(x[(i-1)*p+1:i*p].^2))
+    push!(pop, 1-sum(x[(i-1)*p+1:i*p].^2))
 end
 
 # Broyden banded polynomial
 n = 400
 @polyvar x[1:n]
-f = x[1]
+f = 0
 for i = 1:n
     jset = max(1,i-5):min(n,i+1)
     jset = setdiff(jset,i)
     f0 = sum([(1+x[jset[j]])*x[jset[j]] for j=1:length(jset)])
     f += (x[i]*(2+5*x[i]^2)+1-f0)^2
 end
-f -= x[1]
 
 # chained Wood polynomial
 l = 50
 p = 20
 n = l*p
 @polyvar x[1:n]
-f = x[1] + 1
+f = 1
 for i = 1:2:n-3
     f += 100*(x[i+1]-x[i]^2)^2+(1-x[i])^2+90*(x[i+3]-x[i+2]^2)^2+(1-x[i+2])^2+10*(x[i+1]+x[i+3]-2)^2+0.1*(x[i+1]-x[i+3])^2
 end
-f -= x[1]
 pop = [f]
 for i = 1:l
-    push!(pop,1-sum(x[(i-1)*p+1:i*p].^2))
+    push!(pop, 1-sum(x[(i-1)*p+1:i*p].^2))
 end
 
 # generalized Rosenbrock polynomial
@@ -67,12 +65,11 @@ l = 50
 p = 20
 n = l*p
 @polyvar x[1:n]
-f = x[1] + 1
+f = 1
 for i = 2:n
     f += 100*(x[i]-x[i-1]^2)^2+(1-x[i])^2
 end
-f -= x[1]
 pop = [f]
 for i = 1:l
-    push!(pop,1-sum(x[(i-1)*p+1:i*p].^2))
+    push!(pop, 1-sum(x[(i-1)*p+1:i*p].^2))
 end

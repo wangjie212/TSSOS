@@ -15,8 +15,8 @@ g = 1 - x[1]^2 - 2*x[2]^2
 h = x[2]^2 + x[3]^2 - 1
 pop = [f, g, h]
 d = 2 # set the relaxation order
-opt,sol,data = tssos_first(pop, x, d, numeq=1, TS="block", solution=true) # compute the first TS step of the TSSOS hierarchy
-opt,sol,data = tssos_higher!(data, TS="block", solution=true) # compute higher TS steps of the TSSOS hierarchy
+opt,sol,data = tssos(pop, x, d, numeq=1, TS="block", solution=true) # compute the first TS step of the TSSOS hierarchy
+opt,sol,data = tssos(data, TS="block", solution=true) # compute higher TS steps of the TSSOS hierarchy
 ```
 
 ### Keyword arguments
@@ -32,8 +32,6 @@ normality | Impose normality condtions | false
 merge | Merge overlapping PSD blocks | false
 md | Parameter for tunning the merging strength | 3
 MomentOne | add a first-order moment PSD constraint | false
-solver | Specify an SDP solver: "Mosek" or "COSMO" | "Mosek"
-cosmo\_setting | Parameters for the COSMO solver: cosmo\_para(eps\_abs, eps\_rel, max\_iter, time\_limit) | cosmo\_para(1e-5, 1e-5, 1e4, 0)
 mosek\_setting | Parameters for the Mosek solver: mosek\_para(tol\_pfeas, tol\_dfeas, tol\_relgap, time\_limit, num\_threads) | mosek\_para(1e-8, 1e-8, 1e-8, -1, 0)
 QUIET | Silence the output| false
 solve | Solve the SDP relaxation | true
@@ -54,8 +52,8 @@ n = 6
 f = 1 + sum(x.^4) + x[1]*x[2]*x[3] + x[3]*x[4]*x[5] + x[3]*x[4]*x[6]+x[3]*x[5]*x[6] + x[4]*x[5]*x[6]
 pop = [f, 1-sum(x[1:3].^2), 1-sum(x[3:6].^2)]
 order = 2 # set the relaxation order
-opt,sol,data = cs_tssos_first(pop, x, order, numeq=0, TS="MD", solution=true) # compute the first TS step of the CS-TSSOS hierarchy
-opt,sol,data = cs_tssos_higher!(data, TS="MD", solution=true) # compute higher TS steps of the CS-TSSOS hierarchy
+opt,sol,data = cs_tssos(pop, x, order, numeq=0, TS="MD", solution=true) # compute the first TS step of the CS-TSSOS hierarchy
+opt,sol,data = cs_tssos(data, TS="MD", solution=true) # compute higher TS steps of the CS-TSSOS hierarchy
 ```
 
 ### Keyword arguments
@@ -71,8 +69,6 @@ TS | Types of chordal extensions used in term sparsity iterations: "block"(maxim
 merge | Merge overlapping PSD blocks | false
 md | Parameter for tunning the merging strength | 3
 MomentOne | add a first-order moment PSD constraint for each variable clique | false
-solver | Specify an SDP solver: "Mosek" or "COSMO" | "Mosek"
-cosmo\_setting | Parameters for the COSMO solver: cosmo\_para(eps\_abs, eps\_rel, max\_iter, time\_limit) | cosmo\_para(1e-5, 1e-5, 1e4, 0)
 mosek\_setting | Parameters for the Mosek solver: mosek\_para(tol\_pfeas, tol\_dfeas, tol\_relgap, time\_limit, num\_threads) | mosek\_para(1e-8, 1e-8, 1e-8, -1, 0)
 QUIET | Silence the output| false
 solve | Solve the SDP relaxation | true
@@ -92,10 +88,8 @@ obj,sol,status = local_solution(data.n, data.m, data.supp, data.coe, numeq=data.
 
 ## Methods
 ```@docs
-tssos_first
-tssos_higher!
-cs_tssos_first
-cs_tssos_higher!
+tssos
+cs_tssos
 local_solution
 refine_sol
 extract_solutions

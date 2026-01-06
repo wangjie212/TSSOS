@@ -56,7 +56,7 @@ opt = SumOfRatios(p, q, g, [], [x;y;z], 3, QUIET=true, SignSymmetry=false)
 
 @polyvar w[1:3]
 pop = [sum(w), 1-x^2-y^2-z^2, p[1]-w[1]*q[1], p[2]-w[2]*q[2], p[3]-w[3]*q[3]]
-opt,sol,data = cs_tssos_first(pop, [x;y;z;w], 3, numeq=3, TS=false, solution=false, QUIET=true)
+opt,sol,data = cs_tssos(pop, [x;y;z;w], 3, numeq=3, TS=false, solution=false, QUIET=true)
 
 # Example 5.1
 @polyvar x[1:3]
@@ -75,7 +75,7 @@ h = [3.0 - sum(x.^2)]
 
 @polyvar w[1:M-1]
 pop = [sum(w); h; [p[i]-w[i]*q[i] for i=1:M-1]]
-@time opt,sol,data = cs_tssos_first(pop, [x;w], 3d+1, numeq=M, TS="block", solution=false, QUIET=true)
+@time opt,sol,data = cs_tssos(pop, [x;w], 3d+1, numeq=M, TS="block", solution=false, QUIET=true)
 
 # Example 5.2
 c = [0.806; 0.517; 0.100; 0.908; 0.965; 0.669; 0.524; 0.902; 0.531; 0.876; 0.462; 0.491; 0.463; 0.714; 0.352; 
@@ -124,7 +124,7 @@ k = 3
 
 @polyvar w[1:N]
 pop = [sum(w); g; [p[i]-w[i]*q[i] for i=1:N]]
-@time opt,sol,data = cs_tssos_first(pop, [x;w], 4, numeq=N, TS="block", solution=false, QUIET=true)
+@time opt,sol,data = cs_tssos(pop, [x;w], 4, numeq=N, TS="block", solution=false, QUIET=true)
 
 # Example 5.3
 using MultivariatePolynomials
@@ -150,7 +150,7 @@ g = [1 - sum(x.^2)]
 
 @polyvar w[1:N]
 pop = [sum(w); g; [p[i]-w[i]*q[i] for i=1:N]]
-@time opt,sol,data = cs_tssos_first(pop, [x;w], d+1, numeq=N, TS="block", solution=false, QUIET=true)
+@time opt,sol,data = cs_tssos(pop, [x;w], d+1, numeq=N, TS="block", solution=false, QUIET=true)
 
 
 # Example 5.4
@@ -167,8 +167,8 @@ d = 5
 
 @polyvar w[1:N]
 pop = [sum(w); h; [p[i]-w[i]*q[i] for i=1:N]]
-@time opt,sol,data = cs_tssos_first(pop, [x;w], d+1, numeq=2N, TS="block", solution=false, QUIET=true)
-@time opt,sol,data = cs_tssos_higher!(data, TS="block", solution=false, QUIET=true)
+@time opt,sol,data = cs_tssos(pop, [x;w], d+1, numeq=2N, TS="block", solution=false, QUIET=true)
+@time opt,sol,data = cs_tssos(data, TS="block", solution=false, QUIET=true)
 
 
 # Example 5.5
@@ -186,8 +186,8 @@ h = [3 - sum(x[2*i-1:2*i+1].^2) for i = 1:N]
 
 @polyvar w[1:N]
 pop = [sum(w); h; [p[i]-w[i]*q[i] for i=1:N]]
-@time opt,sol,data = cs_tssos_first(pop, [x;w], 3d+1, numeq=2N, TS="block", solution=false, QUIET=true)
-@time opt,sol,data = cs_tssos_higher!(data, TS="block", solution=false, QUIET=true)
+@time opt,sol,data = cs_tssos(pop, [x;w], 3d+1, numeq=2N, TS="block", solution=false, QUIET=true)
+@time opt,sol,data = cs_tssos(data, TS="block", solution=false, QUIET=true)
 
 
 # Example 5.6
@@ -201,7 +201,7 @@ g = [16-x[i]^2 for i=1:n]
 @time opt = SparseSumOfRatios(-p, q, g, [], x, 2, QUIET=true, dualize=true, SignSymmetry=false)
 @polyvar w[1:n-1]
 pop = [-sum(w); g; [p[i]-w[i]*q[i] for i=1:n-1]]
-@time opt,sol,data = cs_tssos_first(pop, [x;w], 4, numeq=n-1, TS="block", solution=false, QUIET=true)
+@time opt,sol,data = cs_tssos(pop, [x;w], 4, numeq=n-1, TS="block", solution=false, QUIET=true)
 
 # Example 5.7
 N = 20
@@ -218,8 +218,8 @@ g = [1 - x[i]^2 for i=1:n]
 @polyvar w[1:N]
 pop = [sum(w); g; [p[i]-w[i]*q[i] for i=1:N]]
 @time begin
-opt,sol,data = cs_tssos_first(pop, [x;w], 3, numeq=N, TS="block", solve=false, solution=false, QUIET=true)
-opt,sol,data = cs_tssos_higher!(data, TS="block", solution=false, QUIET=true)
+opt,sol,data = cs_tssos(pop, [x;w], 3, numeq=N, TS="block", solve=false, solution=false, QUIET=true)
+opt,sol,data = cs_tssos(data, TS="block", solution=false, QUIET=true)
 end
 
 # Example 6.1

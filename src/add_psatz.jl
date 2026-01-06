@@ -1,4 +1,4 @@
-mutable struct struct_data
+mutable struct sos_data
     cliquesize # size of cliques
     cliques # clique structrue
     basis # monomial basis
@@ -182,7 +182,7 @@ function add_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; CS=fal
     else
         @constraint(model, cons==zeros(length(cons)))
     end
-    info = struct_data(cliquesize, cliques, basis, ebasis, blocksize, blocks, eblocks, tsupp, I, J, pos, free, constrs)
+    info = sos_data(cliquesize, cliques, basis, ebasis, blocksize, blocks, eblocks, tsupp, I, J, pos, free, constrs)
     return info
 end
 
@@ -426,7 +426,7 @@ function add_complex_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order
     if ipart == true
         @constraint(model, icons .== 0)
     end
-    info = struct_data(cliquesize, cliques, basis, ebasis, blocksize, blocks, eblocks, tsupp, I, J, pos, free, nothing)
+    info = sos_data(cliquesize, cliques, basis, ebasis, blocksize, blocks, eblocks, tsupp, I, J, pos, free, nothing)
     return info
 end
 

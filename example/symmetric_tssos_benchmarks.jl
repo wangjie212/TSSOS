@@ -11,26 +11,26 @@ pop=[f,g];
 
 
 # dense
-opt0,data0 = tssos_first(pop, X, r; numeq = 0, TS=false);
+opt0,data0 = tssos(pop, X, r; numeq = 0, TS=false);
 
 # sign symmetry
-opt1,sol1,data1 = tssos_first(pop, X, r; numeq = 0, TS="signsymmetry");
-opt_higher1,sol1,data1 = tssos_higher!(data1; TS="signsymmetry");
+opt1,sol1,data1 = tssos(pop, X, r; numeq = 0, TS="signsymmetry");
+opt_higher1,sol1,data1 = tssos(data1; TS="signsymmetry");
 
 # tssos (max chordal extension)
-opt2,sol2,data2 = tssos_first(pop, X, r; numeq = 0, TS="block", QUIET=false);
-opt_higher2,sol2,data2 = tssos_higher!(data2; TS="block");
+opt2,sol2,data2 = tssos(pop, X, r; numeq = 0, TS="block", QUIET=false);
+opt_higher2,sol2,data2 = tssos(data2; TS="block");
 
 # symmetry
 opt3,data3 = tssos_symmetry(pop, X, r, G; numeq=0, SymmetricConstraint=true);
 
 # symmetry + tssos (max chordal extension, WITH diagonal squares)
-opt4,data4 = tssos_symmetry_first(pop, X, r, G; numeq=0, DiagSquare=true, SymmetricConstraint=true, TS="block");
-opt_higher4,data4 = tssos_symmetry_higher!(data4; TS="block");
+opt4,data4 = tssos_symmetry(pop, X, r, G; numeq=0, DiagSquare=true, SymmetricConstraint=true, TS="block");
+opt_higher4,data4 = tssos_symmetry(data4; TS="block");
 
 # symmetry + tssos (max chordal extension, WITHOUT diagonal squares)
-opt5,data5 = tssos_symmetry_first(pop, X, r, G; numeq=0, DiagSquare=false, SymmetricConstraint=true, TS="block");
-opt_higher5,data5 = tssos_symmetry_higher!(data5; TS="block");
+opt5,data5 = tssos_symmetry(pop, X, r, G; numeq=0, DiagSquare=false, SymmetricConstraint=true, TS="block");
+opt_higher5,data5 = tssos_symmetry(data5; TS="block");
 
 
 
@@ -48,26 +48,26 @@ pop=[f,g];
 
 
 # dense
-opt0,data0 = tssos_first(pop, X, r; numeq = 1, TS=false);
+opt0,data0 = tssos(pop, X, r; numeq = 1, TS=false);
 
 # sign symmetry
-opt1,sol1,data1 = tssos_first(pop, X, r; numeq = 1, TS="signsymmetry");
-opt_higher1,sol1,data1 = tssos_higher!(data1; TS="signsymmetry");
+opt1,sol1,data1 = tssos(pop, X, r; numeq = 1, TS="signsymmetry");
+opt_higher1,sol1,data1 = tssos(data1; TS="signsymmetry");
 
 # tssos (max chordal extension)
-opt2,sol2,data2 = tssos_first(pop, X, r; numeq = 1, TS="block");
-opt_higher2,sol2,data2 = tssos_higher!(data2; TS="block");
+opt2,sol2,data2 = tssos(pop, X, r; numeq = 1, TS="block");
+opt_higher2,sol2,data2 = tssos(data2; TS="block");
 
 # symmetry
 opt3,data3 = tssos_symmetry(pop, X, r, G; numeq=1, SymmetricConstraint=true);
 
 # symmetry + tssos (max chordal extension, WITH diagonal squares)
-opt4,data4 = tssos_symmetry_first(pop, X, r, G; numeq=1, DiagSquare=true, SymmetricConstraint=true, TS="block");
-opt_higher4,data4 = tssos_symmetry_higher!(data4; TS="block");
+opt4,data4 = tssos_symmetry(pop, X, r, G; numeq=1, DiagSquare=true, SymmetricConstraint=true, TS="block");
+opt_higher4,data4 = tssos_symmetry(data4; TS="block");
 
 # symmetry + tssos (max chordal extension, WITHOUT diagonal squares)
-opt5,data5 = tssos_symmetry_first(pop, X, r, G; numeq=1, DiagSquare=false, SymmetricConstraint=true, TS="block");
-opt_higher5,data5 = tssos_symmetry_higher!(data5; TS="block");
+opt5,data5 = tssos_symmetry(pop, X, r, G; numeq=1, DiagSquare=false, SymmetricConstraint=true, TS="block");
+opt_higher5,data5 = tssos_symmetry(data5; TS="block");
 
 
 
@@ -80,25 +80,25 @@ X, f, G, r = build_symmetric_quartic(n);
 
 
 # tssos (max chordal ext)
-opt,sol,data = tssos_first([f], X, d; numeq=0, TS="block");
-opt_higher,data = tssos_higher!(data; TS="block");
+opt,sol,data = tssos([f], X, d; numeq=0, TS="block");
+opt_higher,data = tssos(data; TS="block");
 
 # tssos (approx chordal ext)
-opt,sol,data = tssos_first([f], X, d; numeq=0, TS="MD");
-opt_higher,data_higher = tssos_higher!(data; TS="MD");
+opt,sol,data = tssos([f], X, d; numeq=0, TS="MD");
+opt_higher,data_higher = tssos(data; TS="MD");
 
 # symmetry + tssos (max chordal ext, WITH diagonal squares)
-opt,data = tssos_symmetry_first([f], X, d, G; numeq=0, TS="block", DiagSquare=true);
-opt_higher,data = tssos_symmetry_higher!(data; TS="block");
+opt,data = tssos_symmetry([f], X, d, G; numeq=0, TS="block", DiagSquare=true);
+opt_higher,data = tssos_symmetry(data; TS="block");
 
 # symmetry + tssos (approx chordal ext, WITH diagonal squares)
-opt,data = tssos_symmetry_first([f], X, d, G; numeq=0, TS="MD", DiagSquare=true);
-opt_higher,data_higher = tssos_symmetry_higher!(data; TS="MD");
+opt,data = tssos_symmetry([f], X, d, G; numeq=0, TS="MD", DiagSquare=true);
+opt_higher,data_higher = tssos_symmetry(data; TS="MD");
 
 # symmetry + tssos (max chordal ext, WITHOUT diagonal squares)
-opt,data = tssos_symmetry_first([f], X, d, G; numeq=0, TS="block", DiagSquare=false);
-opt_higher,data = tssos_symmetry_higher!(data; TS="block");
+opt,data = tssos_symmetry([f], X, d, G; numeq=0, TS="block", DiagSquare=false);
+opt_higher,data = tssos_symmetry(data; TS="block");
 
 # symmetry + tssos (approx chordal ext, WITHOUT diagonal squares)
-opt,data = tssos_symmetry_first([f], X, d, G; numeq=0, TS="MD", DiagSquare=false);
-opt_higher,data = tssos_symmetry_higher!(data; TS="MD");
+opt,data = tssos_symmetry([f], X, d, G; numeq=0, TS="MD", DiagSquare=false);
+opt_higher,data = tssos_symmetry(data; TS="MD");

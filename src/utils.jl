@@ -160,7 +160,7 @@ function get_conjugate_basis(var::Vector{Int}, d::Int; nb=0)
     return basis
 end
 
-function newton_basis(n, d, supp; tol=1e-5, solver="Mosek")
+function newton_basis(n, d, supp; tol=1e-5)
     nsupp = zeros(Int, n, length(supp))
     for i = 1:length(supp), j in supp[i]
         nsupp[j, i] += 1
@@ -180,18 +180,7 @@ function newton_basis(n, d, supp; tol=1e-5, solver="Mosek")
         if bfind(nsupp, 2*bi) !== nothing
             t += 1
         else
-            if solver == "Mosek"
-                model = Model(optimizer_with_attributes(Mosek.Optimizer))
-            elseif solver == "SDPT3"
-                model = Model(optimizer_with_attributes(SDPT3.Optimizer))
-            elseif solver == "SDPNAL"
-                model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
-            elseif solver == "COSMO"
-                model = Model(optimizer_with_attributes(COSMO.Optimizer))
-            else
-                @error "The solver is currently not supported!"
-                return nothing
-            end
+            model = Model(optimizer_with_attributes(Mosek.Optimizer))
             set_optimizer_attribute(model, MOI.Silent(), true)
             @variable(model, x[1:n+1], lower_bound=-10, upper_bound=10)
             @constraint(model, [A0; [bi' -1]]*x .<= zeros(length(supp)+1))
@@ -227,21 +216,7 @@ function newton_basis(n, d, supp; tol=1e-5, solver="Mosek")
     return basis[ind]
 end
 
-function generate_basis!(supp, basis)
-    sort!(supp)
-    unique!(supp)
-    ind = Int[]
-    for i = 1:length(basis), j = i:length(basis)
-        if bfind(supp, sadd(basis[i], basis[j])) !== nothing
-             push!(ind, i, j)
-        end
-    end
-    sort!(ind)
-    unique!(ind)
-    return basis[ind]
-end
-
-function arrange(p)
+function arrange(p::T) where {T<:poly}
     nsupp = copy(p.supp)
     sort!(nsupp)
     unique!(nsupp)
@@ -253,7 +228,7 @@ function arrange(p)
     return poly(nsupp, ncoe)
 end
 
-function arrange(p, nb)
+function arrange(p::T; nb=0) where {T<:cpoly}
     nsupp = reduce_unitnorm.(p.supp, nb)
     sort!(nsupp)
     unique!(nsupp)

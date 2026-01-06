@@ -27,7 +27,7 @@ g6 = y[2] + rand(length(b))'*b
 g7 = rand(length(b))'*b - y[3]
 g8 = y[3] + rand(length(b))'*b
 
-opt,sol,data = tssos_first([f;g1;g2;g3;g4;g5;g6;g7;g8], [x;y], 3, TS=false, QUIET=true)
+opt,sol,data = tssos([f;g1;g2;g3;g4;g5;g6;g7;g8], [x;y], 3, TS=false, QUIET=true)
 
 d = 3
 model = Model(optimizer_with_attributes(Mosek.Optimizer))

@@ -23,14 +23,14 @@ Q = (Q+Q')/2
 f = [1; z]'*Q*[1; z]
 h = z'*z - 1
 @time begin
-opt,sol,data = complex_tssos_first([f; h], z, 1, numeq=1, QUIET=true, TS=false)
+opt,sol,data = complex_tssos([f; h], z, 1, numeq=1, QUIET=true, TS=false)
 end
 
 @polyvar x[1:2n]
 rf = f(z=>x[1:n]+im*x[n+1:2n])
 rpop = [real.(coefficients(rf))'*monomials(rf), 1-sum(x.^2)]
 @time begin
-opt,sol,data = tssos_first(rpop, x, 1, numeq=1, GroebnerBasis=false, QUIET=false, TS="block")
+opt,sol,data = tssos(rpop, x, 1, numeq=1, GroebnerBasis=false, QUIET=false, TS="block")
 end
 
 opt,sol = local_solution(2n, 1, data.supp, data.coe, numeq=1, startpoint=rand(2n), QUIET=true)
@@ -46,14 +46,14 @@ f = basis'*((P+P')/2)*basis
 h = z'*z - 1
 
 @time begin
-opt,sol,data = complex_tssos_first([f; h], z, 2, numeq=1, QUIET=true, TS=false)
+opt,sol,data = complex_tssos([f; h], z, 2, numeq=1, QUIET=true, TS=false)
 end
 
 @polyvar x[1:2n]
 rf = f(z=>x[1:n]+im*x[n+1:2n])
 rpop = [real.(coefficients(rf))'*monomials(rf), 1-sum(x.^2)]
 @time begin
-opt,sol,data = tssos_first(rpop, x, 2, numeq=1, GroebnerBasis=false, QUIET=true, TS="block")
+opt,sol,data = tssos(rpop, x, 2, numeq=1, GroebnerBasis=false, QUIET=true, TS="block")
 end
 
 opt,sol = local_solution(2n, 1, data.supp, data.coe, numeq=1, startpoint=rand(2n), QUIET=true)

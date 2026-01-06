@@ -10,7 +10,6 @@ using LinearAlgebra
 using MetaGraphs
 using SemialgebraicSets
 using Groebner
-using COSMO
 using Dualization
 using Printf
 using AbstractAlgebra
@@ -23,24 +22,14 @@ import DynamicPolynomials as DP
 import MultivariatePolynomials as MP
 import CliqueTrees
 
-export tssos_first, tssos_higher!, cs_tssos_first, cs_tssos_higher!, complex_tssos_first, complex_tssos_higher!, complex_cs_tssos_first, 
-complex_cs_tssos_higher!, LinearPMI_first, LinearPMI_higher!, sparseobj
-export cosmo_para, mosek_para
+export tssos, cs_tssos, complex_tssos, complex_cs_tssos, LinearPMI, sparseobj
+export arrange, bfind, mosek_para
 export local_solution, refine_sol, extract_solutions, extract_solutions_robust, extract_solutions_pmo, extract_solutions_pmo_robust, extract_weight_matrix
 export add_SOS!, add_SOSMatrix!, add_poly!, add_psatz!, add_complex_psatz!, add_psatz_cheby!, add_poly_cheby!
-export OnMonomials, tssos_symmetry, complex_tssos_symmetry, get_signsymmetry, tssos_symmetry_first, complex_tssos_symmetry_first, tssos_symmetry_higher!, complex_tssos_symmetry_higher!, add_psatz_symmetry!
+export OnMonomials, tssos_symmetry, complex_tssos_symmetry, get_signsymmetry, add_psatz_symmetry!
 export homogenize, solve_hpop, SumOfRatios, SparseSumOfRatios, get_dynamic_sparsity
 export show_blocks, complex_to_real, get_mmoment, get_basis, get_moment, get_moment_matrix, get_cmoment
 export run_H1, run_H1CS, run_H2, run_H2CS, construct_CDK, construct_marginal_CDK, construct_CDK_cs, construct_marginal_CDK_cs
-
-mutable struct cosmo_para
-    eps_abs::Float64
-    eps_rel::Float64
-    max_iter::Int64
-    time_limit::Float64
-end
-
-cosmo_para() = cosmo_para(1e-5, 1e-5, 1e4, 0)
 
 mutable struct mosek_para
     tol_pfeas::Float64

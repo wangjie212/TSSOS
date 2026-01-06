@@ -1,5 +1,5 @@
-mutable struct poly_basis
-    cost # cost function
+mutable struct polybasis_data
+    obj # objective
     ineq_cons # inequality constraints
     eq_cons # equality constraints
     coe_type # type of coefficients
@@ -84,7 +84,7 @@ function add_psatz_cheby!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; 
     remove_nearly_zero_terms!(model, coefs)
     drop_zeros!.(coefs)
     @constraint(model, coefs .== 0)
-    info = poly_basis(nonneg, ineq_cons, eq_cons, nothing, nothing, nothing, basis, nothing, nothing, blocksize, blocks, eblocks, pos, mul, nothing)
+    info = polybasis_data(nonneg, ineq_cons, eq_cons, nothing, nothing, nothing, basis, nothing, nothing, blocksize, blocks, eblocks, pos, mul, nothing)
     return info
 end
 

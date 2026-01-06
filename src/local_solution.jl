@@ -53,9 +53,9 @@ end
 Refine the obtained solution by a local solver.
 Return the refined solution, and `flag=0` if global optimality is certified, `flag=1` otherwise.
 """
-function refine_sol(opt, sol, data::Union{cpop_data,mcpop_data}; QUIET=false, gtol=1e-2)
+function refine_sol(opt, sol, data::Union{pop_data,spop_data}; QUIET=false, gtol=1e-2)
     numeq = data.numeq
-    if typeof(data) == cpop_data && !isempty(data.gb)
+    if typeof(data) == pop_data && !isempty(data.gb)
         npop = [data.obj; data.ineq_cons[2:end]; [poly(p, data.x) for p in data.pop[end-numeq+1:end]]]
     else
         npop = [data.obj; data.ineq_cons[2:end]; data.eq_cons]

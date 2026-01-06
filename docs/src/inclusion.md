@@ -9,31 +9,25 @@ using TSSOS
 using DynamicPolynomials
 using LinearAlgebra
 using COSMO
-settings = cosmo_para()
-settings.eps_abs = 1e-6 # absolute residual tolerance
-settings.eps_rel = 1e-6 # relative residual tolerance
-settings.max_iter = 1e7 # maximum number of iterations
 
-g=4
-nj=3
-@polyvar a[1:g,1:nj]
-@polyvar x[1:g,1:nj]
-f = sum(a.*x);
+g = 4
+nj = 3
+@polyvar a[1:g, 1:nj]
+@polyvar x[1:g, 1:nj]
+f = sum(a.*x)
 
-epsg = [collect(c) for c in Iterators.product(fill([-1,1],g)...)]
-vepsfun = r -> 1 - sum(j ->  (sum(epsg[r].*x[:,j]))^2,1:nj);
-ceps = map(vepsfun, 1:2^g);
-va = i -> 1 - sum(a[i,:].^2);
-ca = map(va,1:g)
-pop = [-f;ceps;ca];
-r = 3;
+epsg = [collect(c) for c in Iterators.product(fill([-1,1], g)...)]
+vepsfun = r -> 1 - sum(j ->  (sum(epsg[r].*x[:,j]))^2, 1:nj)
+ceps = map(vepsfun, 1:2^g)
+va = i -> 1 - sum(a[i, :].^2)
+ca = map(va, 1:g)
+pop = [-f; ceps; ca]
+r = 3
 
-opt,sol,data = cs_tssos_first(pop, [a[:];x[:]], r, CS=false, TS="block", solver="COSMO", cosmo_setting=settings);
+model = Model(optimizer_with_attributes(COSMO.Optimizer), "eps_abs"=>1e-6, "eps_rel"=>1e-6, "max_iter"=>1e7)
+opt,sol,data = cs_tssos(pop, [a[:];x[:]], r, CS=false, TS="block", model=model)
 
-settings.eps_abs = 1e-7 # absolute residual tolerance
-settings.eps_rel = 1e-7 # relative residual tolerance
-settings.max_iter = 1e7 # maximum number of iterations
-
-opt,sol,data = cs_tssos_higher!(data, TS="block", cosmo_setting=settings);
-opt # 1.8029 
+model = Model(optimizer_with_attributes(COSMO.Optimizer), "eps_abs"=>1e-7, "eps_rel"=>1e-7, "max_iter"=>1e7)
+opt,sol,data = cs_tssos(data, TS="block", model=model)
+@show opt # 1.8029 
 ```

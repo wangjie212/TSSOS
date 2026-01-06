@@ -10,16 +10,16 @@ using MosekTools
 f = 1/5*sum(x.^4) + 1/5*(x[1]*x[2]*x[3]*x[4]+x[1]*x[2]*x[3]*x[5]+x[1]*x[2]*x[4]*x[5]+x[1]*x[3]*x[4]*x[5]+x[2]*x[3]*x[4]*x[5]) + 
 1/10*(x[1]*x[2]*x[3]+x[1]*x[2]*x[4]+x[1]*x[3]*x[4]+x[2]*x[3]*x[4]+x[1]*x[2]*x[5]+x[1]*x[3]*x[5]+x[1]*x[4]*x[5]+x[2]*x[3]*x[5]+x[2]*x[4]*x[5]+x[3]*x[4]*x[5]) + 1/5*sum(x)
 G = PermGroup([perm"(1,2)", perm"(1,2,3,4,5)"])
-opt,data = tssos_symmetry_first([f], x, 2, G, TS="MD")
-opt,data = tssos_symmetry_higher!(data, TS="MD")
+opt,data = tssos_symmetry([f], x, 2, G, TS="MD")
+opt,data = tssos_symmetry(data, TS="MD")
 
 
 @polyvar x[1:4]
 f = sum(x) + sum(x.^2) + prod(x)
 g = [1-x[1]^2, 1-2x[2]^2, 1-3x[3]^2, 1-4x[4]^2, x[1]*x[2]-0.2]
 G = PermGroup([perm"(1,2)", perm"(1,2,3,4)"]) # define the symmetry group
-opt,data = tssos_symmetry([f; g], x, 2, G, SymmetricConstraint=false)
-opt,sol,data = tssos_first([f; g], x, 2, TS=false, solution=true)
+opt,data = tssos_symmetry([f; g], x, 2, G, TS=false, SymmetricConstraint=false)
+opt,sol,data = tssos([f; g], x, 2, TS=false, solution=true)
 
 
 @polyvar x[1:7]
@@ -40,8 +40,8 @@ ProfileView.@profview WedderburnDecomposition(Float64, G, action, monos_2d, mono
 @polyvar x[1:7]
 f = sum(x) + sum(x.^6)
 G = PermGroup([perm"(1,2)", perm"(1,2,3,4,5,6,7)"]) # define the symmetry group
-opt,data = tssos_symmetry_first([f], x, 3, G)
-opt,data = tssos_symmetry_higher!(data)
+opt,data = tssos_symmetry([f], x, 3, G)
+opt,data = tssos_symmetry(data)
 # optimum = 0
 
 @polyvar x[1:3]
@@ -60,23 +60,23 @@ opt,data = tssos_symmetry([f], x, 2, G)
 f = sum(x) + sum(x.^4)
 pop = [f, 1 - sum(x.^2)]
 G = PermGroup([perm"(1,2,3)", perm"(1,2)"])
-opt,data = tssos_symmetry_first(pop, x, 2, G, numeq=1)
+opt,data = tssos_symmetry(pop, x, 2, G, numeq=1)
 # optimum = -1.3987174
 
 @polyvar x[1:3]
 f = sum(x) + sum(x.^4)
 pop = [f; 1 .- x.^2]
 G = PermGroup([perm"(1,2,3)", perm"(1,2)"])
-opt,data = tssos_symmetry_first(pop, x, 2, G, SymmetricConstraint=false)
+opt,data = tssos_symmetry(pop, x, 2, G, SymmetricConstraint=false)
 # optimum = -1.4174111
 
 @polyvar x[1:3]
 f = sum(x.^2) + sum(x.^4)
 pop = [f, 1 - sum(x.^2)]
 G = PermGroup([perm"(1,2,3)", perm"(1,2)"])
-opt,data = tssos_symmetry_first(pop, x, 2, G, numeq=0, TS="block")
+opt,data = tssos_symmetry(pop, x, 2, G, numeq=0, TS="block")
 # optimum = 0
-opt,data = tssos_symmetry_higher!(data, TS="block")
+opt,data = tssos_symmetry(data, TS="block")
 # optimum = 0
 
 d = 2
@@ -171,25 +171,25 @@ SymbolicWedderburn.coeff_type(::DihedralAction) = Float64
 
 @polyvar x y
 f = x^6 + y^6 - x^4 * y^2 - y^4 * x^2 - x^4 - y^4 - x^2 - y^2 + 3x^2 * y^2 + 1
-opt,data = tssos_symmetry_first([f], [x;y], 3, DihedralGroup(4), action=DihedralAction(), semisimple=false, TS="block")
+opt,data = tssos_symmetry([f], [x;y], 3, DihedralGroup(4), action=DihedralAction(), semisimple=false, TS="block")
 
 G = PermGroup(perm"(1,2)")
-opt,data = tssos_symmetry_first([f], [x;y], 3, G, DiagSquare=false, TS="MD")
-opt,data = tssos_symmetry_higher!(data)
+opt,data = tssos_symmetry([f], [x;y], 3, G, DiagSquare=false, TS="MD")
+opt,data = tssos_symmetry(data)
 
 
 @complex_polyvar z[1:2]
 f = z[1]^2*conj(z[1]^2) + z[2]^2*conj(z[2]^2) + z[1]*conj(z[2]) + z[2]*conj(z[1]) + (1+im)*z[1] + 
 (1-im)*conj(z[1]) + (1+im)*z[2] + (1-im)*conj(z[2]) + 1
 G = PermGroup(perm"(1,2)")
-opt,data = complex_tssos_symmetry_first([f, 1-z[1]*conj(z[1])-z[2]*conj(z[2])], z, 2, G, numeq=1, TS=false, ConjugateBasis=true)
-opt,data = complex_tssos_symmetry_higher!(data)
-opt,data = complex_tssos_symmetry_first([f, 1-z[1]*conj(z[1]), 1-z[2]*conj(z[2])], z, 2, G, numeq=2, SymmetricConstraint=false, TS="block", ConjugateBasis=true)
+opt,data = complex_tssos_symmetry([f, 1-z[1]*conj(z[1])-z[2]*conj(z[2])], z, 2, G, numeq=1, TS=false, ConjugateBasis=true)
+opt,data = complex_tssos_symmetry(data)
+opt,data = complex_tssos_symmetry([f, 1-z[1]*conj(z[1]), 1-z[2]*conj(z[2])], z, 2, G, numeq=2, SymmetricConstraint=false, TS="block", ConjugateBasis=true)
 
-opt,sol,data = complex_tssos_first([f, 1-z[1]*conj(z[1]), 1-z[2]*conj(z[2])], z, 2, numeq=2, TS=false, ConjugateBasis=true)
+opt,sol,data = complex_tssos([f, 1-z[1]*conj(z[1]), 1-z[2]*conj(z[2])], z, 2, numeq=2, TS=false, ConjugateBasis=true)
 
 f = z[1]^2*conj(z[1]^2) + z[2]^2*conj(z[2]^2) + z[1]*conj(z[2]) + z[2]*conj(z[1]) + z[1] + 
 conj(z[1]) + z[2] + conj(z[2]) + 1
 G = PermGroup(perm"(1,2)")
-opt,data = complex_tssos_symmetry_first([f, 1-z[1]*conj(z[1]), 1-z[2]*conj(z[2])], z, 2, G, numeq=2, SymmetricConstraint=false, TS="block", ConjugateBasis=true)
-opt,sol,data = complex_tssos_first([f, 1-z[1]*conj(z[1]), 1-z[2]*conj(z[2])], z, 2, numeq=2, TS=false, ConjugateBasis=true)
+opt,data = complex_tssos_symmetry([f, 1-z[1]*conj(z[1]), 1-z[2]*conj(z[2])], z, 2, G, numeq=2, SymmetricConstraint=false, TS="block", ConjugateBasis=true)
+opt,sol,data = complex_tssos([f, 1-z[1]*conj(z[1]), 1-z[2]*conj(z[2])], z, 2, numeq=2, TS=false, ConjugateBasis=true)

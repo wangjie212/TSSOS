@@ -9,12 +9,9 @@ pkg> add https://github.com/wangjie212/TSSOS
  | [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://wangjie212.github.io/TSSOS/dev) |
 
 ## Dependencies
-- [Julia](https://julialang.org/)
 - [JuMP](https://github.com/jump-dev/JuMP.jl)
-- [Mosek](https://www.mosek.com/) or [COSMO](https://github.com/oxfordcontrol/COSMO.jl)
+- [Mosek](https://www.mosek.com/)
 - [CliqueTrees](https://github.com/AlgebraicJulia/CliqueTrees.jl)
-
-TSSOS has been tested on Ubuntu and Windows.
 
 ## Usage
 ### Unconstrained polynomial optimization
@@ -31,19 +28,19 @@ using TSSOS
 using DynamicPolynomials
 @polyvar x[1:3]
 f = 1 + x[1]^4 + x[2]^4 + x[3]^4 + x[1]*x[2]*x[3] + x[2]
-opt,sol,data = tssos_first(f, x, TS="MD")
+opt,sol,data = tssos(f, x, TS="MD")
 ```
 By default, the monomial basis computed by the Newton polytope method is used. If one sets newton=false:
 
 ```Julia
-opt,sol,data = tssos_first(f, x, newton=false, TS="MD")
+opt,sol,data = tssos(f, x, newton=false, TS="MD")
 ```
 then the standard monomial basis will be used.
 
 To compute higher TS steps of the TSSOS hierarchy, repeatedly run
 
 ```Julia
-opt,sol,data = tssos_higher!(data, TS="MD")
+opt,sol,data = tssos(data, TS="MD")
 ```
 
 Options  
@@ -78,13 +75,13 @@ g = 1 - x[1]^2 - 2*x[2]^2
 h = x[2]^2 + x[3]^2 - 1
 pop = [f, g, h]
 d = 2 # set the relaxation order
-opt,sol,data = tssos_first(pop, x, d, numeq=1, TS="block", solution=true)
+opt,sol,data = tssos(pop, x, d, numeq=1, TS="block", solution=true)
 ```
 
 To compute higher TS steps of the TSSOS hierarchy, repeatedly run
 
 ```Julia
-opt,sol,data = tssos_higher!(data, TS="MD", solution=true)
+opt,sol,data = tssos(data, TS="MD", solution=true)
 ```
 
 Options  
@@ -103,8 +100,8 @@ n = 6
 f = 1 + sum(x.^4) + x[1]*x[2]*x[3] + x[3]*x[4]*x[5] + x[3]*x[4]*x[6] + x[3]*x[5]*x[6] + x[4]*x[5]*x[6]
 pop = [f, 1 - sum(x[1:3].^2), 1 - sum(x[3:6].^2)]
 order = 2 # set the relaxation order
-opt,sol,data = cs_tssos_first(pop, x, order, numeq=0, TS="MD", solution=true) # compute the first TS step of the CS-TSSOS hierarchy
-opt,sol,data = cs_tssos_higher!(data, TS="block", solution=true) # compute higher TS steps of the CS-TSSOS hierarchy
+opt,sol,data = cs_tssos(pop, x, order, numeq=0, TS="MD", solution=true) # compute the first TS step of the CS-TSSOS hierarchy
+opt,sol,data = cs_tssos(data, TS="block", solution=true) # compute higher TS steps of the CS-TSSOS hierarchy
 ```
 
 Options  
@@ -113,31 +110,6 @@ Options
 **TS**: "block" by default (maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)   
 **MomentOne**: true (add a first-order moment PSD constraint for each variable clique), false  
 **solution**: true (extract an approximately optimal solution), false  
-
-One may set solver="Mosek" or solver="COSMO" to specify the SDP solver invoked by TSSOS. By default, the solver is Mosek.
-
-The parameters of COSMO could be tuned by
-
-```Julia
-settings = cosmo_para()
-settings.eps_abs = 1e-5 # absolute residual tolerance
-settings.eps_rel = 1e-5 # relative residual tolerance
-settings.max_iter = 1e4 # maximum number of iterations
-settings.time_limit = 1e4 # limit of running time
-```
-and run for instance tssos_first(..., cosmo_setting=settings)
-
-The parameters of Mosek could be tuned by
-
-```Julia
-settings = mosek_para()
-settings.tol_pfeas = 1e-8 # primal feasibility tolerance
-settings.tol_dfeas = 1e-8 # dual feasibility tolerance
-settings.tol_relgap = 1e-8 # relative primal-dual gap tolerance
-settings.time_limit = 1e4 # limit of running time
-settings.num_threads = 0 # number of threads available for Mosek
-```
-and run for instance tssos_first(..., mosek_setting=settings)
 
 Output  
 **basis**: monomial basis  
@@ -162,6 +134,7 @@ opt,basis,Gram = tssos_symmetry(pop, x, order, G)
 ```
 
 Options  
+**TS**: "block" by default (maximal chordal extension), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)   
 **numeq**: number of equality constraints  
 
 Output  
@@ -251,8 +224,8 @@ g3 = z[1]*conj(z[1]) + z[2]*conj(z[2]) - 3
 g4 = im*z[2] - im*conj(z[2])
 pop = [f, g1, g2, g3, g4]
 order = 2 # set the relaxation order
-opt,sol,data = complex_tssos_first(pop, z, order, numeq=3, TS="block", solution=true) # no correlative sparsity
-opt,sol,data = complex_cs_tssos_first(pop, z, order, numeq=3, TS="block", solution=true)
+opt,sol,data = complex_tssos(pop, z, order, numeq=3, TS="block", solution=true) # no correlative sparsity
+opt,sol,data = complex_cs_tssos(pop, z, order, numeq=3, TS="block", solution=true)
 ```
 Options  
 **nb**: specify the first nb complex variables to be of unit norm (satisfying $|z_i|=1$)  
@@ -321,8 +294,8 @@ x[1]*x[5] x[2]*x[5] x[5]^2 - x[3]*x[5] x[4]^2 - x[1]*x[3] x[5]^4]
 G = Vector{Matrix{Poly}}(undef, 2)
 G[1] = [1 - x[1]^2 - x[2]^2 x[2]*x[3]; x[2]*x[3] 1 - x[3]^2]
 G[2] = [1 - x[4]^2 x[4]*x[5]; x[4]*x[5] 1 - x[5]^2]
-@time opt,sol,data = tssos_first(F, G, x, 3, TS="MD") # compute the first TS step of the TSSOS hierarchy
-@time opt,sol,data = tssos_higher!(data, TS="MD") # compute higher TS steps of the TSSOS hierarchy
+@time opt,sol,data = tssos(F, G, x, 3, TS="MD") # compute the first TS step of the TSSOS hierarchy
+@time opt,sol,data = tssos(data, TS="MD") # compute higher TS steps of the TSSOS hierarchy
 ```
 
 Options  
@@ -330,6 +303,38 @@ Options
 **TS**: "block" by default (maximal chordal extension), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)  
 
 For more examples, please check out `example/pmi.jl`.
+
+## Choose an SDP solver
+By default, Mosek is chosen as the backend SDP solver. The parameters of Mosek could be tuned by
+
+```Julia
+settings = mosek_para()
+settings.tol_pfeas = 1e-8 # primal feasibility tolerance
+settings.tol_dfeas = 1e-8 # dual feasibility tolerance
+settings.tol_relgap = 1e-8 # relative primal-dual gap tolerance
+settings.time_limit = 1e4 # limit of running time
+settings.num_threads = 0 # number of threads available for Mosek
+```
+and run for instance tssos(..., mosek_setting=settings)  
+
+You may also choose other SDP solvers supported by JuMP:
+
+```Julia
+using DynamicPolynomials
+using TSSOS
+using JuMP
+using COSMO
+using SCS
+
+@polyvar x[1:6]
+f = 1+sum(x.^4)+x[1]*x[2]*x[3]+x[3]*x[4]*x[5]+x[3]*x[4]*x[6]+x[3]*x[5]*x[6]+x[4]*x[5]*x[6]
+pop = [f, 1-sum(x[1:3].^2), 1-sum(x[3:6].^2)]
+d = 2
+model = Model(optimizer_with_attributes(COSMO.Optimizer))
+opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true, model=model)
+model = Model(optimizer_with_attributes(SCS.Optimizer))
+opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true, model=model)
+```
 
 ## Tips for modelling polynomial optimization problems
 - When possible, explictly include a sphere/ball constraint (or multi-sphere/multi-ball constraints).

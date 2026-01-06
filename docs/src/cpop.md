@@ -27,8 +27,8 @@ g3 = z[1]*conj(z[1]) + z[2]*conj(z[2]) - 3
 g4 = im*z[2] - im*conj(z[2])
 pop = [f, g1, g2, g3, g4]
 order = 2 # set the relaxation order
-opt,sol,data = complex_tssos_first(pop, z, order, numeq=3, TS="block", solution=true) # no correlative sparsity
-opt,sol,data = complex_cs_tssos_first(pop, z, order, numeq=3, TS="block", solution=true)
+opt,sol,data = complex_tssos(pop, z, order, numeq=3, TS="block", solution=true) # no correlative sparsity
+opt,sol,data = complex_cs_tssos(pop, z, order, numeq=3, TS="block", solution=true)
 ```
 
 ### Keyword arguments
@@ -44,8 +44,6 @@ normality | Impose normality condtions of order **normality** | 1
 merge | Merge overlapping PSD blocks | false
 md | Parameter for tunning the merging strength | 3
 MomentOne | add a first-order moment PSD constraint for each variable clique | false
-solver | Specify an SDP solver: "Mosek" or "COSMO" | "Mosek"
-cosmo\_setting | Parameters for the COSMO solver: cosmo\_para(eps\_abs, eps\_rel, max\_iter, time\_limit) | cosmo\_para(1e-5, 1e-5, 1e4, 0)
 mosek\_setting | Parameters for the Mosek solver: mosek\_para(tol\_pfeas, tol\_dfeas, tol\_relgap, time\_limit, num\_threads) | mosek\_para(1e-8, 1e-8, 1e-8, -1, 0)
 QUIET | Silence the output| false
 solve | Solve the SDP relaxation | true
@@ -62,9 +60,7 @@ ftol | tolerance for feasibility | 1e-3
 
 ## Methods
 ```@docs
-complex_tssos_first
-complex_tssos_higher!
-complex_cs_tssos_first
-complex_cs_tssos_higher!
+complex_tssos
+complex_cs_tssos
 add_complex_psatz!
 ```

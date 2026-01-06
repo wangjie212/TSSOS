@@ -5,7 +5,7 @@ function homogenize(f, z)
     return sum(ts)
 end
 
-function solve_hpop(cost, x, ineq_cons, eq_cons, order; QUIET=false, CS="MF", type=2, ε=0, TS="block", SO=1, nnhomovar=false, GroebnerBasis=false, Mommat=false)
+function solve_hpop(cost, x, ineq_cons, eq_cons, order; QUIET=false, CS="MF", type=2, ε=0, TS="block", SO=1, nnhomovar=false, GroebnerBasis=false)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     if CS != false

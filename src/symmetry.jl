@@ -40,31 +40,7 @@ function SymbolicWedderburn.decompose(
 end
 
 """
-    opt,data = tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, QUIET=false)
-
-Compute the symmetry adapted moment-SOS relaxation for polynomial optimization problems.
-
-# Input arguments
-- `pop`: polynomial optimization problem
-- `x`: POP variables
-- `d`: relaxation order
-- `group`: permutation group acting on POP variables 
-- `semisimple`: compute a semisimple representation instead of an irreducible representation
-- `numeq`: number of equality constraints
-- `DiagSquare`: include diagonal squares in the support (`true`, `false`)
-- `SymmetricConstraint`: whether the constraints are symmetric or not
-- `QUIET`: run in the quiet mode (`true`, `false`)
-
-# Output arguments
-- `opt`: optimum
-- `data`: other auxiliary data 
-"""
-function tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, QUIET=false, dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
-    return tssos_symmetry_first(pop, x, d, group, numeq=numeq, action=action, semisimple=semisimple, DiagSquare=DiagSquare, SymmetricConstraint=SymmetricConstraint, TS=false, QUIET=QUIET, solver=solver, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
-end
-
-"""
-    opt,data = tssos_symmetry_first(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, TS="block", QUIET=false)
+    opt,data = tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, TS="block", QUIET=false)
 
 Compute the symmetry adapted moment-SOS relaxation for polynomial optimization problems.
 
@@ -84,10 +60,11 @@ Compute the symmetry adapted moment-SOS relaxation for polynomial optimization p
 - `opt`: optimum
 - `data`: other auxiliary data 
 """
-function tssos_symmetry_first(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, TS="block", QUIET=false, merge=false, md=3, dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+function tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, 
+    TS="block", QUIET=false, merge=false, md=3, dualize=false, mosek_setting=mosek_para(), model=nothing)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
-    cost = poly(pop[1], x)
+    obj = poly(pop[1], x)
     ineq_cons = [poly([UInt16[]], [1]); [poly(p, x) for p in pop[2:length(pop)-numeq]]]
     eq_cons = [poly(p, x) for p in pop[length(pop)-numeq+1:end]]
     if QUIET == false
@@ -146,7 +123,7 @@ function tssos_symmetry_first(pop, x, d, group; numeq=0, action=nothing, semisim
     end
     tsupp = nothing
     if TS != false
-        tsupp = vcat([[normalform(item, group, action[2]) for item in p.supp] for p in [cost;ineq_cons;eq_cons]]...)
+        tsupp = vcat([[normalform(item, group, action[2]) for item in p.supp] for p in [obj;ineq_cons;eq_cons]]...)
         if DiagSquare == true
             for subbasis in basis[1], p in subbasis
                 push!(tsupp, supp_multi(p, p, group, action[2])...)
@@ -162,38 +139,14 @@ function tssos_symmetry_first(pop, x, d, group; numeq=0, action=nothing, semisim
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         println("Assembling the SDP...")
     end
-    optimum,tsupp,GramMat,multiplier,SDP_status = solvesdp(cost, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action[2], QUIET=QUIET, 
-    solver=solver, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
-    data = poly_basis(cost, ineq_cons, eq_cons, Float64, group, action[2], basis, ebasis, tsupp, blocksize, blocks, eblocks, GramMat, multiplier, SDP_status)
+    optimum,tsupp,GramMat,multiplier,SDP_status = solvesdp(obj, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action[2], QUIET=QUIET, 
+    dualize=dualize, mosek_setting=mosek_setting, model=model)
+    data = polybasis_data(obj, ineq_cons, eq_cons, Float64, group, action[2], basis, ebasis, tsupp, blocksize, blocks, eblocks, GramMat, multiplier, SDP_status)
     return optimum,data
 end
 
 """
-    opt,data = complex_tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, ConjugateBasis=false, QUIET=false)
-
-Compute the symmetry adapted moment-HSOS relaxation for complex polynomial optimization problems.
-
-# Input arguments
-- `pop`: complex polynomial optimization problem
-- `x`: POP variables
-- `d`: relaxation order
-- `group`: permutation group acting on POP variables 
-- `semisimple`: compute a semisimple representation instead of an irreducible representation
-- `numeq`: number of equality constraints
-- `DiagSquare`: include diagonal squares in the support (`true`, `false`)
-- `SymmetricConstraint`: whether the constraints are symmetric or not
-- `QUIET`: run in the quiet mode (`true`, `false`)
-
-# Output arguments
-- `opt`: optimum
-- `data`: other auxiliary data 
-"""
-function complex_tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, ConjugateBasis=false, QUIET=false, dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
-    return complex_tssos_symmetry_first(pop, x, d, group, numeq=numeq, action=action, DiagSquare=DiagSquare, semisimple=semisimple, SymmetricConstraint=SymmetricConstraint, ConjugateBasis=ConjugateBasis, TS=false, QUIET=QUIET, solver=solver, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
-end
-
-"""
-    opt,data = complex_tssos_symmetry_first(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, ConjugateBasis=false, TS="block", QUIET=false)
+    opt,data = complex_tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, ConjugateBasis=false, TS="block", QUIET=false)
 
 Compute the symmetry adapted moment-HSOS relaxation for complex polynomial optimization problems.
 
@@ -213,11 +166,11 @@ Compute the symmetry adapted moment-HSOS relaxation for complex polynomial optim
 - `opt`: optimum
 - `data`: other auxiliary data 
 """
-function complex_tssos_symmetry_first(pop::Vector{Poly{T}}, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, ConjugateBasis=false, TS="block", QUIET=false, merge=false, md=3, 
-    dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para()) where {T<:Number}
+function complex_tssos_symmetry(pop::Vector{Poly{T}}, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, 
+    SymmetricConstraint=true, ConjugateBasis=false, TS="block", QUIET=false, merge=false, md=3, dualize=false, mosek_setting=mosek_para(), model=nothing) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
-    cost = cpoly(pop[1], x)
+    obj = cpoly(pop[1], x)
     ineq_cons = [cpoly([tuple(UInt16[],UInt16[])], [1]); [cpoly(p, x) for p in pop[2:length(pop)-numeq]]]
     eq_cons = [cpoly(p, x) for p in pop[length(pop)-numeq+1:end]]
     if QUIET == false
@@ -293,7 +246,7 @@ function complex_tssos_symmetry_first(pop::Vector{Poly{T}}, x, d, group; numeq=0
     end
     tsupp = nothing
     if TS != false
-        tsupp = vcat([[normalform(item, group, action[2]) for item in p.supp] for p in [cost;ineq_cons;eq_cons]]...)
+        tsupp = vcat([[normalform(item, group, action[2]) for item in p.supp] for p in [obj;ineq_cons;eq_cons]]...)
         if DiagSquare == true
             for subbasis in basis[1], p in subbasis
                 push!(tsupp, supp_multi(p, conj(p), group, action[2])...)
@@ -309,13 +262,13 @@ function complex_tssos_symmetry_first(pop::Vector{Poly{T}}, x, d, group; numeq=0
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         println("Assembling the SDP...")
     end
-    optimum,tsupp,GramMat,multiplier,SDP_status = solvesdp(cost, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action[2], QUIET=QUIET, 
-    coe_type=coe_type, solver=solver, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
-    data = poly_basis(cost, ineq_cons, eq_cons, coe_type, group, action[2], basis, ebasis, tsupp, blocksize, blocks, eblocks, GramMat, multiplier, SDP_status)
+    optimum,tsupp,GramMat,multiplier,SDP_status = solvesdp(obj, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action[2], QUIET=QUIET, 
+    coe_type=coe_type, dualize=dualize, mosek_setting=mosek_setting, model=model)
+    data = polybasis_data(obj, ineq_cons, eq_cons, coe_type, group, action[2], basis, ebasis, tsupp, blocksize, blocks, eblocks, GramMat, multiplier, SDP_status)
     return optimum,data
 end
 
-function tssos_symmetry_higher!(data::poly_basis; TS="block", merge=false, md=3, QUIET=false, solver="Mosek", dualize=false, field="real", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
+function tssos_symmetry(data::polybasis_data; TS="block", merge=false, md=3, QUIET=false, dualize=false, field="real", mosek_setting=mosek_para(), model=nothing)
     eq_cons = data.eq_cons
     ineq_cons = data.ineq_cons
     group = data.group
@@ -337,8 +290,8 @@ function tssos_symmetry_higher!(data::poly_basis; TS="block", merge=false, md=3,
             mb = maximum(maximum.(blocksize[1]))
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
-        opt,ksupp,GramMat,multiplier,SDP_status = solvesdp(data.cost, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action, 
-        QUIET=QUIET, coe_type=data.coe_type, solver=solver, dualize=dualize, cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
+        opt,ksupp,GramMat,multiplier,SDP_status = solvesdp(data.obj, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action, 
+        QUIET=QUIET, coe_type=data.coe_type, dualize=dualize, mosek_setting=mosek_setting, model=model)
         data.blocks = blocks
         data.eblocks = eblocks
         data.blocksize = blocksize
@@ -350,26 +303,18 @@ function tssos_symmetry_higher!(data::poly_basis; TS="block", merge=false, md=3,
     return opt,data
 end
 
-function complex_tssos_symmetry_higher!(data::poly_basis; TS="block", merge=false, md=3, QUIET=false, solver="Mosek", dualize=false, cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
-    return tssos_symmetry_higher!(data, TS=TS, merge=merge, md=md, QUIET=QUIET, solver=solver, dualize=dualize, field="complex", cosmo_setting=cosmo_setting, mosek_setting=mosek_setting)
+function complex_tssos_symmetry(data::polybasis_data; TS="block", merge=false, md=3, QUIET=false, dualize=false, mosek_setting=mosek_para(), model=nothing)
+    return tssos_symmetry(data, TS=TS, merge=merge, md=md, QUIET=QUIET, dualize=dualize, field="complex", mosek_setting=mosek_setting, model=model)
 end
 
-function solvesdp(cost::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action; QUIET=false, coe_type=Float64, dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
-    if solver == "Mosek"
+function solvesdp(obj::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action; QUIET=false, coe_type=Float64, dualize=false, mosek_setting=mosek_para(), model=nothing)
+    if model === nothing
         if dualize == false
             model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
-                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
+            "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
         else
             model = Model(dual_optimizer(Mosek.Optimizer))
         end
-    elseif solver == "COSMO"
-        model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter, "time_limit" => cosmo_setting.time_limit))
-    elseif solver == "SDPT3"
-        model = Model(optimizer_with_attributes(SDPT3.Optimizer))
-    elseif solver == "SDPNAL"
-        model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
-    else
-        @error "The solver is currently not supported!"
     end
     time = @elapsed begin
     tsupp = Vector{UInt16}[]
@@ -428,13 +373,13 @@ function solvesdp(cost::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
     end
     lambda = @variable(model)
     @objective(model, Max, lambda)
-    for (i,item) in enumerate(cost.supp)
+    for (i,item) in enumerate(obj.supp)
         Locb = bfind(tsupp, normalform(item, group, action))
         if Locb === nothing
             @error "The basis is not enough!"
             return nothing,nothing,nothing,nothing,nothing
         else
-            cons[Locb] -= cost.coe[i]
+            cons[Locb] -= obj.coe[i]
         end
     end
     cons[1] += lambda
@@ -472,22 +417,14 @@ function solvesdp(cost::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
     return optimum,tsupp,GramMat,multiplier,SDP_status
 end
 
-function solvesdp(cost::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action; QUIET=false, coe_type=ComplexF64, dualize=false, solver="Mosek", cosmo_setting=cosmo_para(), mosek_setting=mosek_para())
-    if solver == "Mosek"
+function solvesdp(obj::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action; QUIET=false, coe_type=ComplexF64, dualize=false, mosek_setting=mosek_para(), model=nothing)
+    if model === nothing
         if dualize == false
             model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
-                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
+            "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
         else
             model = Model(dual_optimizer(Mosek.Optimizer))
         end
-    elseif solver == "COSMO"
-        model = Model(optimizer_with_attributes(COSMO.Optimizer, "eps_abs" => cosmo_setting.eps_abs, "eps_rel" => cosmo_setting.eps_rel, "max_iter" => cosmo_setting.max_iter, "time_limit" => cosmo_setting.time_limit))
-    elseif solver == "SDPT3"
-        model = Model(optimizer_with_attributes(SDPT3.Optimizer))
-    elseif solver == "SDPNAL"
-        model = Model(optimizer_with_attributes(SDPNAL.Optimizer))
-    else
-        @error "The solver is currently not supported!"
     end
     time = @elapsed begin
     tsupp = Tuple{Vector{UInt16},Vector{UInt16}}[]
@@ -591,7 +528,7 @@ function solvesdp(cost::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize,
             end
         end
     end
-    for (i,item) in enumerate(cost.supp)
+    for (i,item) in enumerate(obj.supp)
         bi = normalform(item, group, action)
         if bi[1] <= bi[2]
             Locb = bfind(tsupp, bi)
@@ -599,9 +536,9 @@ function solvesdp(cost::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize,
                 @error "The basis is not enough!"
                 return nothing,nothing,nothing,nothing,nothing
             else
-                rcons[Locb] -= real(cost.coe[i])
+                rcons[Locb] -= real(obj.coe[i])
                 if coe_type == ComplexF64 && bi[1] != bi[2]
-                    icons[Locb] -= imag(cost.coe[i])
+                    icons[Locb] -= imag(obj.coe[i])
                 end
             end
         end
@@ -855,7 +792,7 @@ function add_psatz_symmetry!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, orde
         end
     end
     @constraint(model, cons .== 0)
-    info = poly_basis(obj, ineq_cons, eq_cons, nothing, group, action[2], basis, ebasis, tsupp, blocksize, blocks, eblocks, pos, mul, nothing)
+    info = polybasis_data(obj, ineq_cons, eq_cons, nothing, group, action[2], basis, ebasis, tsupp, blocksize, blocks, eblocks, pos, mul, nothing)
     return info
 end
 

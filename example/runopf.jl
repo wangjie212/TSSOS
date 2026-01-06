@@ -15,16 +15,15 @@ model = pop_opf_real(opfdata, normal=true, AngleCons=true, LineLimit="relax")
 n = model.n
 m = model.m
 numeq = model.numeq
-supp = model.supp
-coe = model.coe
-mc = maximum(abs.(coe[1]))
-coe[1] = coe[1]./mc
+pop = model.pop
+mc = maximum(abs.(pop[1].coe))
+pop[1].coe = pop[1].coe/mc
 
 t = @elapsed begin
-opt,_,popd = cs_tssos_first(supp, coe, n, 1, numeq=numeq, CS=false, TS="MF", MomentOne=false)
+opt,_,popd = cs_tssos(pop, n, 1, numeq=numeq, CS=false, TS="MF", MomentOne=false)
 end
 opt *= mc
-mb = maximum(maximum.([maximum.(popd.blocksize[i]) for i = 1:popd.cql])) # maximal block size
+mb = maximum(maximum.([maximum.(bs) for bs in popd.blocksize])) # maximal block size
 gap = (AC-opt)*100/AC # optimality gap
 println("n = $n, m = $m")
 println("opt = $opt, time = $t, mb = $mb, gap = $gap%")
@@ -34,17 +33,16 @@ model = pop_opf_real(opfdata, normal=true, AngleCons=true, LineLimit=true)
 n = model.n
 m = model.m
 numeq = model.numeq
-supp = model.supp
-coe = model.coe
-mc = maximum(abs.(coe[1]))
-coe[1] = coe[1]./mc
+pop = model.pop
+mc = maximum(abs.(pop[1].coe))
+pop[1].coe = pop[1].coe/mc
 
 t = @elapsed begin
-opt,_,popd = cs_tssos_first(supp, coe, n, "min", numeq=numeq, CS="MF", TS="block", MomentOne=false)
+opt,_,popd = cs_tssos(pop, n, "min", numeq=numeq, CS="MF", TS="block", MomentOne=false)
 end
 opt *= mc
 maxc = maximum(popd.cliquesize) # maximal clique size
-mb = maximum(maximum.([maximum.(popd.blocksize[i]) for i = 1:popd.cql])) # maximal block size
+mb = maximum(maximum.([maximum.(bs) for bs in popd.blocksize])) # maximal block size
 gap = 100*(AC-opt)/AC # optimality gap
 println("n = $n, m = $m")
 println("mc = $maxc, opt = $opt, time = $t, mb = $mb, gap = $gap%")
