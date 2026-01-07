@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Sum-Of-Squares Optimization · TSSOS</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">TSSOS</span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../pop/">Polynomial Optimization</a></li><li><a class="tocitem" href="../structure/">Structures</a></li><li><a class="tocitem" href="../technique/">Techniques</a></li><li class="is-active"><a class="tocitem" href>Sum-Of-Squares Optimization</a><ul class="internal"><li><a class="tocitem" href="#Image-of-a-semialgebraic-set-by-a-polynomial-map"><span>Image of a semialgebraic set by a polynomial map</span></a></li><li><a class="tocitem" href="#Region-of-attraction-of-the-Van-der-Pol-oscillator"><span>Region of attraction of the Van der Pol oscillator</span></a></li><li><a class="tocitem" href="#Order-2-quantum-Wasserstein-distances"><span>Order 2 quantum Wasserstein distances</span></a></li><li><a class="tocitem" href="#Methods"><span>Methods</span></a></li></ul></li><li><a class="tocitem" href="../pmo/">Polynomial Matrix Optimization</a></li><li><a class="tocitem" href="../cpop/">Complex Polynomial Optimization</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../opf/">AC Optimal Power Flow</a></li><li><a class="tocitem" href="../sorf/">Sum-Of-Rational-Functions Optimization</a></li><li><a class="tocitem" href="../inclusion/">Inclusion Constants for Free Spectrahedra</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Sum-Of-Squares Optimization</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Sum-Of-Squares Optimization</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/wangjie212/TSSOS/blob/master/docs/src/sos.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Sum-Of-Squares-Optimization"><a class="docs-heading-anchor" href="#Sum-Of-Squares-Optimization">Sum-Of-Squares Optimization</a><a id="Sum-Of-Squares-Optimization-1"></a><a class="docs-heading-anchor-permalink" href="#Sum-Of-Squares-Optimization" title="Permalink"></a></h1><p>A general <a href="https://en.wikipedia.org/wiki/Sum-of-squares_optimization">sum-of-squares optimization</a> (including polynomial optimization as a special case) problem takes the form:</p><p class="math-container">\[\mathrm{inf}_{\mathbf{y}\in\mathbb{R}^n}\ \mathbf{c}^{\intercal}\mathbf{y}\]</p><p class="math-container">\[\mathrm{s.t.}\ a_{k0}+y_1a_{k1}+\cdots+y_na_{kn}\in\mathrm{SOS},\ k=1,\ldots,m.\]</p><p>where <span>$\mathbf{c}\in\mathbb{R}^n$</span> and <span>$a_{ki}\in\mathbb{R}[\mathbf{x}]$</span> are polynomials. In TSSOS, SOS constraints could be handled with the routine <strong>add_psatz!</strong>:</p><pre><code class="language-Julia">info = add_psatz!(model, nonneg, vars, ineq_cons, eq_cons, order, TS=&quot;block&quot;, SO=1, GroebnerBasis=false)</code></pre><p>where <strong>nonneg</strong> is a nonnegative polynomial constrained to admit a Putinar&#39;s style SOS representation on the semialgebraic set defined by <strong>ineq_cons</strong> and <strong>eq_cons</strong>, and <strong>SO</strong> is the sparse order.</p><p>The following is a simple exmaple.</p><p class="math-container">\[\mathrm{sup}\ \lambda\]</p><p class="math-container">\[\mathrm{s.t.}\ x_1^2 + x_1x_2 + x_2^2 + x_2x_3 + x_3^2 - \lambda(x_1^2+x_2^2+x_3^2)=\sigma+\tau_1(x_1^2+x_2^2+y_1^2-1)+\tau_2(x_2^2+x_3^2+y_2^2-1),\]</p><p class="math-container">\[\sigma\in\mathrm{SOS},\deg(\sigma)\le2d,\ \tau_1,\tau_2\in\mathbb{R}[\mathbf{x}],\deg(\tau_1),\deg(\tau_2)\le2d-2.\]</p><pre><code class="language-Julia">using JuMP
+using MosekTools
+using DynamicPolynomials
+using MultivariatePolynomials
+using TSSOS
+
+@polyvar x[1:3]
+f = x[1]^2 + x[1]*x[2] + x[2]^2 + x[2]*x[3] + x[3]^2
+d = 2 # set the relaxation order
+@polyvar y[1:2]
+h = [x[1]^2+x[2]^2+y[1]^2-1, x[2]^2+x[3]^2+y[2]^2-1]
+model = Model(optimizer_with_attributes(Mosek.Optimizer))
+@variable(model, lower)
+nonneg = f - lower*sum(x.^2)
+info = add_psatz!(model, nonneg, [x; y], [], h, d, TS=&quot;block&quot;, GroebnerBasis=true)
+@objective(model, Max, lower)
+optimize!(model)</code></pre><h3 id="Keyword-arguments"><a class="docs-heading-anchor" href="#Keyword-arguments">Keyword arguments</a><a id="Keyword-arguments-1"></a><a class="docs-heading-anchor-permalink" href="#Keyword-arguments" title="Permalink"></a></h3><table><tr><th style="text-align: right">Argument</th><th style="text-align: left">Description</th><th style="text-align: left">Default value</th></tr><tr><td style="text-align: right">CS</td><td style="text-align: left">Types of chordal extensions in exploiting correlative sparsity: &quot;MF&quot; (approximately smallest chordal extension), &quot;NC&quot; (not performing chordal extension), false (invalidating correlative sparsity exploitation)</td><td style="text-align: left">&quot;MF&quot;</td></tr><tr><td style="text-align: right">cliques</td><td style="text-align: left">Use customized variable cliques</td><td style="text-align: left">[]</td></tr><tr><td style="text-align: right">TS</td><td style="text-align: left">Types of chordal extensions used in term sparsity iterations: &quot;block&quot;(maximal chordal extension), &quot;signsymmetry&quot; (sign symmetries), &quot;MD&quot; (approximately smallest chordal extension), false (invalidating term sparsity iterations)</td><td style="text-align: left">&quot;block&quot;</td></tr><tr><td style="text-align: right">eqTS</td><td style="text-align: left">Type of term sparsity for equality constraints: &quot;block&quot;, &quot;signsymmetry&quot;, false</td><td style="text-align: left"><strong>TS</strong></td></tr><tr><td style="text-align: right">QUIET</td><td style="text-align: left">Silence the output</td><td style="text-align: left">false</td></tr><tr><td style="text-align: right">SO</td><td style="text-align: left">Specify the sparse order</td><td style="text-align: left">1</td></tr><tr><td style="text-align: right">GroebnerBasis</td><td style="text-align: left">Work in the quotient ring by computing a Gröbner basis</td><td style="text-align: left">false</td></tr></table><h2 id="Image-of-a-semialgebraic-set-by-a-polynomial-map"><a class="docs-heading-anchor" href="#Image-of-a-semialgebraic-set-by-a-polynomial-map">Image of a semialgebraic set by a polynomial map</a><a id="Image-of-a-semialgebraic-set-by-a-polynomial-map-1"></a><a class="docs-heading-anchor-permalink" href="#Image-of-a-semialgebraic-set-by-a-polynomial-map" title="Permalink"></a></h2><p>Example 1, Section 6.1 from <a href="https://arxiv.org/pdf/1507.06143">arXiv:1507.06143</a>.  The goal is to approximate the image of the two-dimensional unit ball <span>$\mathbf{S} =$</span> { <span>$\mathbf{x} \in \mathbb{R}^2 : x_1^2 + x_2^2 \leq 1$</span> } under the polynomial application <span>$f(\mathbf{x})=(x_1+x_1 x_2, x_2-x_1^3)/2$</span>.  We choose <span>$\mathbf{B}=\mathbf{S}$</span> since it can be checked that <span>$f(\mathbf{S}) \subset \mathbf{B}$</span>. </p><pre><code class="language-Julia">using JuMP
+using MosekTools
+using DynamicPolynomials
+using MultivariatePolynomials
+using SpecialFunctions
+using TSSOS
+using Plots
+
+# Moments of the Lebesgue measure on the unit ball
+function momball(a)
+  n,m = size(a)
+  y = zeros(m)
+  for k = 1:m
+    if all(.!Bool.(rem.(a[:,k],2)))
+      y[k]=prod(gamma.((a[:,k].+1)/2))/gamma(1+(n+sum(a[:,k]))/2)
+    end
+  end
+  return y
+end
+
+# Half-degree of polynomials w(x) and v(x)
+d = 5
+
+n = 2
+@polyvar x[1:n] 
+f = [x[1] + x[1]*x[2]; x[2] - x[1]^3] * 0.5
+gS = 1 - x[1]^2 - x[2]^2
+gB = gS
+model = Model(optimizer_with_attributes(Mosek.Optimizer))
+#set_optimizer_attribute(model, MOI.Silent(), true)
+
+v, vc, vb = add_poly!(model, x, 2d)
+w, wc, wb = add_poly!(model, x, 2d)
+vf = subs(v, x[1]=&gt;f[1], x[2]=&gt;f[2])
+dv = Int(ceil(maxdegree(vf)/2))
+
+# Constraints
+info1 = add_psatz!(model, vf, x, [gS], [], dv, QUIET=false, CS=false, TS=false, GroebnerBasis=false) # v o f &gt;= 0 on S
+info2 = add_psatz!(model, w-1-v, x, [gB], [], d, QUIET=false, CS=false, TS=false, GroebnerBasis=false) # w &gt;= v + 1 on B
+info3 = add_psatz!(model, w, x, [gB], [], d, QUIET=false, CS=false, TS=false, GroebnerBasis=false) # w &gt;= 0 on B
+
+supp = TSSOS.get_basis(n, 2d)
+
+# Lebesgue moments on B
+
+moment = momball(supp)
+@objective(model, Min, moment&#39;*wc) # minimization of int w d_lambda
+
+
+optimize!(model)
+status = termination_status(model)
+if status != MOI.OPTIMAL
+    println(&quot;termination status: $status&quot;)
+    status = primal_status(model)
+    println(&quot;solution status: $status&quot;)
+end
+objv = objective_value(model)
+wp = value.(wc)&#39;*wb
+
+# Plot the superlevel set of w-1
+x1 = range(-1, 1, length=1000)
+x2 = range(-1, 1, length=1000)
+hw(x1, x2) = if x1^2 + x2^2 &lt;= 1.0 wp(x1,x2) else 0.0 end
+zw = @. hw(x1&#39;, x2)
+p = contour(x1, x2, zw, level=[1], color=[:white,:gray], levels=1, cbar=false, grid=false, fill=true)
+
+# Sample the image set f(S)
+N = 10^5
+X = randn(2, N)
+X = mapslices(c -&gt; rand(1)[1]*c/sqrt(sum(c.^2)), X, dims=1)
+f1 = mapslices(c-&gt;f[1](c), X, dims=1)[1, :]
+f2 = mapslices(c-&gt;f[2](c), X, dims=1)[1, :]
+scatter!(p, f1, f2, mc=:black, legend=false)
+
+# Draw the unit circle
+t = range(0, 2*pi, length=100)
+xt = cos.(t)
+yt = sin.(t)
+plot!(p, xt, yt, color=:black, legend=false, ylimits=(-1,1), xlimits=(-1,1), aspect_ratio=:equal)</code></pre><p><img src="https://homepages.laas.fr/vmagron/files/tssos/image5.png" alt="Image approximation"/></p><p>The black dots correspond to the image set of the points obtained by uniform sampling of <span>$\mathbf{S}$</span> under <span>$f$</span>.  The outer approximation obtained at the 5-th relaxation order is represented in light gray.</p><h2 id="Region-of-attraction-of-the-Van-der-Pol-oscillator"><a class="docs-heading-anchor" href="#Region-of-attraction-of-the-Van-der-Pol-oscillator">Region of attraction of the Van der Pol oscillator</a><a id="Region-of-attraction-of-the-Van-der-Pol-oscillator-1"></a><a class="docs-heading-anchor-permalink" href="#Region-of-attraction-of-the-Van-der-Pol-oscillator" title="Permalink"></a></h2><p>Section 9.2 from <a href="https://arxiv.org/abs/1208.1751">arXiv:1208.1751</a>.  The goal is to approximate the region of attraction of the uncontrolled reversed-time Van der Pol oscillator given by </p><p class="math-container">\[\dot{x}_1 = -2 x_2\]</p><p class="math-container">\[\dot{x}_2 = 0.8 x_1 + 10 (x_1^2-0.21)x_2\]</p><p>with general state constraints <span>$\mathbf{X}=[-1.2, 1.2]^2$</span>, terminal state constraints <span>$\mathbf{X}_T =$</span> { <span>$\mathbf{x} \in \mathbb{R}^2 : x_1^2 + x_2^2 \leq 0.01^2$</span> }, and final time <span>$T=100$</span>.</p><pre><code class="language-Julia">using JuMP
+using MosekTools
+using DynamicPolynomials
+using MultivariatePolynomials
+using TSSOS
+using Plots
+
+n = 2
+@polyvar x[1:n] t
+
+# Half-degree of polynomials w(x) and v(t,x)
+d = 8
+
+# Constraint set X = {x : ||x||_inf &lt;= xb}
+xb = 1.2
+gx1 = xb^2 - x[1]^2
+gx2 = xb^2 - x[2]^2
+gX = [gx1; gx2]
+
+# Final time
+T = 100
+
+# Dynamics (scaled by final time)
+f = -[2*x[2], -0.8*x[1] - 10*(x[1]^2 - 0.20)*x[2]] * T
+
+# X_T
+gxT = (0.1^2 - x&#39;*x)
+
+model = Model(optimizer_with_attributes(Mosek.Optimizer))
+set_optimizer_attribute(model, MOI.Silent(), true)
+
+# Define polynomials w(x) and v(t,x)
+v, vc, vb = add_poly!(model, [x;t], 2d)
+w, wc, wb = add_poly!(model, x, 2d)
+Lv = sum([f;1] .* differentiate(v, [x;t]))
+dv = Int(ceil(maxdegree(Lv)/2))
+
+# Constraints (Note that the dynamics was scaled by T, so there T = 1)
+
+info1 = add_psatz!(model, -Lv, [x;t], [gX; t*(1-t)], [], dv, QUIET=false, CS=false, TS=false, GroebnerBasis=false) # Lv &lt;= 0 on [0 T] x X
+info2 = add_psatz!(model, subs(v,t=&gt;1), x, [gxT], [], d, QUIET=false, CS=false, TS=false, GroebnerBasis=false) # v &gt;= 0 on {T} x X_T
+info3 = add_psatz!(model, w-1-subs(v,t=&gt;0), x, gX, [], d, QUIET=false, CS=false, TS=false, GroebnerBasis=false) # w &gt;= v + 1 on {0} x X
+info4 = add_psatz!(model, w, x, gX, [], d, QUIET=false, CS=false, TS=false, GroebnerBasis=false) # w &gt;= 0 on X
+
+supp = TSSOS.get_basis(n, 2d)
+
+# Lebesgue moments on X
+
+moment = get_moment(n, supp, -xb*ones(n), xb*ones(n))
+@objective(model, Min, moment&#39;*wc) # minimization of int w d_lambda
+
+optimize!(model)
+status = termination_status(model)
+if status != MOI.OPTIMAL
+    println(&quot;termination status: $status&quot;)
+    status = primal_status(model)
+    println(&quot;solution status: $status&quot;)
+end
+objv = objective_value(model)
+
+
+# Plots
+
+# Plot the superlevel set of v
+vp = subs(value.(vc)&#39;*vb, t=&gt;0)
+wp = value.(wc)&#39;*wb
+
+x1 = range(-xb, xb, length=1000)
+x2 = range(-xb, xb, length=1000)
+hw(x1,x2) = wp(x1, x2)
+hv(x1,x2) = max(vp(x1,x2), -0.1)
+zw = @. hw(x1&#39;, x2)
+zv = @. hv(x1&#39;, x2)
+
+p = contour(x1, x2, zv, level=[0], color=[:white,:gray], levels=1, cbar=false,grid=false,fill=true, ylimits=(-xb,xb), xlimits=(-xb,xb), aspect_ratio=:equal)
+
+# Simulate trajectory with reversed time to get the boundary of the true ROA
+using DifferentialEquations
+
+roafun(X, p, t) = [2*X[2]; -0.8*X[1] - 10*(X[1]^2-0.21)*X[2]]
+prob = ODEProblem(roafun, [0.1;0.1], (0.0,100.0))
+solode = solve(prob,DP5(), reltol=1e-8, abstol=1e-8)
+xt = map(v -&gt; v[1], solode.u)
+yt = map(v -&gt; v[2], solode.u)
+
+plot!(p, xt[1500:end], yt[1500:end], color=:black, legend=false, ylimits=(-xb,xb), xlimits=(-xb,xb), aspect_ratio=:equal)</code></pre><p><img src="https://homepages.laas.fr/vmagron/files/tssos/roa8.png" alt="ROA approximation"/></p><p>The black curve corresponds to the boundary of the true region of attraction.  The outer approximation obtained at the 8-th relaxation order is represented in light gray.</p><h2 id="Order-2-quantum-Wasserstein-distances"><a class="docs-heading-anchor" href="#Order-2-quantum-Wasserstein-distances">Order 2 quantum Wasserstein distances</a><a id="Order-2-quantum-Wasserstein-distances-1"></a><a class="docs-heading-anchor-permalink" href="#Order-2-quantum-Wasserstein-distances" title="Permalink"></a></h2><p>Section 4 from <a href="https://arxiv.org/abs/2506.">arXiv:2506.</a>.  The goal is to approximate the order 2 quantum Wasserstein distance with the hierarchy of SOS programs given by</p><p class="math-container">\[\mathrm{sup}\ \mathrm{Trace} (\rho \Lambda + \nu \Gamma) $$
+
+$$\mathrm{s.t.} f - \mathbf{x}^{\star} \Lambda \mathbf{x} - \mathbf{y}^{\star} \Gamma \mathbf{y} =\sigma+p(1 - \|\mathbf{x}\|^2)+q(1 - \|\mathbf{y}\|^2),\]</p><p class="math-container">\[\sigma\in\mathrm{SOS},\deg(\sigma)\le 2t,\ p,q\in\mathbb{C}[\mathbf{x},\overline{\mathbf{x}},\mathbf{y},\overline{\mathbf{y}}],\deg(p),\deg(q)\le2t-2, \ \Lambda, \Gamma \text{ Hermitian }\]</p><pre><code class="language-Julia">using JuMP
+using MosekTools
+using DynamicPolynomials
+using TSSOS
+using LinearAlgebra
+
+@polyvar a[1:2] b[1:2] c[1:2] d[1:2]  
+
+# Example 4
+# rho = [1 0; 0 0]; nu = 1/2*[1 1; 1 1];
+
+# Example 5
+# rho = [3/4 0; 0 1/4]; nu = 1/2*[1 0; 0 1];
+
+# Saturating example
+rho = 1/2*[1 -1; -1 1]; nu = 1/2*[1 1; 1 1];
+
+xxT = [a[1]^2 + b[1]^2  a[1]*a[2] + b[1]*b[2] + im*(a[2]*b[1] - a[1]*b[2]);
+       a[1]*a[2] + b[1]*b[2] - im*(a[2]*b[1] - a[1]*b[2])  a[2]^2 + b[2]^2]
+
+yyT = [c[1]^2 + d[1]^2  c[1]*c[2] + d[1]*d[2] + im*(c[2]*d[1] - c[1]*d[2]);
+       c[1]*c[2] + d[1]*d[2] - im*(c[2]*d[1] - c[1]*d[2])  c[2]^2 + d[2]^2]
+
+M = xxT - yyT
+f = tr(M * adjoint(M))
+
+trace_XX = monomials(f)&#39; * real.(coefficients(f))
+
+model = Model(optimizer_with_attributes(Mosek.Optimizer))
+
+@variable(model, l1)
+@variable(model, l2)
+@variable(model, l3)
+@variable(model, m1)
+@variable(model, m2)
+@variable(model, m3)
+
+tr_L1_xx = l1 * (a[1]^2 + b[1]^2) + 2*l2 * (a[1]*a[2] + b[1]*b[2]) + l3 * (a[2]^2 + b[2]^2);
+tr_M2_yy = m1 * (c[1]^2 + d[1]^2) + 2*m2 * (c[1]*c[2] + d[1]*d[2]) + m3 * (c[2]^2 + d[2]^2);
+
+x_norm2 = sum(a.^2) + sum(b.^2);
+y_norm2 = sum(c.^2) + sum(d.^2);
+h = [1 - x_norm2, 1 - y_norm2];
+
+nonneg = trace_XX - tr_L1_xx - tr_M2_yy;
+obj = tr([l1 l2; l2 l3] * rho) + tr([m1 m2; m2 m3] * nu);
+
+info = add_psatz!(model, nonneg, [a; b; c; d], [], h, 2; TS = false, GroebnerBasis=true)
+
+@objective(model, Max, real(obj));
+optimize!(model);
+val = objective_value(model);
+println(&quot;Optimal objective value: &quot;, val)</code></pre><h2 id="Methods"><a class="docs-heading-anchor" href="#Methods">Methods</a><a id="Methods-1"></a><a class="docs-heading-anchor-permalink" href="#Methods" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-binding" id="TSSOS.add_psatz!" href="#TSSOS.add_psatz!"><code>TSSOS.add_psatz!</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">info = add_psatz!(model, nonneg, x, ineq_cons, eq_cons, order; CS=false, cliques=[], TS=&quot;block&quot;, eqTS=TS, 
+SO=1, GroebnerBasis=false, QUIET=false, constrs=nothing)</code></pre><p>Add a Putinar&#39;s style SOS representation of the polynomial <code>nonneg</code> to the JuMP <code>model</code>.</p><p><strong>Input arguments</strong></p><ul><li><code>model</code>: a JuMP optimization model</li><li><code>nonneg</code>: a nonnegative polynomial constrained to be a Putinar&#39;s style SOS on a semialgebraic set</li><li><code>x</code>: the set of POP variables</li><li><code>ineq_cons</code>: inequality constraints</li><li><code>eq_cons</code>: equality constraints</li><li><code>order</code>: relaxation order</li><li><code>CS</code>: method of chordal extension for correlative sparsity (<code>&quot;MF&quot;</code>, <code>&quot;MD&quot;</code>, <code>&quot;NC&quot;</code>, <code>false</code>)</li><li><code>cliques</code>: the set of cliques used in correlative sparsity</li><li><code>TS</code>: type of term sparsity (<code>&quot;block&quot;</code>, <code>&quot;signsymmetry&quot;</code>, <code>&quot;MD&quot;</code>, <code>&quot;MF&quot;</code>, <code>false</code>)</li><li><code>eqTS</code>: type of term sparsity for equality constraints (by default the same as <code>TS</code>, <code>false</code>)</li><li><code>SO</code>: sparse order</li><li><code>GroebnerBasis</code>: exploit the quotient ring structure or not (<code>true</code>, <code>false</code>)</li><li><code>QUIET</code>: run in the quiet mode (<code>true</code>, <code>false</code>)</li><li><code>constrs</code>: the constraint name used in the JuMP model</li></ul><p><strong>Output arguments</strong></p><ul><li><code>info</code>: auxiliary data</li></ul></div><a class="docs-sourcelink" target="_blank" href="https://github.com/wangjie212/TSSOS/blob/772430e894ee94372c8bac9735e4f262a9132f7d/src/add_psatz.jl#L17-L41">source</a></section></article><div class="admonition is-warning"><header class="admonition-header">Missing docstring.</header><div class="admonition-body"><p>Missing docstring for <code>add_complex_psatz!</code>. Check Documenter&#39;s build log for details.</p></div></div><article class="docstring"><header><a class="docstring-binding" id="TSSOS.add_poly!" href="#TSSOS.add_poly!"><code>TSSOS.add_poly!</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">p,coe,mon = add_poly!(model, x, degree)</code></pre><p>Generate an unknown polynomial of given degree whose coefficients are from the JuMP <code>model</code>.</p><p><strong>Input arguments</strong></p><ul><li><code>model</code>: a JuMP optimization model</li><li><code>x</code>: set of variables</li><li><code>degree</code>: degree of the polynomial</li></ul><p><strong>Output arguments</strong></p><ul><li><code>p</code>: the polynomial </li><li><code>coe</code>: coefficients of the polynomial </li><li><code>mon</code>: monomials of the polynomial </li></ul></div><a class="docs-sourcelink" target="_blank" href="https://github.com/wangjie212/TSSOS/blob/772430e894ee94372c8bac9735e4f262a9132f7d/src/utils.jl#L279-L293">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="TSSOS.add_SOS!" href="#TSSOS.add_SOS!"><code>TSSOS.add_SOS!</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">sos = add_SOS!(model, x, d)</code></pre><p>Generate an SOS polynomial of degree 2d whose coefficients are from the JuMP <code>model</code>.</p><p><strong>Input arguments</strong></p><ul><li><code>model</code>: a JuMP optimization model</li><li><code>x</code>: set of variables</li><li><code>d</code>: half degree of the SOS polynomial</li></ul><p><strong>Output arguments</strong></p><ul><li><code>sos</code>: the sos polynomial </li></ul></div><a class="docs-sourcelink" target="_blank" href="https://github.com/wangjie212/TSSOS/blob/772430e894ee94372c8bac9735e4f262a9132f7d/src/utils.jl#L351-L363">source</a></section><section><div><pre><code class="language-julia">sos = add_SOS!(model, basis)</code></pre><p>Generate an SOS polynomial with monomial <code>basis</code> whose coefficients are from the JuMP <code>model</code>.</p><p><strong>Input arguments</strong></p><ul><li><code>model</code>: a JuMP optimization model</li><li><code>basis</code>: monomial basis</li></ul><p><strong>Output arguments</strong></p><ul><li><code>sos</code>: the sos polynomial </li></ul></div><a class="docs-sourcelink" target="_blank" href="https://github.com/wangjie212/TSSOS/blob/772430e894ee94372c8bac9735e4f262a9132f7d/src/utils.jl#L379-L390">source</a></section></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../technique/">« Techniques</a><a class="docs-footer-nextpage" href="../pmo/">Polynomial Matrix Optimization »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 7 January 2026 05:24">Wednesday 7 January 2026</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
