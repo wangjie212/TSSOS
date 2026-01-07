@@ -87,6 +87,7 @@ opt,sol,data = tssos(data, TS="MD", solution=true)
 Options  
 **nb**: specify the first nb variables to be $\pm1$ binary variables  
 **TS**: "block" by default (maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)  
+**eqTS**: the same as **TS** by default (type of term sparsity for equality constraints), false  
 **normality**: true (impose normality condtions), false   
 **GroebnerBasis**: true (work in the quotient ring by computing a Gröbner basis), false  
 **solution**: true (extract optimal solutions), false  
@@ -107,7 +108,8 @@ opt,sol,data = cs_tssos(data, TS="block", solution=true) # compute higher TS ste
 Options  
 **nb**: specify the first nb variables to be $\pm1$ binary variables  
 **CS**: "MF" by default (approximately smallest chordal extension), "NC" (not performing chordal extension), false (invalidating correlative sparsity exploitation)   
-**TS**: "block" by default (maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)   
+**TS**: "block" by default (maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)  
+**eqTS**: the same as **TS** by default (type of term sparsity for equality constraints), false  
 **MomentOne**: true (add a first-order moment PSD constraint for each variable clique), false  
 **solution**: true (extract an approximately optimal solution), false  
 
@@ -134,7 +136,8 @@ opt,basis,Gram = tssos_symmetry(pop, x, order, G)
 ```
 
 Options  
-**TS**: "block" by default (maximal chordal extension), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)   
+**TS**: "block" by default (maximal chordal extension), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)  
+**eqTS**: the same as **TS** by default (type of term sparsity for equality constraints), false  
 **numeq**: number of equality constraints  
 
 Output  
@@ -231,6 +234,7 @@ Options
 **nb**: specify the first nb complex variables to be of unit norm (satisfying $|z_i|=1$)  
 **CS**: "MF" by default (approximately smallest chordal extension), "NC" (not performing chordal extension), false (invalidating correlative sparsity exploitation)   
 **TS**: "block" by default (maximal chordal extension), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations)  
+**eqTS**: the same as **TS** by default (type of term sparsity for equality constraints), false  
 **ConjugateBasis**: include conjugate variables in monomial bases (false by default)  
 **normality**: specify the normal order   
 **MomentOne**: true (add a first-order moment PSD constraint for each variable clique), false  

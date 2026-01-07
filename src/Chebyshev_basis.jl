@@ -17,7 +17,7 @@ mutable struct polybasis_data
 end
 
 """
-    info = add_psatz_cheby!(model, nonneg, x, ineq_cons, eq_cons, order; TS="block", SO=1, QUIET=false)
+    info = add_psatz_cheby!(model, nonneg, x, ineq_cons, eq_cons, order; TS="block", eqTS=TS, SO=1, QUIET=false)
 
 Add a Putinar's style SOS representation of the polynomial `nonneg` in the Chebyshev basis to the JuMP `model`.
 
@@ -29,13 +29,14 @@ Add a Putinar's style SOS representation of the polynomial `nonneg` in the Cheby
 - `eq_cons`: equality constraints
 - `order`: relaxation order
 - `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
+- `eqTS`: type of term sparsity for equality constraints (by default the same as `TS`, `false`)
 - `SO`: sparse order
 - `QUIET`: run in the quiet mode (`true`, `false`)
 
 # Output arguments
 - `info`: auxiliary data
 """
-function add_psatz_cheby!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; TS="block", SO=1, merge=false, md=3, QUIET=false) where {T<:Union{Number,AffExpr}}
+function add_psatz_cheby!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; TS="block", eqTS=TS, SO=1, merge=false, md=3, QUIET=false) where {T<:Union{Number,AffExpr}}
     m = length(ineq_cons)
     l = length(eq_cons)
     basis = Vector{ChebyshevBasisFirstKind{Poly{Float64}}}(undef, m+l+1)
@@ -45,31 +46,21 @@ function add_psatz_cheby!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; 
     tsupp = basis_covering_monomials(ChebyshevBasis, unique([MP.monomials(nonneg); MP.monomials.(ineq_cons)...; MP.monomials.(eq_cons)...]))
     tsupp = [item for item in tsupp]
     sort!(tsupp)
-    blocks,cl,blocksize,eblocks = get_blocks(m, l, tsupp, ineq_cons, eq_cons, basis, TS=TS, SO=SO, merge=merge, md=md, QUIET=QUIET)
+    blocks,cl,blocksize,eblocks = get_blocks(m, l, tsupp, ineq_cons, eq_cons, basis, TS=TS, eqTS=eqTS, SO=SO, merge=merge, md=md, QUIET=QUIET)
     pol = nonneg
     pos = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, 1+m)
     pos[1] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[1])
     for i = 1:cl[1]
         bs = blocksize[1][i]
-        if bs == 1
-            pos[1][i] = @variable(model, lower_bound=0)
-            pol -= basis[1][blocks[1][i][1]]^2 * pos[1][i]
-        else
-            pos[1][i] = @variable(model, [1:bs, 1:bs], PSD)
-            pol -= sum(basis[1][blocks[1][i][j]] * pos[1][i][j,k] * basis[1][blocks[1][i][k]] for j = 1:bs, k = 1:bs)
-        end
+        pos[1][i] = @variable(model, [1:bs, 1:bs], PSD)
+        pol -= sum(basis[1][blocks[1][i][j]] * pos[1][i][j,k] * basis[1][blocks[1][i][k]] for j = 1:bs, k = 1:bs)
     end
     for k = 1:m
         pos[k+1] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[k+1])
         for i = 1:cl[k+1]
             bs = blocksize[k+1][i]
-            if bs == 1
-                pos[k+1][i] = @variable(model, lower_bound=0)
-                pol -= basis[k+1][blocks[k+1][i][1]]^2 * pos[k+1][i] * ineq_cons[k]
-            else
-                pos[k+1][i] = @variable(model, [1:bs, 1:bs], PSD)
-                pol -= sum(basis[k+1][blocks[k+1][i][j]] * pos[k+1][i][j,r] * basis[k+1][blocks[k+1][i][r]] for j = 1:bs, r = 1:bs) * ineq_cons[k]
-            end
+            pos[k+1][i] = @variable(model, [1:bs, 1:bs], PSD)
+            pol -= sum(basis[k+1][blocks[k+1][i][j]] * pos[k+1][i][j,r] * basis[k+1][blocks[k+1][i][r]] for j = 1:bs, r = 1:bs) * ineq_cons[k]
         end
     end
     mul = nothing
@@ -88,17 +79,13 @@ function add_psatz_cheby!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; 
     return info
 end
 
-function get_blocks(m::Int, l::Int, tsupp, ineq_cons, eq_cons, basis::Vector{ChebyshevBasisFirstKind{Poly{Float64}}}; TS="block", SO=1, merge=false, md=3, QUIET=false)
+function get_blocks(m::Int, l::Int, tsupp, ineq_cons, eq_cons, basis::Vector{ChebyshevBasisFirstKind{Poly{Float64}}}; TS="block", eqTS=TS, SO=1, merge=false, md=3, QUIET=false)
     blocks = Vector{Vector{Vector{Int}}}(undef, m+1)
-    eblocks = Vector{Vector{Int}}(undef, l)
     blocksize = Vector{Vector{Int}}(undef, m+1)
     cl = Vector{Int}(undef, m+1)
     if TS == false
         for k = 1:m+1
             blocks[k],blocksize[k],cl[k] = [Vector(1:length(basis[k]))],[length(basis[k])],1       
-        end
-        for k = 1:l
-            eblocks[k] = Vector(1:length(basis[k+m+1]))
         end
     else
         for i = 1:SO
@@ -123,8 +110,8 @@ function get_blocks(m::Int, l::Int, tsupp, ineq_cons, eq_cons, basis::Vector{Che
                     end
                 end
             end
-            for k = 1:l
-                eblocks[k] = get_eblock(tsupp, eq_cons[k], basis[k+m+1])
+            if eqTS != false
+                eblocks = [get_eblock(tsupp, eq_cons[k], basis[k+m+1]) for k = 1:l]
             end
             if i > 1 && blocksize == oblocksize && eblocks == oeblocks
                 println("No higher TS step of the TSSOS hierarchy!")
@@ -139,6 +126,9 @@ function get_blocks(m::Int, l::Int, tsupp, ineq_cons, eq_cons, basis::Vector{Che
                 sort!(tsupp)
             end
         end
+    end
+    if eqTS == false
+        eblocks = [Vector(1:length(basis[k+m+1])) for k = 1:l]
     end
     return blocks,cl,blocksize,eblocks
 end

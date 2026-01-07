@@ -34,7 +34,7 @@ mutable struct cpop_data
 end
 
 """
-    opt,sol,data = complex_cs_tssos(pop, z, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", reducebasis=false, 
+    opt,sol,data = complex_cs_tssos(pop, z, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", eqTS=TS, reducebasis=false, 
     merge=false, md=3, QUIET=false, solve=true, solution=false, dualize=false, Gram=false, MomentOne=false, ConjugateBasis=false, 
     normality=!ConjugateBasis, mosek_setting=mosek_para(), model=nothing, rtol=1e-2, gtol=1e-2, ftol=1e-3)
 
@@ -54,6 +54,7 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `CS`: method of chordal extension for correlative sparsity (`"MF"`, `"MD"`, `false`)
 - `cliques`: the set of cliques used in correlative sparsity
 - `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
+- `eqTS`: type of term sparsity for equality constraints (by default the same as `TS`, `false`)
 - `md`: tunable parameter for merging blocks
 - `normality`: normal order
 - `QUIET`: run in the quiet mode (`true`, `false`)
@@ -66,34 +67,34 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function complex_cs_tssos(pop::Vector{Poly{T}}, z, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], TS="block", 
+function complex_cs_tssos(pop::Vector{Poly{T}}, z, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], TS="block", eqTS=TS, 
     merge=false, md=3, reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, 
     ConjugateBasis=false, Gram=false, mosek_setting=mosek_para(), model=nothing, writetofile=false, normality=!ConjugateBasis, 
     rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     npop = [cpoly(p, z) for p in pop]
-    return complex_cs_tssos(npop, length(z), d, numeq=numeq, RemSig=RemSig, nb=nb, CS=CS, cliques=cliques, TS=TS, merge=merge, 
+    return complex_cs_tssos(npop, length(z), d, numeq=numeq, RemSig=RemSig, nb=nb, CS=CS, cliques=cliques, TS=TS, eqTS=eqTS, merge=merge, 
     md=md, reducebasis=reducebasis, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, ConjugateBasis=ConjugateBasis, 
     Gram=Gram, mosek_setting=mosek_setting, model=model, writetofile=writetofile, normality=normality, pop=pop, z=z, rtol=rtol, gtol=gtol, ftol=ftol)
 end
 
-function complex_tssos(pop::Vector{Poly{T}}, z, d; numeq=0, RemSig=false, nb=0, TS="block", 
+function complex_tssos(pop::Vector{Poly{T}}, z, d; numeq=0, RemSig=false, nb=0, TS="block", eqTS=TS, 
     merge=false, md=3, reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, 
     ConjugateBasis=false, Gram=false, mosek_setting=mosek_para(), model=nothing, writetofile=false, normality=!ConjugateBasis, 
     rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
-    return complex_cs_tssos(pop, z, d, numeq=numeq, RemSig=RemSig, nb=nb, CS=false, TS=TS, merge=merge, md=md, reducebasis=reducebasis, 
+    return complex_cs_tssos(pop, z, d, numeq=numeq, RemSig=RemSig, nb=nb, CS=false, TS=TS, eqTS=eqTS, merge=merge, md=md, reducebasis=reducebasis, 
     QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, ConjugateBasis=ConjugateBasis, Gram=Gram, mosek_setting=mosek_setting, 
     model=model, writetofile=writetofile, normality=normality, rtol=rtol, gtol=gtol, ftol=ftol)
 end
 
 """
-    opt,sol,data = complex_cs_tssos(npop::Vector{cpoly{T}}, n, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", merge=false, md=3, 
+    opt,sol,data = complex_cs_tssos(npop::Vector{cpoly{T}}, n, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", eqTS=TS, merge=false, md=3, 
     solution=false, dualize=false, QUIET=false, solve=true, Gram=false, MomentOne=false, normality=!ConjugateBasis, mosek_setting=mosek_para(), 
     model=nothing, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained complex polynomial optimization. 
 """
 function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], 
-    TS="block", merge=false, md=3, reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, ConjugateBasis=false, 
+    TS="block", eqTS=TS, merge=false, md=3, reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, ConjugateBasis=false, 
     Gram=false, mosek_setting=mosek_para(), model=nothing, writetofile=false, normality=!ConjugateBasis, pop=nothing, z=nothing, 
     rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
@@ -206,7 +207,7 @@ function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=fal
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,cl,blocksize,eblocks = get_blocks(I, J, ineq_cons, eq_cons, cliques, cql, tsupp, basis, ebasis, TS=TS, merge=merge, md=md, nb=nb)
+    blocks,cl,blocksize,eblocks = get_blocks(I, J, ineq_cons, eq_cons, cliques, cql, tsupp, basis, ebasis, TS=TS, eqTS=eqTS, merge=merge, md=md, nb=nb)
     if RemSig == true
         for i = 1:cql
             basis[i][1] = basis[i][1][union(blocks[i][1][blocksize[i][1] .> 1]...)]
@@ -214,7 +215,7 @@ function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=fal
         tsupp = filter(item -> item[1] <= item[2], vcat([p.supp for p in npop]...))
         sort!(tsupp)
         unique!(tsupp)
-        blocks,cl,blocksize,eblocks = get_blocks(I, J, ineq_cons, eq_cons, cliques, cql, tsupp, basis, ebasis, TS=TS, merge=merge, md=md, nb=nb)
+        blocks,cl,blocksize,eblocks = get_blocks(I, J, ineq_cons, eq_cons, cliques, cql, tsupp, basis, ebasis, TS=TS, eqTS=eqTS, merge=merge, md=md, nb=nb)
     end
     if reducebasis == true
         tsupp = get_csupp(rlorder, basis, ebasis, ineq_cons, eq_cons, I, J, Iprime, Jprime, blocks, eblocks, cl, blocksize, cql, cliquesize, norm=true, nb=nb, ConjugateBasis=ConjugateBasis, normality=normality)
@@ -233,7 +234,7 @@ function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=fal
             tsupp = filter(item -> item[1] <= item[2], vcat([p.supp for p in npop]...))
             sort!(tsupp)
             unique!(tsupp)
-            blocks,cl,blocksize,eblocks = get_blocks(I, J, ineq_cons, eq_cons, cliques, cql, tsupp, basis, ebasis, TS=TS, nb=nb, merge=merge, md=md)
+            blocks,cl,blocksize,eblocks = get_blocks(I, J, ineq_cons, eq_cons, cliques, cql, tsupp, basis, ebasis, TS=TS, eqTS=eqTS, nb=nb, merge=merge, md=md)
         end
     end
     end
@@ -291,12 +292,12 @@ function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=fal
 end
 
 """
-    opt,sol,data = complex_cs_tssos(data; TS="block", merge=false, md=3, QUIET=false, solve=true, dualize=false, solution=false, 
+    opt,sol,data = complex_cs_tssos(data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, dualize=false, solution=false, 
     Gram=false, MomentOne=false, mosek_setting=mosek_para(), model=nothing)
 
 Compute higher TS steps of the CS-TSSOS hierarchy.
 """
-function complex_cs_tssos(data::cpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
+function complex_cs_tssos(data::cpop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
     MomentOne=false, mosek_setting=mosek_para(), model=nothing, writetofile=false)
     obj = data.obj
     eq_cons = data.eq_cons
@@ -315,7 +316,7 @@ function complex_cs_tssos(data::cpop_data; TS="block", merge=false, md=3, QUIET=
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,cl,blocksize,eblocks = get_blocks(I, J, ineq_cons, eq_cons, cliques, cql, data.ksupp, basis, ebasis, TS=TS, merge=merge, md=md, nb=nb)
+    blocks,cl,blocksize,eblocks = get_blocks(I, J, ineq_cons, eq_cons, cliques, cql, data.ksupp, basis, ebasis, TS=TS, eqTS=eqTS, merge=merge, md=md, nb=nb)
     end
     if blocksize == data.blocksize && eblocks == data.eblocks
         println("No higher TS step of the CS-TSSOS hierarchy!")
@@ -372,9 +373,9 @@ function complex_cs_tssos(data::cpop_data; TS="block", merge=false, md=3, QUIET=
     return opt,sol,data
 end
 
-function complex_tssos(data::cpop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
+function complex_tssos(data::cpop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
     MomentOne=false, mosek_setting=mosek_para(), model=nothing, writetofile=false)
-    return complex_cs_tssos(data, TS=TS, merge=merge, md=md, QUIET=QUIET, solve=solve, solution=solution, Gram=Gram, dualize=dualize, 
+    return complex_cs_tssos(data, TS=TS, eqTS=eqTS, merge=merge, md=md, QUIET=QUIET, solve=solve, solution=solution, Gram=Gram, dualize=dualize, 
     MomentOne=MomentOne, mosek_setting=mosek_setting, model=model, writetofile=writetofile)
 end
 
@@ -738,17 +739,13 @@ function get_eblock(tsupp::Vector{Tuple{Vector{UInt16},Vector{UInt16}}}, hsupp::
     return eblock
 end
 
-function get_blocks(tsupp, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, basis, ebasis; nb=0, TS="block", merge=false, md=3) where {T1,T2<:cpoly}
+function get_blocks(tsupp, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, basis, ebasis; nb=0, TS="block", eqTS=TS, merge=false, md=3) where {T1,T2<:cpoly}
     blocks = Vector{Vector{Vector{Int}}}(undef, length(ineq_cons))
     blocksize = Vector{Vector{Int}}(undef, length(ineq_cons))
     cl = Vector{Int}(undef, length(ineq_cons))
-    eblocks = Vector{Vector{Int}}(undef, length(eq_cons))
     if TS == false
         for k = 1:length(ineq_cons) 
             blocks[k],blocksize[k],cl[k] = [Vector(1:length(basis[k]))],[length(basis[k])],1
-        end
-        for k = 1:length(eq_cons)
-            eblocks[k] = Vector(1:length(ebasis[k]))
         end
     else
         for (k, p) in enumerate(ineq_cons)
@@ -764,21 +761,23 @@ function get_blocks(tsupp, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, basis, eb
                 end
             end
         end
-        for (k, p) in enumerate(eq_cons)
-            eblocks[k] = get_eblock(tsupp, p.supp, ebasis[k], nb=nb)
-        end
+    end
+    if eqTS != false
+        eblocks = [get_eblock(tsupp, p.supp, ebasis[k], nb=nb) for (k, p) in enumerate(eq_cons)]
+    else
+        eblocks = [Vector(1:length(ebasis[k])) for k = 1:length(eq_cons)]
     end
     return blocks,cl,blocksize,eblocks
 end
 
-function get_blocks(I, J, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, cliques, cql, tsupp, basis, ebasis; TS="block", nb=0, merge=false, md=3) where {T1,T2<:cpoly}
+function get_blocks(I, J, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, cliques, cql, tsupp, basis, ebasis; TS="block", eqTS=TS, nb=0, merge=false, md=3) where {T1,T2<:cpoly}
     blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
     cl = Vector{Vector{Int}}(undef, cql)
     blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
     eblocks = Vector{Vector{Vector{Int}}}(undef, cql)
     for i = 1:cql
         ksupp = TS == false ? nothing : tsupp[[issubset(union(item[1], item[2]), cliques[i]) for item in tsupp]]
-        blocks[i],cl[i],blocksize[i],eblocks[i] = get_blocks(ksupp, ineq_cons[I[i]], eq_cons[J[i]], basis[i], ebasis[i], TS=TS, merge=merge, md=md, nb=nb)
+        blocks[i],cl[i],blocksize[i],eblocks[i] = get_blocks(ksupp, ineq_cons[I[i]], eq_cons[J[i]], basis[i], ebasis[i], TS=TS, eqTS=eqTS, merge=merge, md=md, nb=nb)
     end
     return blocks,cl,blocksize,eblocks
 end

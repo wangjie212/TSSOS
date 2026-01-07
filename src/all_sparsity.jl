@@ -49,7 +49,7 @@ function show_blocks(data::spop_data; include_constraints=false)
 end
 
 """
-    opt,sol,data = cs_tssos(pop, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", merge=false, md=3, 
+    opt,sol,data = cs_tssos(pop, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", eqTS=TS, merge=false, md=3, 
     dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, mosek_setting=mosek_para(), model=nothing, 
     rtol=1e-2, gtol=1e-2, ftol=1e-3)
 
@@ -68,6 +68,7 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `CS`: method of chordal extension for correlative sparsity (`"MF"`, `"MD"`, `"NC"`, `false`)
 - `cliques`: the set of cliques used in correlative sparsity
 - `TS`: type of term sparsity (`"block"`, `"signsymmetry"`, `"MD"`, `"MF"`, `false`)
+- `eqTS`: type of term sparsity for equality constraints (by default the same as `TS`, `false`)
 - `md`: tunable parameter for merging blocks
 - `QUIET`: run in the quiet mode (`true`, `false`)
 - `rtol`: tolerance for rank
@@ -79,7 +80,7 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `sol`: (near) optimal solution (if `solution=true`)
 - `data`: other auxiliary data 
 """
-function cs_tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", merge=false, md=3,
+function cs_tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", eqTS=TS, merge=false, md=3,
     dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, mosek_setting=mosek_para(), model=nothing, 
     writetofile=false, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     if nb > 0
@@ -87,20 +88,20 @@ function cs_tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, CS="MF", cliques=[]
     end
     npop = [poly(p, x) for p in pop]
     opt,sol,data = cs_tssos(npop, length(x), d, numeq=numeq, nb=nb, CS=CS, cliques=cliques, basis=basis, ebasis=ebasis, TS=TS,
-    merge=merge, md=md, QUIET=QUIET, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
+    eqTS=eqTS, merge=merge, md=md, QUIET=QUIET, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
     mosek_setting=mosek_setting, model=model, writetofile=writetofile, rtol=rtol, gtol=gtol, ftol=ftol, pop=pop, x=x)
     return opt,sol,data
 end
 
 """
     opt,sol,data = cs_tssos(npop::Vector{poly{T}}, n, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", 
-    merge=false, md=3, QUIET=false, dualize=false, solve=true, solution=false, Gram=false, MomentOne=false, mosek_setting=mosek_para(), 
+    eqTS=TS, merge=false, md=3, QUIET=false, dualize=false, solve=true, solution=false, Gram=false, MomentOne=false, mosek_setting=mosek_para(), 
     model=nothing, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained polynomial optimization. 
 """
 function cs_tssos(npop::Vector{poly{T}}, n, d; numeq=0, nb=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", 
-    merge=false, md=3, QUIET=false, dualize=false, solve=true, solution=false, MomentOne=false, Gram=false, 
+    eqTS=TS, merge=false, md=3, QUIET=false, dualize=false, solve=true, solution=false, MomentOne=false, Gram=false, 
     mosek_setting=mosek_para(), model=nothing, writetofile=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, pop=nothing, x=nothing) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
@@ -157,10 +158,10 @@ function cs_tssos(npop::Vector{poly{T}}, n, d; numeq=0, nb=0, CS="MF", cliques=[
     end    
     time = @elapsed begin
     ss = nothing
-    if TS == "signsymmetry"
+    if TS == "signsymmetry" || eqTS == "signsymmetry"
         ss = get_signsymmetry(npop, n)
     end
-    blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, I, J, cliques, cql, ksupp, basis, ebasis, nb=nb, TS=TS, merge=merge, md=md, signsymmetry=ss)
+    blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, I, J, cliques, cql, ksupp, basis, ebasis, nb=nb, TS=TS, eqTS=eqTS, merge=merge, md=md, signsymmetry=ss)
     end
     if QUIET == false
         mb = maximum(maximum.([maximum.(blocksize[i]) for i = 1:cql]))
@@ -196,12 +197,12 @@ function cs_tssos(npop::Vector{poly{T}}, n, d; numeq=0, nb=0, CS="MF", cliques=[
 end
 
 """
-    opt,sol,data = cs_tssos(data; TS="block", merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
+    opt,sol,data = cs_tssos(data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
     MomentOne=false, mosek_setting=mosek_para(), model=nothing)
 
 Compute higher TS steps of the CS-TSSOS hierarchy.
 """
-function cs_tssos(data::spop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
+function cs_tssos(data::spop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
     MomentOne=false, mosek_setting=mosek_para(), model=nothing, writetofile=false)
     obj = data.obj
     ineq_cons = data.ineq_cons
@@ -218,7 +219,7 @@ function cs_tssos(data::spop_data; TS="block", merge=false, md=3, QUIET=false, s
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, data.I, data.J, cliques, cql, data.ksupp, basis, ebasis, nb=nb, TS=TS, merge=merge, md=md)
+    blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, data.I, data.J, cliques, cql, data.ksupp, basis, ebasis, nb=nb, TS=TS, eqTS=eqTS, merge=merge, md=md)
     end
     if blocksize == data.blocksize && eblocks == data.eblocks
         println("No higher TS step of the CS-TSSOS hierarchy!")
@@ -422,7 +423,7 @@ function solvesdp(obj::poly{T}, ineq_cons::Vector{poly{T}}, eq_cons::Vector{poly
     return objv,ksupp,momone,moment,GramMat,multiplier,SDP_status
 end
 
-function get_blocks(ineq_cons::Vector{poly{T}}, eq_cons::Vector{poly{T}}, I, J, cliques, cql, tsupp, basis, ebasis; TS="block", nb=0, merge=false, md=3, signsymmetry=nothing) where {T<:Number}
+function get_blocks(ineq_cons::Vector{poly{T}}, eq_cons::Vector{poly{T}}, I, J, cliques, cql, tsupp, basis, ebasis; TS="block", eqTS=TS, nb=0, merge=false, md=3, signsymmetry=nothing) where {T<:Number}
     blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
     cl = Vector{Vector{Int}}(undef, cql)
     blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
@@ -430,7 +431,7 @@ function get_blocks(ineq_cons::Vector{poly{T}}, eq_cons::Vector{poly{T}}, I, J, 
     for i = 1:cql
         ksupp = (TS == false || TS == "signsymmetry") ? nothing : tsupp[[issubset(item, cliques[i]) for item in tsupp]]
         blocks[i],cl[i],blocksize[i],eblocks[i] = get_blocks(ineq_cons[I[i]], eq_cons[J[i]], ksupp, basis[i],
-        ebasis[i], TS=TS, nb=nb, QUIET=true, merge=merge, md=md, signsymmetry=signsymmetry)
+        ebasis[i], TS=TS, eqTS=eqTS, nb=nb, QUIET=true, merge=merge, md=md, signsymmetry=signsymmetry)
     end
     return blocks,cl,blocksize,eblocks
 end

@@ -45,7 +45,7 @@ end
 
 """
     opt,sol,data = tssos(pop, x, d; nb=0, numeq=0, GroebnerBasis=true, basis=[], reducebasis=false, TS="block", 
-    merge=false, md=3, QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, model=nothing,
+    eqTS=TS, merge=false, md=3, QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, model=nothing,
     mosek_setting=mosek_para(), normality=false, rtol=1e-2, gtol=1e-2, ftol=1e-3)
 
 Compute the first TS step of the TSSOS hierarchy for constrained polynomial optimization.
@@ -63,6 +63,7 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `nb`: number of binary variables in `x`
 - `numeq`: number of equality constraints
 - `TS`: type of term sparsity (`"block"`, `"signsymmetry"`, `"MD"`, `"MF"`, `false`)
+- `eqTS`: type of term sparsity for equality constraints (by default the same as `TS`, `false`)
 - `md`: tunable parameter for merging blocks
 - `normality`: impose the normality condtions (`true`, `false`)
 - `QUIET`: run in the quiet mode (`true`, `false`)
@@ -76,7 +77,7 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `data`: other auxiliary data 
 """
 function tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, newton=false, feasibility=false, GroebnerBasis=false, basis=[], reducebasis=false, TS="block", 
-    merge=false, md=3, QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, normality=false, mosek_setting=mosek_para(), 
+    eqTS=TS, merge=false, md=3, QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, normality=false, mosek_setting=mosek_para(), 
     writetofile=false, model=nothing, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
@@ -108,7 +109,7 @@ function tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, newton=false, feasibil
     end
     ineq_cons = [poly{T}([UInt16[]], [1]); [poly(p, x) for p in pop[2:end-numeq]]]
     ss = nothing
-    if normality == true || TS == "signsymmetry"
+    if normality == true || TS == "signsymmetry" || eqTS == "signsymmetry"
         ss = get_signsymmetry([obj; ineq_cons; eq_cons], n)
     end
     if isempty(basis)
@@ -136,7 +137,7 @@ function tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, newton=false, feasibil
         unique!(ksupp)
     end
     time = @elapsed begin
-    blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, ksupp, basis, ebasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, signsymmetry=ss)
+    blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, ksupp, basis, ebasis, nb=nb, TS=TS, eqTS=eqTS, QUIET=QUIET, merge=merge, md=md, signsymmetry=ss)
     if reducebasis == true && GroebnerBasis == false
         csupp = get_csupp(ineq_cons, eq_cons, basis, ebasis, blocks, eblocks, cl, blocksize, nb=nb)
         psupp = [obj.supp; [UInt16[]]; csupp]
@@ -148,7 +149,7 @@ function tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, newton=false, feasibil
             end
             sort!(ksupp)
             unique!(ksupp)
-            blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, ksupp, basis, ebasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md, signsymmetry=ss)
+            blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, ksupp, basis, ebasis, nb=nb, TS=TS, eqTS=eqTS, QUIET=QUIET, merge=merge, md=md, signsymmetry=ss)
         end
     end
     end
@@ -219,12 +220,12 @@ function tssos(f::Poly{T}, x; newton=true, reducebasis=false, TS="block", merge=
 end
 
 """
-    opt,sol,data = tssos(data; TS="block", merge=false, md=3, QUIET=false, solve=true, feasibility=false, dualize=false, Gram=false,
+    opt,sol,data = tssos(data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, feasibility=false, dualize=false, Gram=false,
     MomentOne=false, normality=false, solution=false, mosek_setting=mosek_para(), model=nothing)
 
 Compute higher TS steps of the TSSOS hierarchy.
 """
-function tssos(data::pop_data; TS="block", merge=false, md=3, QUIET=false, solve=true, feasibility=false, dualize=false, MomentOne=false, Gram=false,
+function tssos(data::pop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, feasibility=false, dualize=false, MomentOne=false, Gram=false,
     solution=false, normality=false, mosek_setting=mosek_para(), model=nothing, writetofile=false)
     obj = data.obj
     ineq_cons = data.ineq_cons
@@ -242,7 +243,7 @@ function tssos(data::pop_data; TS="block", merge=false, md=3, QUIET=false, solve
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, ksupp, basis, ebasis, nb=nb, TS=TS, QUIET=QUIET, merge=merge, md=md)
+    blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, ksupp, basis, ebasis, nb=nb, TS=TS, eqTS=eqTS, QUIET=QUIET, merge=merge, md=md)
     end
     if blocksize == data.blocksize && eblocks == data.eblocks
         println("No higher TS step of the TSSOS hierarchy!")
@@ -341,11 +342,11 @@ function reducebasis!(supp, basis, blocks, cl, blocksize; nb=0)
     end
 end
 
-function get_graph(tsupp, supp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0, signsymmetry=nothing)
+function get_graph(tsupp, supp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0, TS="block", signsymmetry=nothing)
     lb = length(basis)
     G = SimpleGraph(lb)
     for i = 1:lb, j = i+1:lb
-        if signsymmetry === nothing
+        if TS != "signsymmetry"
             ind = findfirst(item -> bfind(tsupp, sadd(basis[i], item, basis[j], nb=nb)) !== nothing, supp)
             if ind !== nothing
                 add_edge!(G, i, j)
@@ -381,7 +382,7 @@ function get_eblock(tsupp, hsupp, basis::Vector{Vector{UInt16}}; nb=0, signsymme
     return eblock
 end
 
-function get_blocks(ineq_cons::Vector{poly{T}}, eq_cons::Vector{poly{T}}, tsupp, basis, ebasis; nb=0, TS="block", QUIET=true, merge=false, md=3, signsymmetry=nothing) where {T<:Number}
+function get_blocks(ineq_cons::Vector{poly{T}}, eq_cons::Vector{poly{T}}, tsupp, basis, ebasis; nb=0, TS="block", eqTS=TS, QUIET=true, merge=false, md=3, signsymmetry=nothing) where {T<:Number}
     blocks = Vector{Vector{Vector{Int}}}(undef, length(ineq_cons))
     blocksize = Vector{Vector{Int}}(undef, length(ineq_cons))
     cl = Vector{Int}(undef, length(ineq_cons))
@@ -389,10 +390,9 @@ function get_blocks(ineq_cons::Vector{poly{T}}, eq_cons::Vector{poly{T}}, tsupp,
         for k = 1:length(ineq_cons)
             blocks[k],blocksize[k],cl[k] = [Vector(1:length(basis[k]))],[length(basis[k])],1
         end
-        eblocks = [Vector(1:length(ebasis[k])) for k = 1:length(eq_cons)]
     else
         for k = 1:length(ineq_cons)
-            G = get_graph(tsupp, ineq_cons[k].supp, basis[k], nb=nb, signsymmetry=signsymmetry)
+            G = get_graph(tsupp, ineq_cons[k].supp, basis[k], nb=nb, TS=TS, signsymmetry=signsymmetry)
             if TS == true || TS == "block" || TS == "signsymmetry"
                 blocks[k] = connected_components(G)
                 blocksize[k] = length.(blocks[k])
@@ -412,10 +412,11 @@ function get_blocks(ineq_cons::Vector{poly{T}}, eq_cons::Vector{poly{T}}, tsupp,
                 println("-----------------------------------------------------------------------------")
             end
         end
-        eblocks = Vector{Vector{Int}}(undef, length(eq_cons))
-        for k = 1:length(eq_cons)
-            eblocks[k] = get_eblock(tsupp, eq_cons[k].supp, ebasis[k], nb=nb, signsymmetry=signsymmetry)
-        end
+    end
+    if eqTS != false
+        eblocks = [get_eblock(tsupp, eq_cons[k].supp, ebasis[k], nb=nb, signsymmetry=signsymmetry) for k = 1:length(eq_cons)]
+    else
+        eblocks = [Vector(1:length(ebasis[k])) for k = 1:length(eq_cons)]
     end
     return blocks,cl,blocksize,eblocks
 end

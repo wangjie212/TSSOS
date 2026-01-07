@@ -40,7 +40,7 @@ function SymbolicWedderburn.decompose(
 end
 
 """
-    opt,data = tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, TS="block", QUIET=false)
+    opt,data = tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, TS="block", eqTS=TS, QUIET=false)
 
 Compute the symmetry adapted moment-SOS relaxation for polynomial optimization problems.
 
@@ -54,6 +54,7 @@ Compute the symmetry adapted moment-SOS relaxation for polynomial optimization p
 - `DiagSquare`: include diagonal squares in the support (`true`, `false`)
 - `SymmetricConstraint`: whether the constraints are symmetric or not
 - `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
+- `eqTS`: type of term sparsity for equality constraints (by default the same as `TS`, `false`)
 - `QUIET`: run in the quiet mode (`true`, `false`)
 
 # Output arguments
@@ -61,7 +62,7 @@ Compute the symmetry adapted moment-SOS relaxation for polynomial optimization p
 - `data`: other auxiliary data 
 """
 function tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, 
-    TS="block", QUIET=false, merge=false, md=3, dualize=false, mosek_setting=mosek_para(), model=nothing)
+    TS="block", eqTS=TS, QUIET=false, merge=false, md=3, dualize=false, mosek_setting=mosek_para(), model=nothing)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     obj = poly(pop[1], x)
@@ -132,7 +133,7 @@ function tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=fa
         unique!(tsupp)
         sort!(tsupp)
     end
-    blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, tsupp, basis, ebasis, group, action[2], TS=TS, merge=merge, md=md)
+    blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, tsupp, basis, ebasis, group, action[2], TS=TS, eqTS=eqTS, merge=merge, md=md)
     end
     if QUIET == false
         mb = maximum(maximum.(blocksize[1]))
@@ -146,7 +147,7 @@ function tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=fa
 end
 
 """
-    opt,data = complex_tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, ConjugateBasis=false, TS="block", QUIET=false)
+    opt,data = complex_tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, ConjugateBasis=false, TS="block", eqTS=TS, QUIET=false)
 
 Compute the symmetry adapted moment-HSOS relaxation for complex polynomial optimization problems.
 
@@ -160,6 +161,7 @@ Compute the symmetry adapted moment-HSOS relaxation for complex polynomial optim
 - `DiagSquare`: include diagonal squares in the support (`true`, `false`)
 - `SymmetricConstraint`: whether the constraints are symmetric or not
 - `TS`: type of term sparsity (`"block"`, `"MD"`, `"MF"`, `false`)
+- `eqTS`: type of term sparsity for equality constraints (by default the same as `TS`, `false`)
 - `QUIET`: run in the quiet mode (`true`, `false`)
 
 # Output arguments
@@ -167,7 +169,7 @@ Compute the symmetry adapted moment-HSOS relaxation for complex polynomial optim
 - `data`: other auxiliary data 
 """
 function complex_tssos_symmetry(pop::Vector{Poly{T}}, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, 
-    SymmetricConstraint=true, ConjugateBasis=false, TS="block", QUIET=false, merge=false, md=3, dualize=false, mosek_setting=mosek_para(), model=nothing) where {T<:Number}
+    SymmetricConstraint=true, ConjugateBasis=false, TS="block", eqTS=TS, QUIET=false, merge=false, md=3, dualize=false, mosek_setting=mosek_para(), model=nothing) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     obj = cpoly(pop[1], x)
@@ -255,7 +257,7 @@ function complex_tssos_symmetry(pop::Vector{Poly{T}}, x, d, group; numeq=0, acti
         unique!(tsupp)
         sort!(tsupp)
     end
-    blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, tsupp, basis, ebasis, group, action[2], TS=TS, merge=merge, md=md, field="complex")
+    blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, tsupp, basis, ebasis, group, action[2], TS=TS, eqTS=eqTS, merge=merge, md=md, field="complex")
     end
     if QUIET == false
         mb = maximum(maximum.(blocksize[1]))
@@ -268,7 +270,7 @@ function complex_tssos_symmetry(pop::Vector{Poly{T}}, x, d, group; numeq=0, acti
     return optimum,data
 end
 
-function tssos_symmetry(data::polybasis_data; TS="block", merge=false, md=3, QUIET=false, dualize=false, field="real", mosek_setting=mosek_para(), model=nothing)
+function tssos_symmetry(data::polybasis_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, dualize=false, field="real", mosek_setting=mosek_para(), model=nothing)
     eq_cons = data.eq_cons
     ineq_cons = data.ineq_cons
     group = data.group
@@ -280,7 +282,7 @@ function tssos_symmetry(data::polybasis_data; TS="block", merge=false, md=3, QUI
         println("Starting to compute the block structure...")
     end
     time = @elapsed begin
-    blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, ksupp, basis, ebasis, group, action, TS=TS, merge=merge, md=md, field=field)
+    blocks,cl,blocksize,eblocks = get_blocks(ineq_cons, eq_cons, ksupp, basis, ebasis, group, action, TS=TS, eqTS=eqTS, merge=merge, md=md, field=field)
     end
     if blocksize == data.blocksize && eblocks == data.eblocks
         println("No higher TS step of the TSSOS hierarchy!")
@@ -303,8 +305,8 @@ function tssos_symmetry(data::polybasis_data; TS="block", merge=false, md=3, QUI
     return opt,data
 end
 
-function complex_tssos_symmetry(data::polybasis_data; TS="block", merge=false, md=3, QUIET=false, dualize=false, mosek_setting=mosek_para(), model=nothing)
-    return tssos_symmetry(data, TS=TS, merge=merge, md=md, QUIET=QUIET, dualize=dualize, field="complex", mosek_setting=mosek_setting, model=model)
+function complex_tssos_symmetry(data::polybasis_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, dualize=false, mosek_setting=mosek_para(), model=nothing)
+    return tssos_symmetry(data, TS=TS, eqTS=eqTS, merge=merge, md=md, QUIET=QUIET, dualize=dualize, field="complex", mosek_setting=mosek_setting, model=model)
 end
 
 function solvesdp(obj::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action; QUIET=false, coe_type=Float64, dualize=false, mosek_setting=mosek_para(), model=nothing)
@@ -611,7 +613,7 @@ function solvesdp(obj::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
 end
 
 function get_blocks(ineq_cons, eq_cons, tsupp, basis::Vector{Vector{Vector{T}}}, ebasis::Vector{Vector{T}}, group, action;
-     TS="block", merge=false, md=3, field="real") where {T <: Union{poly,cpoly}}
+     TS="block", eqTS=TS, merge=false, md=3, field="real") where {T <: Union{poly,cpoly}}
     blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, length(ineq_cons))
     blocksize = Vector{Vector{Vector{Int}}}(undef, length(ineq_cons))
     cl = Vector{Vector{Int}}(undef, length(ineq_cons))
@@ -619,7 +621,6 @@ function get_blocks(ineq_cons, eq_cons, tsupp, basis::Vector{Vector{Vector{T}}},
         for (k,item) in enumerate(basis)
             blocks[k],blocksize[k],cl[k] = [[Vector(1:length(bas))] for bas in item],[[length(bas)] for bas in item],ones(Int, length(item))
         end
-        eblocks = [Vector(1:length(bas)) for bas in ebasis]
     else
         for (k, g) in enumerate(ineq_cons)
             blocks[k] = Vector{Vector{Vector{Int}}}(undef, length(basis[k]))
@@ -639,6 +640,10 @@ function get_blocks(ineq_cons, eq_cons, tsupp, basis::Vector{Vector{Vector{T}}},
                 end
             end
         end
+    end
+    if eqTS == false
+        eblocks = [Vector(1:length(bas)) for bas in ebasis]
+    else
         eblocks = [get_eblock(tsupp, h, ebasis[k], group, action) for (k, h) in enumerate(eq_cons)]
     end
     return blocks,cl,blocksize,eblocks
@@ -671,7 +676,7 @@ function get_eblock(tsupp, h, basis::Vector{T}, group, action) where {T <: Union
     return eblock
 end
 
-function add_psatz_symmetry!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order, group; action=nothing, semisimple=false, SymmetricConstraint=true, TS="block", SO=1, merge=false, md=3, QUIET=false) where {T<:Union{Number,AffExpr}}
+function add_psatz_symmetry!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order, group; action=nothing, semisimple=false, SymmetricConstraint=true, TS="block", eqTS=TS, SO=1, merge=false, md=3, QUIET=false) where {T<:Union{Number,AffExpr}}
     obj = poly(nonneg, x)
     ineq_cons = [poly([UInt16[]], [1]); [poly(p, x) for p in ineq_cons]]
     eq_cons = [poly(p, x) for p in eq_cons]
@@ -731,7 +736,7 @@ function add_psatz_symmetry!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, orde
         unique!(tsupp)
         sort!(tsupp)
     end
-    blocks,cl,blocksize,eblocks = get_nblocks(ineq_cons, eq_cons, tsupp, basis, ebasis, group, action[2], TS=TS, SO=SO, merge=merge, md=md)
+    blocks,cl,blocksize,eblocks = get_nblocks(ineq_cons, eq_cons, tsupp, basis, ebasis, group, action[2], TS=TS, eqTS=eqTS, SO=SO, merge=merge, md=md)
     tsupp = Vector{UInt16}[]
     if all(cl[1] .== 1)
         for (i, bas) in enumerate(basis[1]), j = 1:blocksize[1][i][1], t = j:blocksize[1][i][1]
@@ -796,7 +801,7 @@ function add_psatz_symmetry!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, orde
     return info
 end
 
-function get_nblocks(ineq_cons, eq_cons, tsupp, basis::Vector{Vector{Vector{poly}}}, ebasis::Vector{Vector{poly}}, group, action; TS="block", SO=1, merge=false, md=3)
+function get_nblocks(ineq_cons, eq_cons, tsupp, basis::Vector{Vector{Vector{poly}}}, ebasis::Vector{Vector{poly}}, group, action; TS="block", eqTS=TS, SO=1, merge=false, md=3)
     blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, length(ineq_cons))
     blocksize = Vector{Vector{Vector{Int}}}(undef, length(ineq_cons))
     cl = Vector{Vector{Int}}(undef, length(ineq_cons))
@@ -804,7 +809,6 @@ function get_nblocks(ineq_cons, eq_cons, tsupp, basis::Vector{Vector{Vector{poly
         for (k,item) in enumerate(basis)
             blocks[k],blocksize[k],cl[k] = [[Vector(1:length(bas))] for bas in item],[[length(bas)] for bas in item],ones(Int, length(item))
         end
-        eblocks = [Vector(1:length(bas)) for bas in ebasis]
     else
         for i = 1:SO
             if i > 1
@@ -829,7 +833,9 @@ function get_nblocks(ineq_cons, eq_cons, tsupp, basis::Vector{Vector{Vector{poly
                     end
                 end
             end
-            eblocks = [get_eblock(tsupp, h, ebasis[k], group, action) for (k, h) in enumerate(eq_cons)]
+            if eqTS != false
+                eblocks = [get_eblock(tsupp, h, ebasis[k], group, action) for (k, h) in enumerate(eq_cons)]
+            end
             if i > 1 && blocksize == oblocksize && eblocks == oeblocks
                 println("No higher TS step of the TSSOS hierarchy!")
                 break
@@ -843,6 +849,9 @@ function get_nblocks(ineq_cons, eq_cons, tsupp, basis::Vector{Vector{Vector{poly
                 sort!(tsupp)
             end
         end
+    end
+    if eqTS == false
+        eblocks = [Vector(1:length(bas)) for bas in ebasis]
     end
     return blocks,cl,blocksize,eblocks
 end

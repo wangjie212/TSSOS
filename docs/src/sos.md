@@ -47,6 +47,7 @@ Argument | Description | Default value
 CS | Types of chordal extensions in exploiting correlative sparsity: "MF" (approximately smallest chordal extension), "NC" (not performing chordal extension), false (invalidating correlative sparsity exploitation) | "MF"
 cliques | Use customized variable cliques | []
 TS | Types of chordal extensions used in term sparsity iterations: "block"(maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations) | "block"
+eqTS | Type of term sparsity for equality constraints: "block", "signsymmetry", false | **TS**
 QUIET | Silence the output| false
 SO | Specify the sparse order | 1
 GroebnerBasis | Work in the quotient ring by computing a Gröbner basis | false

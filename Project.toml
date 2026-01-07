@@ -1,6 +1,6 @@
 name = "TSSOS"
 uuid = "81648402-ffe6-11e9-2394-0de17a9afdad"
-version = "1.5.1"
+version = "1.5.2"
 authors = ["jwang <wangjie212@amss.ac.cn>"]
 
 [deps]

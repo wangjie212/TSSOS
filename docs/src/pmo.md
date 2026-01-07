@@ -31,8 +31,10 @@ x[1]*x[5] x[2]*x[5] x[5]^2 - x[3]*x[5] x[4]^2 - x[1]*x[3] x[5]^4]
 G = Vector{Matrix{Poly}}(undef, 2)
 G[1] = [1 - x[1]^2 - x[2]^2 x[2]*x[3]; x[2]*x[3] 1 - x[3]^2]
 G[2] = [1 - x[4]^2 x[4]*x[5]; x[4]*x[5] 1 - x[5]^2]
-@time opt,sol,data = tssos(F, G, x, 3, TS="MD") # compute the first TS step of the TSSOS hierarchy
-@time opt,sol,data = tssos(data, TS="MD") # compute higher TS steps of the TSSOS hierarchy
+opt,sol,data = tssos(F, G, x, 3, TS="MD") # compute the first TS step of the TSSOS hierarchy
+opt,sol,data = tssos(data, TS="MD") # compute higher TS steps of the TSSOS hierarchy
+opt,sol,data = cs_tssos(F, G, x, 3, TS="MD") # compute the first TS step of the CS-TSSOS hierarchy
+opt,sol,data = cs_tssos(data, TS="MD") # compute higher TS steps of the CS-TSSOS hierarchy
 ```
 
 ### Keyword arguments

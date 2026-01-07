@@ -28,6 +28,7 @@ GroebnerBasis | Work in the quotient ring by computing a Gröbner basis | true
 basis | Use customized monomial bases | []
 reducebasis | Reduce the monomial bases | false
 TS | Types of chordal extensions used in term sparsity iterations: "block"(maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity exploitation) | "block"
+eqTS | Type of term sparsity for equality constraints: "block", "signsymmetry", false | **TS**
 normality | Impose normality condtions | false
 merge | Merge overlapping PSD blocks | false
 md | Parameter for tunning the merging strength | 3
@@ -63,9 +64,10 @@ nb | Specify the first **nb** variables to be $\pm1$ binary variables | 0
 numeq | Specify the last **numeq** constraints to be equality constraints | 0
 CS | Types of chordal extensions in exploiting correlative sparsity: "MF" (approximately smallest chordal extension), "NC" (not performing chordal extension), false (invalidating correlative sparsity exploitation) | "MF"
 basis | Use customized monomial bases | []
-hbasis | Use customized monomial bases associated with equality constraints | []
+ebasis | Use customized monomial bases associated with equality constraints | []
 cliques | Use customized variable cliques | []
 TS | Types of chordal extensions used in term sparsity iterations: "block"(maximal chordal extension), "signsymmetry" (sign symmetries), "MD" (approximately smallest chordal extension), false (invalidating term sparsity iterations) | "block"
+eqTS | Type of term sparsity for equality constraints: "block", "signsymmetry", false | **TS**
 merge | Merge overlapping PSD blocks | false
 md | Parameter for tunning the merging strength | 3
 MomentOne | add a first-order moment PSD constraint for each variable clique | false

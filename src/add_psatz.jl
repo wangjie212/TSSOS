@@ -15,7 +15,7 @@ mutable struct sos_data
 end
 
 """
-    info = add_psatz!(model, nonneg, x, ineq_cons, eq_cons, order; CS=false, cliques=[], TS="block", 
+    info = add_psatz!(model, nonneg, x, ineq_cons, eq_cons, order; CS=false, cliques=[], TS="block", eqTS=TS, 
     SO=1, GroebnerBasis=false, QUIET=false, constrs=nothing)
 
 Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP `model`.
@@ -30,6 +30,7 @@ Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP 
 - `CS`: method of chordal extension for correlative sparsity (`"MF"`, `"MD"`, `"NC"`, `false`)
 - `cliques`: the set of cliques used in correlative sparsity
 - `TS`: type of term sparsity (`"block"`, `"signsymmetry"`, `"MD"`, `"MF"`, `false`)
+- `eqTS`: type of term sparsity for equality constraints (by default the same as `TS`, `false`)
 - `SO`: sparse order
 - `GroebnerBasis`: exploit the quotient ring structure or not (`true`, `false`)
 - `QUIET`: run in the quiet mode (`true`, `false`)
@@ -38,7 +39,7 @@ Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP 
 # Output arguments
 - `info`: auxiliary data
 """
-function add_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; CS=false, cliques=[], blocks=[], TS="block", SO=1, 
+function add_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; CS=false, cliques=[], blocks=[], TS="block", eqTS=TS, SO=1, 
     GroebnerBasis=false, QUIET=false, constrs=nothing) where {T<:Union{Number,AffExpr}}
     n = length(x)
     g = [poly([UInt16[]], Float64[1]); poly[poly(p, x) for p in ineq_cons]]
@@ -71,7 +72,7 @@ function add_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; CS=fal
         cliques,cql,cliquesize = clique_decomp([f; g[2:end]; h], n, length(h), order=order+1, alg=CS, QUIET=QUIET)
     end
     ss = nothing
-    if TS == "signsymmetry"
+    if TS == "signsymmetry" || eqTS == "signsymmetry"
         ss = get_signsymmetry([f; g[2:end]; h], n)
     end
     I,J,_,_ = assign_constraint(g, h, cliques, cql)
@@ -88,7 +89,7 @@ function add_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; CS=fal
         end
     end
     if isempty(blocks)
-        blocks,cl,blocksize,eblocks = get_pblocks(f, g, h, I, J, cliques, cql, basis, ebasis, TS=TS, SO=SO, signsymmetry=ss)
+        blocks,cl,blocksize,eblocks = get_pblocks(f, g, h, I, J, cliques, cql, basis, ebasis, TS=TS, eqTS=eqTS, SO=SO, signsymmetry=ss)
     else
         eblocks = nothing
         blocksize = [[length.(block) for block in blocks[1]]]
@@ -187,7 +188,7 @@ function add_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; CS=fal
 end
 
 """
-    info = add_complex_psatz!(model, nonneg, x, ineq_cons, eq_cons, order; ipart=true, CS=false, cliques=[], TS="block", 
+    info = add_complex_psatz!(model, nonneg, x, ineq_cons, eq_cons, order; ipart=true, CS=false, cliques=[], TS="block", eqTS=TS, 
     SO=1, ConjugateBasis=false, normality=!ConjugateBasis, QUIET=false)
 
 Add a complex Putinar's style Hermitian SOS representation of the complex polynomial `nonneg` to the JuMP `model`.
@@ -211,7 +212,7 @@ Add a complex Putinar's style Hermitian SOS representation of the complex polyno
 # Output arguments
 - `info`: auxiliary data
 """
-function add_complex_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; ipart=true, CS=false, cliques=[], TS="block", SO=1, 
+function add_complex_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; ipart=true, CS=false, cliques=[], TS="block", eqTS=TS, SO=1, 
     ConjugateBasis=false, normality=!ConjugateBasis, QUIET=false) where {T<:Union{Number,AffExpr,GenericAffExpr}}
     n = length(x)
     if !isempty(ineq_cons)
@@ -298,7 +299,7 @@ function add_complex_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order
             end
         end
     end
-    blocks,cl,blocksize,eblocks = get_pblocks(f, g, h, I, J, order, cliques, cql, cliquesize, basis, ebasis, TS=TS, SO=SO, ConjugateBasis=ConjugateBasis, normality=normality)
+    blocks,cl,blocksize,eblocks = get_pblocks(f, g, h, I, J, order, cliques, cql, cliquesize, basis, ebasis, TS=TS, eqTS=eqTS, SO=SO, ConjugateBasis=ConjugateBasis, normality=normality)
     tsupp = Tuple{Vector{UInt16},Vector{UInt16}}[]
     for i = 1:cql
         if ConjugateBasis == false
@@ -430,7 +431,7 @@ function add_complex_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order
     return info
 end
 
-function get_pblocks(f, g, h, I, J, cliques, cql, basis, ebasis; TS="block", SO=1, signsymmetry=nothing)
+function get_pblocks(f, g, h, I, J, cliques, cql, basis, ebasis; TS="block", eqTS=TS, SO=1, signsymmetry=nothing)
     blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
     cl = Vector{Vector{Int}}(undef, cql)
     blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
@@ -451,7 +452,7 @@ function get_pblocks(f, g, h, I, J, cliques, cql, basis, ebasis; TS="block", SO=
             sort!(supp)
             unique!(supp)
         end
-        blocks[i],cl[i],blocksize[i],eblocks[i],status[i] = get_pblocks(g[I[i]], h[J[i]], supp, basis[i], ebasis[i], TS=TS, SO=SO, signsymmetry=signsymmetry)
+        blocks[i],cl[i],blocksize[i],eblocks[i],status[i] = get_pblocks(g[I[i]], h[J[i]], supp, basis[i], ebasis[i], TS=TS, eqTS=eqTS, SO=SO, signsymmetry=signsymmetry)
     end
     if minimum(status) == 1
         println("No higher TS step of the CS-TSSOS hierarchy!")
@@ -459,17 +460,15 @@ function get_pblocks(f, g, h, I, J, cliques, cql, basis, ebasis; TS="block", SO=
     return blocks,cl,blocksize,eblocks
 end
 
-function get_pblocks(ineq_cons, eq_cons, tsupp, basis, ebasis; TS="block", SO=1, merge=false, md=3, signsymmetry=nothing)
+function get_pblocks(ineq_cons, eq_cons, tsupp, basis, ebasis; TS="block", eqTS=TS, SO=1, merge=false, md=3, signsymmetry=nothing)
     blocks = Vector{Vector{Vector{Int}}}(undef, length(ineq_cons))
     blocksize = Vector{Vector{Int}}(undef, length(ineq_cons))
     cl = Vector{Int}(undef, length(ineq_cons))
-    eblocks = Vector{Vector{Int}}(undef, length(eq_cons))
     status = 0
     if TS == false
         for k = 1:length(ineq_cons)
             blocks[k],blocksize[k],cl[k] = [Vector(1:length(basis[k]))],[length(basis[k])],1
         end
-        eblocks = [Vector(1:length(ebasis[k])) for k = 1:length(eq_cons)]
     else
         for i = 1:SO
             if i > 1
@@ -477,7 +476,7 @@ function get_pblocks(ineq_cons, eq_cons, tsupp, basis, ebasis; TS="block", SO=1,
                 oeblocks = deepcopy(eblocks)
             end
             for k = 1:length(ineq_cons)
-                G = get_graph(tsupp, ineq_cons[k].supp, basis[k], signsymmetry=signsymmetry)
+                G = get_graph(tsupp, ineq_cons[k].supp, basis[k], TS=TS, signsymmetry=signsymmetry)
                 if TS == "block"
                     blocks[k] = connected_components(G)
                     blocksize[k] = length.(blocks[k])
@@ -489,8 +488,11 @@ function get_pblocks(ineq_cons, eq_cons, tsupp, basis, ebasis; TS="block", SO=1,
                     end
                 end
             end
-            for k = 1:length(eq_cons)
-                eblocks[k] = get_eblock(tsupp, eq_cons[k].supp, ebasis[k], signsymmetry=signsymmetry)
+            if eqTS != false
+                eblocks = Vector{Vector{Int}}(undef, length(eq_cons))
+                for k = 1:length(eq_cons)
+                    eblocks[k] = get_eblock(tsupp, eq_cons[k].supp, ebasis[k], signsymmetry=signsymmetry)
+                end
             end
             if i > 1 && blocksize == oblocksize && eblocks == oeblocks
                 status = 1
@@ -507,10 +509,13 @@ function get_pblocks(ineq_cons, eq_cons, tsupp, basis, ebasis; TS="block", SO=1,
             end
         end
     end
+    if eqTS == false
+        eblocks = [Vector(1:length(ebasis[k])) for k = 1:length(eq_cons)]
+    end
     return blocks,cl,blocksize,eblocks,status
 end
 
-function get_pblocks(f, g, h, I, J, order, cliques, cql, cliquesize, basis, ebasis; TS="block", SO=1, ConjugateBasis=false, normality=1)
+function get_pblocks(f, g, h, I, J, order, cliques, cql, cliquesize, basis, ebasis; TS="block", eqTS=TS, SO=1, ConjugateBasis=false, normality=1)
     blocks = Vector{Vector{Vector{Vector{Int}}}}(undef, cql)
     cl = Vector{Vector{Int}}(undef, cql)
     blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
@@ -523,7 +528,7 @@ function get_pblocks(f, g, h, I, J, order, cliques, cql, cliquesize, basis, ebas
     end
     for i = 1:cql
         ksupp = TS == false ? nothing : tsupp[[issubset(union(item[1], item[2]), cliques[i]) for item in tsupp]]
-        blocks[i],cl[i],blocksize[i],eblocks[i],status[i] = get_pblocks(ksupp, order, cliquesize[i], g[I[i]], h[J[i]], basis[i], ebasis[i], TS=TS, SO=SO, ConjugateBasis=ConjugateBasis, normality=normality)
+        blocks[i],cl[i],blocksize[i],eblocks[i],status[i] = get_pblocks(ksupp, order, cliquesize[i], g[I[i]], h[J[i]], basis[i], ebasis[i], TS=TS, eqTS=eqTS, SO=SO, ConjugateBasis=ConjugateBasis, normality=normality)
     end
     if minimum(status) == 1
         println("No higher TS step of the CS-TSSOS hierarchy!")
@@ -531,18 +536,14 @@ function get_pblocks(f, g, h, I, J, order, cliques, cql, cliquesize, basis, ebas
     return blocks,cl,blocksize,eblocks
 end
 
-function get_pblocks(tsupp, order, n, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, basis, ebasis; TS="block", SO=1, ConjugateBasis=false, normality=1) where {T1,T2<:cpoly}
+function get_pblocks(tsupp, order, n, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, basis, ebasis; TS="block", eqTS=TS, SO=1, ConjugateBasis=false, normality=1) where {T1,T2<:cpoly}
     blocks = Vector{Vector{Vector{Int}}}(undef, length(ineq_cons))
     blocksize = Vector{Vector{Int}}(undef,length(ineq_cons))
     cl = Vector{Int}(undef, length(ineq_cons))
-    eblocks = Vector{Vector{Int}}(undef, length(eq_cons))
     status = 0
     if TS == false
         for k = 1:length(ineq_cons) 
             blocks[k],blocksize[k],cl[k] = [Vector(1:length(basis[k]))],[length(basis[k])],1
-        end
-        for k = 1:length(eq_cons)
-            eblocks[k] = Vector(1:length(ebasis[k]))
         end
     else
         for i = 1:SO
@@ -560,8 +561,8 @@ function get_pblocks(tsupp, order, n, ineq_cons::Vector{T1}, eq_cons::Vector{T2}
                     blocks[k],cl[k],blocksize[k] = chordal_cliques!(G, method=TS)
                 end
             end
-            for (k, p) in enumerate(eq_cons)
-                eblocks[k] = get_eblock(tsupp, p.supp, ebasis[k])
+            if eqTS != false
+                eblocks = [get_eblock(tsupp, p.supp, ebasis[k]) for (k, p) in enumerate(eq_cons)]
             end
             if i > 1 && blocksize == oblocksize && eblocks == oeblocks
                 status = 1
@@ -588,6 +589,9 @@ function get_pblocks(tsupp, order, n, ineq_cons::Vector{T1}, eq_cons::Vector{T2}
             sort!(tsupp)
             unique!(tsupp)
         end
+    end
+    if eqTS == false
+        eblocks = [Vector(1:length(ebasis[k])) for k = 1:length(eq_cons)]
     end
     return blocks,cl,blocksize,eblocks,status
 end
