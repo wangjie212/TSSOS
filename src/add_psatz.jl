@@ -78,7 +78,7 @@ function add_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; CS=fal
     I,J,_,_ = assign_constraint(g, h, cliques, cql)
     basis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
     ebasis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
-    for i = 1:cql
+    @threads for i = 1:cql
         basis[i] = Vector{Vector{Vector{UInt16}}}(undef, length(I[i]))
         ebasis[i] = Vector{Vector{Vector{UInt16}}}(undef, length(J[i]))
         for (s, k) in enumerate(I[i])
@@ -128,7 +128,7 @@ function add_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; CS=fal
     unique!(tsupp)
     cons = [AffExpr(0) for i=1:length(tsupp)]
     pos = Vector{Vector{Vector{Symmetric{VariableRef}}}}(undef, cql)
-    for i = 1:cql
+    @threads for i = 1:cql
         pos[i] = Vector{Vector{Symmetric{VariableRef}}}(undef, length(I[i]))
         for (j, w) in enumerate(I[i])
             pos[i][j] = Vector{Symmetric{VariableRef}}(undef, cl[i][j])
@@ -159,7 +159,7 @@ function add_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; CS=fal
         end
     end
     free = Vector{Vector{Vector{VariableRef}}}(undef, cql)
-    for i = 1:cql
+    @threads for i = 1:cql
         free[i] = Vector{Vector{VariableRef}}(undef, length(J[i]))
         for (j, w) in enumerate(J[i])
             free[i][j] = @variable(model, [1:length(eblocks[i][j])])
@@ -250,7 +250,7 @@ function add_complex_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order
     else
         basis = Vector{Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}}(undef, cql)
     end
-    for i = 1:cql
+    @threads for i = 1:cql
         ebasis[i] = Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}(undef, length(J[i]))
         if ConjugateBasis == false
             if normality == 0
@@ -328,7 +328,7 @@ function add_complex_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order
     end
     pos = Vector{Vector{Vector{Symmetric{VariableRef}}}}(undef, cql)
     free = Vector{Vector{Vector{VariableRef}}}(undef, cql)
-    for i = 1:cql
+    @threads for i = 1:cql
         pos[i] = Vector{Vector{Symmetric{VariableRef}}}(undef, length(I[i]))
         for (j, p) in enumerate(g[I[i]])
             pos[i][j] = Vector{Symmetric{VariableRef}}(undef, cl[i][j])
@@ -442,7 +442,7 @@ function get_pblocks(f, g, h, I, J, cliques, cql, basis, ebasis; TS="block", eqT
         sort!(tsupp)
         unique!(tsupp)
     end
-    for i = 1:cql
+    @threads for i = 1:cql
         supp = nothing
         if TS != false && TS != "signsymmetry"
             supp = tsupp[[issubset(item, cliques[i]) for item in tsupp]]
@@ -526,7 +526,7 @@ function get_pblocks(f, g, h, I, J, order, cliques, cql, cliquesize, basis, ebas
         sort!(tsupp)
         unique!(tsupp)
     end
-    for i = 1:cql
+    @threads for i = 1:cql
         ksupp = TS == false ? nothing : tsupp[[issubset(union(item[1], item[2]), cliques[i]) for item in tsupp]]
         blocks[i],cl[i],blocksize[i],eblocks[i],status[i] = get_pblocks(ksupp, order, cliquesize[i], g[I[i]], h[J[i]], basis[i], ebasis[i], TS=TS, eqTS=eqTS, SO=SO, ConjugateBasis=ConjugateBasis, normality=normality)
     end

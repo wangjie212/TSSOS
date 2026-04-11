@@ -129,6 +129,7 @@ function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=fal
     else
         rlorder = d*ones(Int, cql)
     end
+    time = @elapsed begin
     ebasis = Vector{Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}}(undef, cql)
     if ConjugateBasis == false
         if normality == 0
@@ -139,7 +140,7 @@ function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=fal
     else
         basis = Vector{Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}}(undef, cql)
     end
-    for i = 1:cql
+    @threads for i = 1:cql
         ebasis[i] = Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}(undef, length(J[i]))
         if ConjugateBasis == false
             if normality == 0
@@ -199,6 +200,10 @@ function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=fal
                 ebasis[i][s] = get_conjugate_basis(cliques[i], 2*rlorder[i]-maxdeg(eq_cons[J[i][s]]), nb=nb)
             end
         end
+    end
+    end
+    if QUIET == false
+        println("Obtained the monomial basis in $time seconds.")
     end
     tsupp = filter(item -> item[1] <= item[2], vcat([p.supp for p in npop]...))
     sort!(tsupp)
@@ -639,14 +644,16 @@ function solvesdp(obj::T1, ineq_cons::Vector{T2}, eq_cons::Vector{T3}, n, rlorde
         @variable(model, lower)
         rcons[1] += lower
         @constraint(model, rcon, rcons == zeros(length(tsupp)))
+        m = length(tsupp)
         if ipart == true
             icons = icons[[item[1] != item[2] for item in tsupp]]
             @constraint(model, icon, icons == zeros(length(icons)))
+            m += length(icons)
         end
         @objective(model, Max, lower)
         end
         if QUIET == false
-            println("There are $(length(tsupp) + length(icons)) affine constraints.")
+            println("There are $m affine constraints.")
             println("SDP assembling time: $time seconds.")
         end
         # println(all_constraints(model, include_variable_in_set_constraints=false))
@@ -775,7 +782,7 @@ function get_blocks(I, J, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, cliques, c
     cl = Vector{Vector{Int}}(undef, cql)
     blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
     eblocks = Vector{Vector{Vector{Int}}}(undef, cql)
-    for i = 1:cql
+    @threads for i = 1:cql
         ksupp = TS == false ? nothing : tsupp[[issubset(union(item[1], item[2]), cliques[i]) for item in tsupp]]
         blocks[i],cl[i],blocksize[i],eblocks[i] = get_blocks(ksupp, ineq_cons[I[i]], eq_cons[J[i]], basis[i], ebasis[i], TS=TS, eqTS=eqTS, merge=merge, md=md, nb=nb)
     end

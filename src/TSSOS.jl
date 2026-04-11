@@ -1,5 +1,6 @@
 module TSSOS
 
+using Base.Threads
 using MosekTools
 using JuMP
 using Graphs

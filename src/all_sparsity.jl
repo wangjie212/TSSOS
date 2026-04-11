@@ -133,10 +133,11 @@ function cs_tssos(npop::Vector{poly{T}}, n, d; numeq=0, nb=0, CS="MF", cliques=[
     if TS != false && QUIET == false
         println("Starting to compute the block structure...")
     end
+    time = @elapsed begin
     if isempty(basis)
         basis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
         ebasis = Vector{Vector{Vector{Vector{UInt16}}}}(undef, cql)
-        for i = 1:cql
+        @threads for i in 1:cql
             basis[i] = Vector{Vector{Vector{UInt16}}}(undef, length(I[i]))
             ebasis[i] = Vector{Vector{Vector{UInt16}}}(undef, length(J[i]))
             for (s, k) in enumerate(I[i])
@@ -147,6 +148,10 @@ function cs_tssos(npop::Vector{poly{T}}, n, d; numeq=0, nb=0, CS="MF", cliques=[
             end
         end
     end
+    end
+    if QUIET == false
+        println("Obtained the monomial basis in $time seconds.")
+    end
     ksupp = nothing
     if TS != false && TS != "signsymmetry"
         ksupp = reduce(vcat, [p.supp for p in npop])
@@ -155,7 +160,7 @@ function cs_tssos(npop::Vector{poly{T}}, n, d; numeq=0, nb=0, CS="MF", cliques=[
         end
         sort!(ksupp)
         unique!(ksupp)
-    end    
+    end
     time = @elapsed begin
     ss = nothing
     if TS == "signsymmetry" || eqTS == "signsymmetry"
@@ -316,7 +321,7 @@ function solvesdp(obj::poly{T}, ineq_cons::Vector{poly{T}}, eq_cons::Vector{poly
         time = @elapsed begin
         cons = [AffExpr(0) for i=1:length(tsupp)]
         pos = Vector{Vector{Vector{Symmetric{VariableRef}}}}(undef, cql)
-        for i = 1:cql
+        @threads for i = 1:cql
             if (MomentOne == true || solution == true) && TS != false
                 bas = [[UInt16[]]; [UInt16[k] for k in cliques[i]]]
                 pos0 = @variable(model, [1:length(bas), 1:length(bas)], PSD)
@@ -347,7 +352,7 @@ function solvesdp(obj::poly{T}, ineq_cons::Vector{poly{T}}, eq_cons::Vector{poly
             end
         end
         free = Vector{Vector{Vector{VariableRef}}}(undef, cql)
-        for i = 1:cql
+        @threads for i = 1:cql
             free[i] = Vector{Vector{VariableRef}}(undef, length(J[i]))
             for (j, w) in enumerate(J[i])
                 free[i][j] = @variable(model, [1:length(eblocks[i][j])])
@@ -428,7 +433,7 @@ function get_blocks(ineq_cons::Vector{poly{T}}, eq_cons::Vector{poly{T}}, I, J, 
     cl = Vector{Vector{Int}}(undef, cql)
     blocksize = Vector{Vector{Vector{Int}}}(undef, cql)
     eblocks = Vector{Vector{Vector{Int}}}(undef, cql)
-    for i = 1:cql
+    @threads for i = 1:cql
         ksupp = (TS == false || TS == "signsymmetry") ? nothing : tsupp[[issubset(item, cliques[i]) for item in tsupp]]
         blocks[i],cl[i],blocksize[i],eblocks[i] = get_blocks(ineq_cons[I[i]], eq_cons[J[i]], ksupp, basis[i],
         ebasis[i], TS=TS, eqTS=eqTS, nb=nb, QUIET=true, merge=merge, md=md, signsymmetry=signsymmetry)
