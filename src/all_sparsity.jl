@@ -321,7 +321,7 @@ function solvesdp(obj::poly{T}, ineq_cons::Vector{poly{T}}, eq_cons::Vector{poly
         time = @elapsed begin
         cons = [AffExpr(0) for i=1:length(tsupp)]
         pos = Vector{Vector{Vector{Symmetric{VariableRef}}}}(undef, cql)
-        @threads for i = 1:cql
+        for i = 1:cql
             if (MomentOne == true || solution == true) && TS != false
                 bas = [[UInt16[]]; [UInt16[k] for k in cliques[i]]]
                 pos0 = @variable(model, [1:length(bas), 1:length(bas)], PSD)
@@ -352,7 +352,7 @@ function solvesdp(obj::poly{T}, ineq_cons::Vector{poly{T}}, eq_cons::Vector{poly
             end
         end
         free = Vector{Vector{Vector{VariableRef}}}(undef, cql)
-        @threads for i = 1:cql
+        for i = 1:cql
             free[i] = Vector{Vector{VariableRef}}(undef, length(J[i]))
             for (j, w) in enumerate(J[i])
                 free[i][j] = @variable(model, [1:length(eblocks[i][j])])

@@ -128,7 +128,7 @@ function add_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; CS=fal
     unique!(tsupp)
     cons = [AffExpr(0) for i=1:length(tsupp)]
     pos = Vector{Vector{Vector{Symmetric{VariableRef}}}}(undef, cql)
-    @threads for i = 1:cql
+    for i = 1:cql
         pos[i] = Vector{Vector{Symmetric{VariableRef}}}(undef, length(I[i]))
         for (j, w) in enumerate(I[i])
             pos[i][j] = Vector{Symmetric{VariableRef}}(undef, cl[i][j])
@@ -159,7 +159,7 @@ function add_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; CS=fal
         end
     end
     free = Vector{Vector{Vector{VariableRef}}}(undef, cql)
-    @threads for i = 1:cql
+    for i = 1:cql
         free[i] = Vector{Vector{VariableRef}}(undef, length(J[i]))
         for (j, w) in enumerate(J[i])
             free[i][j] = @variable(model, [1:length(eblocks[i][j])])
@@ -328,7 +328,7 @@ function add_complex_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order
     end
     pos = Vector{Vector{Vector{Symmetric{VariableRef}}}}(undef, cql)
     free = Vector{Vector{Vector{VariableRef}}}(undef, cql)
-    @threads for i = 1:cql
+    for i = 1:cql
         pos[i] = Vector{Vector{Symmetric{VariableRef}}}(undef, length(I[i]))
         for (j, p) in enumerate(g[I[i]])
             pos[i][j] = Vector{Symmetric{VariableRef}}(undef, cl[i][j])
