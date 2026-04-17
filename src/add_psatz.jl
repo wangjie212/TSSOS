@@ -384,10 +384,7 @@ function add_complex_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order
                     Locb = bfind(tsupp, bi)
                     if ebasis[i][j][k][1] <= ebasis[i][j][k][2]
                         loc = bfind(temp, ebasis[i][j][k])
-                        tag = 1
-                        if ebasis[i][j][k][1] == ebasis[i][j][k][2]
-                            tag = 0
-                        end
+                        tag = ebasis[i][j][k][1] == ebasis[i][j][k][2] ? 0 : 1
                     else
                         loc = bfind(temp, conj(ebasis[i][j][k]))
                         tag = -1

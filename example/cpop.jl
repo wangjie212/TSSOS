@@ -47,8 +47,8 @@ P = rand(length(basis), length(basis))
 Q = rand(length(basis), length(basis))
 pop = [basis'*((P+P')/2+im*(Q-Q')/2)*basis]
 # pop = [basis'*((P+P')/2)*basis]
-@time opt1,sol,data = complex_tssos(pop, z, 2, nb=n, QUIET=true, CS=false, ConjugateBasis=false)
-@time opt2,sol,data = complex_tssos(pop, z, 2, nb=n, QUIET=true, CS=false, ConjugateBasis=true)
+@time opt1,sol,data = complex_tssos(pop, z, 2, nb=n, QUIET=true, TS=false, ConjugateBasis=false)
+@time opt2,sol,data = complex_tssos(pop, z, 2, nb=n, QUIET=true, TS=false, ConjugateBasis=true)
 
 # minimizing large-scale randomly generated complex QCQPs
 Random.seed!(1)

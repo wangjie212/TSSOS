@@ -229,12 +229,13 @@ function arrange(p::T) where {T<:poly}
 end
 
 function arrange(p::T; nb=0) where {T<:cpoly}
-    nsupp = reduce_unitnorm.(p.supp, nb)
+    supp = reduce_unitnorm.(p.supp, nb)
+    nsupp = copy(supp)
     sort!(nsupp)
     unique!(nsupp)
     ncoe = zeros(typeof(p.coe[1]), length(nsupp))
-    for i in eachindex(p.supp)
-        locb = bfind(nsupp, p.supp[i])
+    for i in eachindex(supp)
+        locb = bfind(nsupp, supp[i])
         ncoe[locb] += p.coe[i]
     end
     return cpoly(nsupp, ncoe)

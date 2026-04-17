@@ -583,10 +583,7 @@ function solvesdp(obj::T1, ineq_cons::Vector{T2}, eq_cons::Vector{T3}, n, rlorde
                         Locb = bfind(tsupp, bi)
                         if ebasis[i][j][k][1] <= ebasis[i][j][k][2]
                             loc = bfind(temp, ebasis[i][j][k])
-                            tag = 1
-                            if ebasis[i][j][k][1] == ebasis[i][j][k][2]
-                                tag = 0
-                            end
+                            tag = ebasis[i][j][k][1] == ebasis[i][j][k][2] ? 0 : 1
                         else
                             loc = bfind(temp, conj(ebasis[i][j][k]))
                             tag = -1
@@ -899,7 +896,7 @@ function get_cmoment(rmeasure, imeasure, tsupp, cql, blocks, cl, blocksize, basi
                 end
                 bi[1] > bi[2] ? bi = conj(bi) : nothing
                 Locb = bfind(tsupp, bi)
-                rtemp[t,r] = rmeasure[Locb]
+                rtemp[t,r] = t != r && bi[1] == bi[2] ? 2*rmeasure[Locb] : rmeasure[Locb]
             end
             rtemp = (rtemp + rtemp')/2
             if ipart == true
