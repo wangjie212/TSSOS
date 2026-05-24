@@ -9,7 +9,7 @@ mutable struct spop_data
     numeq # number of equality constraints
     basis # monomial bases
     ebasis # monomial bases for equality constraints
-    ksupp # extended support at the k-th step
+    ksupp # extended support at the k-th TS step
     cliquesize # sizes of cliques
     cliques # cliques of variables
     I # index sets of inequality constraints
@@ -120,8 +120,7 @@ function cs_tssos(npop::Vector{poly{T}}, n, d; numeq=0, nb=0, CS="MF", cliques=[
         cliques,cql,cliquesize = clique_decomp(npop, n, numeq, order=d, alg=CS)
         end
         if CS != false && QUIET == false
-            mc = maximum(cliquesize)
-            println("Obtained the variable cliques in $time seconds. The maximal size of cliques is $mc.")
+            println("Obtained the variable cliques in $time seconds. The maximal size of cliques is $(maximum(cliquesize)).")
         end
     end
     I,J,Iprime,Jprime = assign_constraint(ineq_cons, eq_cons, cliques, cql)

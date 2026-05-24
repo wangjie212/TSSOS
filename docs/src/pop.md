@@ -85,7 +85,7 @@ ftol | tolerance for feasibility | 1e-3
 Moment-SOS relaxations provide lower bounds on the optimum of the polynomial optimization problem. As the complementary side, one could compute a locally optimal solution which provides an upper bound on the optimum of the polynomial optimization problem. The upper bound is useful in evaluating the quality (tightness) of those lower bounds provided by moment-SOS relaxations. In TSSOS, for a given polynomial optimization problem, a locally optimal solution could be obtained via the nonlinear programming solver [Ipopt](https://github.com/jump-dev/Ipopt.jl):
 
 ```Julia
-obj,sol,status = local_solution(data.n, data.m, data.supp, data.coe, numeq=data.numeq, startpoint=rand(data.n))
+obj,sol,status = local_solution(data.pop, data.n, numeq=data.numeq, startpoint=rand(data.n))
 ```
 
 ## Methods

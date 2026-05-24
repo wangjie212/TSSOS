@@ -11,7 +11,7 @@ mutable struct pop_data
     leadsupp # leader terms of the Grobner basis
     basis # monomial bases
     ebasis # monomial bases for equality constraints
-    ksupp # extended support at the k-th step
+    ksupp # extended support at the k-th TS step
     blocksize # sizes of blocks
     blocks # block structure
     eblocks # block structrue for equality constraints
@@ -406,9 +406,8 @@ function get_blocks(ineq_cons::Vector{poly{T}}, eq_cons::Vector{poly{T}}, tsupp,
             if QUIET == false
                 sb = sort(unique(blocksize[k]), rev=true)
                 numb = [sum(blocksize[k].== i) for i in sb]
-                k0 = k - 1
                 println("-----------------------------------------------------------------------------")
-                println("The sizes of PSD blocks for the $k0-th SOS multiplier:\n$sb\n$numb")
+                println("The sizes of PSD blocks for the $(k-1)-th SOS multiplier:\n$sb\n$numb")
                 println("-----------------------------------------------------------------------------")
             end
         end

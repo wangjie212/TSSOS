@@ -3,7 +3,7 @@ using TSSOS
 using Random
 
 function cbasis(z)
-    basis = Poly{Int}[1]
+    basis = Poly[1]
     for i = 1:length(z)
         push!(basis, z[i])
     end
@@ -111,3 +111,22 @@ mb = 2*maximum(maximum.([maximum.(bs) for bs in popd.blocksize])) # maximal bloc
 gap = 100*(AC-opt)/AC # optimality gap
 println("n = $n, m = $m")
 println("mc = $maxc, opt = $opt, time = $t, mb = $mb, gap = $gap%")
+
+
+
+@complex_polyvar z[1:2]
+p = -(z[1]^2*z[2]^2 + z[1]^2*conj(z[2])^2 + conj(z[1])^2*z[2]^2 + conj(z[1])^2*conj(z[2])^2) +
+4*(z[1]^2*z[2] + z[1]^2*conj(z[2]) + conj(z[1])^2*z[2] + conj(z[1])^2*conj(z[2])) + 
+4*(z[1]*z[2]^2 + z[1]*conj(z[2])^2 + conj(z[1])*z[2]^2 + conj(z[1])*conj(z[2])^2) +
+2*(z[1]^2 + z[2]^2 + conj(z[1])^2 + conj(z[2])^2) +
+8*(z[1]*z[2] + z[1]*conj(z[2]) + conj(z[1])*z[2] + conj(z[1])*conj(z[2])) +
+8*(z[1] + z[2] + conj(z[1]) + conj(z[2]))
+
+opt,sol,data = complex_tssos([p], z, 4, nb=2, QUIET=true, TS=false, normality=0, ConjugateBasis=false)
+opt,sol,data = complex_tssos([p], z, 2, nb=2, QUIET=true, TS=false, ConjugateBasis=true)
+
+@complex_polyvar z[1:2]
+p = 5*(z[1]*conj(z[2]) + conj(z[1])*z[2]) + 5*(z[1]*z[2] + conj(z[1]*z[2])) + 2*(z[2]^2 + conj(z[2])^2) + 3*(z[1]^2 + conj(z[1])^2)
+
+opt,sol,data = complex_tssos([p], z, 2, nb=2, QUIET=true, TS=false, normality=0, ConjugateBasis=false)
+opt,sol,data = complex_tssos([p], z, 1, nb=2, QUIET=true, TS=false, ConjugateBasis=true)

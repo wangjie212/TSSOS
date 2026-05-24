@@ -13,7 +13,7 @@ mutable struct cpop_data
     normality # normal order
     basis # monomial bases
     ebasis # monomial bases for equality constraints
-    ksupp # extended support at the k-th step
+    ksupp # extended support at the k-th TS step
     cliquesize # sizes of cliques
     cliques # cliques of variables
     I # index sets of inequality constraints
@@ -115,8 +115,7 @@ function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=fal
         cliques,cql,cliquesize = clique_decomp(npop, n, order=d, alg=CS, QUIET=QUIET)
         end
         if CS != false && QUIET == false
-            mc = maximum(cliquesize)
-            println("Obtained the variable cliques in $time seconds.\nThe maximal size of cliques is $mc.")
+            println("Obtained the variable cliques in $time seconds.\nThe maximal size of cliques is $(maximum(cliquesize)).")
         end
     end
     I,J,Iprime,Jprime = assign_constraint(ineq_cons, eq_cons, cliques, cql)

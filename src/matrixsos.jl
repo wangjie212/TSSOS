@@ -4,7 +4,7 @@ mutable struct mpop_data
     cons_matrix
     basis # monomial basis
     gbasis # monomial bases for inequality constraints
-    ksupp # extended support at the k-th step
+    ksupp # extended support at the k-th TS step
     blocksize # sizes of blocks
     blocks # block structure
     cql # number of cliques

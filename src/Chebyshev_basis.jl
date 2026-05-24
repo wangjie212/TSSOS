@@ -7,7 +7,7 @@ mutable struct polybasis_data
     action
     basis # polynomial bases
     ebasis # polynomial bases for equality constraints
-    ksupp # extended support at the k-th step
+    ksupp # extended support at the k-th TS step
     blocksize # size of blocks
     blocks # block structrue
     eblocks # block structrue for equality constraints
