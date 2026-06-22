@@ -3,7 +3,7 @@ using TSSOS
 using Random
 
 function cbasis(z)
-    basis = Poly[1]
+    basis = Mono[1]
     for i = 1:length(z)
         push!(basis, z[i])
     end
