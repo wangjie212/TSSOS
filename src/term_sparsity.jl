@@ -83,7 +83,7 @@ function tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, newton=false, feasibil
     println("TSSOS is launching...")
     n = length(x)
     if nb > 0
-        pop = Groebner.normalform(x[1:nb].^2 .- 1, pop)
+        pop = convert.(Poly{Float64}, Groebner.normalform(x[1:nb].^2 .- 1.0, pop))
     end
     if numeq > 0 && GroebnerBasis == true
         println("Computing the Gröbner basis...")

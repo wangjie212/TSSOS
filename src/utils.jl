@@ -134,7 +134,7 @@ function get_basis(var::Vector{Int}, d::Int; nb=0, lead=[])
         end
     end
     if nb > 0
-        ind = [!any([item[j] == item[j+1] && item[j] <= nb for j = 1:length(item)-1]) item in basis]
+        ind = [!any([item[j] == item[j+1] && item[j] <= nb for j = 1:length(item)-1]) for item in basis]
         basis = basis[ind]
     end
     if !isempty(lead)
