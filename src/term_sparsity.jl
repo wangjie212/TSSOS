@@ -88,7 +88,7 @@ function tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, newton=false, feasibil
     if numeq > 0 && GroebnerBasis == true
         println("Computing the Gröbner basis...")
         println("This might be slow. You can set GroebnerBasis=false to close it.")
-        eq_cons = poly{T}[]
+        eq_cons = poly{Float64}[]
         gb = groebner(convert.(Poly{Float64}, pop[end-numeq+1:end]), ordering=DegRevLex())
         obj = poly(Groebner.normalform(gb, pop[1], ordering=DegRevLex()), x)
         lead = leading_ideal(gb, ordering=DegRevLex())
@@ -107,7 +107,7 @@ function tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, newton=false, feasibil
         eq_cons = [poly(p, x) for p in pop[end-numeq+1:end]]
         gb = leadsupp = []
     end
-    ineq_cons = [poly{T}([UInt16[]], [1]); [poly(p, x) for p in pop[2:end-numeq]]]
+    ineq_cons = [poly{Float64}([UInt16[]], [1]); [poly(p, x) for p in pop[2:end-numeq]]]
     ss = nothing
     if normality == true || TS == "signsymmetry" || eqTS == "signsymmetry"
         ss = get_signsymmetry([obj; ineq_cons; eq_cons], n)
