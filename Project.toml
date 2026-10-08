@@ -3,10 +3,12 @@ uuid = "81648402-ffe6-11e9-2394-0de17a9afdad"
 version = "1.5.3"
 authors = ["jwang <wangjie212@amss.ac.cn>"]
 
+[workspace]
+projects = ["test", "example"]
+
 [deps]
 AbstractAlgebra = "c3fe647b-3220-5bb0-a1ea-a7954cac585d"
 AbstractPermutations = "36d08e8a-54dd-435f-8c9e-38a475050b11"
-COSMO = "1e616198-aa4e-51ec-90a2-23f7fbd31d8d"
 CliqueTrees = "60701a23-6482-424a-84db-faee86b9b1f8"
 Dualization = "191a621a-6537-11e9-281d-650236a99e60"
 DynamicPolynomials = "7c1d4256-1411-5781-91ec-d7bc3513ac07"
@@ -25,19 +27,14 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 RowEchelon = "af85af4c-bcd5-5d23-b03a-a909639aa875"
-SCS = "c946c3f1-0d1f-5ce8-9dea-7daa1f7e2d13"
 SemialgebraicSets = "8e049039-38e8-557d-ae3a-bc521ccf6204"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SymbolicWedderburn = "858aa9a9-4c7c-4c62-b466-2421203962a2"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
 AbstractPermutations = "< 0.3.2"
-COSMO = "0.8.11"
 DynamicPolynomials = ">= 0.5.0"
 Mosek = "11.0.1"
 MultivariateBases = "0.2.2"
 MultivariatePolynomials = ">= 0.5.0"
-SCS = "2.6.4"
 SymbolicWedderburn = "0.4.4"
-Test = "1.11.0"
