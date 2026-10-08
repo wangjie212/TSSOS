@@ -39,8 +39,8 @@ Add a Putinar's style SOS representation of the polynomial `nonneg` to the JuMP 
 # Output arguments
 - `info`: auxiliary data
 """
-function add_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; CS=false, cliques=[], blocks=[], TS="block", eqTS=TS, SO=1, 
-    GroebnerBasis=false, QUIET=false, constrs=nothing) where {T<:Union{Number,AffExpr}}
+function add_psatz!(model::GenericModel{NumberType}, nonneg::Poly{<:Union{NumberType, GenericAffExpr{NumberType, GenericVariableRef{NumberType}}}}, x, ineq_cons, eq_cons, order; CS=false, cliques=[], blocks=[], TS="block", eqTS=TS, SO=1, 
+    GroebnerBasis=false, QUIET=false, constrs=nothing) where {NumberType <: Number}
     n = length(x)
     g = [poly([UInt16[]], Float64[1]); poly[poly(p, x) for p in ineq_cons]]
     if GroebnerBasis == true && !isempty(eq_cons)
@@ -126,12 +126,12 @@ function add_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; CS=fal
     end
     sort!(tsupp)
     unique!(tsupp)
-    cons = [AffExpr(0) for i=1:length(tsupp)]
-    pos = Vector{Vector{Vector{Symmetric{VariableRef}}}}(undef, cql)
+    cons = [GenericAffExpr{NumberType, GenericVariableRef{NumberType}}(0) for i=1:length(tsupp)]
+    pos = Vector{Vector{Vector{Symmetric{GenericVariableRef{NumberType}}}}}(undef, cql)
     for i = 1:cql
-        pos[i] = Vector{Vector{Symmetric{VariableRef}}}(undef, length(I[i]))
+        pos[i] = Vector{Vector{Symmetric{GenericVariableRef{NumberType}}}}(undef, length(I[i]))
         for (j, w) in enumerate(I[i])
-            pos[i][j] = Vector{Symmetric{VariableRef}}(undef, cl[i][j])
+            pos[i][j] = Vector{Symmetric{GenericVariableRef{NumberType}}}(undef, cl[i][j])
             for l = 1:cl[i][j]
                 pos[i][j][l] = @variable(model, [1:blocksize[i][j][l], 1:blocksize[i][j][l]], PSD)
                 for t = 1:blocksize[i][j][l], r = t:blocksize[i][j][l], (s, it) in enumerate(g[w].supp)
@@ -158,9 +158,9 @@ function add_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; CS=fal
             end
         end
     end
-    free = Vector{Vector{Vector{VariableRef}}}(undef, cql)
+    free = Vector{Vector{Vector{GenericVariableRef{NumberType}}}}(undef, cql)
     for i = 1:cql
-        free[i] = Vector{Vector{VariableRef}}(undef, length(J[i]))
+        free[i] = Vector{Vector{GenericVariableRef{NumberType}}}(undef, length(J[i]))
         for (j, w) in enumerate(J[i])
             free[i][j] = @variable(model, [1:length(eblocks[i][j])])
             for (u, k) in enumerate(eblocks[i][j]), (s, item) in enumerate(h[w].supp)
