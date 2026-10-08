@@ -1,7 +1,6 @@
 module TSSOS
 
 using Base.Threads
-using MosekTools
 using JuMP
 using Graphs
 using DynamicPolynomials
@@ -24,7 +23,7 @@ import MultivariatePolynomials as MP
 import CliqueTrees
 
 export tssos, cs_tssos, complex_tssos, complex_cs_tssos, LinearPMI, sparseobj
-export arrange, bfind, mosek_para
+export arrange, bfind, MosekParameters
 export local_solution, refine_sol, extract_solutions, extract_solutions_robust, extract_solutions_pmo, extract_solutions_pmo_robust, extract_weight_matrix
 export add_SOS!, add_SOSMatrix!, add_poly!, add_psatz!, add_complex_psatz!, add_psatz_cheby!, add_poly_cheby!
 export OnMonomials, tssos_symmetry, complex_tssos_symmetry, get_signsymmetry, add_psatz_symmetry!
@@ -32,7 +31,7 @@ export homogenize, solve_hpop, SumOfRatios, SparseSumOfRatios, get_dynamic_spars
 export show_blocks, complex_to_real, get_mmoment, get_basis, get_moment, get_moment_matrix, get_cmoment
 export run_H1, run_H1CS, run_H2, run_H2CS, construct_CDK, construct_marginal_CDK, construct_CDK_cs, construct_marginal_CDK_cs
 
-mutable struct mosek_para
+mutable struct MosekParameters
     tol_pfeas::Float64
     tol_dfeas::Float64
     tol_relgap::Float64
@@ -40,7 +39,16 @@ mutable struct mosek_para
     num_threads::Int64
 end
 
-mosek_para() = mosek_para(1e-8, 1e-8, 1e-8, -1, 0)
+MosekParameters() = MosekParameters(1e-8, 1e-8, 1e-8, -1, 0)
+
+#temporarily receive mosek_setting parameter so as to not break the interface.
+#in future work, remove mosek_setting entirely in favor of MosekExt's mosek_optimizer_from_settings
+function default_optimizer(mosek_setting=nothing)
+    mosek_extension = Base.get_extension(TSSOS, :MosekExt)
+    if !isnothing(mosek_extension)
+        return mosek_extension.mosek_optimizer(mosek_setting)
+    end
+end
 
 include("polynomial.jl")
 include("utils.jl")

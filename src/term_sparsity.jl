@@ -46,7 +46,7 @@ end
 """
     opt,sol,data = tssos(pop, x, d; nb=0, numeq=0, GroebnerBasis=true, basis=[], reducebasis=false, TS="block", 
     eqTS=TS, merge=false, md=3, QUIET=false, solve=true, MomentOne=false, Gram=false, solution=false, model=nothing,
-    mosek_setting=mosek_para(), normality=false, rtol=1e-2, gtol=1e-2, ftol=1e-3)
+    mosek_setting=MosekParameters(), normality=false, rtol=1e-2, gtol=1e-2, ftol=1e-3)
 
 Compute the first TS step of the TSSOS hierarchy for constrained polynomial optimization.
 If `reducebasis=true`, then remove monomials from the monomial basis by diagonal inconsistency.
@@ -77,7 +77,7 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `data`: other auxiliary data 
 """
 function tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, newton=false, feasibility=false, GroebnerBasis=false, basis=[], reducebasis=false, TS="block", 
-    eqTS=TS, merge=false, md=3, QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, normality=false, mosek_setting=mosek_para(), 
+    eqTS=TS, merge=false, md=3, QUIET=false, solve=true, dualize=false, MomentOne=false, Gram=false, solution=false, normality=false, mosek_setting=MosekParameters(), 
     writetofile=false, model=nothing, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
@@ -186,7 +186,7 @@ end
 
 """
     opt,sol,data = tssos(f, x; newton=true, reducebasis=false, TS="block", merge=false, md=3, feasibility=false, QUIET=false, solve=true, 
-    dualize=false, MomentOne=false, Gram=false, solution=false, normality=false, model=nothing, mosek_setting=mosek_para(), rtol=1e-2, gtol=1e-2, ftol=1e-3)
+    dualize=false, MomentOne=false, Gram=false, solution=false, normality=false, model=nothing, mosek_setting=MosekParameters(), rtol=1e-2, gtol=1e-2, ftol=1e-3)
 
 Compute the first TS step of the TSSOS hierarchy for unconstrained polynomial optimization.
 If `newton=true`, then compute a monomial basis by the Newton polytope method.
@@ -214,19 +214,19 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `data`: other auxiliary data 
 """
 function tssos(f::Poly{T}, x; newton=true, reducebasis=false, TS="block", merge=false, md=3, feasibility=false, QUIET=false, solve=true, 
-    dualize=false, MomentOne=false, Gram=false, solution=false, mosek_setting=mosek_para(), model=nothing, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
+    dualize=false, MomentOne=false, Gram=false, solution=false, mosek_setting=MosekParameters(), model=nothing, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     return tssos([f], x, Int(ceil(MP.maxdegree(f)/2)), newton=newton, feasibility=feasibility, GroebnerBasis=false, reducebasis=reducebasis, TS=TS, merge=merge, md=md, 
     QUIET=QUIET, solve=solve, dualize=dualize, MomentOne=MomentOne, Gram=Gram, solution=solution, rtol=rtol, gtol=gtol, ftol=ftol, mosek_setting=mosek_setting, model=model)
 end
 
 """
     opt,sol,data = tssos(data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, feasibility=false, dualize=false, Gram=false,
-    MomentOne=false, normality=false, solution=false, mosek_setting=mosek_para(), model=nothing)
+    MomentOne=false, normality=false, solution=false, mosek_setting=MosekParameters(), model=nothing)
 
 Compute higher TS steps of the TSSOS hierarchy.
 """
 function tssos(data::pop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, feasibility=false, dualize=false, MomentOne=false, Gram=false,
-    solution=false, normality=false, mosek_setting=mosek_para(), model=nothing, writetofile=false)
+    solution=false, normality=false, mosek_setting=MosekParameters(), model=nothing, writetofile=false)
     obj = data.obj
     ineq_cons = data.ineq_cons
     eq_cons = data.eq_cons
@@ -421,7 +421,7 @@ function get_blocks(ineq_cons::Vector{T1}, eq_cons::Vector{T2}, tsupp, basis, eb
 end
 
 function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, basis, ebasis, blocks, eblocks, cl, blocksize; nb=0, gb=[], x=[], lead=[], TS="block",
-    QUIET=true, solve=true, feasibility=false, dualize=false, solution=false, MomentOne=false, Gram=false, mosek_setting=mosek_para(), signsymmetry=false, writetofile=false, 
+    QUIET=true, solve=true, feasibility=false, dualize=false, solution=false, MomentOne=false, Gram=false, mosek_setting=MosekParameters(), signsymmetry=false, writetofile=false, 
     normality=false, model=nothing) where {T1,T2<:poly}
     ksupp = Vector{UInt16}[]
     for i = 1:cl[1], j = 1:blocksize[1][i], r = j:blocksize[1][i]
@@ -498,10 +498,9 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, basis, eba
         end
         if model === nothing
             if dualize == false
-                model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
-                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
+                model = Model(default_optimizer(mosek_setting))
             else
-                model = Model(dual_optimizer(Mosek.Optimizer))
+                model = Model(dual_optimizer(default_optimizer()))
             end
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)

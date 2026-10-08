@@ -1,4 +1,5 @@
 using DynamicPolynomials
+using MosekTools
 using TSSOS
 using JuMP
 using PermutationGroups

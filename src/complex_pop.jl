@@ -37,7 +37,7 @@ end
 """
     opt,sol,data = complex_cs_tssos(pop, z, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", eqTS=TS, reducebasis=false, 
     merge=false, md=3, QUIET=false, solve=true, solution=false, dualize=false, Gram=false, MomentOne=false, ConjugateBasis=false, 
-    normality=!ConjugateBasis, joint_normality=0, mosek_setting=mosek_para(), model=nothing, rtol=1e-2, gtol=1e-2, ftol=1e-3)
+    normality=!ConjugateBasis, joint_normality=0, mosek_setting=MosekParameters(), model=nothing, rtol=1e-2, gtol=1e-2, ftol=1e-3)
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained complex polynomial optimization. 
 If `ConjugateBasis=true`, then include conjugate variables in monomial bases.
@@ -71,7 +71,7 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 """
 function complex_cs_tssos(pop::Vector{Poly{T}}, z, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], TS="block", eqTS=TS, 
     merge=false, md=3, reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, 
-    ConjugateBasis=false, Gram=false, mosek_setting=mosek_para(), model=nothing, writetofile=false, normality=!ConjugateBasis, 
+    ConjugateBasis=false, Gram=false, mosek_setting=MosekParameters(), model=nothing, writetofile=false, normality=!ConjugateBasis, 
     joint_normality=0, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     npop = [cpoly(p, z) for p in pop]
     return complex_cs_tssos(npop, length(z), d, numeq=numeq, RemSig=RemSig, nb=nb, CS=CS, cliques=cliques, TS=TS, eqTS=eqTS, merge=merge, 
@@ -81,7 +81,7 @@ end
 
 function complex_tssos(pop::Vector{Poly{T}}, z, d; numeq=0, RemSig=false, nb=0, TS="block", eqTS=TS, 
     merge=false, md=3, reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, 
-    ConjugateBasis=false, Gram=false, mosek_setting=mosek_para(), model=nothing, writetofile=false, normality=!ConjugateBasis, 
+    ConjugateBasis=false, Gram=false, mosek_setting=MosekParameters(), model=nothing, writetofile=false, normality=!ConjugateBasis, 
     joint_normality=0, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     return complex_cs_tssos(pop, z, d, numeq=numeq, RemSig=RemSig, nb=nb, CS=false, TS=TS, eqTS=eqTS, merge=merge, md=md, reducebasis=reducebasis, 
     QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, ConjugateBasis=ConjugateBasis, Gram=Gram, mosek_setting=mosek_setting, 
@@ -90,14 +90,14 @@ end
 
 """
     opt,sol,data = complex_cs_tssos(npop::Vector{cpoly{T}}, n, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", eqTS=TS, merge=false, md=3, 
-    solution=false, dualize=false, QUIET=false, solve=true, Gram=false, MomentOne=false, normality=!ConjugateBasis, mosek_setting=mosek_para(), 
+    solution=false, dualize=false, QUIET=false, solve=true, Gram=false, MomentOne=false, normality=!ConjugateBasis, mosek_setting=MosekParameters(), 
     model=nothing, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained complex polynomial optimization. 
 """
 function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], 
     TS="block", eqTS=TS, merge=false, md=3, reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, ConjugateBasis=false, 
-    Gram=false, mosek_setting=mosek_para(), model=nothing, writetofile=false, normality=!ConjugateBasis, joint_normality=0, pop=nothing, z=nothing, 
+    Gram=false, mosek_setting=MosekParameters(), model=nothing, writetofile=false, normality=!ConjugateBasis, joint_normality=0, pop=nothing, z=nothing, 
     rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
@@ -332,12 +332,12 @@ end
 
 """
     opt,sol,data = complex_cs_tssos(data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, dualize=false, solution=false, 
-    Gram=false, MomentOne=false, mosek_setting=mosek_para(), model=nothing)
+    Gram=false, MomentOne=false, mosek_setting=MosekParameters(), model=nothing)
 
 Compute higher TS steps of the CS-TSSOS hierarchy.
 """
 function complex_cs_tssos(data::cpop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
-    MomentOne=false, mosek_setting=mosek_para(), model=nothing, writetofile=false)
+    MomentOne=false, mosek_setting=MosekParameters(), model=nothing, writetofile=false)
     obj = data.obj
     eq_cons = data.eq_cons
     ineq_cons = data.ineq_cons
@@ -414,7 +414,7 @@ function complex_cs_tssos(data::cpop_data; TS="block", eqTS=TS, merge=false, md=
 end
 
 function complex_tssos(data::cpop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
-    MomentOne=false, mosek_setting=mosek_para(), model=nothing, writetofile=false)
+    MomentOne=false, mosek_setting=MosekParameters(), model=nothing, writetofile=false)
     return complex_cs_tssos(data, TS=TS, eqTS=eqTS, merge=merge, md=md, QUIET=QUIET, solve=solve, solution=solution, Gram=Gram, dualize=dualize, 
     MomentOne=MomentOne, mosek_setting=mosek_setting, model=model, writetofile=writetofile)
 end
@@ -479,7 +479,7 @@ end
 
 function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, basis, ebasis, cliques, cql, cliquesize, I, J, Iprime, Jprime, blocks, eblocks, cl, blocksize; 
     nb=0, z=nothing, QUIET=false, TS="block", ConjugateBasis=false, solve=true, dualize=false, Gram=false, MomentOne=false, ipart=true, solution=false, 
-    mosek_setting=mosek_para(), model=nothing, writetofile=false, normality=1, joint_normality=0) where {T1,T2<:cpoly}
+    mosek_setting=MosekParameters(), model=nothing, writetofile=false, normality=1, joint_normality=0) where {T1,T2<:cpoly}
     tsupp = Tuple{Vector{UInt16},Vector{UInt16}}[]
     for i = 1:cql
         if ConjugateBasis == false
@@ -534,10 +534,9 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, b
         end
         if model === nothing
             if dualize == false
-                model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
-                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
+                model = Model(default_optimizer(mosek_setting))
             else
-                model = Model(dual_optimizer(Mosek.Optimizer))
+                model = Model(dual_optimizer(default_optimizer()))
             end
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
