@@ -45,8 +45,15 @@ MosekParameters() = MosekParameters(1e-8, 1e-8, 1e-8, -1, 0)
 #in future work, remove mosek_setting entirely in favor of MosekExt's mosek_optimizer_from_settings
 function default_optimizer(mosek_setting=nothing)
     mosek_extension = Base.get_extension(TSSOS, :MosekExt)
+    cosmo_extension = Base.get_extension(TSSOS, :COSMOExt)
     if !isnothing(mosek_extension)
+        @info "Using Mosek as default solver" maxlog=1 
         return mosek_extension.mosek_optimizer(mosek_setting)
+    elseif !isnothing(cosmo_extension)
+        @info "Using COSMO as default solver since MosekTools was not loaded" maxlog=1
+        return cosmo_extension.cosmo_optimizer(mosek_setting)
+    else
+        error("No supported SDP solver found. Currently supported default solvers are Mosek and COSMO: import at least one before TSSOS. This is necessary because there are currently multiple internal SDP solver calls not available for configuring (change soon)")
     end
 end
 

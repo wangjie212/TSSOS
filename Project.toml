@@ -31,12 +31,15 @@ SymbolicWedderburn = "858aa9a9-4c7c-4c62-b466-2421203962a2"
 
 [weakdeps]
 MosekTools = "1ec41992-ff65-5c91-ac43-2df89e9693a4"
+COSMO = "1e616198-aa4e-51ec-90a2-23f7fbd31d8d"
 
 [extensions]
 MosekExt = "MosekTools"
+COSMOExt = "COSMO"
 
 [compat]
 AbstractPermutations = "< 0.3.2"
+COSMO = "0.8.11"
 DynamicPolynomials = ">= 0.5.0"
 MultivariateBases = "0.2.2"
 MultivariatePolynomials = ">= 0.5.0"

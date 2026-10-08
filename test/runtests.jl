@@ -1,9 +1,8 @@
 using DynamicPolynomials
-using MosekTools
+using COSMO
 using TSSOS
 using JuMP
 using PermutationGroups
-using COSMO
 using Test
 
 
