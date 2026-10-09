@@ -144,6 +144,26 @@ optimize!(model)
 objv = objective_value(model)
 @test objv ≈ 3.437648 atol = 1e-6
 
+# SOS Programming with arbitrary type
+n = 3
+@polyvar x[1:3]
+f = [(x[1]^2+x[2]^2-1/4)*x[1], (x[2]^2+x[3]^2-1/4)*x[2], (x[2]^2+x[3]^2-1/4)*x[3]]
+g = [1-x[1]^2, 1-x[2]^2, 1-x[3]^2]
+d = 3
+ClusteredLowRankSolverModel = GenericModel{BigFloat}(ClusteredLowRankSolver.Optimizer)
+set_optimizer_attribute(ClusteredLowRankSolverModel, MOI.Silent(), true)
+v, vc, vb = add_poly!(ClusteredLowRankSolverModel, x, 2d-2)
+w, wc, wb = add_poly!(ClusteredLowRankSolverModel, x, 2d)
+Lv = v - sum(f .* differentiate(v, x))
+info1 = add_psatz!(ClusteredLowRankSolverModel, Lv, x, g, [], d, TS="block", SO=1, constrs="con1")
+info2 = add_psatz!(ClusteredLowRankSolverModel, w, x, g, [], d, TS="block", SO=1)
+info3 = add_psatz!(ClusteredLowRankSolverModel, w-v-1, x, g, [], d, TS="block", SO=1)
+moment = get_moment(wb, x, -ones(n), ones(n))
+@objective(ClusteredLowRankSolverModel, Min, sum(moment.*wc))
+optimize!(ClusteredLowRankSolverModel)
+objv = objective_value(ClusteredLowRankSolverModel)
+@test objv ≈ 3.437648 atol = 1e-6
+
 @polyvar x[1:3]
 f = x[1]^2 + x[1]*x[2] + x[2]^2 + x[2]*x[3] + x[3]^2
 d = 2 # set the relaxation order
