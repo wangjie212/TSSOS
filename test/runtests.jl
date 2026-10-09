@@ -1,11 +1,24 @@
 using DynamicPolynomials
+
+#test existence of mosek license before loading it
+USE_MOSEK = false
+try 
+    run(`msktestlic`)
+    global USE_MOSEK = true
+catch
+end
+#note: can't "using MosekTools" inside the try/catch block because it introduces a new local scope
+if USE_MOSEK
+    using MosekTools
+else
+    using COSMO
+end
+const TEST_SOLVER = eval((USE_MOSEK) ? :Mosek : :COSMO)
+
+using ClusteredLowRankSolver
 using TSSOS
 using JuMP
-using MosekTools
 using PermutationGroups
-using COSMO
-using SCS
-using ClusteredLowRankSolver
 using Test
 
 
@@ -81,11 +94,11 @@ opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS="signsymmetry", Gram=true, soluti
 opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true)
 @test opt ≈ 0.71742533 atol = 1e-6
 
-model = Model(optimizer_with_attributes(COSMO.Optimizer))
+model = Model(optimizer_with_attributes(TEST_SOLVER.Optimizer))
 opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true, model=model)
 @test opt ≈ 0.71742533 atol = 1e-5
 
-model = Model(optimizer_with_attributes(SCS.Optimizer))
+model = Model(optimizer_with_attributes(TEST_SOLVER.Optimizer))
 opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true, model=model)
 @test opt ≈ 0.71742533 atol = 1e-4
 
@@ -118,7 +131,7 @@ n = 3
 f = [(x[1]^2+x[2]^2-1/4)*x[1], (x[2]^2+x[3]^2-1/4)*x[2], (x[2]^2+x[3]^2-1/4)*x[3]]
 g = [1-x[1]^2, 1-x[2]^2, 1-x[3]^2]
 d = 3
-model = Model(optimizer_with_attributes(Mosek.Optimizer))
+model = Model(optimizer_with_attributes(TEST_SOLVER.Optimizer))
 set_optimizer_attribute(model, MOI.Silent(), true)
 v, vc, vb = add_poly!(model, x, 2d-2)
 w, wc, wb = add_poly!(model, x, 2d)
@@ -157,7 +170,7 @@ f = x[1]^2 + x[1]*x[2] + x[2]^2 + x[2]*x[3] + x[3]^2
 d = 2 # set the relaxation order
 @polyvar y[1:2]
 h = [x[1]^2 + x[2]^2 + y[1]^2-1, x[2]^2 + x[3]^2 + y[2]^2 - 1]
-model = Model(optimizer_with_attributes(Mosek.Optimizer))
+model = Model(optimizer_with_attributes(TEST_SOLVER.Optimizer))
 set_optimizer_attribute(model, MOI.Silent(), true)
 @variable(model, lower)
 nonneg = f - lower*sum(x.^2)
@@ -173,7 +186,7 @@ p = [x^2+y^2-y*z, y^2+x^2*z, z^2-x+y]
 q = [1+2x^2+y^2+z^2, 1+x^2+2y^2+z^2, 1+x^2+y^2+2z^2]
 g = [1-x^2-y^2-z^2]
 d = 4
-model = Model(optimizer_with_attributes(Mosek.Optimizer))
+model = Model(optimizer_with_attributes(TEST_SOLVER.Optimizer))
 set_optimizer_attribute(model, MOI.Silent(), true)
 h1 = add_poly!(model, [x;y;z], 2d-2, signsymmetry=get_signsymmetry([p[2]; q[2]; g], [x;y;z]))[1]
 h2 = add_poly!(model, [x;y;z], 2d-2, signsymmetry=get_signsymmetry([p[3]; q[3]; g], [x;y;z]))[1]
@@ -256,7 +269,7 @@ opt,data = tssos_symmetry(data, QUIET=true)
 @test opt ≈ -1.3987174 atol = 1e-6
 
 d = 2
-model = Model(optimizer_with_attributes(Mosek.Optimizer))
+model = Model(optimizer_with_attributes(TEST_SOLVER.Optimizer))
 set_optimizer_attribute(model, MOI.Silent(), true)
 lambda = @variable(model)
 info = add_psatz_symmetry!(model, f - lambda, x, [1 - sum(x.^2)], [], d, G, SymmetricConstraint=true, TS="block", SO=2)
@@ -270,7 +283,7 @@ opt = objective_value(model)
 f = x[1]*x[2]*x[3]
 g = [1-x[1]^2, 1-x[2]^2, 1-x[3]^2]
 d = 2
-model = Model(optimizer_with_attributes(Mosek.Optimizer))
+model = Model(optimizer_with_attributes(TEST_SOLVER.Optimizer))
 set_optimizer_attribute(model, MOI.Silent(), true)
 @variable(model, lower)
 add_psatz_cheby!(model, f-lower, x, g, [], d, TS="block", SO=1)
@@ -286,7 +299,7 @@ f = [(x[1]^2+x[2]^2-1/4)*x[1], (x[2]^2+x[3]^2-1/4)*x[2], (x[2]^2+x[3]^2-1/4)*x[3
 g = [1-x[1]^2, 1-x[2]^2, 1-x[3]^2]
 d = 3
 vsupp,vblocks,wsupp,wblocks,status = get_dynamic_sparsity(f, g, x, d, TS=["block","block"], SO=[2,1])
-model = Model(optimizer_with_attributes(Mosek.Optimizer))
+model = Model(optimizer_with_attributes(TEST_SOLVER.Optimizer))
 set_optimizer_attribute(model, MOI.Silent(), true)
 v, vc, vb = add_poly!(model, x, vsupp)
 w, wc, wb = add_poly!(model, x, wsupp)
