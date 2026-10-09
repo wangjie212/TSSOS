@@ -15,6 +15,7 @@ else
 end
 const TEST_SOLVER = eval((USE_MOSEK) ? :Mosek : :COSMO)
 
+using ClusteredLowRankSolver
 using TSSOS
 using JuMP
 using PermutationGroups

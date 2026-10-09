@@ -1,5 +1,6 @@
 [deps]
 COSMO = "1e616198-aa4e-51ec-90a2-23f7fbd31d8d"
+ClusteredLowRankSolver = "cadeb640-247c-4e6d-a8b8-270aef5e1f95"
 DynamicPolynomials = "7c1d4256-1411-5781-91ec-d7bc3513ac07"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 MosekTools = "1ec41992-ff65-5c91-ac43-2df89e9693a4"
