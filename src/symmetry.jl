@@ -62,7 +62,7 @@ Compute the symmetry adapted moment-SOS relaxation for polynomial optimization p
 - `data`: other auxiliary data 
 """
 function tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, 
-    TS="block", eqTS=TS, QUIET=false, merge=false, md=3, dualize=false, mosek_setting=MosekParameters(), model=nothing)
+    TS="block", eqTS=TS, QUIET=false, merge=false, md=3, dualize=false,  optimizer=default_optimizer())
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     obj = poly(pop[1], x)
@@ -141,7 +141,7 @@ function tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=fa
         println("Assembling the SDP...")
     end
     optimum,tsupp,GramMat,multiplier,SDP_status = solvesdp(obj, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action[2], QUIET=QUIET, 
-    dualize=dualize, mosek_setting=mosek_setting, model=model)
+    dualize=dualize,  optimizer=optimizer)
     data = polybasis_data(obj, ineq_cons, eq_cons, Float64, group, action[2], basis, ebasis, tsupp, blocksize, blocks, eblocks, GramMat, multiplier, SDP_status)
     return optimum,data
 end
@@ -169,7 +169,7 @@ Compute the symmetry adapted moment-HSOS relaxation for complex polynomial optim
 - `data`: other auxiliary data 
 """
 function complex_tssos_symmetry(pop::Vector{Poly{T}}, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, 
-    SymmetricConstraint=true, ConjugateBasis=false, TS="block", eqTS=TS, QUIET=false, merge=false, md=3, dualize=false, mosek_setting=MosekParameters(), model=nothing) where {T<:Number}
+    SymmetricConstraint=true, ConjugateBasis=false, TS="block", eqTS=TS, QUIET=false, merge=false, md=3, dualize=false,  optimizer=default_optimizer()) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     obj = cpoly(pop[1], x)
@@ -265,12 +265,12 @@ function complex_tssos_symmetry(pop::Vector{Poly{T}}, x, d, group; numeq=0, acti
         println("Assembling the SDP...")
     end
     optimum,tsupp,GramMat,multiplier,SDP_status = solvesdp(obj, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action[2], QUIET=QUIET, 
-    coe_type=coe_type, dualize=dualize, mosek_setting=mosek_setting, model=model)
+    coe_type=coe_type, dualize=dualize,  optimizer=optimizer)
     data = polybasis_data(obj, ineq_cons, eq_cons, coe_type, group, action[2], basis, ebasis, tsupp, blocksize, blocks, eblocks, GramMat, multiplier, SDP_status)
     return optimum,data
 end
 
-function tssos_symmetry(data::polybasis_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, dualize=false, field="real", mosek_setting=MosekParameters(), model=nothing)
+function tssos_symmetry(data::polybasis_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, dualize=false, field="real",  optimizer=default_optimizer())
     eq_cons = data.eq_cons
     ineq_cons = data.ineq_cons
     group = data.group
@@ -293,7 +293,7 @@ function tssos_symmetry(data::polybasis_data; TS="block", eqTS=TS, merge=false, 
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
         opt,ksupp,GramMat,multiplier,SDP_status = solvesdp(data.obj, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action, 
-        QUIET=QUIET, coe_type=data.coe_type, dualize=dualize, mosek_setting=mosek_setting, model=model)
+        QUIET=QUIET, coe_type=data.coe_type, dualize=dualize,  optimizer=optimizer)
         data.blocks = blocks
         data.eblocks = eblocks
         data.blocksize = blocksize
@@ -305,17 +305,15 @@ function tssos_symmetry(data::polybasis_data; TS="block", eqTS=TS, merge=false, 
     return opt,data
 end
 
-function complex_tssos_symmetry(data::polybasis_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, dualize=false, mosek_setting=MosekParameters(), model=nothing)
-    return tssos_symmetry(data, TS=TS, eqTS=eqTS, merge=merge, md=md, QUIET=QUIET, dualize=dualize, field="complex", mosek_setting=mosek_setting, model=model)
+function complex_tssos_symmetry(data::polybasis_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, dualize=false,  optimizer=default_optimizer())
+    return tssos_symmetry(data, TS=TS, eqTS=eqTS, merge=merge, md=md, QUIET=QUIET, dualize=dualize, field="complex",  optimizer=optimizer)
 end
 
-function solvesdp(obj::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action; QUIET=false, coe_type=Float64, dualize=false, mosek_setting=MosekParameters(), model=nothing)
-    if model === nothing
-        if dualize == false
-            model = Model(default_optimizer(mosek_setting))
-        else
-            model = Model(dual_optimizer(default_optimizer()))
-        end
+function solvesdp(obj::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action; QUIET=false, coe_type=Float64, dualize=false,  optimizer=default_optimizer())
+    if dualize
+        model = Model(dual_optimizer(optimizer))
+    else
+        model = Model(optimizer)
     end
     time = @elapsed begin
     tsupp = Vector{UInt16}[]
@@ -418,13 +416,11 @@ function solvesdp(obj::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, b
     return optimum,tsupp,GramMat,multiplier,SDP_status
 end
 
-function solvesdp(obj::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action; QUIET=false, coe_type=ComplexF64, dualize=false, mosek_setting=MosekParameters(), model=nothing)
-    if model === nothing
-        if dualize == false
-            model = Model(default_optimizer(mosek_setting))
-        else
-            model = Model(dual_optimizer(default_optimizer()))
-        end
+function solvesdp(obj::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action; QUIET=false, coe_type=ComplexF64, dualize=false,  optimizer=default_optimizer())
+    if dualize
+        model = Model(dual_optimizer(optimizer))
+    else
+        model = Model(optimizer)
     end
     time = @elapsed begin
     tsupp = Tuple{Vector{UInt16},Vector{UInt16}}[]

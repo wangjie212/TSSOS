@@ -31,27 +31,16 @@ export homogenize, solve_hpop, SumOfRatios, SparseSumOfRatios, get_dynamic_spars
 export show_blocks, complex_to_real, get_mmoment, get_basis, get_moment, get_moment_matrix, get_cmoment
 export run_H1, run_H1CS, run_H2, run_H2CS, construct_CDK, construct_marginal_CDK, construct_CDK_cs, construct_marginal_CDK_cs
 
-mutable struct MosekParameters
-    tol_pfeas::Float64
-    tol_dfeas::Float64
-    tol_relgap::Float64
-    time_limit::Int64
-    num_threads::Int64
-end
 
-MosekParameters() = MosekParameters(1e-8, 1e-8, 1e-8, -1, 0)
-
-#temporarily receive mosek_setting parameter so as to not break the interface.
-#in future work, remove mosek_setting entirely in favor of MosekExt's mosek_optimizer_from_settings
-function default_optimizer(mosek_setting=nothing)
+function default_optimizer()
     mosek_extension = Base.get_extension(TSSOS, :MosekExt)
     cosmo_extension = Base.get_extension(TSSOS, :COSMOExt)
     if !isnothing(mosek_extension)
         @info "Using Mosek as default solver" maxlog=1 
-        return mosek_extension.mosek_optimizer(mosek_setting)
+        return mosek_extension.mosek_optimizer()
     elseif !isnothing(cosmo_extension)
         @info "Using COSMO as default solver since MosekTools was not loaded" maxlog=1
-        return cosmo_extension.cosmo_optimizer(mosek_setting)
+        return cosmo_extension.cosmo_optimizer()
     else
         error("No supported SDP solver found. Currently supported default solvers are Mosek and COSMO: import at least one before TSSOS. This is necessary because there are currently multiple internal SDP solver calls not available for configuring (change soon)")
     end

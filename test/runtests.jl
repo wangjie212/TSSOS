@@ -94,12 +94,12 @@ opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS="signsymmetry", Gram=true, soluti
 opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true)
 @test opt ≈ 0.71742533 atol = 1e-6
 
-model = Model(optimizer_with_attributes(TEST_SOLVER.Optimizer))
-opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true, model=model)
+optimizer = optimizer_with_attributes(TEST_SOLVER.Optimizer)
+opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true, optimizer=optimizer)
 @test opt ≈ 0.71742533 atol = 1e-5
 
-model = Model(optimizer_with_attributes(TEST_SOLVER.Optimizer))
-opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true, model=model)
+optimizer = optimizer_with_attributes(TEST_SOLVER.Optimizer)
+opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true, optimizer=optimizer)
 @test opt ≈ 0.71742533 atol = 1e-4
 
 # Solving systems of polynomial equations

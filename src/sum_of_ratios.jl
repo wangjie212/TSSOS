@@ -15,7 +15,7 @@ Minimizing the sum of ratios p1/q1 + ... + pN/qN on the set defined by g >= 0 an
 - `SignSymmetry`: exploit sign symmetries or not (`true`, `false`)
 - `GroebnerBasis`: exploit the quotient ring structure or not (`true`, `false`)
 """
-function SumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=true, mosek_setting=MosekParameters(), GroebnerBasis=false)
+function SumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=true,  GroebnerBasis=false)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     N = length(p)
@@ -34,10 +34,10 @@ function SumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=
     end
     dq = MP.maxdegree.(q)
     time = @elapsed begin
-    if dualize == false
-        model = Model(default_optimizer(mosek_setting))
+    if dualize
+        model = Model(dual_optimizer(optimizer))
     else
-        model = Model(dual_optimizer(default_optimizer()))
+        model = Model(optimizer)
     end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     hh = Vector{Poly{AffExpr}}(undef, N-1)
@@ -79,7 +79,7 @@ Minimizing the sum of sparse ratios p1/q1 + ... + pN/qN on the set defined by g 
 - `SignSymmetry`: exploit sign symmetries or not (`true`, `false`)
 - `GroebnerBasis`: exploit the quotient ring structure or not (`true`, `false`)
 """
-function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=true, mosek_setting=MosekParameters(), GroebnerBasis=false)
+function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=true,  GroebnerBasis=false, optimizer=default_optimizer())
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     N = length(p)
@@ -111,10 +111,10 @@ function SparseSumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSym
     U = [findall(j->!isempty(intersect(I[i], I[j])), i+1:N) .+ i for i=1:N-1]
     V = [findall(j->!isempty(intersect(I[i], I[j])), 1:i-1) for i=2:N]
     time = @elapsed begin
-    if dualize == false
-        model = Model(default_optimizer(mosek_setting))
+    if dualize
+        model = Model(dual_optimizer(optimizer))
     else
-        model = Model(dual_optimizer(default_optimizer()))
+        model = Model(optimizer)
     end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     hh = Vector{Vector{Poly{AffExpr}}}(undef, N)
