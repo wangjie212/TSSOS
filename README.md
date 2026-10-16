@@ -309,17 +309,18 @@ Options
 For more examples, please check out `example/pmi.jl`.
 
 ## Choose an SDP solver
-By default, Mosek is chosen as the backend SDP solver. The parameters of Mosek could be tuned by
+By default, Mosek is chosen as the backend SDP solver. To tune parameters, create a JuMP model with the desired attributes:
 
 ```Julia
-settings = mosek_para()
-settings.tol_pfeas = 1e-8 # primal feasibility tolerance
-settings.tol_dfeas = 1e-8 # dual feasibility tolerance
-settings.tol_relgap = 1e-8 # relative primal-dual gap tolerance
-settings.time_limit = 1e4 # limit of running time
-settings.num_threads = 0 # number of threads available for Mosek
+tuned_optimizer = optimizer_with_attributes(Mosek.Optimizer, 
+    "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => 1e-8,  # primal feasibility tolerance
+    "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => 1e-8,  # dual feasibility tolerance
+    "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => 1e-8,  # relative primal-dual gap tolerance
+    "MSK_DPAR_OPTIMIZER_MAX_TIME" => 1e4,  # limit of running time
+    "MSK_IPAR_NUM_THREADS" => 0 # number of threads available for Mosek
+)
 ```
-and run for instance tssos(..., mosek_setting=settings)  
+and run for instance tssos(..., optimizer=tuned_optimizer)  
 
 You may also choose other SDP solvers supported by JuMP:
 
@@ -334,10 +335,10 @@ using SCS
 f = 1+sum(x.^4)+x[1]*x[2]*x[3]+x[3]*x[4]*x[5]+x[3]*x[4]*x[6]+x[3]*x[5]*x[6]+x[4]*x[5]*x[6]
 pop = [f, 1-sum(x[1:3].^2), 1-sum(x[3:6].^2)]
 d = 2
-model = Model(optimizer_with_attributes(COSMO.Optimizer))
-opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true, model=model)
-model = Model(optimizer_with_attributes(SCS.Optimizer))
-opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true, model=model)
+optimizer = optimizer_with_attributes(COSMO.Optimizer)
+opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true, optimizer=optimizer)
+optimizer = optimizer_with_attributes(SCS.Optimizer)
+opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true, optimizer=optimizer)
 ```
 
 ## Tips for modelling polynomial optimization problems
