@@ -49,7 +49,7 @@ end
 
 """
     opt,sol,data = cs_tssos(pop, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", eqTS=TS, merge=false, md=3, 
-    dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, mosek_setting=mosek_para(), model=nothing, 
+    dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, optimizer=default_optimizer(), 
     rtol=1e-2, gtol=1e-2, ftol=1e-3)
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained polynomial optimization.
@@ -80,28 +80,27 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `data`: other auxiliary data 
 """
 function cs_tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", eqTS=TS, merge=false, md=3,
-    dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, mosek_setting=mosek_para(), model=nothing, 
+    dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false,optimizer=default_optimizer(), 
     writetofile=false, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     if nb > 0
         pop = Groebner.normalform(x[1:nb].^2 .- 1, pop)
     end
     npop = [poly(p, x) for p in pop]
     opt,sol,data = cs_tssos(npop, length(x), d, numeq=numeq, nb=nb, CS=CS, cliques=cliques, basis=basis, ebasis=ebasis, TS=TS,
-    eqTS=eqTS, merge=merge, md=md, QUIET=QUIET, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne,
-    mosek_setting=mosek_setting, model=model, writetofile=writetofile, rtol=rtol, gtol=gtol, ftol=ftol, pop=pop, x=x)
+    eqTS=eqTS, merge=merge, md=md, QUIET=QUIET, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne, optimizer=optimizer, writetofile=writetofile, rtol=rtol, gtol=gtol, ftol=ftol, pop=pop, x=x)
     return opt,sol,data
 end
 
 """
     opt,sol,data = cs_tssos(npop::Vector{poly{T}}, n, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", 
-    eqTS=TS, merge=false, md=3, QUIET=false, dualize=false, solve=true, solution=false, Gram=false, MomentOne=false, mosek_setting=mosek_para(), 
-    model=nothing, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
+    eqTS=TS, merge=false, md=3, QUIET=false, dualize=false, solve=true, solution=false, Gram=false, MomentOne=false,  
+    optimizer=default_optimizer(), rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained polynomial optimization. 
 """
 function cs_tssos(npop::Vector{poly{T}}, n, d; numeq=0, nb=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", 
     eqTS=TS, merge=false, md=3, QUIET=false, dualize=false, solve=true, solution=false, MomentOne=false, Gram=false, 
-    mosek_setting=mosek_para(), model=nothing, writetofile=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, pop=nothing, x=nothing) where {T<:Number}
+    optimizer=default_optimizer(), writetofile=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, pop=nothing, x=nothing) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     obj = npop[1]
@@ -171,8 +170,8 @@ function cs_tssos(npop::Vector{poly{T}}, n, d; numeq=0, nb=0, CS="MF", cliques=[
         println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
     end
     opt,ksupp,momone,moment,GramMat,multiplier,SDP_status = solvesdp(obj, ineq_cons, eq_cons, basis, ebasis, cliques, cql, cliquesize, I, J, Iprime, Jprime, blocks, 
-    eblocks, cl, blocksize, nb=nb, QUIET=QUIET, TS=TS, dualize=dualize, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram, mosek_setting=mosek_setting, 
-    model=model, writetofile=writetofile)
+    eblocks, cl, blocksize, nb=nb, QUIET=QUIET, TS=TS, dualize=dualize, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram,
+    optimizer=optimizer, writetofile=writetofile)
     data = spop_data(pop, obj, ineq_cons, eq_cons, x, n, nb, numeq, basis, ebasis, ksupp, cliquesize, cliques, I, J, Iprime, Jprime, blocksize, blocks, eblocks, GramMat, 
     multiplier, moment, SDP_status, rtol, gtol, ftol, 1)
     sol = nothing
@@ -201,12 +200,12 @@ end
 
 """
     opt,sol,data = cs_tssos(data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
-    MomentOne=false, mosek_setting=mosek_para(), model=nothing)
+    MomentOne=false, optimizer=default_optimizer())
 
 Compute higher TS steps of the CS-TSSOS hierarchy.
 """
 function cs_tssos(data::spop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
-    MomentOne=false, mosek_setting=mosek_para(), model=nothing, writetofile=false)
+    MomentOne=false, optimizer=default_optimizer(), writetofile=false)
     obj = data.obj
     ineq_cons = data.ineq_cons
     eq_cons = data.eq_cons
@@ -234,7 +233,7 @@ function cs_tssos(data::spop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET
         end
         opt,ksupp,momone,moment,GramMat,multiplier,SDP_status = solvesdp(obj, ineq_cons, eq_cons, basis, ebasis, cliques, cql, cliquesize, data.I, data.J, 
         data.Iprime, data.Jprime, blocks, eblocks, cl, blocksize, nb=nb, QUIET=QUIET, solve=solve, solution=solution, dualize=dualize, MomentOne=MomentOne, 
-        Gram=Gram, mosek_setting=mosek_setting, model=model, writetofile=writetofile)
+        Gram=Gram, optimizer = optimizer, writetofile=writetofile)
         sol = nothing
         if solution == true
             sol,gap,data.flag = approx_sol(momone, opt, n, cliques, cql, cliquesize, [obj; ineq_cons[2:end]; eq_cons], numeq=numeq, gtol=data.gtol, ftol=data.ftol, QUIET=true)
@@ -262,8 +261,8 @@ function cs_tssos(data::spop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET
 end
 
 function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, basis, ebasis, cliques, cql, cliquesize, I, J, Iprime, Jprime, 
-    blocks, eblocks, cl, blocksize; nb=0, QUIET=false, TS="block", solve=true, solution=false, Gram=false, MomentOne=false, mosek_setting=mosek_para(), 
-    model=nothing, dualize=false, writetofile=false) where {T1,T2<:poly}
+    blocks, eblocks, cl, blocksize; nb=0, QUIET=false, TS="block", solve=true, solution=false, Gram=false, MomentOne=false,  
+    optimizer=default_optimizer(), dualize=false, writetofile=false) where {T1,T2<:poly}
     tsupp = Vector{UInt16}[]
     for i = 1:cql, j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
         @inbounds bi = sadd(basis[i][1][blocks[i][1][j][k]], basis[i][1][blocks[i][1][j][r]], nb=nb)
@@ -307,13 +306,10 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, basis, ebasis
             println("Assembling the SDP...")
             println("There are $(length(tsupp)) affine constraints.")
         end
-        if model === nothing
-            if dualize == false
-                model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
-                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_DPAR_OPTIMIZER_MAX_TIME" => mosek_setting.time_limit, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
-            else
-                model = Model(dual_optimizer(Mosek.Optimizer))
-            end
+        if dualize
+            model = Model(dual_optimizer(optimizer))
+        else
+            model = Model(optimizer)
         end
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin

@@ -180,7 +180,7 @@ function newton_basis(n, d, supp; tol=1e-5)
         if bfind(nsupp, 2*bi) !== nothing
             t += 1
         else
-            model = Model(optimizer_with_attributes(Mosek.Optimizer))
+            model = Model(default_optimizer())
             set_optimizer_attribute(model, MOI.Silent(), true)
             @variable(model, x[1:n+1], lower_bound=-10, upper_bound=10)
             @constraint(model, [A0; [bi' -1]]*x .<= zeros(length(supp)+1))

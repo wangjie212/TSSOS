@@ -24,10 +24,10 @@ ca = map(va, 1:g)
 pop = [-f; ceps; ca]
 r = 3
 
-model = Model(optimizer_with_attributes(COSMO.Optimizer), "eps_abs"=>1e-6, "eps_rel"=>1e-6, "max_iter"=>1e7)
-opt,sol,data = cs_tssos(pop, [a[:];x[:]], r, CS=false, TS="block", model=model)
+optimizer = optimizer_with_attributes(COSMO.Optimizer, "eps_abs"=>1e-6, "eps_rel"=>1e-6, "max_iter"=>1e7)
+opt,sol,data = cs_tssos(pop, [a[:];x[:]], r, CS=false, TS="block", optimizer=optimizer)
 
-model = Model(optimizer_with_attributes(COSMO.Optimizer), "eps_abs"=>1e-7, "eps_rel"=>1e-7, "max_iter"=>1e7)
-opt,sol,data = cs_tssos(data, TS="block", model=model)
+optimizer = optimizer_with_attributes(COSMO.Optimizer, "eps_abs"=>1e-7, "eps_rel"=>1e-7, "max_iter"=>1e7)
+opt,sol,data = cs_tssos(data, TS="block", optimizer=optimizer)
 @show opt # 1.8029 
 ```
