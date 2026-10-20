@@ -34,7 +34,6 @@ end
 
 Display the block structure
 """
-
 function show_blocks(data::spop_data; include_constraints=false)
     for i = 1:data.cql, (j, block) in enumerate(data.blocks[i][1])
         print("clique $i, block $j: ")

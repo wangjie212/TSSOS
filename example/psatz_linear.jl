@@ -5,7 +5,7 @@ using MultivariatePolynomials
 using TSSOS
 
 function basis(x)
-    basis = Monomial{true}[1]
+    basis = Mono[1]
     push!(basis, x...)
     for i = 1:length(x), j = i:length(x)
         push!(basis, x[i]*x[j])
@@ -27,13 +27,13 @@ g6 = y[2] + rand(length(b))'*b
 g7 = rand(length(b))'*b - y[3]
 g8 = y[3] + rand(length(b))'*b
 
-opt,sol,data = tssos([f;g1;g2;g3;g4;g5;g6;g7;g8], [x;y], 3, TS=false, QUIET=true)
+@time opt,sol,data = tssos([f;g1;g2;g3;g4;g5;g6;g7;g8], [x;y], 2, TS=false, QUIET=true)
 
-d = 3
+d = 2
 model = Model(optimizer_with_attributes(Mosek.Optimizer))
 set_optimizer_attribute(model, MOI.Silent(), true)
 s0 = add_SOS!(model, x, d)
-s1 = add_SOS!(model, x, d-1)
+s1 = add_SOS!(model, x, d-2)
 s2 = add_SOS!(model, x, d-1)
 s3 = add_SOS!(model, x, d-1)
 s4 = add_SOS!(model, x, d-1)
@@ -44,7 +44,7 @@ s8 = add_SOS!(model, x, d-1)
 @variable(model, lower)
 @objective(model, Max, lower)
 @constraint(model, coefficients(f - lower - s0 - s1*g1 - s2*g2 - s3*g3 - s4*g4 - s5*g5 - s6*g6 - s7*g7 - s8*g8) .== 0)
-optimize!(model)
+@time optimize!(model)
 status = termination_status(model)
 if status != MOI.OPTIMAL
     println("termination status: $status")
