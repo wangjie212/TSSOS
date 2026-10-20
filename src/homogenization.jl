@@ -71,7 +71,7 @@ function solve_hpop(cost, x, ineq_cons, eq_cons, order; QUIET=false, CS="MF", ty
         cost += ε*sum(nvars.^d0)
     end
     time = @elapsed begin
-    model = Model(optimizer_with_attributes(Mosek.Optimizer))
+    model = Model(default_optimizer())
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     @variable(model, λ)
     info = add_psatz!(model, cost-λ*z^d, nvars, ineq_cons, eq_cons, order, QUIET=QUIET, CS=CS, TS=TS, eqTS=eqTS, SO=SO, GroebnerBasis=GroebnerBasis, constrs="con")
