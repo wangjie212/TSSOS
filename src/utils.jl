@@ -90,7 +90,7 @@ function sadd(a::Tuple{Vector{UInt16},Vector{UInt16}}, b::Tuple{Vector{UInt16},V
     return tuple(sort!([a[1]; b[1]; c[1]]), sort!([a[2]; b[2]; c[2]]))
 end
 
-function get_signsymmetry(npop::Vector{poly{T}}, n) where {T<:Union{Number,AffExpr,GenericAffExpr}}
+function get_signsymmetry(npop::AbstractVector{<:poly}, n)
     supp = zeros(UInt8, sum(length(p.supp) for p in npop), n)
     l = 1
     for p in npop, bi in p.supp
@@ -160,7 +160,7 @@ function get_conjugate_basis(var::Vector{Int}, d::Int; nb=0)
     return basis
 end
 
-function newton_basis(n, d, supp; tol=1e-5)
+function newton_basis(n, d, supp; tol=1e-5, optimizer=nothing, model=nothing)
     nsupp = zeros(Int, n, length(supp))
     for i = 1:length(supp), j in supp[i]
         nsupp[j, i] += 1
@@ -180,17 +180,19 @@ function newton_basis(n, d, supp; tol=1e-5)
         if bfind(nsupp, 2*bi) !== nothing
             t += 1
         else
-            model = Model(default_optimizer())
-            set_optimizer_attribute(model, MOI.Silent(), true)
-            @variable(model, x[1:n+1], lower_bound=-10, upper_bound=10)
-            @constraint(model, [A0; [bi' -1]]*x .<= zeros(length(supp)+1))
-            @objective(model, Min, [bi' -1]*x)
-            optimize!(model)
+            lp_model = _sdp_model(model, optimizer, false)
+            set_optimizer_attribute(lp_model, MOI.Silent(), true)
+            @variable(lp_model, x[1:n+1], lower_bound=-10, upper_bound=10)
+            @constraint(lp_model, [A0; [bi' -1]]*x .<= zeros(length(supp)+1))
+            @objective(lp_model, Min, [bi' -1]*x)
+            optimize!(lp_model)
             vx = value.(x)
-            if abs(objective_value(model)) <= tol && sum(abs.(vx)) <= tol
+            objval = objective_value(lp_model)
+            empty!(lp_model) # reuse a supplied optimizer for the final SDP
+            if abs(objval) <= tol && sum(abs.(vx)) <= tol
                 t += 1
             else
-                if abs(objective_value(model)) <= tol && sum(abs.(vx)) > tol
+                if abs(objval) <= tol && sum(abs.(vx)) > tol
                    t += 1
                 else
                    lb -= 1

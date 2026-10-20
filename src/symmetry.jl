@@ -43,6 +43,8 @@ end
     opt,data = tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, TS="block", eqTS=TS, QUIET=false)
 
 Compute the symmetry adapted moment-SOS relaxation for polynomial optimization problems.
+The `model` keyword accepts an empty JuMP `GenericModel`; both the SDP and
+the symmetry adapted basis use its numeric type. Use a fresh model per call.
 
 # Input arguments
 - `pop`: polynomial optimization problem
@@ -62,9 +64,10 @@ Compute the symmetry adapted moment-SOS relaxation for polynomial optimization p
 - `data`: other auxiliary data 
 """
 function tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, 
-    TS="block", eqTS=TS, QUIET=false, merge=false, md=3, dualize=false,  optimizer=default_optimizer())
+    TS="block", eqTS=TS, QUIET=false, merge=false, md=3, dualize=false,  optimizer=nothing, model=nothing)
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
+    NumberType = model === nothing ? Float64 : JuMP.value_type(typeof(model))
     obj = poly(pop[1], x)
     ineq_cons = [poly([UInt16[]], [1]); [poly(p, x) for p in pop[2:length(pop)-numeq]]]
     eq_cons = [poly(p, x) for p in pop[length(pop)-numeq+1:end]]
@@ -79,17 +82,17 @@ function tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=fa
     supp_2d = get_basis(Vector(1:length(x)), 2d)
     monos_d = Mono[prod(x[item]) for item in supp_d]
     monos_2d = Mono[prod(x[item]) for item in supp_2d]
-    wedderburn = WedderburnDecomposition(Float64, group, action[1], monos_2d, monos_d, semisimple=semisimple)
+    wedderburn = precision_wedderburn(NumberType, group, action[1], monos_2d, monos_d, semisimple=semisimple)
     basis = Vector{Vector{Vector{poly}}}(undef, length(ineq_cons))
     basis[1] = Vector{Vector{poly}}(undef, length(wedderburn.Uπs))
     for (i, ele) in enumerate(wedderburn.Uπs)
-        basis[1][i] = Vector{poly{Float64}}(undef, size(ele.basis,1))
+        basis[1][i] = Vector{poly{NumberType}}(undef, size(ele.basis,1))
         for j = 1:size(ele.basis,1)
             basis[1][i][j] = poly(supp_d[ele.basis[j,:].nzind], ele.basis[j,:].nzval) # This is the symmetry adapted basis
         end
     end
     for i = 2:length(ineq_cons)
-        basis[i] = Vector{poly{Float64}}[]
+        basis[i] = Vector{poly{NumberType}}[]
         if SymmetricConstraint == true
             for bas in basis[1]
                 ind = maxdeg.(bas) .<= d - ceil(Int, maxdeg(ineq_cons[i])/2)
@@ -99,7 +102,7 @@ function tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=fa
             end
         else
             bas = supp_d[length.(supp_d) .<= d - ceil(Int, maxdeg(ineq_cons[i])/2)]
-            push!(basis[i], [poly([ba],[1]) for ba in bas])
+            push!(basis[i], [poly([ba],NumberType[1]) for ba in bas])
         end
     end
     ebasis = Vector{Vector{poly}}(undef, numeq)
@@ -141,8 +144,8 @@ function tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=fa
         println("Assembling the SDP...")
     end
     optimum,tsupp,GramMat,multiplier,SDP_status = solvesdp(obj, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action[2], QUIET=QUIET, 
-    dualize=dualize,  optimizer=optimizer)
-    data = polybasis_data(obj, ineq_cons, eq_cons, Float64, group, action[2], basis, ebasis, tsupp, blocksize, blocks, eblocks, GramMat, multiplier, SDP_status)
+    dualize=dualize,  optimizer=optimizer, model=model)
+    data = polybasis_data(obj, ineq_cons, eq_cons, NumberType, group, action[2], basis, ebasis, tsupp, blocksize, blocks, eblocks, GramMat, multiplier, SDP_status)
     return optimum,data
 end
 
@@ -150,6 +153,8 @@ end
     opt,data = complex_tssos_symmetry(pop, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, SymmetricConstraint=true, ConjugateBasis=false, TS="block", eqTS=TS, QUIET=false)
 
 Compute the symmetry adapted moment-HSOS relaxation for complex polynomial optimization problems.
+The `model` keyword accepts an empty JuMP `GenericModel`; both the SDP and
+the symmetry adapted basis use its numeric type. Use a fresh model per call.
 
 # Input arguments
 - `pop`: complex polynomial optimization problem
@@ -169,16 +174,17 @@ Compute the symmetry adapted moment-HSOS relaxation for complex polynomial optim
 - `data`: other auxiliary data 
 """
 function complex_tssos_symmetry(pop::Vector{Poly{T}}, x, d, group; numeq=0, action=nothing, semisimple=false, DiagSquare=false, 
-    SymmetricConstraint=true, ConjugateBasis=false, TS="block", eqTS=TS, QUIET=false, merge=false, md=3, dualize=false,  optimizer=default_optimizer()) where {T<:Number}
+    SymmetricConstraint=true, ConjugateBasis=false, TS="block", eqTS=TS, QUIET=false, merge=false, md=3, dualize=false,  optimizer=nothing, model=nothing) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
+    NumberType = model === nothing ? Float64 : JuMP.value_type(typeof(model))
     obj = cpoly(pop[1], x)
     ineq_cons = [cpoly([tuple(UInt16[],UInt16[])], [1]); [cpoly(p, x) for p in pop[2:length(pop)-numeq]]]
     eq_cons = [cpoly(p, x) for p in pop[length(pop)-numeq+1:end]]
     if QUIET == false
         println("Starting to compute the block structure...")
     end
-    coe_type = T <: Real ? Float64 : ComplexF64
+    coe_type = T <: Real ? NumberType : Complex{NumberType}
     time = @elapsed begin
     if action === nothing
         action = tuple(VariablePermutation(x), VariablePermutation(Vector(1:length(x))))
@@ -193,7 +199,7 @@ function complex_tssos_symmetry(pop::Vector{Poly{T}}, x, d, group; numeq=0, acti
         supp_2d = vec([tuple(item1,item2) for item1 in supp_d, item2 in supp_d])
     end
     monos_2d = [prod(x[item[1]])*MP.conj(prod(x[item[2]])) for item in supp_2d]
-    wedderburn = WedderburnDecomposition(coe_type, group, action[1], monos_2d, monos_d, semisimple=semisimple)
+    wedderburn = precision_wedderburn(coe_type, group, action[1], monos_2d, monos_d, semisimple=semisimple)
     basis = Vector{Vector{Vector{cpoly}}}(undef, length(ineq_cons))
     basis[1] = Vector{Vector{cpoly}}(undef, length(wedderburn.Uπs))
     for (i, ele) in enumerate(wedderburn.Uπs)
@@ -265,12 +271,12 @@ function complex_tssos_symmetry(pop::Vector{Poly{T}}, x, d, group; numeq=0, acti
         println("Assembling the SDP...")
     end
     optimum,tsupp,GramMat,multiplier,SDP_status = solvesdp(obj, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action[2], QUIET=QUIET, 
-    coe_type=coe_type, dualize=dualize,  optimizer=optimizer)
+    coe_type=coe_type, dualize=dualize,  optimizer=optimizer, model=model)
     data = polybasis_data(obj, ineq_cons, eq_cons, coe_type, group, action[2], basis, ebasis, tsupp, blocksize, blocks, eblocks, GramMat, multiplier, SDP_status)
     return optimum,data
 end
 
-function tssos_symmetry(data::polybasis_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, dualize=false, field="real",  optimizer=default_optimizer())
+function tssos_symmetry(data::polybasis_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, dualize=false, field="real",  optimizer=nothing, model=nothing)
     eq_cons = data.eq_cons
     ineq_cons = data.ineq_cons
     group = data.group
@@ -293,7 +299,7 @@ function tssos_symmetry(data::polybasis_data; TS="block", eqTS=TS, merge=false, 
             println("Obtained the block structure in $time seconds.\nThe maximal size of blocks is $mb.")
         end
         opt,ksupp,GramMat,multiplier,SDP_status = solvesdp(data.obj, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action, 
-        QUIET=QUIET, coe_type=data.coe_type, dualize=dualize,  optimizer=optimizer)
+        QUIET=QUIET, coe_type=data.coe_type, dualize=dualize,  optimizer=optimizer, model=model)
         data.blocks = blocks
         data.eblocks = eblocks
         data.blocksize = blocksize
@@ -305,16 +311,14 @@ function tssos_symmetry(data::polybasis_data; TS="block", eqTS=TS, merge=false, 
     return opt,data
 end
 
-function complex_tssos_symmetry(data::polybasis_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, dualize=false,  optimizer=default_optimizer())
-    return tssos_symmetry(data, TS=TS, eqTS=eqTS, merge=merge, md=md, QUIET=QUIET, dualize=dualize, field="complex",  optimizer=optimizer)
+function complex_tssos_symmetry(data::polybasis_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, dualize=false,  optimizer=nothing, model=nothing)
+    return tssos_symmetry(data, TS=TS, eqTS=eqTS, merge=merge, md=md, QUIET=QUIET, dualize=dualize, field="complex",  optimizer=optimizer, model=model)
 end
 
-function solvesdp(obj::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action; QUIET=false, coe_type=Float64, dualize=false,  optimizer=default_optimizer())
-    if dualize
-        model = Model(dual_optimizer(optimizer))
-    else
-        model = Model(optimizer)
-    end
+function solvesdp(obj::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action; QUIET=false, coe_type=Float64, dualize=false,  optimizer=nothing, model=nothing)
+    model = _sdp_model(model, optimizer, dualize)
+    NumberType = JuMP.value_type(typeof(model))
+    VariableType = GenericVariableRef{NumberType}
     time = @elapsed begin
     tsupp = Vector{UInt16}[]
     if all(cl[1] .== 1)
@@ -335,12 +339,12 @@ function solvesdp(obj::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, b
         println("There are $(length(tsupp)) affine constraints.")
     end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
-    cons = [AffExpr(0) for i=1:length(tsupp)]
-    pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, length(ineq_cons))
+    cons = [GenericAffExpr{NumberType,VariableType}(zero(NumberType)) for i=1:length(tsupp)]
+    pos = Vector{Vector{Vector{Union{VariableType,Symmetric{VariableType}}}}}(undef, length(ineq_cons))
     for (k, g) in enumerate(ineq_cons)
-        pos[k] = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, length(basis[k]))
+        pos[k] = Vector{Vector{Union{VariableType,Symmetric{VariableType}}}}(undef, length(basis[k]))
         for (i, bas) in enumerate(basis[k])
-            pos[k][i] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[k][i])
+            pos[k][i] = Vector{Union{VariableType,Symmetric{VariableType}}}(undef, cl[k][i])
             for (l, bs) in enumerate(blocksize[k][i])
                 if bs == 1
                     pos[k][i][l] = @variable(model, lower_bound=0)
@@ -362,7 +366,7 @@ function solvesdp(obj::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, b
             end
         end
     end
-    mul = Vector{Vector{VariableRef}}(undef, length(eq_cons))
+    mul = Vector{Vector{VariableType}}(undef, length(eq_cons))
     for (k, h) in enumerate(eq_cons)
         mul[k] = @variable(model, [1:length(eblocks[k])])
         for (j, i) in enumerate(eblocks[k]), (v, item) in enumerate(h.supp)
@@ -402,10 +406,10 @@ function solvesdp(obj::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, b
     end
     optimum = objective_value(model)
     @show optimum
-    GramMat = Vector{Vector{Vector{Union{Float64,Matrix{Float64}}}}}(undef, length(ineq_cons))
+    GramMat = Vector{Vector{Vector{Union{NumberType,Matrix{NumberType}}}}}(undef, length(ineq_cons))
     multiplier = nothing
     for i = 1:length(ineq_cons)
-        GramMat[i] = Vector{Vector{Union{Float64,Matrix{Float64}}}}(undef, length(basis[i]))
+        GramMat[i] = Vector{Vector{Union{NumberType,Matrix{NumberType}}}}(undef, length(basis[i]))
         for j = 1:length(basis[i])
             GramMat[i][j] = [value.(pos[i][j][k]) for k = 1:cl[i][j]]
         end
@@ -416,12 +420,11 @@ function solvesdp(obj::poly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, b
     return optimum,tsupp,GramMat,multiplier,SDP_status
 end
 
-function solvesdp(obj::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action; QUIET=false, coe_type=ComplexF64, dualize=false,  optimizer=default_optimizer())
-    if dualize
-        model = Model(dual_optimizer(optimizer))
-    else
-        model = Model(optimizer)
-    end
+function solvesdp(obj::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, blocks, eblocks, group, action; QUIET=false, coe_type=ComplexF64, dualize=false,  optimizer=nothing, model=nothing)
+    model = _sdp_model(model, optimizer, dualize)
+    NumberType = JuMP.value_type(typeof(model))
+    VariableType = GenericVariableRef{NumberType}
+    coe_type = coe_type <: Real ? NumberType : Complex{NumberType}
     time = @elapsed begin
     tsupp = Tuple{Vector{UInt16},Vector{UInt16}}[]
     if all(cl[1] .== 1)
@@ -441,16 +444,16 @@ function solvesdp(obj::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
     end
     sort!(tsupp)
     unique!(tsupp)
-    rcons = [AffExpr(0) for i=1:length(tsupp)]
-    if coe_type == ComplexF64
-        icons = [AffExpr(0) for i=1:length(tsupp)]
+    rcons = [GenericAffExpr{NumberType,VariableType}(zero(NumberType)) for i=1:length(tsupp)]
+    if coe_type <: Complex
+        icons = [GenericAffExpr{NumberType,VariableType}(zero(NumberType)) for i=1:length(tsupp)]
     end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
-    pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, length(ineq_cons))
+    pos = Vector{Vector{Vector{Union{VariableType,Symmetric{VariableType}}}}}(undef, length(ineq_cons))
     for (k, g) in enumerate(ineq_cons)
-        pos[k] = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, length(basis[k]))
+        pos[k] = Vector{Vector{Union{VariableType,Symmetric{VariableType}}}}(undef, length(basis[k]))
         for (i, bas) in enumerate(basis[k])
-            pos[k][i] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[k][i])
+            pos[k][i] = Vector{Union{VariableType,Symmetric{VariableType}}}(undef, cl[k][i])
             for (l, bs) in enumerate(blocksize[k][i])
                 if bs == 1
                     pos[k][i][l] = @variable(model, lower_bound=0)
@@ -460,13 +463,13 @@ function solvesdp(obj::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
                             @inbounds ind = bfind(tsupp, bi)
                             c = bas[blocks[k][i][l][1]].coe[s]*conj(bas[blocks[k][i][l][1]].coe[u])*g.coe[v]
                             @inbounds add_to_expression!(rcons[ind], real(c), pos[k][i][l])
-                            if coe_type == ComplexF64
+                            if coe_type <: Complex
                                 @inbounds add_to_expression!(icons[ind], imag(c), pos[k][i][l])
                             end
                         end
                     end
                 else
-                    if coe_type == ComplexF64
+                    if coe_type <: Complex
                         pos[k][i][l] = @variable(model, [1:2bs, 1:2bs], PSD)
                     else
                         pos[k][i][l] = @variable(model, [1:bs, 1:bs], PSD)
@@ -475,7 +478,7 @@ function solvesdp(obj::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
                         bi = normalform(sadd(sadd(item1,conj(item2)),item3), group, action)
                         if bi[1] <= bi[2]
                             @inbounds ind = bfind(tsupp, bi)
-                            if coe_type == ComplexF64
+                            if coe_type <: Complex
                                 c = bas[blocks[k][i][l][j]].coe[s]*conj(bas[blocks[k][i][l][t]].coe[u])*g.coe[v]
                                 @inbounds add_to_expression!(rcons[ind], real(c), pos[k][i][l][j,t]+pos[k][i][l][j+bs,t+bs])
                                 @inbounds add_to_expression!(rcons[ind], -imag(c), pos[k][i][l][j,t+bs]-pos[k][i][l][t,j+bs])
@@ -492,11 +495,11 @@ function solvesdp(obj::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
             end
         end
     end
-    mul = Vector{Vector{VariableRef}}(undef, length(eq_cons))
+    mul = Vector{Vector{VariableType}}(undef, length(eq_cons))
     for (k, h) in enumerate(eq_cons)
         temp = ebasis[k][eblocks[k]][[item <= conj(item) for item in ebasis[k][eblocks[k]]]]
         lb = length(temp)
-        if coe_type == ComplexF64
+        if coe_type <: Complex
             mul[k] = @variable(model, [1:2*lb])
         else
             mul[k] = @variable(model, [1:lb])
@@ -513,7 +516,7 @@ function solvesdp(obj::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
                     loc = bfind(temp, conj(ebasis[k][i]))
                     tag = -1
                 end
-                if coe_type == ComplexF64
+                if coe_type <: Complex
                     @inbounds add_to_expression!(rcons[ind], real(h.coe[v])*mul[k][loc] - tag*imag(h.coe[v])*mul[k][loc+lb])
                     if bi[1] != bi[2]
                        @inbounds add_to_expression!(icons[ind], tag*real(h.coe[v])*mul[k][loc+lb] + imag(h.coe[v])*mul[k][loc])
@@ -533,7 +536,7 @@ function solvesdp(obj::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
                 return nothing,nothing,nothing,nothing,nothing
             else
                 rcons[Locb] -= real(obj.coe[i])
-                if coe_type == ComplexF64 && bi[1] != bi[2]
+                if coe_type <: Complex && bi[1] != bi[2]
                     icons[Locb] -= imag(obj.coe[i])
                 end
             end
@@ -544,7 +547,7 @@ function solvesdp(obj::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
     rcons[1] += lambda
     @constraint(model, rcons .== 0)
     m = length(tsupp)
-    if coe_type == ComplexF64
+    if coe_type <: Complex
         icons = icons[[item[1] != item[2] && icons[i] != 0 for (i,item) in enumerate(tsupp)]]
         @constraint(model, icons .== 0)
         m += length(icons)
@@ -569,15 +572,15 @@ function solvesdp(obj::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
     end
     optimum = objective_value(model)
     @show optimum
-    GramMat = Vector{Vector{Vector{Union{Float64,Matrix{coe_type}}}}}(undef, length(ineq_cons))
+    GramMat = Vector{Vector{Vector{Union{NumberType,Matrix{coe_type}}}}}(undef, length(ineq_cons))
     multiplier = nothing
     for i = 1:length(ineq_cons)
-        GramMat[i] = Vector{Vector{Union{Float64,Matrix{coe_type}}}}(undef, length(basis[i]))
+        GramMat[i] = Vector{Vector{Union{NumberType,Matrix{coe_type}}}}(undef, length(basis[i]))
         for j = 1:length(basis[i])
-            if coe_type == Float64
+            if coe_type <: Real
                 GramMat[i][j] = [value.(pos[i][j][k]) for k = 1:cl[i][j]]
             else
-                GramMat[i][j] = Vector{Union{Float64,Matrix{coe_type}}}(undef, cl[i][j])
+                GramMat[i][j] = Vector{Union{NumberType,Matrix{coe_type}}}(undef, cl[i][j])
                 for k = 1:cl[i][j]
                     bs = blocksize[i][j][k]
                     if bs == 1
@@ -595,7 +598,7 @@ function solvesdp(obj::cpoly, ineq_cons, eq_cons, basis, ebasis, cl, blocksize, 
     #         temp = ebasis[k][eblocks[k]][[item <= conj(item) for item in ebasis[k][eblocks[k]]]]
     #         lb = length(temp)
     #         mu = [prod(x[item[1]])*conj(prod(x[item[2]])) for item in temp]
-    #         if coe_type == Float64
+    #         if coe_type <: Real
     #             tau = sum(mu .* value.(mul[k]))
     #         else
     #             tau = sum(mu .* (value.(mul[k][1:lb]) .+ value.(mul[k][lb+1:2*lb])*im))
@@ -670,7 +673,9 @@ function get_eblock(tsupp, h, basis::Vector{T}, group, action) where {T<:Union{p
     return eblock
 end
 
-function add_psatz_symmetry!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order, group; action=nothing, semisimple=false, SymmetricConstraint=true, TS="block", eqTS=TS, SO=1, merge=false, md=3, QUIET=false) where {T<:Union{Number,AffExpr}}
+function add_psatz_symmetry!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order, group; action=nothing, semisimple=false, SymmetricConstraint=true, TS="block", eqTS=TS, SO=1, merge=false, md=3, QUIET=false) where {T<:Union{Number,GenericAffExpr}}
+    NumberType = JuMP.value_type(typeof(model))
+    VariableType = GenericVariableRef{NumberType}
     obj = poly(nonneg, x)
     ineq_cons = [poly([UInt16[]], [1]); [poly(p, x) for p in ineq_cons]]
     eq_cons = [poly(p, x) for p in eq_cons]
@@ -685,17 +690,17 @@ function add_psatz_symmetry!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, orde
     supp_2d = get_basis(Vector(1:length(x)), 2*order)
     monos_d = Mono[prod(x[item]) for item in supp_d]
     monos_2d = Mono[prod(x[item]) for item in supp_2d]
-    wedderburn = WedderburnDecomposition(Float64, group, action[1], monos_2d, monos_d, semisimple=semisimple)
+    wedderburn = precision_wedderburn(NumberType, group, action[1], monos_2d, monos_d, semisimple=semisimple)
     basis = Vector{Vector{Vector{poly}}}(undef, length(ineq_cons))
     basis[1] = Vector{Vector{poly}}(undef, length(wedderburn.Uπs))
     for (i, ele) in enumerate(wedderburn.Uπs)
-        basis[1][i] = Vector{poly{Float64}}(undef, size(ele.basis,1))
+        basis[1][i] = Vector{poly{NumberType}}(undef, size(ele.basis,1))
         for j = 1:size(ele.basis,1)
             basis[1][i][j] = poly(supp_d[ele.basis[j,:].nzind], ele.basis[j,:].nzval) # This is the symmetry adapted basis
         end
     end
     for i = 2:length(ineq_cons)
-        basis[i] = Vector{poly{Float64}}[]
+        basis[i] = Vector{poly{NumberType}}[]
         if SymmetricConstraint == true
             for bas in basis[1]
                 ind = maxdeg.(bas) .<= order - ceil(Int, maxdeg(ineq_cons[i])/2)
@@ -705,7 +710,7 @@ function add_psatz_symmetry!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, orde
             end
         else
             bas = supp_d[length.(supp_d) .<= order - ceil(Int, maxdeg(ineq_cons[i])/2)]
-            push!(basis[i], [poly([ba],[1]) for ba in bas])
+            push!(basis[i], [poly([ba],NumberType[1]) for ba in bas])
         end
     end
     ebasis = Vector{Vector{poly}}(undef,length(eq_cons))
@@ -746,12 +751,12 @@ function add_psatz_symmetry!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, orde
     end
     sort!(tsupp)
     unique!(tsupp)
-    cons = [AffExpr(0) for i=1:length(tsupp)]
-    pos = Vector{Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}}(undef, length(ineq_cons))
+    cons = [GenericAffExpr{NumberType,VariableType}(zero(NumberType)) for i=1:length(tsupp)]
+    pos = Vector{Vector{Vector{Union{VariableType,Symmetric{VariableType}}}}}(undef, length(ineq_cons))
     for (k, g) in enumerate(ineq_cons)
-        pos[k] = Vector{Vector{Union{VariableRef,Symmetric{VariableRef}}}}(undef, length(basis[k]))
+        pos[k] = Vector{Vector{Union{VariableType,Symmetric{VariableType}}}}(undef, length(basis[k]))
         for (i, bas) in enumerate(basis[k])
-            pos[k][i] = Vector{Union{VariableRef,Symmetric{VariableRef}}}(undef, cl[k][i])
+            pos[k][i] = Vector{Union{VariableType,Symmetric{VariableType}}}(undef, cl[k][i])
             for (l, bs) in enumerate(blocksize[k][i])
                 if bs == 1
                     pos[k][i][l] = @variable(model, lower_bound=0)
@@ -773,7 +778,7 @@ function add_psatz_symmetry!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, orde
             end
         end
     end
-    mul = Vector{Vector{VariableRef}}(undef, length(eq_cons))
+    mul = Vector{Vector{VariableType}}(undef, length(eq_cons))
     for (k, h) in enumerate(eq_cons)
         mul[k] = @variable(model, [1:length(eblocks[k])])
         for (j, i) in enumerate(eblocks[k]), (v, item) in enumerate(h.supp)
@@ -791,7 +796,7 @@ function add_psatz_symmetry!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, orde
         end
     end
     @constraint(model, cons .== 0)
-    info = polybasis_data(obj, ineq_cons, eq_cons, nothing, group, action[2], basis, ebasis, tsupp, blocksize, blocks, eblocks, pos, mul, nothing)
+    info = polybasis_data(obj, ineq_cons, eq_cons, NumberType, group, action[2], basis, ebasis, tsupp, blocksize, blocks, eblocks, pos, mul, nothing)
     return info
 end
 

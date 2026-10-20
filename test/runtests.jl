@@ -21,6 +21,9 @@ using JuMP
 using PermutationGroups
 using Test
 
+include("high_precision_test.jl")
+include("high_precision_interfaces_test.jl")
+
 
 @testset begin
 

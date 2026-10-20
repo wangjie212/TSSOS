@@ -341,6 +341,54 @@ optimizer = optimizer_with_attributes(SCS.Optimizer)
 opt,sol,data = cs_tssos(pop, x, d, numeq=1, TS=false, Gram=true, solution=true, QUIET=true, optimizer=optimizer)
 ```
 
+### High-precision polynomial optimization
+
+For `tssos`, `cs_tssos`, `complex_tssos`, `complex_cs_tssos`,
+`tssos_symmetry`, and `complex_tssos_symmetry`, pass an empty JuMP
+`GenericModel` whose numeric type matches its solver. For example:
+
+```Julia
+using DynamicPolynomials, JuMP, TSSOS, ClusteredLowRankSolver
+
+setprecision(BigFloat, 256) do
+    @polyvar x[1:1]
+    model = GenericModel{BigFloat}(ClusteredLowRankSolver.Optimizer)
+    set_optimizer_attribute(model, "duality_gap_threshold", big"1e-30")
+    pop = [(x[1] - big"0.25")^2 + big"0.1", 1 - x[1]^2]
+    opt, sol, data = cs_tssos(pop, x, 1; model, Gram=true, solution=true)
+end
+```
+
+The same interface accepts `GenericModel{BigFloat}(Clarabel.Optimizer{BigFloat})`.
+Attainable accuracy depends on the solver and its settings; changing the model
+type alone does not tighten solver tolerances.
+Construct input coefficients with `BigFloat` (for example, `big"0.1"`) or
+exact integers/rationals; converting an already rounded `Float64` cannot
+recover precision. Keep model construction and solving inside the desired
+`setprecision` scope.
+
+`opt` and the available Gram matrices, equality multipliers, and moment matrices
+retain the model's numeric type (`Complex{BigFloat}` for complex data).
+The symmetry routines also construct their adapted bases at that precision,
+using exact character projections followed by generic dense QR. This can use
+more memory than the Float64 sparse factorization. Begin the symmetry hierarchy
+at the desired precision: reusing a basis built at lower precision cannot
+recover its missing digits.
+
+`add_psatz_symmetry!` takes its numeric type from its positional `model`
+argument and accepts polynomial coefficients containing that model's affine
+expressions, such as `f - lower`. Unlike the optimization entry points, this
+certificate builder can add constraints to an existing model.
+
+The optional `solution=true` extraction and Ipopt refinement remain
+Float64/ComplexF64 heuristics: they use separate working copies of the moments
+and do not reduce the precision of the stored SDP results.
+
+Pass either `model` or `optimizer`, and supply a fresh empty model for each
+call, including higher term-sparsity steps. With a supplied model, configure any dualization
+in its optimizer instead of passing `dualize=true`. Existing `optimizer=...`
+calls and default solver selection continue to use Float64.
+
 ## Tips for modelling polynomial optimization problems
 - When possible, explictly include a sphere/ball constraint (or multi-sphere/multi-ball constraints).
 - When the feasible set is unbounded, try the homogenization technique introduced in [Homogenization for polynomial optimization with unbounded sets](https://link.springer.com/article/10.1007/s10107-022-01878-5).

@@ -37,9 +37,11 @@ end
 """
     opt,sol,data = complex_cs_tssos(pop, z, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", eqTS=TS, reducebasis=false, 
     merge=false, md=3, QUIET=false, solve=true, solution=false, dualize=false, Gram=false, MomentOne=false, ConjugateBasis=false, 
-    normality=!ConjugateBasis, joint_normality=0,  optimizer=default_optimizer(), rtol=1e-2, gtol=1e-2, ftol=1e-3)
+    normality=!ConjugateBasis, joint_normality=0,  optimizer=nothing, model=nothing, rtol=1e-2, gtol=1e-2, ftol=1e-3)
 
-Compute the first TS step of the CS-TSSOS hierarchy for constrained complex polynomial optimization. 
+Compute the first TS step of the CS-TSSOS hierarchy for constrained complex polynomial optimization.
+Pass an empty JuMP `GenericModel` with `model=...` to select the SDP numeric
+type. Complex Gram and moment matrices use the corresponding complex type.
 If `ConjugateBasis=true`, then include conjugate variables in monomial bases.
 If `merge=true`, perform the PSD block merging. 
 If `solve=false`, then do not solve the SDP.
@@ -71,33 +73,33 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 """
 function complex_cs_tssos(pop::Vector{Poly{T}}, z, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], TS="block", eqTS=TS, 
     merge=false, md=3, reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, 
-    ConjugateBasis=false, Gram=false,  optimizer=default_optimizer(), writetofile=false, normality=!ConjugateBasis, 
+    ConjugateBasis=false, Gram=false,  optimizer=nothing, model=nothing, writetofile=false, normality=!ConjugateBasis,
     joint_normality=0, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     npop = [cpoly(p, z) for p in pop]
     return complex_cs_tssos(npop, length(z), d, numeq=numeq, RemSig=RemSig, nb=nb, CS=CS, cliques=cliques, TS=TS, eqTS=eqTS, merge=merge, 
     md=md, reducebasis=reducebasis, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, ConjugateBasis=ConjugateBasis, 
-    Gram=Gram,  optimizer = optimizer, writetofile=writetofile, normality=normality, joint_normality=joint_normality, pop=pop, z=z, rtol=rtol, gtol=gtol, ftol=ftol)
+    Gram=Gram,  optimizer=optimizer, model=model, writetofile=writetofile, normality=normality, joint_normality=joint_normality, pop=pop, z=z, rtol=rtol, gtol=gtol, ftol=ftol)
 end
 
 function complex_tssos(pop::Vector{Poly{T}}, z, d; numeq=0, RemSig=false, nb=0, TS="block", eqTS=TS, 
     merge=false, md=3, reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, 
-    ConjugateBasis=false, Gram=false,  optimizer=default_optimizer(), writetofile=false, normality=!ConjugateBasis, 
+    ConjugateBasis=false, Gram=false,  optimizer=nothing, model=nothing, writetofile=false, normality=!ConjugateBasis,
     joint_normality=0, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     return complex_cs_tssos(pop, z, d, numeq=numeq, RemSig=RemSig, nb=nb, CS=false, TS=TS, eqTS=eqTS, merge=merge, md=md, reducebasis=reducebasis, 
     QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, ConjugateBasis=ConjugateBasis, Gram=Gram,  
-    optimizer = optimizer, writetofile=writetofile, normality=normality, joint_normality=joint_normality, rtol=rtol, gtol=gtol, ftol=ftol)
+    optimizer=optimizer, model=model, writetofile=writetofile, normality=normality, joint_normality=joint_normality, rtol=rtol, gtol=gtol, ftol=ftol)
 end
 
 """
     opt,sol,data = complex_cs_tssos(npop::Vector{cpoly{T}}, n, d; nb=0, numeq=0, CS="MF", cliques=[], TS="block", eqTS=TS, merge=false, md=3, 
     solution=false, dualize=false, QUIET=false, solve=true, Gram=false, MomentOne=false, normality=!ConjugateBasis,  
-    optimizer=default_optimizer(), rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
+    optimizer=nothing, model=nothing, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained complex polynomial optimization. 
 """
 function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=false, nb=0, CS="MF", cliques=[], 
     TS="block", eqTS=TS, merge=false, md=3, reducebasis=false, QUIET=false, solve=true, solution=false, dualize=false, MomentOne=false, ConjugateBasis=false, 
-    Gram=false,  optimizer=default_optimizer(), writetofile=false, normality=!ConjugateBasis, joint_normality=0, pop=nothing, z=nothing, 
+    Gram=false,  optimizer=nothing, model=nothing, writetofile=false, normality=!ConjugateBasis, joint_normality=0, pop=nothing, z=nothing,
     rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
@@ -283,9 +285,9 @@ function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=fal
     end
     opt,ksupp,moment,sol,GramMat,multiplier,SDP_status = solvesdp(obj, ineq_cons, eq_cons, n, rlorder, basis, ebasis, cliques, cql, cliquesize, I, J, 
     Iprime, Jprime, blocks, eblocks, cl, blocksize, z=z, QUIET=QUIET, TS=TS, ConjugateBasis=ConjugateBasis, solve=solve, MomentOne=MomentOne, 
-    ipart=ipart, solution=solution, Gram=Gram, nb=nb,  optimizer = optimizer, dualize=dualize, writetofile=writetofile, normality=normality, joint_normality=joint_normality)
+    ipart=ipart, solution=solution, Gram=Gram, nb=nb,  optimizer=optimizer, model=model, dualize=dualize, writetofile=writetofile, normality=normality, joint_normality=joint_normality)
     flag = 1
-    if solution == true
+    if solution == true && opt !== nothing
         if TS != false
             if pop !== nothing
                 asol = check_solution([sol], opt, pop, z, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=true)
@@ -316,9 +318,9 @@ function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=fal
             end
         else
             if cql == 1 && pop !== nothing
-                sol = extract_solutions_robust(moment[1][1], n, d, type=ComplexF64, pop=pop, x=z, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
+                sol = extract_solutions_robust(extraction_matrix(moment[1][1]), n, d, type=ComplexF64, pop=pop, x=z, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
             else
-                sol = extract_csolutions_robust(moment, n, d, cliques, cql, cliquesize, pop=pop, z=z, npop=npop, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
+                sol = extract_csolutions_robust(extraction_cmoments(moment), n, d, cliques, cql, cliquesize, pop=pop, z=z, npop=npop, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
             end
         end
         if sol !== nothing
@@ -332,12 +334,12 @@ end
 
 """
     opt,sol,data = complex_cs_tssos(data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, dualize=false, solution=false, 
-    Gram=false, MomentOne=false,  optimizer=default_optimizer())
+    Gram=false, MomentOne=false,  optimizer=nothing, model=nothing)
 
 Compute higher TS steps of the CS-TSSOS hierarchy.
 """
 function complex_cs_tssos(data::cpop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
-    MomentOne=false,  optimizer=default_optimizer(), writetofile=false)
+    MomentOne=false,  optimizer=nothing, model=nothing, writetofile=false)
     obj = data.obj
     eq_cons = data.eq_cons
     ineq_cons = data.ineq_cons
@@ -367,9 +369,9 @@ function complex_cs_tssos(data::cpop_data; TS="block", eqTS=TS, merge=false, md=
         end
         opt,ksupp,moment,sol,GramMat,multiplier,SDP_status = solvesdp(obj, ineq_cons, eq_cons, n, data.rlorder, basis, ebasis, cliques, cql, cliquesize, I, J, 
     data.Iprime, data.Jprime, blocks, eblocks, cl, blocksize, z=data.z, QUIET=QUIET, TS=TS, ConjugateBasis=data.ConjugateBasis, solve=solve, MomentOne=MomentOne, 
-    ipart=data.ipart, solution=solution, Gram=Gram, nb=nb,  optimizer = optimizer, dualize=dualize, writetofile=writetofile, 
+    ipart=data.ipart, solution=solution, Gram=Gram, nb=nb,  optimizer=optimizer, model=model, dualize=dualize, writetofile=writetofile,
     normality=data.normality, joint_normality=data.joint_normality)
-        if solution == true
+        if solution == true && opt !== nothing
             if data.pop !== nothing
                 asol = check_solution([sol], opt, data.pop, data.z, numeq=numeq, gtol=data.gtol, ftol=data.ftol, QUIET=true)
                 if asol === nothing
@@ -414,9 +416,9 @@ function complex_cs_tssos(data::cpop_data; TS="block", eqTS=TS, merge=false, md=
 end
 
 function complex_tssos(data::cpop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
-    MomentOne=false,  optimizer=default_optimizer(), writetofile=false)
+    MomentOne=false,  optimizer=nothing, model=nothing, writetofile=false)
     return complex_cs_tssos(data, TS=TS, eqTS=eqTS, merge=merge, md=md, QUIET=QUIET, solve=solve, solution=solution, Gram=Gram, dualize=dualize, 
-    MomentOne=MomentOne,  optimizer = optimizer, writetofile=writetofile)
+    MomentOne=MomentOne,  optimizer=optimizer, model=model, writetofile=writetofile)
 end
 
 function get_csupp(rlorder::Vector{Int}, basis, ebasis, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, I, J, Iprime, Jprime, blocks, eblocks, cl, blocksize, cql, cliquesize; norm=false, nb=0, ConjugateBasis=false, normality=1, joint_normality=0) where {T1,T2<:cpoly}
@@ -479,7 +481,7 @@ end
 
 function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, basis, ebasis, cliques, cql, cliquesize, I, J, Iprime, Jprime, blocks, eblocks, cl, blocksize; 
     nb=0, z=nothing, QUIET=false, TS="block", ConjugateBasis=false, solve=true, dualize=false, Gram=false, MomentOne=false, ipart=true, solution=false, 
-     optimizer=default_optimizer(), writetofile=false, normality=1, joint_normality=0) where {T1,T2<:cpoly}
+     optimizer=nothing, model=nothing, writetofile=false, normality=1, joint_normality=0) where {T1,T2<:cpoly}
     tsupp = Tuple{Vector{UInt16},Vector{UInt16}}[]
     for i = 1:cql
         if ConjugateBasis == false
@@ -532,19 +534,17 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, b
         if QUIET == false
             println("Assembling the SDP...")
         end
-        if dualize
-            model = Model(dual_optimizer(optimizer))
-        else
-            model = Model(optimizer)
-        end
+        model = _sdp_model(model, optimizer, dualize)
+        NumberType = JuMP.value_type(typeof(model))
+        VariableType = GenericVariableRef{NumberType}
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
-        rcons = [AffExpr(0) for i=1:length(tsupp)]
+        rcons = [GenericAffExpr{NumberType,VariableType}(zero(NumberType)) for i=1:length(tsupp)]
         if ipart == true
-            icons = [AffExpr(0) for i=1:length(tsupp)]
+            icons = [GenericAffExpr{NumberType,VariableType}(zero(NumberType)) for i=1:length(tsupp)]
         end
-        pos = Vector{Vector{Vector{Symmetric{VariableRef}}}}(undef, cql)
-        free = Vector{Vector{Vector{VariableRef}}}(undef, cql)
+        pos = Vector{Vector{Vector{Symmetric{VariableType}}}}(undef, cql)
+        free = Vector{Vector{Vector{VariableType}}}(undef, cql)
         for i = 1:cql
             if (MomentOne == true || solution == true) && TS != false
                 bs = cliquesize[i] + 1
@@ -571,9 +571,9 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, b
                     end
                 end
             end
-            pos[i] = Vector{Vector{Symmetric{VariableRef}}}(undef, length(I[i]))
+            pos[i] = Vector{Vector{Symmetric{VariableType}}}(undef, length(I[i]))
             for (j, p) in enumerate(ineq_cons[I[i]])
-                pos[i][j] = Vector{Symmetric{VariableRef}}(undef, cl[i][j])
+                pos[i][j] = Vector{Symmetric{VariableType}}(undef, cl[i][j])
                 for l = 1:cl[i][j]
                     bs = blocksize[i][j][l]
                     if ipart == true && bs != 1
@@ -611,7 +611,7 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, b
                     end
                 end
             end
-            free[i] = Vector{Vector{VariableRef}}(undef, length(J[i]))
+            free[i] = Vector{Vector{VariableType}}(undef, length(J[i]))
             for (j, p) in enumerate(eq_cons[J[i]])
                 mons = ebasis[i][j][eblocks[i][j]]
                 temp = mons[[item[1] <= item[2] for item in mons]]
@@ -685,11 +685,11 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, b
         end
         @variable(model, lower)
         rcons[1] += lower
-        @constraint(model, rcon, rcons == zeros(length(tsupp)))
+        @constraint(model, rcon, rcons == zeros(NumberType, length(tsupp)))
         m = length(tsupp)
         if ipart == true
             icons = icons[[item[1] != item[2] for item in tsupp]]
-            @constraint(model, icon, icons == zeros(length(icons)))
+            @constraint(model, icon, icons == zeros(NumberType, length(icons)))
             m += length(icons)
         end
         @objective(model, Max, lower)
@@ -720,7 +720,7 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, b
             end
             println("optimum = $objv")
             if Gram == true
-                ctype = ipart==true ? ComplexF64 : Float64
+                ctype = ipart ? Complex{NumberType} : NumberType
                 GramMat = Vector{Vector{Vector{Matrix{ctype}}}}(undef, cql)
                 multiplier = Vector{Vector{Poly{ctype}}}(undef, cql)
                 for i = 1:cql
@@ -737,16 +737,17 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, b
                             end
                         end
                     end
+                    multiplier[i] = Poly{ctype}[]
                     if !isempty(J[i])
                         multiplier[i] = Vector{Poly{ctype}}(undef, length(J[i]))
                         for k = 1:length(J[i])
                             temp = ebasis[i][k][eblocks[i][k]][[item[1] <= item[2] for item in ebasis[i][k][eblocks[i][k]]]]
                             lb = length(temp)
-                            if ctype == Float64
-                                tau = sum(prod(z[temp[j][1]])*conj(prod(z[temp[j][2]]))*value(free[i][k][j]) for j = 1:lb)
-                            else
-                                tau = sum(prod(z[temp[j][1]])*conj(prod(z[temp[j][2]]))*(value(free[i][k][j])+value(free[i][k][lb+j])*im) for j = 1:lb)
-                            end
+                            # Self-conjugate monomials have one real coefficient;
+                            # their unused imaginary variables need not have solver values.
+                            coeffs = [temp[j][1] == temp[j][2] ? value(free[i][k][j])/2 :
+                                value(free[i][k][j]) + (ipart ? im*value(free[i][k][lb+j]) : zero(NumberType)) for j = 1:lb]
+                            tau = sum(prod(z[temp[j][1]])*conj(prod(z[temp[j][2]]))*coeffs[j] for j = 1:lb)
                             multiplier[i][k] = tau + conj(tau)
                         end
                     end
@@ -760,7 +761,8 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, b
             if solution == true
                 sol = [rmeasure[bfind(tsupp, tuple(UInt16[], UInt16[i]))] for i = 1:n]
                 if ipart == true
-                    sol += [-imeasure[bfind(tsupp, tuple(UInt16[], UInt16[i]))] for i = 1:n]*im
+                    itsupp = tsupp[[item[1] != item[2] for item in tsupp]]
+                    sol += [-imeasure[bfind(itsupp, tuple(UInt16[], UInt16[i]))] for i = 1:n]*im
                 end          
             end
             moment = get_cmoment(rmeasure, imeasure, tsupp, cql, blocks, cl, blocksize, basis, ipart=ipart, nb=nb, ConjugateBasis=ConjugateBasis)
@@ -910,7 +912,8 @@ function clique_decomp(npop::Vector{T}, n; order="min", alg="MF", ReducedCS=true
 end
 
 function get_cmoment(rmeasure, imeasure, tsupp, cql, blocks, cl, blocksize, basis; ipart=true, nb=0, ConjugateBasis=false)
-    ctype = ipart == true ? ComplexF64 : Float64
+    NumberType = eltype(rmeasure)
+    ctype = ipart ? Complex{NumberType} : NumberType
     moment = Vector{Vector{Matrix{ctype}}}(undef, cql)
     if ipart == true
         itsupp = tsupp[[item[1] != item[2] for item in tsupp]]
@@ -919,9 +922,9 @@ function get_cmoment(rmeasure, imeasure, tsupp, cql, blocks, cl, blocksize, basi
         moment[i] = Vector{Matrix{ctype}}(undef, cl[i][1])
         for l = 1:cl[i][1]
             bs = blocksize[i][1][l]
-            rtemp = zeros(Float64, bs, bs)
+            rtemp = zeros(NumberType, bs, bs)
             if ipart == true
-                itemp = zeros(Float64, bs, bs)
+                itemp = zeros(NumberType, bs, bs)
             end
             for t = 1:bs, r = t:bs
                 if ConjugateBasis == false

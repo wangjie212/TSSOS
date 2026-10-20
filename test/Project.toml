@@ -1,4 +1,5 @@
 [deps]
+Clarabel = "61c947e1-3e6d-4ee4-985a-eec8c727bd6e"
 COSMO = "1e616198-aa4e-51ec-90a2-23f7fbd31d8d"
 ClusteredLowRankSolver = "cadeb640-247c-4e6d-a8b8-270aef5e1f95"
 DynamicPolynomials = "7c1d4256-1411-5781-91ec-d7bc3513ac07"

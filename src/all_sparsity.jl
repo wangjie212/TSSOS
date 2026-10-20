@@ -49,7 +49,7 @@ end
 
 """
     opt,sol,data = cs_tssos(pop, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", eqTS=TS, merge=false, md=3, 
-    dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, optimizer=default_optimizer(), 
+    dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, optimizer=nothing, model=nothing,
     rtol=1e-2, gtol=1e-2, ftol=1e-3)
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained polynomial optimization.
@@ -70,6 +70,11 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `eqTS`: type of term sparsity for equality constraints (by default the same as `TS`, `false`)
 - `md`: tunable parameter for merging blocks
 - `QUIET`: run in the quiet mode (`true`, `false`)
+- `optimizer`: JuMP optimizer factory (uses the default solver when neither optimizer nor model is supplied)
+- `model`: empty JuMP model, e.g. `GenericModel{BigFloat}(Optimizer{BigFloat})`;
+  mutually exclusive with `optimizer` and `dualize=true`. Supply a fresh model for each TS step.
+  SDP coefficients and returned bounds, Gram matrices, multipliers, and moments use its numeric type.
+  `solution=true` uses Float64 working copies for heuristic extraction and Ipopt refinement.
 - `rtol`: tolerance for rank
 - `gtol`: tolerance for global optimality gap
 - `ftol`: tolerance for feasibility
@@ -80,27 +85,27 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 - `data`: other auxiliary data 
 """
 function cs_tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", eqTS=TS, merge=false, md=3,
-    dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false,optimizer=default_optimizer(), 
+    dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, optimizer=nothing, model=nothing,
     writetofile=false, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
     if nb > 0
         pop = Groebner.normalform(x[1:nb].^2 .- 1, pop)
     end
     npop = [poly(p, x) for p in pop]
     opt,sol,data = cs_tssos(npop, length(x), d, numeq=numeq, nb=nb, CS=CS, cliques=cliques, basis=basis, ebasis=ebasis, TS=TS,
-    eqTS=eqTS, merge=merge, md=md, QUIET=QUIET, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne, optimizer=optimizer, writetofile=writetofile, rtol=rtol, gtol=gtol, ftol=ftol, pop=pop, x=x)
+    eqTS=eqTS, merge=merge, md=md, QUIET=QUIET, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne, optimizer=optimizer, model=model, writetofile=writetofile, rtol=rtol, gtol=gtol, ftol=ftol, pop=pop, x=x)
     return opt,sol,data
 end
 
 """
     opt,sol,data = cs_tssos(npop::Vector{poly{T}}, n, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", 
     eqTS=TS, merge=false, md=3, QUIET=false, dualize=false, solve=true, solution=false, Gram=false, MomentOne=false,  
-    optimizer=default_optimizer(), rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
+    optimizer=nothing, model=nothing, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
 
 Compute the first TS step of the CS-TSSOS hierarchy for constrained polynomial optimization. 
 """
 function cs_tssos(npop::Vector{poly{T}}, n, d; numeq=0, nb=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", 
     eqTS=TS, merge=false, md=3, QUIET=false, dualize=false, solve=true, solution=false, MomentOne=false, Gram=false, 
-    optimizer=default_optimizer(), writetofile=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, pop=nothing, x=nothing) where {T<:Number}
+    optimizer=nothing, model=nothing, writetofile=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, pop=nothing, x=nothing) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     obj = npop[1]
@@ -171,13 +176,13 @@ function cs_tssos(npop::Vector{poly{T}}, n, d; numeq=0, nb=0, CS="MF", cliques=[
     end
     opt,ksupp,momone,moment,GramMat,multiplier,SDP_status = solvesdp(obj, ineq_cons, eq_cons, basis, ebasis, cliques, cql, cliquesize, I, J, Iprime, Jprime, blocks, 
     eblocks, cl, blocksize, nb=nb, QUIET=QUIET, TS=TS, dualize=dualize, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram,
-    optimizer=optimizer, writetofile=writetofile)
+    optimizer=optimizer, model=model, writetofile=writetofile)
     data = spop_data(pop, obj, ineq_cons, eq_cons, x, n, nb, numeq, basis, ebasis, ksupp, cliquesize, cliques, I, J, Iprime, Jprime, blocksize, blocks, eblocks, GramMat, 
     multiplier, moment, SDP_status, rtol, gtol, ftol, 1)
     sol = nothing
-    if solution == true
+    if solution == true && opt !== nothing
         if TS != false
-            sol,gap,data.flag = approx_sol(momone, opt, n, cliques, cql, cliquesize, npop, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=true)
+            sol,gap,data.flag = approx_sol(extraction_moments(momone), opt, n, cliques, cql, cliquesize, npop, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=true)
             if data.flag == 1
                 if gap > 1
                     rsol,status,data.flag = refine_sol(opt, randn(n), data, QUIET=true, gtol=gtol)
@@ -189,7 +194,7 @@ function cs_tssos(npop::Vector{poly{T}}, n, d; numeq=0, nb=0, CS="MF", cliques=[
                 end
             end
         else
-            sol = extract_solutions_robust(moment, n, d, cliques, cql, cliquesize, pop=pop, x=x, npop=npop, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
+            sol = extract_solutions_robust(extraction_moments(moment), n, d, cliques, cql, cliquesize, pop=pop, x=x, npop=npop, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
             if sol !== nothing
                 data.flag = 0
             end
@@ -200,12 +205,12 @@ end
 
 """
     opt,sol,data = cs_tssos(data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
-    MomentOne=false, optimizer=default_optimizer())
+    MomentOne=false, optimizer=nothing, model=nothing)
 
 Compute higher TS steps of the CS-TSSOS hierarchy.
 """
 function cs_tssos(data::spop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
-    MomentOne=false, optimizer=default_optimizer(), writetofile=false)
+    MomentOne=false, optimizer=nothing, model=nothing, writetofile=false)
     obj = data.obj
     ineq_cons = data.ineq_cons
     eq_cons = data.eq_cons
@@ -233,10 +238,10 @@ function cs_tssos(data::spop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET
         end
         opt,ksupp,momone,moment,GramMat,multiplier,SDP_status = solvesdp(obj, ineq_cons, eq_cons, basis, ebasis, cliques, cql, cliquesize, data.I, data.J, 
         data.Iprime, data.Jprime, blocks, eblocks, cl, blocksize, nb=nb, QUIET=QUIET, solve=solve, solution=solution, dualize=dualize, MomentOne=MomentOne, 
-        Gram=Gram, optimizer = optimizer, writetofile=writetofile)
+        Gram=Gram, optimizer=optimizer, model=model, writetofile=writetofile)
         sol = nothing
-        if solution == true
-            sol,gap,data.flag = approx_sol(momone, opt, n, cliques, cql, cliquesize, [obj; ineq_cons[2:end]; eq_cons], numeq=numeq, gtol=data.gtol, ftol=data.ftol, QUIET=true)
+        if solution == true && opt !== nothing
+            sol,gap,data.flag = approx_sol(extraction_moments(momone), opt, n, cliques, cql, cliquesize, [obj; ineq_cons[2:end]; eq_cons], numeq=numeq, gtol=data.gtol, ftol=data.ftol, QUIET=true)
             if data.flag == 1
                 if gap > 1
                     rsol,status,data.flag = refine_sol(opt, randn(n), data, QUIET=true, gtol=data.gtol)
@@ -262,7 +267,7 @@ end
 
 function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, basis, ebasis, cliques, cql, cliquesize, I, J, Iprime, Jprime, 
     blocks, eblocks, cl, blocksize; nb=0, QUIET=false, TS="block", solve=true, solution=false, Gram=false, MomentOne=false,  
-    optimizer=default_optimizer(), dualize=false, writetofile=false) where {T1,T2<:poly}
+    optimizer=nothing, model=nothing, dualize=false, writetofile=false) where {T1,T2<:poly}
     tsupp = Vector{UInt16}[]
     for i = 1:cql, j = 1:cl[i][1], k = 1:blocksize[i][1][j], r = k:blocksize[i][1][j]
         @inbounds bi = sadd(basis[i][1][blocks[i][1][j][k]], basis[i][1][blocks[i][1][j][r]], nb=nb)
@@ -306,15 +311,13 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, basis, ebasis
             println("Assembling the SDP...")
             println("There are $(length(tsupp)) affine constraints.")
         end
-        if dualize
-            model = Model(dual_optimizer(optimizer))
-        else
-            model = Model(optimizer)
-        end
+        model = _sdp_model(model, optimizer, dualize)
+        NumberType = JuMP.value_type(typeof(model))
+        VariableType = GenericVariableRef{NumberType}
         set_optimizer_attribute(model, MOI.Silent(), QUIET)
         time = @elapsed begin
-        cons = [AffExpr(0) for i=1:length(tsupp)]
-        pos = Vector{Vector{Vector{Symmetric{VariableRef}}}}(undef, cql)
+        cons = [GenericAffExpr{NumberType,VariableType}(zero(NumberType)) for i=1:length(tsupp)]
+        pos = Vector{Vector{Vector{Symmetric{VariableType}}}}(undef, cql)
         for i = 1:cql
             if (MomentOne == true || solution == true) && TS != false
                 bas = [[UInt16[]]; [UInt16[k] for k in cliques[i]]]
@@ -328,9 +331,9 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, basis, ebasis
                     end
                 end
             end
-            pos[i] = Vector{Vector{Symmetric{VariableRef}}}(undef, length(I[i]))
+            pos[i] = Vector{Vector{Symmetric{VariableType}}}(undef, length(I[i]))
             for (j, w) in enumerate(I[i])
-                pos[i][j] = Vector{Symmetric{VariableRef}}(undef, cl[i][j])
+                pos[i][j] = Vector{Symmetric{VariableType}}(undef, cl[i][j])
                 for l = 1:cl[i][j]
                     pos[i][j][l] = @variable(model, [1:blocksize[i][j][l], 1:blocksize[i][j][l]], PSD)
                     for t = 1:blocksize[i][j][l], r = t:blocksize[i][j][l], (s, item) in enumerate(ineq_cons[w].supp)
@@ -345,9 +348,9 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, basis, ebasis
                 end
             end
         end
-        free = Vector{Vector{Vector{VariableRef}}}(undef, cql)
+        free = Vector{Vector{Vector{VariableType}}}(undef, cql)
         for i = 1:cql
-            free[i] = Vector{Vector{VariableRef}}(undef, length(J[i]))
+            free[i] = Vector{Vector{VariableType}}(undef, length(J[i]))
             for (j, w) in enumerate(J[i])
                 free[i][j] = @variable(model, [1:length(eblocks[i][j])])
                 for (u, k) in enumerate(eblocks[i][j]), (s, item) in enumerate(eq_cons[w].supp)
@@ -382,7 +385,7 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, basis, ebasis
         end
         @variable(model, lower)
         cons[1] += lower
-        @constraint(model, con, cons==zeros(length(cons)))
+        @constraint(model, con, cons==zeros(NumberType, length(cons)))
         @objective(model, Max, lower)
         end
         if QUIET == false
@@ -487,11 +490,11 @@ function assign_constraint(ineq_cons::Vector{T1}, eq_cons::Vector{T2}, cliques, 
     return I,J,Iprime,Jprime
 end
 
-function get_moment(dual_var, tsupp, cliques, cql, cliquesize; basis=[], nb=0)
-    moment = Vector{Symmetric{Float64}}(undef, cql)
+function get_moment(dual_var::AbstractVector{T}, tsupp, cliques, cql, cliquesize; basis=[], nb=0) where {T}
+    moment = Vector{Symmetric{T}}(undef, cql)
     for i = 1:cql
         lb = isempty(basis) ? cliquesize[i] + 1 : length(basis[i][1])
-        mmat = zeros(Float64, lb, lb)
+        mmat = zeros(T, lb, lb)
         if isempty(basis)
             for j = 1:lb, k = j:lb
                 if j == 1
