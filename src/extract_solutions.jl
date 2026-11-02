@@ -1,7 +1,7 @@
 using RowEchelon
 
 # extract a solution from the eigenvector associated with the maximal eigenvalue of the moment matrix
-function extract_solution(moment, lb, pop, x; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
+function extract_solution(moment, lb, pop, x; nb=0, numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
     F = eigen(moment, length(x)+1:length(x)+1)
     sol = sqrt(F.values[1])*F.vectors[:,1]
     if abs(sol[1]) < 1e-6
@@ -11,7 +11,7 @@ function extract_solution(moment, lb, pop, x; numeq=0, gtol=1e-2, ftol=1e-3, QUI
         ub = pop[1](x => sol)
         gap = abs(lb-ub)/max(1, abs(ub))
         flag = 1
-        if check_optimality(sol, lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+        if check_optimality(sol, lb, pop, x, nb=nb, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
             flag = 0
             println("------------------------------------------------")
             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
@@ -46,37 +46,27 @@ function extract_solutions(moment, d; pop=nothing, x=nothing, lb=nothing, numeq=
     n = length(x)
     if rank(moment, rtol) == 1
         sol = [moment[2:n+1, 1]]
-        if check == true && check_optimality(sol[1], lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
-            ub = MP.polynomial(pop[1])(x => sol[1])
-            gap = abs(lb-ub)/max(1, abs(ub))
-            println("------------------------------------------------")
-            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
-            println("Successfully extracted one globally optimal solution.")
-            println("------------------------------------------------")
+        if check
+            sol = check_solution(sol, lb, pop, x; nb, numeq, gtol, ftol, QUIET)
         end
     else
         U,pivots = rref_with_pivots!(Matrix(moment), rtol)
         U = U[1:length(pivots), :]'
         if isempty(basis)
-            basis = get_basis(n, d)
+            binary = size(moment, 1) == binomial(n+d, d) ? 0 : nb
+            basis = get_basis(n, d; nb=binary)
         end
         nbasis = reverse.(basis)
         w = basis[pivots]
-        if any(length.(w) .== d)
-            return nothing
-        end
         println("Rank of the moment matrix = ", length(w))
         N = Vector{Matrix{Float64}}(undef, n)
         for i = 1:n
             kk = UInt16[]
             for item in w
-                if any(item .== 1) && i <= nb
-                    xwj = item[item .!== 1]
-                else
-                    xwj = sadd(item, UInt16[i])
-                end
+                xwj = sadd(item, UInt16[i]; nb)
                 locb = nbfind(nbasis, reverse(xwj))
-                kk = push!(kk, locb)
+                isnothing(locb) && return nothing
+                push!(kk, locb)
             end
             N[i] = U[kk, :]
         end
@@ -85,7 +75,7 @@ function extract_solutions(moment, d; pop=nothing, x=nothing, lb=nothing, numeq=
         L = schur(sum(rands[i]*N[i] for i in 1:n)).Z
         sol = [[L[:,i]'*N[j]*L[:,i] for j = 1:n] for i = 1:length(w)]
         if check == true
-            sol = check_solution(sol, lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+            sol = check_solution(sol, lb, pop, x, nb=nb, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         end
     end
     return sol
@@ -113,17 +103,18 @@ Extract a tuple of solutions from the moment matrix using the GNS robust algorit
 - `sol`: a tuple of solutions
 - `w`: weight vector
 """
-function extract_solutions_robust(moment, n, d; type=Float64, pop=nothing, x=nothing, lb=nothing, numeq=0, basis=[], check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
+function extract_solutions_robust(moment, n, d; type=Float64, nb=0, pop=nothing, x=nothing, lb=nothing, numeq=0, basis=[], check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
+    binary = type <: Real ? nb : 0
     if isempty(basis)
-        basis = get_basis(n, d)
+        basis = get_basis(n, d; nb=binary)
     end
     nbasis = reverse.(basis)
-    ls = binomial(n+d-1, n)
+    ls = count(mon -> length(mon) < d, basis)
     N = Vector{Matrix{type}}(undef, n)
     for i = 1:n
         N[i] = zeros(type, ls, ls)
         for j = 1:ls, k = 1:ls
-            loc = nbfind(nbasis, reverse(sadd(basis[k], UInt16[i])))
+            loc = nbfind(nbasis, reverse(sadd(basis[k], UInt16[i]; nb=binary)))
             N[i][k,j] = moment[loc, j]
         end
     end
@@ -139,36 +130,36 @@ function extract_solutions_robust(moment, n, d; type=Float64, pop=nothing, x=not
     W = L'*Diagonal(S)*F.Vt[1:length(S),:]
     w = abs.(W[:,1]).^2
     if check == true
-        sol = check_solution(sol, lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+        sol = check_solution(sol, lb, pop, x, nb=nb, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
     end
     return sol,w
 end
 
-function extract_solutions_robust(moment, n, d, cliques, cql, cliquesize; pop=nothing, x=nothing, npop=nothing, lb=nothing, numeq=0, check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
+function extract_solutions_robust(moment, n, d, cliques, cql, cliquesize; pop=nothing, x=nothing, nb=0, npop=nothing, lb=nothing, numeq=0, check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
     ssol = Vector{Vector{Vector{Float64}}}(undef, cql)
     sol = zeros(n)
     freq = zeros(n)
-    @threads for i = 1:cql
-        ssol[i],w = extract_solutions_robust(moment[i], cliquesize[i], d, check=false, rtol=rtol, gtol=gtol, ftol=ftol)
+    for i = 1:cql
+        ssol[i],w = extract_solutions_robust(moment[i], cliquesize[i], d, nb=count(<=(nb), cliques[i]), check=false, rtol=rtol, gtol=gtol, ftol=ftol)
         sol[cliques[i]] += ssol[i][argmax(w)]
         freq[cliques[i]] .+= 1
     end
     sol ./= freq
     if check == true
         if pop !== nothing
-            sol = check_solution([sol], lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+            sol = check_solution([sol], lb, pop, x, nb=nb, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         else
-            sol = check_solution([sol], lb, npop, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+            sol = check_solution([sol], lb, npop, nb=nb, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         end
     end
     return sol,ssol
 end
 
-function extract_csolutions_robust(moment, n, d, cliques, cql, cliquesize; pop=nothing, z=nothing, npop=nothing, lb=nothing, numeq=0, check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
+function extract_csolutions_robust(moment, n, d, cliques, cql, cliquesize; pop=nothing, z=nothing, nb=0, npop=nothing, lb=nothing, numeq=0, check=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, QUIET=true)
     ssol = Vector{Vector{Vector{ComplexF64}}}(undef, cql)
     sol = zeros(ComplexF64, n)
     freq = zeros(n)
-    @threads for i = 1:cql
+    for i = 1:cql
         ssol[i],w = extract_solutions_robust(moment[i][1], cliquesize[i], d, type=ComplexF64, check=false, rtol=rtol, gtol=gtol, ftol=ftol)
         sol[cliques[i]] += ssol[i][argmax(w)]
         freq[cliques[i]] .+= 1
@@ -176,9 +167,9 @@ function extract_csolutions_robust(moment, n, d, cliques, cql, cliquesize; pop=n
     sol ./= freq
     if check == true
         if pop !== nothing
-            sol = check_solution([sol], lb, pop, z, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+            sol = check_solution([sol], lb, pop, z, nb=nb, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         else
-            sol = check_solution([sol], lb, npop, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+            sol = check_solution([sol], lb, npop, nb=nb, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         end
     end
     return sol,ssol
@@ -293,7 +284,7 @@ function extract_weight_matrix(moment, n, d, q, sol; tol=1e-2)
 end
 
 # extract an approximate solution from the moment matrix
-function approx_sol(moment, lb, n, cliques, cql, cliquesize, npop; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
+function approx_sol(moment, lb, n, cliques, cql, cliquesize, npop; nb=0, numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
     qsol = Float64[]
     A = zeros(sum(cliquesize), n)
     q = 1
@@ -316,7 +307,7 @@ function approx_sol(moment, lb, n, cliques, cql, cliquesize, npop; numeq=0, gtol
     flag = 1
     ub = evaluate(npop[1], sol)
     gap = abs(lb-ub)/max(1, abs(ub))
-    if check_optimality(sol, lb, npop, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+    if check_optimality(sol, lb, npop, nb=nb, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
         flag = 0
         println("------------------------------------------------")
         @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
@@ -326,79 +317,50 @@ function approx_sol(moment, lb, n, cliques, cql, cliquesize, npop; numeq=0, gtol
     return sol,gap,flag
 end
 
-function check_optimality(sol, lb, pop::Vector{P}, x; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true) where {T<:Number, P<:Union{Poly{T},Matrix{Poly{T}}}}
-    flag = 1
-    ub = eval_pm(pop[1], x, sol)
-    gap = abs(lb-ub)/max(1, abs(ub))
-    if QUIET == false
-        @printf "Global optimality gap = %.6f%%!\n" 100*gap
-    end
-    if gap > gtol
-        flag = 0
-    end
-    m = length(pop) - 1 - numeq
-    if m > 0
-        vio = [eval_pm(pop[j], x, sol) for j = 2:m+1]
-        mvio = max(-minimum(real.(vio)), 0)
-        if mvio > ftol
-            flag = 0
-        end
-        if QUIET == false
-            println("Maximal inequality violation = ", mvio)
-        end
-    end
-    if numeq > 0
-        vio = [pop[j](x => sol) for j = m+2:length(pop)]
-        mvio = maximum(abs.(vio))
-        if mvio > ftol
-            flag = 0
-        end
-        if QUIET == false
-            println("Maximal equality violation = ", mvio)
-        end
-    end
-    return flag == 1
+function check_optimality(sol, lb, pop::Vector{P}, x; kwargs...) where {T<:Number, P<:Union{Poly{T},Matrix{Poly{T}}}}
+    value_at(p) = eval_pm(p, x, sol)
+    equality_at(p) = p isa AbstractMatrix ? maximum(entry -> abs(entry(x => sol)), p) : abs(p(x => sol))
+    return check_candidate(sol, lb, pop, value_at, equality_at; kwargs...)
 end
 
-function check_optimality(sol, lb, npop; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
-    flag = 1
-    ub = evaluate(npop[1], sol)
-    gap = abs(lb-ub)/max(1, abs(ub))
-    if QUIET == false
-        @printf "Global optimality gap = %.6f%%!\n" 100*gap
-    end
-    if gap > gtol
-        flag = 0
-    end
-    if length(npop) - numeq > 1
-        mvio = max(-minimum([evaluate(p, sol) for p in npop[2:end-numeq]]), 0)
-        if mvio > ftol
-            flag = 0
-        end
-        if QUIET == false
-            println("Maximal inequality violation = ", mvio)
-        end
-    end
-    if numeq > 0
-        mvio = maximum([abs(evaluate(p, sol)) for p in npop[end-numeq+1:end]])
-        if mvio > ftol
-            flag = 0
-        end
-        if QUIET == false
-            println("Maximal equality violation = ", mvio)
-        end
-    end
-    return flag == 1
+function check_optimality(sol, lb, npop; kwargs...)
+    value_at(p) = evaluate(p, sol)
+    return check_candidate(sol, lb, npop, value_at, p -> abs(value_at(p)); kwargs...)
 end
 
-function check_solution(candidate_sol, lb, pop::Vector{P}, x; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true) where {T<:Number, P<:Union{Poly{T},Matrix{Poly{T}}}}
-    sol = typeof(candidate_sol[1])[]
+function check_candidate(sol, lb, pop, value_at, equality_at; nb=0, numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
+    all(isfinite, sol) && isfinite(lb) || return false
+    # abs2(x) = 1 enforces both real binary and complex unit-modulus variables.
+    all(i -> abs(abs2(sol[i]) - 1) <= ftol, 1:nb) || return false
+    ub = value_at(pop[1])
+    gap = abs(lb-ub)/max(1, abs(ub))
+    valid = isfinite(gap) && gap <= gtol
+    if !QUIET
+        @printf "Global optimality gap = %.6f%%!\n" 100*gap
+    end
+    last_ineq = length(pop) - numeq
+    if last_ineq > 1
+        values = value_at.(view(pop, 2:last_ineq))
+        violation = max(-minimum(real, values), 0)
+        valid &= all(isfinite, values) && violation <= ftol
+        QUIET || println("Maximal inequality violation = ", violation)
+    end
+    if numeq > 0
+        violation = maximum(equality_at, view(pop, last_ineq+1:length(pop)))
+        valid &= isfinite(violation) && violation <= ftol
+        QUIET || println("Maximal equality violation = ", violation)
+    end
+    return valid
+end
+
+function check_solution(candidate_sol, lb, pop::Vector{P}, x; nb=0, numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true) where {T<:Number, P<:Union{Poly{T},Matrix{Poly{T}}}}
+    sol = similar(candidate_sol, 0)
     for (i, cand) in enumerate(candidate_sol)
         if QUIET == false
             println("------------------------------------------------")
             println("Check the $i-th candidate solution:")
         end
-        if check_optimality(cand, lb, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+        if check_optimality(cand, lb, pop, x, nb=nb, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
             push!(sol, cand)
         end
     end
@@ -423,14 +385,14 @@ function check_solution(candidate_sol, lb, pop::Vector{P}, x; numeq=0, gtol=1e-2
     return sol
 end
 
-function check_solution(candidate_sol, lb, npop; numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
-    sol = typeof(candidate_sol[1])[]
+function check_solution(candidate_sol, lb, npop; nb=0, numeq=0, gtol=1e-2, ftol=1e-3, QUIET=true)
+    sol = similar(candidate_sol, 0)
     for (i, cand) in enumerate(candidate_sol)
         if QUIET == false
             println("------------------------------------------------")
             println("Check the $i-th candidate solution:")
         end
-        if check_optimality(cand, lb, npop, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
+        if check_optimality(cand, lb, npop, nb=nb, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
             push!(sol, cand)
         end
     end

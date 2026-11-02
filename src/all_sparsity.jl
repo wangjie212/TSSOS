@@ -87,9 +87,6 @@ If `MomentOne=true`, add an extra first-order moment PSD constraint to the momen
 function cs_tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, CS="MF", cliques=[], basis=[], ebasis=[], TS="block", eqTS=TS, merge=false, md=3,
     dualize=false, QUIET=false, solve=true, solution=false, Gram=false, MomentOne=false, optimizer=nothing, model=nothing,
     writetofile=false, rtol=1e-2, gtol=1e-2, ftol=1e-3) where {T<:Number}
-    if nb > 0
-        pop = Groebner.normalform(x[1:nb].^2 .- 1, pop)
-    end
     npop = [poly(p, x) for p in pop]
     opt,sol,data = cs_tssos(npop, length(x), d, numeq=numeq, nb=nb, CS=CS, cliques=cliques, basis=basis, ebasis=ebasis, TS=TS,
     eqTS=eqTS, merge=merge, md=md, QUIET=QUIET, dualize=dualize, solve=solve, solution=solution, Gram=Gram, MomentOne=MomentOne, optimizer=optimizer, model=model, writetofile=writetofile, rtol=rtol, gtol=gtol, ftol=ftol, pop=pop, x=x)
@@ -108,8 +105,12 @@ function cs_tssos(npop::Vector{poly{T}}, n, d; numeq=0, nb=0, CS="MF", cliques=[
     optimizer=nothing, model=nothing, writetofile=false, rtol=1e-2, gtol=1e-2, ftol=1e-3, pop=nothing, x=nothing) where {T<:Number}
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
+    original_npop = npop
+    if nb > 0
+        npop = [arrange(p; nb) for p in npop]
+    end
     obj = npop[1]
-    if pop === nothing
+    if pop === nothing && nb == 0
         obj = arrange(obj)
     end
     ineq_cons = [poly{T}([UInt16[]], [1]); npop[2:end-numeq]]
@@ -177,12 +178,12 @@ function cs_tssos(npop::Vector{poly{T}}, n, d; numeq=0, nb=0, CS="MF", cliques=[
     opt,ksupp,momone,moment,GramMat,multiplier,SDP_status = solvesdp(obj, ineq_cons, eq_cons, basis, ebasis, cliques, cql, cliquesize, I, J, Iprime, Jprime, blocks, 
     eblocks, cl, blocksize, nb=nb, QUIET=QUIET, TS=TS, dualize=dualize, solve=solve, solution=solution, MomentOne=MomentOne, Gram=Gram,
     optimizer=optimizer, model=model, writetofile=writetofile)
-    data = spop_data(pop, obj, ineq_cons, eq_cons, x, n, nb, numeq, basis, ebasis, ksupp, cliquesize, cliques, I, J, Iprime, Jprime, blocksize, blocks, eblocks, GramMat, 
+    data = spop_data(isnothing(pop) ? original_npop : pop, obj, ineq_cons, eq_cons, x, n, nb, numeq, basis, ebasis, ksupp, cliquesize, cliques, I, J, Iprime, Jprime, blocksize, blocks, eblocks, GramMat,
     multiplier, moment, SDP_status, rtol, gtol, ftol, 1)
     sol = nothing
     if solution == true && opt !== nothing
         if TS != false
-            sol,gap,data.flag = approx_sol(extraction_moments(momone), opt, n, cliques, cql, cliquesize, npop, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=true)
+            sol,gap,data.flag = approx_sol(extraction_moments(momone), opt, n, cliques, cql, cliquesize, original_npop, nb=nb, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=true)
             if data.flag == 1
                 if gap > 1
                     rsol,status,data.flag = refine_sol(opt, randn(n), data, QUIET=true, gtol=gtol)
@@ -194,7 +195,7 @@ function cs_tssos(npop::Vector{poly{T}}, n, d; numeq=0, nb=0, CS="MF", cliques=[
                 end
             end
         else
-            sol = extract_solutions_robust(extraction_moments(moment), n, d, cliques, cql, cliquesize, pop=pop, x=x, npop=npop, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
+            sol = extract_solutions_robust(extraction_moments(moment), n, d, cliques, cql, cliquesize, nb=nb, pop=pop, x=x, npop=original_npop, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
             if sol !== nothing
                 data.flag = 0
             end
@@ -240,8 +241,9 @@ function cs_tssos(data::spop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET
         data.Iprime, data.Jprime, blocks, eblocks, cl, blocksize, nb=nb, QUIET=QUIET, solve=solve, solution=solution, dualize=dualize, MomentOne=MomentOne, 
         Gram=Gram, optimizer=optimizer, model=model, writetofile=writetofile)
         sol = nothing
+        data.flag = 1
         if solution == true && opt !== nothing
-            sol,gap,data.flag = approx_sol(extraction_moments(momone), opt, n, cliques, cql, cliquesize, [obj; ineq_cons[2:end]; eq_cons], numeq=numeq, gtol=data.gtol, ftol=data.ftol, QUIET=true)
+            sol,gap,data.flag = approx_sol(extraction_moments(momone), opt, n, cliques, cql, cliquesize, original_polys(data), nb=nb, numeq=numeq, gtol=data.gtol, ftol=data.ftol, QUIET=true)
             if data.flag == 1
                 if gap > 1
                     rsol,status,data.flag = refine_sol(opt, randn(n), data, QUIET=true, gtol=data.gtol)
@@ -404,6 +406,7 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, basis, ebasis
                 println("SDP solving time: $time seconds.")
             end
             SDP_status = termination_status(model)
+            has_sdp_point(model) || return nothing, ksupp, nothing, nothing, nothing, nothing, SDP_status
             objv = objective_value(model)
             if SDP_status != MOI.OPTIMAL
                 println("termination status: $SDP_status")
@@ -416,7 +419,7 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, basis, ebasis
                 multiplier = [[value.(free[i][j]) for j = 1:length(J[i])] for i = 1:cql]
             end
             dual_var = -dual(con)
-            if solution == true && TS != false
+            if solution
                 momone = get_moment(dual_var, tsupp, cliques, cql, cliquesize, nb=nb)
             end
             moment = get_moment(dual_var, tsupp, cliques, cql, cliquesize, basis=basis, nb=nb)

@@ -72,7 +72,6 @@ function add_psatz_cheby!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order; 
         end
     end
     coefs = MP.coefficients(pol, basis_covering_monomials(ChebyshevBasis, MP.monomials(pol)))
-    remove_nearly_zero_terms!(model, coefs)
     drop_zeros!.(coefs)
     @constraint(model, coefs .== 0)
     info = polybasis_data(nonneg, ineq_cons, eq_cons, nothing, nothing, nothing, basis, nothing, nothing, blocksize, blocks, eblocks, pos, mul, nothing)
@@ -170,20 +169,4 @@ end
 
 function Base.isless(P::T, Q::T) where {T<:AbstractPolynomial}
     return MP.monomials(P) < MP.monomials(Q) 
-end
-
-function remove_nearly_zero_terms!(model, ps; tol=1e-8)
-    vars = all_variables(model)
-    for (i, p) in enumerate(ps)
-        np = AffExpr(0)
-        for x in vars
-            c = JuMP.coefficient(p, x)
-            add_to_expression!(p, -c, x)
-            if abs(c) > tol
-                add_to_expression!(np, c, x)
-            end
-        end
-        ps[i] = np + p
-    end
-    return ps
 end

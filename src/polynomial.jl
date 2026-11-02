@@ -21,7 +21,7 @@ mutable struct cpoly{T}
 end
 
 function maxdeg(p::poly)
-    return maximum(length.(p.supp))
+    return maximum(length, p.supp; init=0)
 end
 
 function maxdeg(p::cpoly)

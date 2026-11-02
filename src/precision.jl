@@ -15,6 +15,8 @@ function _sdp_model(model, optimizer, dualize)
     return Model(dualize ? dual_optimizer(optimizer) : optimizer)
 end
 
+has_sdp_point(model) = primal_status(model) in (MOI.FEASIBLE_POINT, MOI.NEARLY_FEASIBLE_POINT)
+
 # LAPACK/Ipopt extraction is a separate heuristic; never overwrite SDP data.
 extraction_matrix(m) = eltype(m) <: Real ? Symmetric(Float64.(m)) : Hermitian(ComplexF64.(m))
 extraction_moments(moment) = [extraction_matrix(m) for m in moment]

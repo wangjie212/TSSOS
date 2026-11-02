@@ -112,7 +112,7 @@ function cs_tssos(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; CS="MF", TS="block
     solve=solve, Gram=Gram, Moment=Moment, solution=solution, dualize=dualize,  optimizer=optimizer)
     sol = nothing
     flag = 1
-    if solution == true && CS == false && TS == false
+    if solution == true && opt !== nothing && CS == false && TS == false
         sol = extract_solutions_pmo_robust(moment[1], n, d, size(F,1), pop=[[F]; G], x=x, lb=opt, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)
         if sol !== nothing
             flag = 0
@@ -426,6 +426,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
             println("SDP solving time: $time seconds.")
         end
         SDP_status = termination_status(model)
+        has_sdp_point(model) || return nothing, ksupp, nothing, nothing, SDP_status
         objv = objective_value(model)
         if SDP_status != MOI.OPTIMAL
             println("termination status: $SDP_status")
@@ -445,7 +446,7 @@ function pmo_sdp(obj_matrix, cons_matrix, basis, gbasis, blocks, cl, blocksize, 
         end
         if Moment == true || solution == true
             measure = [-dual(constraint_by_name(model, "con$i")) for i = 1:length(ksupp)]
-            moment = get_mmoment(measure, ksupp[1], cql, basis, om)
+            moment = get_mmoment(measure, ksupp, cql, basis, om)
         end
     end 
     return objv,ksupp,GramMat,moment,SDP_status
@@ -575,6 +576,9 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
             end
         end
     end
+    for F in obj_matrix, (ind, entry) in enumerate(F.polys)
+        append!(ksupp[ind], entry.supp)
+    end
     sort!.(ksupp)
     unique!.(ksupp)
     objv = moment = SDP_status = nothing
@@ -643,20 +647,11 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
             ind = i + Int(j*(j-1)/2)
             for k = 1:length(obj_matrix[1].polys[ind].supp)
                 Locb = bfind(ksupp[ind], obj_matrix[1].polys[ind].supp[k])
-                if Locb === nothing
-                    @error "The monomial basis is not enough!"
-                    return nothing,nothing,nothing,nothing
-                else
-                    @inbounds add_to_expression!(cons[ind][Locb], -obj_matrix[1].polys[ind].coe[k])
-                end
+                add_to_expression!(cons[ind][Locb], -obj_matrix[1].polys[ind].coe[k])
             end
-            for t = 2:length(obj_matrix), k = 1:length(obj_matrix[t].polys[ind].supp)
-                Locb = bfind(ksupp[ind], obj_matrix[t].polys[ind].supp[k])
-                if Locb === nothing
-                    @error "The monomial basis is not enough!"
-                else
-                    @inbounds add_to_expression!(cons[ind][Locb], -λ[t-1], obj_matrix[t].polys[ind].coe[k])
-                end
+            for t = 2:length(obj_matrix), (mon, coefficient) in zip(obj_matrix[t].polys[ind].supp, obj_matrix[t].polys[ind].coe)
+                Locb = bfind(ksupp[ind], mon)
+                add_to_expression!(cons[ind][Locb], -coefficient, λ[t-1])
             end
             @constraint(model, cons[ind]==zeros(length(ksupp[ind])), base_name="con$ind")
         end
@@ -673,6 +668,9 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
             println("SDP solving time: $time seconds.")
         end
         SDP_status = termination_status(model)
+        if !has_sdp_point(model)
+            return nothing,ksupp,nothing,SDP_status
+        end
         objv = objective_value(model)
         if SDP_status != MOI.OPTIMAL
             println("termination status: $SDP_status")
@@ -681,7 +679,7 @@ function LinearPMI_sdp(b, obj_matrix, cons_matrix, basis, gbasis, blocks, cl, bl
         end
         println("optimum = $objv")
         measure = [-dual(constraint_by_name(model, "con$i")) for i = 1:length(ksupp)]
-        moment = get_mmoment(measure, ksupp[1], 1, basis, om)
+        moment = get_mmoment(measure, ksupp, 1, [basis], om)
     end
     return objv,ksupp,moment,SDP_status
 end
@@ -741,6 +739,15 @@ function add_SOSMatrix!(model, x, m, d; constraint=nothing, TS=false, QUIET=true
         end
     end
     return sosmatrix,maximum(blocksize)
+end
+
+function multiplier_contraction(multiplier, G, j, k)
+    n = size(G, 1)
+    rows = (j-1)*n+1:j*n
+    cols = (k-1)*n+1:k*n
+    block = view(multiplier, rows, cols)
+    # Only the upper triangle of the full SOS matrix is stored.
+    return sum((j == k ? Symmetric(block, :U) : block) .* G)
 end
 
 function sparseobj(F::Matrix{T1}, G::Vector{T2}, x, d; TS="block", QUIET=false, dualize=false,  optimizer=default_optimizer(), merge=false, md=3) where {T1<:PolyLike,T2<:PolyLike}
@@ -811,18 +818,7 @@ function sparseobj(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; TS="block", QUIET
     for i = 1:cl, j = 1:blocksize[i], k = j:blocksize[i]
         temp[blocks[i][j], blocks[i][k]] -= sos[1][i][j,k]
         for l = 1:length(G)
-            sG = size(G[l],1)
-            if j != k
-                temp[blocks[i][j], blocks[i][k]] -= sum(sos[l+1][i][(j-1)*sG+1:j*sG,(k-1)*sG+1:k*sG].*G[l])
-            else
-                for s = (j-1)*sG+1:j*sG, t = s:j*sG
-                    if s == t
-                        temp[blocks[i][j], blocks[i][k]] -= sos[l+1][i][s,t]*G[l][s-((j-1)*sG),t-((j-1)*sG)]
-                    else
-                        temp[blocks[i][j], blocks[i][k]] -= 2*sos[l+1][i][s,t]*G[l][s-((j-1)*sG),t-((j-1)*sG)]
-                    end
-                end
-            end
+            temp[blocks[i][j], blocks[i][k]] -= multiplier_contraction(sos[l+1][i], G[l], j, k)
         end
     end
     for i = 1:m, j = i:m
@@ -837,6 +833,7 @@ function sparseobj(F::Matrix{T1}, G::Vector{Matrix{T2}}, x, d; TS="block", QUIET
     end
     println("SDP solving time: $time seconds.")
     SDP_status = termination_status(model)
+    has_sdp_point(model) || return nothing, maximum(mb)
     optimum = objective_value(model)
     if SDP_status != MOI.OPTIMAL
         println("termination status: $SDP_status")
@@ -906,8 +903,7 @@ function sparseobj(b, F::Vector{Matrix{T}}, G, x, d; TS="block", QUIET=false, du
     for i = 1:cl, j = 1:blocksize[i], k = j:blocksize[i]
         temp[blocks[i][j], blocks[i][k]] -= sos[1][i][j,k]
         for l = 1:length(G)
-            sG = size(G[l],1)
-            temp[blocks[i][j], blocks[i][k]] -= sum(sos[l+1][i][(j-1)*sG+1:j*sG,(k-1)*sG+1:k*sG].*G[l])
+            temp[blocks[i][j], blocks[i][k]] -= multiplier_contraction(sos[l+1][i], G[l], j, k)
         end
     end
     for i = 1:m, j = i:m
@@ -922,6 +918,7 @@ function sparseobj(b, F::Vector{Matrix{T}}, G, x, d; TS="block", QUIET=false, du
     end
     println("SDP solving time: $time seconds.")
     SDP_status = termination_status(model)
+    has_sdp_point(model) || return nothing, maximum(mb)
     optimum = objective_value(model)
     if SDP_status != MOI.OPTIMAL
         println("termination status: $SDP_status")
@@ -932,16 +929,22 @@ function sparseobj(b, F::Vector{Matrix{T}}, G, x, d; TS="block", QUIET=false, du
     return optimum,maximum(mb)
 end
 
-function get_mmoment(measure, tsupp, cql, basis, om)
+# Older callers supply one common support for every matrix entry.
+function get_mmoment(measure, tsupp::AbstractVector{<:AbstractVector{<:Integer}}, cql, basis, om)
+    return get_mmoment(measure, fill(tsupp, length(measure)), cql, basis, om)
+end
+
+function get_mmoment(measure, supports, cql, basis, om)
     moment = Vector{Union{Symmetric{Float64}, Array{Float64,2}}}(undef, cql)
     for i = 1:cql
         lb = length(basis[i])
         moment[i] = zeros(Float64, om*lb, om*lb)
         for j = 1:lb, k = j:lb
             bi = sadd(basis[i][j], basis[i][k])
-            Locb = bfind(tsupp, bi)
             for s = 1:om, t = 1:om
                 ind = s <= t ? s + Int(t*(t-1)/2) : t + Int(s*(s-1)/2)
+                Locb = bfind(supports[ind], bi)
+                isnothing(Locb) && continue
                 if s == t
                     moment[i][(j-1)*om+s,(k-1)*om+t] = measure[ind][Locb]
                 else

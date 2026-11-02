@@ -12,6 +12,7 @@ mutable struct sos_data
     GramMat # Gram matrices
     multiplier # multipliers for equality constraints
     constrs # constraint name
+    quotient # variables, basis and leading supports for quotient moments
 end
 
 """
@@ -45,20 +46,8 @@ function add_psatz!(model::GenericModel{NumberType}, nonneg::Poly{<:Union{Number
     g = [poly([UInt16[]], Float64[1]); poly[poly(p, x) for p in ineq_cons]]
     if GroebnerBasis == true && !isempty(eq_cons)
         h = poly[]
-        gb = groebner(convert.(Poly{Float64}, eq_cons), ordering=DegRevLex())
-        # f = poly(Groebner.normalform(gb, nonneg, ordering=DegRevLex()), x)
-        f = poly(rem(nonneg, gb), x)
-        lead = leading_ideal(gb, ordering=DegRevLex())
-        leadsupp = [UInt16[] for i=1:length(lead)]
-        for (i, mon) in enumerate(lead)
-            mon = convert(DP.Monomial, mon)
-            ind = mon.z .> 0
-            vars = mon.vars[ind]
-            exp = mon.z[ind]
-            for j in eachindex(vars)
-                append!(leadsupp[i], bfind_rev(x, vars[j])*ones(UInt16, exp[j]))
-            end
-        end
+        gb,leadsupp = quotient_basis(eq_cons, x)
+        f = reduce_target(nonneg, x, gb, leadsupp)
     else
         f = poly(nonneg, x)
         h = poly[poly(p, x) for p in eq_cons]
@@ -124,6 +113,7 @@ function add_psatz!(model::GenericModel{NumberType}, nonneg::Poly{<:Union{Number
         end
         tsupp = nsupp
     end
+    append!(tsupp, f.supp)
     sort!(tsupp)
     unique!(tsupp)
     cons = [GenericAffExpr{NumberType, GenericVariableRef{NumberType}}(0) for i=1:length(tsupp)]
@@ -172,18 +162,15 @@ function add_psatz!(model::GenericModel{NumberType}, nonneg::Poly{<:Union{Number
     end
     for (i, item) in enumerate(f.supp)
         Locb = bfind(tsupp, item)
-        if Locb === nothing
-            @error "The monomial basis is not enough!"
-        else
-            cons[Locb] -= f.coe[i]
-        end
+        cons[Locb] -= f.coe[i]
     end
     if constrs !== nothing
         @constraint(model, cons==zeros(length(cons)), base_name=constrs)
     else
         @constraint(model, cons==zeros(length(cons)))
     end
-    info = sos_data(cliquesize, cliques, basis, ebasis, blocksize, blocks, eblocks, tsupp, I, J, pos, free, constrs)
+    quotient = isempty(gb) ? nothing : (; x, gb, leadsupp)
+    info = sos_data(cliquesize, cliques, basis, ebasis, blocksize, blocks, eblocks, tsupp, I, J, pos, free, constrs, quotient)
     return info
 end
 
@@ -276,16 +263,16 @@ function add_complex_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order
                 sort!(ebasis[i][s])
             end
         else
-            if normality < d
+            if normality < order
                 basis[i] = Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}(undef, length(I[i]))
                 basis[i][1] = get_conjugate_basis(cliques[i], order)
                 for s = 1:length(I[i])
                     basis[i][s] = get_conjugate_basis(cliques[i], order-Int(ceil(maxdeg(g[I[i][s]])/2)))
                 end
             else
-                basis[i] = Vector{Tuple{Vector{UInt16},Vector{UInt16}}}(undef, length(I[i])+cliquesize[i])
+                basis[i] = Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}(undef, length(I[i])+cliquesize[i])
                 basis[i][1] = get_conjugate_basis(cliques[i], order)
-                temp = get_basis(cliques[i], normality)
+                temp = get_basis(cliques[i], Int(normality))
                 for s = 1:cliquesize[i]
                     basis[i][s+1] = [[tuple(item, UInt16[]) for item in temp]; [tuple(item, UInt16[cliques[i][s]]) for item in temp]]
                 end
@@ -320,6 +307,7 @@ function add_complex_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order
         csupp = get_csupp(order*ones(Int, cql), basis, ebasis, g, h, I, J, [], [], blocks, eblocks, cl, blocksize, cql, cliquesize, ConjugateBasis=ConjugateBasis, normality=normality)
         append!(tsupp, csupp)
     end
+    append!(tsupp, (mon for mon in f.supp if mon[1] <= mon[2]))
     sort!(tsupp)
     unique!(tsupp)
     rcons = [AffExpr(0) for i=1:length(tsupp)]
@@ -410,21 +398,17 @@ function add_complex_psatz!(model, nonneg::Poly{T}, x, ineq_cons, eq_cons, order
     nsupp,ncoe = f.supp[ind],f.coe[ind]
     for (i, item) in enumerate(nsupp)
         Locb = bfind(tsupp, item)
-        if Locb === nothing
-            @error "The monomial basis is not enough!"
-        else
-            rcons[Locb] -= real(ncoe[i])
-            if ipart == true && item[1] != item[2]
-                Locb = bfind(itsupp, item)
-                icons[Locb] -= imag(ncoe[i])
-            end
+        rcons[Locb] -= real(ncoe[i])
+        if ipart == true && item[1] != item[2]
+            Locb = bfind(itsupp, item)
+            icons[Locb] -= imag(ncoe[i])
         end
     end
     @constraint(model, rcons .== 0)
     if ipart == true
         @constraint(model, icons .== 0)
     end
-    info = sos_data(cliquesize, cliques, basis, ebasis, blocksize, blocks, eblocks, tsupp, I, J, pos, free, nothing)
+    info = sos_data(cliquesize, cliques, basis, ebasis, blocksize, blocks, eblocks, tsupp, I, J, pos, free, nothing, nothing)
     return info
 end
 
@@ -610,15 +594,22 @@ function get_moment(mons::Vector{DP.Monomial{V, M}}, x, lb, ub) where {V, M}
 end
 
 function get_moment_matrix(moment, info)
-    MomMat = Vector{Symmetric{Float64}}(undef, length(info.cliques))
+    quotient = hasproperty(info, :quotient) ? info.quotient : nothing
+    MomMat = Vector{Symmetric{eltype(moment)}}(undef, length(info.cliques))
     for i = 1:length(info.cliques)
         lb = length(info.basis[i][1])
-        mmat = zeros(Float64, lb, lb)
+        mmat = zeros(eltype(moment), lb, lb)
         for j = 1:lb, k = j:lb
             bi = sadd(info.basis[i][1][j], info.basis[i][1][k])
-            Locb = bfind(info.tsupp, bi)
-            if Locb !== nothing
-                mmat[j,k] = moment[Locb]
+            if quotient !== nothing && divide(bi, quotient.leadsupp)
+                remainder = reminder(bi, quotient.x, quotient.gb)
+                for (mon, coefficient) in zip(remainder.supp, remainder.coe)
+                    loc = bfind(info.tsupp, mon)
+                    isnothing(loc) || (mmat[j,k] += coefficient * moment[loc])
+                end
+            else
+                loc = bfind(info.tsupp, bi)
+                isnothing(loc) || (mmat[j,k] = moment[loc])
             end
         end
         MomMat[i] = Symmetric(mmat, :U)

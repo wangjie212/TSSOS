@@ -40,11 +40,17 @@ function local_solution(npop, n; nb=0, numeq=0, startpoint=[], QUIET=false)
     end
     optimize!(model)
     status = termination_status(model)
+    has_values(model) || return nothing, nothing, status
     objv = objective_value(model)
     if QUIET == false
         println("optimum = $objv")
     end
     return objv,value.(x),status
+end
+
+function original_polys(data)
+    isnothing(data.pop) && return [data.obj; data.ineq_cons[2:end]; data.eq_cons]
+    return isnothing(data.x) ? data.pop : [poly(p, data.x) for p in data.pop]
 end
 
 """
@@ -55,25 +61,26 @@ Return the refined solution, and `flag=0` if global optimality is certified, `fl
 """
 function refine_sol(opt, sol, data::Union{pop_data,spop_data}; QUIET=false, gtol=1e-2)
     numeq = data.numeq
-    if typeof(data) == pop_data && !isempty(data.gb)
-        npop = [data.obj; data.ineq_cons[2:end]; [poly(p, data.x) for p in data.pop[end-numeq+1:end]]]
-    else
-        npop = [data.obj; data.ineq_cons[2:end]; data.eq_cons]
-    end
+    npop = original_polys(data)
+    sol = copy(sol)
     sol[abs.(sol) .< 1e-10] .= 1e-10
+    for i in 1:data.nb
+        sol[i] = copysign(1.0, sol[i])
+    end
     ub,rsol,status = local_solution(npop, data.n, nb=data.nb, numeq=numeq, startpoint=sol, QUIET=QUIET)
     if status == MOI.LOCALLY_SOLVED
         gap = abs(opt-ub)/max(1, abs(ub))
-        if gap < gtol
+        if check_optimality(rsol, opt, npop; nb=data.nb, numeq, gtol, ftol=data.ftol)
             println("------------------------------------------------")
             @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
             println("Successfully extracted one globally optimal solution.")
             println("------------------------------------------------")
             return rsol,status,0
-        else
+        elseif check_optimality(rsol, opt, npop; nb=data.nb, numeq, gtol=Inf, ftol=data.ftol)
             @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
             return rsol,status,1
         end
+        return nothing,status,1
     else
         println("The local solver failed refining the solution!")
         return sol,status,1

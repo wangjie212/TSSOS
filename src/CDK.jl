@@ -60,7 +60,7 @@ end
 - `Vector`: A vector containing the monomial basis of degree `d` of size binomial(length(vars)+d,d). 
 Each monomial is represented as a product of the variables raised to their corresponding powers.
 """
-function get_basis(vars::Vector{DP.Variable}, d::Int64)
+function get_basis(vars::AbstractVector{<:DP.Variable}, d::Int64)
     b_indices = get_basis_indices(length(vars),d)
     monomial_basis = [] 
     for col in 1:size(b_indices, 2)
@@ -165,30 +165,23 @@ end
 - `threshold::Float64` (optional): A threshold value for filtering eigenvalues (i.e., deciding the numerical rank of `Mm`) . Default is `0.001`.
     
 # Returns
-- `p_alpha_squared[1:negativeEV]`: Polynomials in the kernel of the moment matrix.
+- Squared eigenpolynomials in the numerical kernel of the moment matrix.
 - `cdk`: The constructed CDK (positive part of the moment matrix).
-- `positiveEV`: The number of positive eigenvalues of the moment matrix.
+- The numerical rank, counting eigenvalues strictly above the threshold.
 - `minimum(Qval)`: The minimum eigenvalue of the moment matrix.
-- `negativeEV`: The number of negative eigenvalues of the moment matrix.    
+- The numerical nullity, counting eigenvalues at or below the threshold.
 """
 function construct_CDK(vars, dc, Mm; threshold=0.001)
     sd = binomial(length(vars)+dc, dc)
     eigen_result = eigen(Mm[1:sd, 1:sd])
     Qvec = eigen_result.vectors
     Qval = eigen_result.values
-    p_alpha_squared = []   # Vector of orhonormal polynomials 
-    for i = 1:length(Qval)
-        push!(p_alpha_squared, (get_basis(vars, dc)'*Qvec[:,i])^2)
-    end
-    threshold = 0.001
-    positiveEV = count(x -> abs(x) > threshold, Qval)
-    negativeEV = count(x -> abs(x) <= threshold, Qval)
-    if positiveEV == length(Qval)
-        cdk = sum(p_alpha_squared[i]/(Qval[i]) for i = 1:length(Qval))
-    else
-        cdk = sum(p_alpha_squared[i]/(Qval[i]) for i = (length(Qval)-positiveEV+1):length(Qval))
-    end 
-    return p_alpha_squared[1:negativeEV],cdk,positiveEV,minimum(Qval),negativeEV
+    basis = get_basis(vars, dc)
+    p_alpha_squared = [(basis' * vector)^2 for vector in eachcol(Qvec)]
+    retained = findall(>(threshold), Qval)
+    kernel = findall(<=(threshold), Qval)
+    cdk = sum((p_alpha_squared[i]/Qval[i] for i in retained); init=zero(first(p_alpha_squared)))
+    return p_alpha_squared[kernel], cdk, length(retained), minimum(Qval), length(kernel)
 end
 
 """
@@ -211,35 +204,8 @@ end
 - `negEV::Vector`: A vector of counts of eigenvalues below or equal to the threshold for each clique. 
 """
 function construct_CDK_cs(x, dc, Mm, cliques, threshold=0.001)  
-    Cdk = Kernel = posEV = negEV = minEV = []
-    cliques_basis = [x[cliques[i]] for i = 1:length(cliques)] 
-    local_basis = []
-    for i in 1:length(cliques)
-        push!(local_basis, get_basis(cliques_basis[i], dc))
-    end
-    for i = 1:length(cliques)
-        sd = binomial(length(cliques_basis[i])+dc, dc)
-        eigen_result = eigen(Mm[i][1:sd, 1:sd])
-        Qvec = eigen_result.vectors
-        Qval = eigen_result.values
-        p_alpha_squared = []  # Vector of orthonormal polynomials 
-        for j = 1:length(Qval)
-            push!(p_alpha_squared, (local_basis[i]'*Qvec[:, j])^2)
-        end
-        positiveEV = count(x -> abs(x) > threshold, Qval)
-        negativeEV = count(x -> abs(x) <= threshold, Qval)
-        if positiveEV == length(Qval)
-            cdk = sum(p_alpha_squared[j]/Qval[j] for j in 1:length(Qval))
-        else
-            cdk = sum(p_alpha_squared[j]/Qval[j] for j in (length(Qval) - positiveEV + 1):length(Qval))
-        end
-        push!(Cdk, cdk)
-        push!(Kernel, p_alpha_squared[1:negativeEV])
-        push!(posEV, positiveEV)
-        push!(negEV, negativeEV)
-        push!(minEV, minimum(Qval))
-    end
-    return Kernel, Cdk, posEV, minEV, negEV
+    results = [construct_CDK(x[cliques[i]], dc, Mm[i]; threshold) for i in eachindex(cliques, Mm)]
+    return ntuple(i -> [result[i] for result in results], 5)
 end
 
 """

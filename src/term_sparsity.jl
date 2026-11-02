@@ -84,26 +84,17 @@ function tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, newton=false, feasibil
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     n = length(x)
+    original_pop = pop
     if nb > 0
-        pop = Groebner.normalform(x[1:nb].^2 .- 1, pop)
+        pop = [binary_normalform(p, x, nb) for p in pop]
     end
     if numeq > 0 && GroebnerBasis == true
         println("Computing the Gröbner basis...")
         println("This might be slow. You can set GroebnerBasis=false to close it.")
         eq_cons = poly[]
-        gb = groebner(convert.(Poly{Rational{BigInt}}, pop[end-numeq+1:end]), ordering=DegRevLex())
-        obj = poly(Groebner.normalform(gb, pop[1], ordering=DegRevLex()), x)
-        lead = leading_ideal(gb, ordering=DegRevLex())
-        leadsupp = [UInt16[] for i=1:length(lead)]
-        for (i, mon) in enumerate(lead)
-            mon = convert(DP.Monomial, mon)
-            ind = mon.z .> 0
-            vars = mon.vars[ind]
-            exp = mon.z[ind]
-            for j in eachindex(vars)
-                append!(leadsupp[i], bfind_rev(x, vars[j])*ones(UInt16, exp[j]))
-            end
-        end
+        equalities = [pop[end-numeq+1:end]; [x[i]^2 - 1 for i in 1:nb]]
+        gb,leadsupp = quotient_basis(equalities, x)
+        obj = reduce_target(pop[1], x, gb, leadsupp)
     else
         obj = poly(pop[1], x)
         eq_cons = [poly(p, x) for p in pop[end-numeq+1:end]]
@@ -117,7 +108,7 @@ function tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, newton=false, feasibil
     if isempty(basis)
         if newton == true
             supp = obj.supp
-            if !isempty(obj.supp[1]) && feasibility == false
+            if isempty(supp) || (!isempty(first(supp)) && !feasibility)
                 supp = [supp; [UInt16[]]]
             end
             basis = [newton_basis(n, d, supp, optimizer=optimizer, model=model)]
@@ -161,13 +152,13 @@ function tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, newton=false, feasibil
     end
     opt,ksupp,moment,momone,GramMat,multiplier,SDP_status = solvesdp(obj, ineq_cons, eq_cons, n, basis, ebasis, blocks, eblocks, cl, blocksize, nb=nb, gb=gb, x=x, dualize=dualize, TS=TS,
     lead=leadsupp, QUIET=QUIET, solve=solve, feasibility=feasibility, solution=solution, MomentOne=MomentOne, Gram=Gram,  writetofile=writetofile, signsymmetry=ss, normality=normality, optimizer=optimizer, model=model)
-    data = pop_data(pop, obj, ineq_cons, eq_cons, x, n, nb, numeq, gb, leadsupp, basis, ebasis, ksupp, blocksize, blocks, eblocks, GramMat, multiplier, moment, SDP_status, rtol, gtol, ftol, 1)
+    data = pop_data(original_pop, obj, ineq_cons, eq_cons, x, n, nb, numeq, gb, leadsupp, basis, ebasis, ksupp, blocksize, blocks, eblocks, GramMat, multiplier, moment, SDP_status, rtol, gtol, ftol, 1)
     sol = nothing
     if solution == true && opt !== nothing
         if TS != false || !isempty(gb)
-            sol,gap,data.flag = extract_solution(extraction_matrix(momone), opt, pop, x, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=true)
+            sol,gap,data.flag = extract_solution(extraction_matrix(momone), opt, original_pop, x, nb=nb, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=true)
             if data.flag == 1
-                if gap > 1
+                if sol === nothing || gap > 1
                     rsol,status,data.flag = refine_sol(opt, randn(n), data, QUIET=true, gtol=gtol)
                     if status == MOI.LOCALLY_SOLVED
                         sol = rsol
@@ -177,7 +168,7 @@ function tssos(pop::Vector{Poly{T}}, x, d; nb=0, numeq=0, newton=false, feasibil
                 end
             end
         else
-            sol = extract_solutions_robust(extraction_matrix(moment[1]), n, d, pop=pop, x=x, lb=opt, numeq=numeq, basis=basis[1], check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
+            sol = extract_solutions_robust(extraction_matrix(moment[1]), n, d, nb=nb, pop=original_pop, x=x, lb=opt, numeq=numeq, basis=basis[1], check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
             if sol !== nothing
                 data.flag = 0
             end
@@ -260,16 +251,17 @@ function tssos(data::pop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=fal
         lead=leadsupp, TS=TS, feasibility=feasibility, QUIET=QUIET, solve=solve, dualize=dualize, solution=solution, MomentOne=MomentOne, Gram=Gram,  
         optimizer=optimizer, model=model, normality=normality, writetofile=writetofile)
         sol = nothing
+        data.flag = 1
         if solution == true && opt !== nothing
             if TS == false && isempty(gb)
                 d = maximum(length.(basis[1]))
-                sol = extract_solutions_robust(extraction_matrix(moment[1]), n, d, pop=data.pop, x=x, lb=opt,
+                sol = extract_solutions_robust(extraction_matrix(moment[1]), n, d, nb=nb, pop=data.pop, x=x, lb=opt,
                     numeq=numeq, basis=basis[1], check=true, rtol=data.rtol, gtol=data.gtol, ftol=data.ftol, QUIET=QUIET)[1]
                 data.flag = sol === nothing ? 1 : 0
             else
-                sol,gap,data.flag = extract_solution(extraction_matrix(momone), opt, data.pop, x, numeq=numeq, QUIET=true, gtol=data.gtol, ftol=data.ftol)
+                sol,gap,data.flag = extract_solution(extraction_matrix(momone), opt, data.pop, x, nb=nb, numeq=numeq, QUIET=true, gtol=data.gtol, ftol=data.ftol)
                 if data.flag == 1
-                    if gap > 1
+                    if sol === nothing || gap > 1
                         rsol,status,data.flag = refine_sol(opt, randn(n), data, QUIET=true, gtol=data.gtol)
                         if status == MOI.LOCALLY_SOLVED
                             sol = rsol
@@ -355,6 +347,7 @@ end
 function get_graph(tsupp, supp::Vector{Vector{UInt16}}, basis::Vector{Vector{UInt16}}; nb=0, TS="block", signsymmetry=nothing)
     lb = length(basis)
     G = SimpleGraph(lb)
+    isempty(supp) && return G
     for i = 1:lb, j = i+1:lb
         if TS != "signsymmetry"
             ind = findfirst(item -> bfind(tsupp, sadd(basis[i], item, basis[j], nb=nb)) !== nothing, supp)
@@ -375,6 +368,7 @@ end
 
 function get_eblock(tsupp, hsupp, basis::Vector{Vector{UInt16}}; nb=0, signsymmetry=nothing)
     eblock = Int[]
+    isempty(hsupp) && return eblock
     for (i, item) in enumerate(basis)
         if signsymmetry === nothing
             if findfirst(nitem -> bfind(tsupp, sadd(item, nitem, nb=nb)) !== nothing, hsupp) !== nothing
@@ -648,6 +642,7 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, basis, eba
                 println("SDP solving time: $time seconds.")
             end
             SDP_status = termination_status(model)
+            has_sdp_point(model) || return nothing, ksupp, nothing, nothing, nothing, nothing, SDP_status
             objv = objective_value(model)
             if SDP_status != MOI.OPTIMAL
                 println("termination status: $SDP_status")

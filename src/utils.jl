@@ -218,13 +218,14 @@ function newton_basis(n, d, supp; tol=1e-5, optimizer=nothing, model=nothing)
     return basis[ind]
 end
 
-function arrange(p::T) where {T<:poly}
-    nsupp = copy(p.supp)
+function arrange(p::T; nb=0) where {T<:poly}
+    supp = nb == 0 ? p.supp : [sadd(mon; nb) for mon in p.supp]
+    nsupp = copy(supp)
     sort!(nsupp)
     unique!(nsupp)
-    ncoe = zeros(typeof(p.coe[1]), length(nsupp))
+    ncoe = zeros(eltype(p.coe), length(nsupp))
     for i in eachindex(p.supp)
-        locb = bfind(nsupp, p.supp[i])
+        locb = bfind(nsupp, supp[i])
         ncoe[locb] += p.coe[i]
     end
     return poly(nsupp, ncoe)
@@ -235,7 +236,7 @@ function arrange(p::T; nb=0) where {T<:cpoly}
     nsupp = copy(supp)
     sort!(nsupp)
     unique!(nsupp)
-    ncoe = zeros(typeof(p.coe[1]), length(nsupp))
+    ncoe = zeros(eltype(p.coe), length(nsupp))
     for i in eachindex(supp)
         locb = bfind(nsupp, supp[i])
         ncoe[locb] += p.coe[i]
@@ -247,12 +248,38 @@ function divide(mon, lead)
     return any(item -> all(i -> count(==(i), item) <= count(==(i), mon), unique(item)), lead)
 end
 
+# DynamicPolynomials can store different variable lists on two inputs to
+# normalform. Embed both in the same ring, including zero exponents.
+function quotient_basis(equalities, x)
+    unit = DP.Monomial(x, zeros(Int, length(x)))
+    equations = [convert(Poly{Rational{BigInt}}, h) * unit for h in equalities if !iszero(h)]
+    isempty(equations) && return equations, Vector{UInt16}[]
+    gb = groebner(equations, ordering=DegRevLex())
+    lead = leading_ideal(gb, ordering=DegRevLex())
+    return gb, [exps(convert(Mono, mon), x) for mon in lead]
+end
+
+function reduce_target(f, x, gb, leadsupp)
+    result = zero(f)
+    unit = DP.Monomial(x, zeros(Int, length(x)))
+    for (c, mon) in zip(MP.coefficients(f), MP.monomials(f))
+        reduced = divide(exps(mon, x), leadsupp) ? Groebner.normalform(gb, mon * unit, ordering=DegRevLex()) : mon
+        result += c * reduced
+    end
+    return poly(result, x)
+end
+
+function binary_normalform(p, x, nb)
+    terms = poly(p, x)
+    return sum((c * prod(x[sadd(mon; nb)]) for (c, mon) in zip(terms.coe, terms.supp)); init=zero(p))
+end
+
 function reminder(a, x, gb)
     exp = zeros(Int, length(x))
     for i in a
         exp[i] += 1
     end
-    rem = Groebner.normalform(gb, prod(x.^exp), ordering=DegRevLex())
+    rem = Groebner.normalform(gb, DP.Monomial(x, exp), ordering=DegRevLex())
     return poly(rem, x)
 end
 

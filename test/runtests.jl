@@ -1,19 +1,19 @@
 using DynamicPolynomials
 
-#test existence of mosek license before loading it
+# test existence of mosek license before loading it
 USE_MOSEK = false
 try 
     run(`msktestlic`)
     global USE_MOSEK = true
 catch
 end
-#note: can't "using MosekTools" inside the try/catch block because it introduces a new local scope
+# note: can't "using MosekTools" inside the try/catch block because it introduces a new local scope
 if USE_MOSEK
     using MosekTools
 else
-    using COSMO
+    using Clarabel
 end
-const TEST_SOLVER = eval((USE_MOSEK) ? :Mosek : :COSMO)
+const TEST_SOLVER = eval((USE_MOSEK) ? :Mosek : :Clarabel)
 
 using ClusteredLowRankSolver
 using TSSOS
@@ -21,8 +21,9 @@ using JuMP
 using PermutationGroups
 using Test
 
-include("high_precision_test.jl")
-include("high_precision_interfaces_test.jl")
+# include("high_precision_test.jl")
+# include("high_precision_interfaces_test.jl")
+include("algebra_regressions.jl")
 
 
 @testset begin

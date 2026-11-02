@@ -209,16 +209,16 @@ function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=fal
                 sort!(ebasis[i][s])
             end
         else
-            if normality < d
+            if normality < rlorder[i]
                 basis[i] = Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}(undef, length(I[i]))
                 basis[i][1] = get_conjugate_basis(cliques[i], rlorder[i], nb=nb)
                 for s = 1:length(I[i])
                     basis[i][s] = get_conjugate_basis(cliques[i], rlorder[i]-Int(ceil(maxdeg(ineq_cons[I[i][s]])/2)), nb=nb)
                 end
             else
-                basis[i] = Vector{Tuple{Vector{UInt16},Vector{UInt16}}}(undef, length(I[i])+cliquesize[i])
+                basis[i] = Vector{Vector{Tuple{Vector{UInt16},Vector{UInt16}}}}(undef, length(I[i])+cliquesize[i])
                 basis[i][1] = get_conjugate_basis(cliques[i], rlorder[i], nb=nb)
-                temp = get_basis(cliques[i], normality)
+                temp = get_basis(cliques[i], Int(normality))
                 for s = 1:cliquesize[i]
                     basis[i][s+1] = [[tuple(item, UInt16[]) for item in temp]; [tuple(item, UInt16[cliques[i][s]]) for item in temp]]
                     if nb > 0
@@ -257,17 +257,19 @@ function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=fal
         unique!(tsupp)
         blocks,cl,blocksize,eblocks = get_blocks(I, J, ineq_cons, eq_cons, cliques, cql, tsupp, basis, ebasis, TS=TS, eqTS=eqTS, merge=merge, md=md, nb=nb)
     end
-    if reducebasis == true
+    # The diagonal-support pruning criterion is for a holomorphic Gram basis.
+    if reducebasis && !ConjugateBasis
         tsupp = get_csupp(rlorder, basis, ebasis, ineq_cons, eq_cons, I, J, Iprime, Jprime, blocks, eblocks, cl, blocksize, cql, cliquesize, norm=true, nb=nb, 
         ConjugateBasis=ConjugateBasis, normality=normality, joint_normality=joint_normality)
+        push!(tsupp, UInt16[])
         foreach(item -> item[1] == item[2] ? push!(tsupp, item[1]) : nothing, obj.supp)
         sort!(tsupp)
         unique!(tsupp)
         flag = 0
         for i = 1:cql
-            ind = [bfind(tsupp, item) !== nothing for item in basis[1][i]]
+            ind = [bfind(tsupp, filter(>(nb), item)) !== nothing for item in basis[i][1]]
             if !all(ind)
-                basis[1][i] = basis[1][i][ind]
+                basis[i][1] = basis[i][1][ind]
                 flag = 1
             end
         end
@@ -288,46 +290,19 @@ function complex_cs_tssos(npop::Vector{cpoly{T}}, n::Int, d; numeq=0, RemSig=fal
     ipart=ipart, solution=solution, Gram=Gram, nb=nb,  optimizer=optimizer, model=model, dualize=dualize, writetofile=writetofile, normality=normality, joint_normality=joint_normality)
     flag = 1
     if solution == true && opt !== nothing
-        if TS != false
-            if pop !== nothing
-                asol = check_solution([sol], opt, pop, z, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=true)
-                if asol === nothing
-                    rsol = [real(sol); imag(sol)]
-                    ub = evaluate(obj, sol)
-                    gap = abs(opt-ub)/max(1, abs(ub))
-                    rsol = gap > 0.5 ? randn(2n) : rsol
-                    rsol[abs.(rsol) .< 1e-10] .= 1e-10
-                    rpop,x = complex_to_real(pop, z)
-                    ub,rsol,status = local_solution([poly(p, x) for p in rpop], 2n, numeq=numeq, startpoint=rsol, QUIET=true)
-                    if status == MOI.LOCALLY_SOLVED
-                        sol = rsol[1:n] + rsol[n+1:2n]*im
-                        ub = evaluate(obj, sol)
-                        gap = abs(opt-ub)/max(1, abs(ub))
-                        if gap < gtol
-                            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
-                            println("Successfully extracted one globally optimal solution.")
-                        else
-                            @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
-                        end
-                    else
-                        sol = nothing
-                    end
-                end
-            else
-                sol = check_solution([sol], opt, npop, numeq=numeq, gtol=gtol, ftol=ftol, QUIET=QUIET)
-            end
+        if TS != false || ConjugateBasis
+            original = isnothing(pop) ? npop : pop
+            sol,flag = complex_candidate(sol, opt, original, z; nb, numeq, gtol, ftol)
         else
             if cql == 1 && pop !== nothing
-                sol = extract_solutions_robust(extraction_matrix(moment[1][1]), n, d, type=ComplexF64, pop=pop, x=z, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
+                sol = extract_solutions_robust(extraction_matrix(moment[1][1]), n, d, type=ComplexF64, nb=nb, pop=pop, x=z, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
             else
-                sol = extract_csolutions_robust(extraction_cmoments(moment), n, d, cliques, cql, cliquesize, pop=pop, z=z, npop=npop, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
+                sol = extract_csolutions_robust(extraction_cmoments(moment), n, d, cliques, cql, cliquesize, nb=nb, pop=pop, z=z, npop=npop, lb=opt, numeq=numeq, check=true, rtol=rtol, gtol=gtol, ftol=ftol, QUIET=QUIET)[1]
             end
-        end
-        if sol !== nothing
-            flag = 0
+            flag = isnothing(sol) ? 1 : 0
         end
     end
-    data = cpop_data(pop, obj, ineq_cons, eq_cons, z, rlorder, n, nb, numeq, ipart, ConjugateBasis, normality, joint_normality, basis, ebasis, ksupp, 
+    data = cpop_data(isnothing(pop) ? npop : pop, obj, ineq_cons, eq_cons, z, rlorder, n, nb, numeq, ipart, ConjugateBasis, normality, joint_normality, basis, ebasis, ksupp,
     cliquesize, cliques, I, J, Iprime, Jprime, blocksize, blocks, eblocks, GramMat, multiplier, moment, SDP_status, rtol, gtol, ftol, flag)
     return opt,sol,data
 end
@@ -371,37 +346,10 @@ function complex_cs_tssos(data::cpop_data; TS="block", eqTS=TS, merge=false, md=
     data.Iprime, data.Jprime, blocks, eblocks, cl, blocksize, z=data.z, QUIET=QUIET, TS=TS, ConjugateBasis=data.ConjugateBasis, solve=solve, MomentOne=MomentOne, 
     ipart=data.ipart, solution=solution, Gram=Gram, nb=nb,  optimizer=optimizer, model=model, dualize=dualize, writetofile=writetofile,
     normality=data.normality, joint_normality=data.joint_normality)
-        if solution == true && opt !== nothing
-            if data.pop !== nothing
-                asol = check_solution([sol], opt, data.pop, data.z, numeq=numeq, gtol=data.gtol, ftol=data.ftol, QUIET=true)
-                if asol === nothing
-                    rsol = [real(sol); imag(sol)]
-                    ub = evaluate(obj, sol)
-                    gap = abs(opt-ub)/max(1, abs(ub))
-                    rsol = gap > 0.5 ? randn(2n) : rsol
-                    rsol[abs.(rsol) .< 1e-10] .= 1e-10
-                    rpop,x = complex_to_real(data.pop, data.z)
-                    ub,rsol,status = local_solution([poly(p, x) for p in rpop], 2n, numeq=numeq, startpoint=rsol, QUIET=true)
-                    if status == MOI.LOCALLY_SOLVED
-                        sol = rsol[1:n] + rsol[n+1:2n]*im
-                        ub = evaluate(obj, sol)
-                        gap = abs(opt-ub)/max(1, abs(ub))
-                        if gap < data.gtol
-                            @printf "Global optimality certified with relative optimality gap %.6f%%!\n" 100*gap
-                            println("Successfully extracted one globally optimal solution.")
-                        else
-                            @printf "Found a locally optimal solution by Ipopt, giving an upper bound: %.8f.\nThe relative optimality gap is: %.6f%%.\n" ub 100*gap
-                        end
-                    else
-                        sol = nothing
-                    end
-                end
-            else
-                sol = check_solution([sol], opt, [obj; ineq_cons[2:end]; eq_cons], numeq=numeq, gtol=data.gtol, ftol=data.ftol, QUIET=QUIET)
-            end
-            if sol !== nothing
-                data.flag = 0
-            end
+        data.flag = 1
+        if solution && opt !== nothing
+            original = isnothing(data.pop) ? [obj; ineq_cons[2:end]; eq_cons] : data.pop
+            sol,data.flag = complex_candidate(sol, opt, original, data.z; nb, numeq, gtol=data.gtol, ftol=data.ftol)
         end
         data.blocks = blocks
         data.eblocks = eblocks
@@ -413,6 +361,36 @@ function complex_cs_tssos(data::cpop_data; TS="block", eqTS=TS, merge=false, md=
         data.SDP_status = SDP_status
     end
     return opt,sol,data
+end
+
+function complex_candidate(sol, lower, pop, z; nb, numeq, gtol, ftol)
+    if isnothing(z)
+        accepted = check_solution([sol], lower, pop; nb, numeq, gtol, ftol)
+        return accepted, isnothing(accepted) ? 1 : 0
+    end
+    if !isnothing(check_solution([sol], lower, pop, z; nb, numeq, gtol, ftol))
+        return sol, 0
+    end
+
+    n = length(z)
+    upper = real(pop[1](z => sol))
+    start = abs(lower-upper)/max(1, abs(upper)) > 0.5 ? randn(2n) : [real(sol); imag(sol)]
+    start[abs.(start) .< 1e-10] .= 1e-10
+    rpop,x = complex_to_real(pop, z)
+    for i in 1:nb
+        push!(rpop, x[i]^2 + x[n+i]^2 - 1)
+        radius = hypot(start[i], start[n+i])
+        start[i] /= radius
+        start[n+i] /= radius
+    end
+    _,rsol,status = local_solution([poly(p, x) for p in rpop], 2n; numeq=numeq+nb, startpoint=start, QUIET=true)
+    status == MOI.LOCALLY_SOLVED || return nothing, 1
+    candidate = complex.(rsol[1:n], rsol[n+1:end])
+    if !isnothing(check_solution([candidate], lower, pop, z; nb, numeq, gtol, ftol))
+        return candidate, 0
+    end
+    feasible = check_optimality(candidate, lower, pop, z; nb, numeq, gtol=Inf, ftol)
+    return feasible ? candidate : nothing, 1
 end
 
 function complex_tssos(data::cpop_data; TS="block", eqTS=TS, merge=false, md=3, QUIET=false, solve=true, solution=false, Gram=false, dualize=false, 
@@ -482,7 +460,8 @@ end
 function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, basis, ebasis, cliques, cql, cliquesize, I, J, Iprime, Jprime, blocks, eblocks, cl, blocksize; 
     nb=0, z=nothing, QUIET=false, TS="block", ConjugateBasis=false, solve=true, dualize=false, Gram=false, MomentOne=false, ipart=true, solution=false, 
      optimizer=nothing, model=nothing, writetofile=false, normality=1, joint_normality=0) where {T1,T2<:cpoly}
-    tsupp = Tuple{Vector{UInt16},Vector{UInt16}}[]
+    constant_mon = (UInt16[], UInt16[])
+    tsupp = [constant_mon]
     for i = 1:cql
         if ConjugateBasis == false
             if normality > 0
@@ -514,7 +493,7 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, b
         ksupp = copy(tsupp)
         for i = 1:cql, j = 1:cliquesize[i]
             push!(tsupp, tuple(UInt16[], UInt16[cliques[i][j]]))
-            for k = j+1:cliquesize[i]
+            for k = j:cliquesize[i]
                 bi = tuple(UInt16[cliques[i][j]], UInt16[cliques[i][k]])
                 nb > 0 ? bi = reduce_unitnorm(bi, nb) : nothing
                 push!(tsupp, bi)
@@ -684,7 +663,7 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, b
             end
         end
         @variable(model, lower)
-        rcons[1] += lower
+        rcons[bfind(tsupp, constant_mon)] += lower
         @constraint(model, rcon, rcons == zeros(NumberType, length(tsupp)))
         m = length(tsupp)
         if ipart == true
@@ -712,6 +691,7 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, b
                 println("SDP solving time: $time seconds.")
             end
             SDP_status = termination_status(model)
+            has_sdp_point(model) || return nothing, ksupp, nothing, nothing, nothing, nothing, SDP_status
             objv = objective_value(model)
             if SDP_status != MOI.OPTIMAL
                 println("termination status: $SDP_status")
@@ -758,12 +738,9 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, b
             if ipart == true
                 imeasure = -dual(icon)
             end
-            if solution == true
-                sol = [rmeasure[bfind(tsupp, tuple(UInt16[], UInt16[i]))] for i = 1:n]
-                if ipart == true
-                    itsupp = tsupp[[item[1] != item[2] for item in tsupp]]
-                    sol += [-imeasure[bfind(itsupp, tuple(UInt16[], UInt16[i]))] for i = 1:n]*im
-                end          
+            if solution
+                itsupp = ipart ? filter(mon -> mon[1] != mon[2], tsupp) : nothing
+                sol = [complex_moment((UInt16[i], UInt16[]), rmeasure, imeasure, tsupp, itsupp) for i in 1:n]
             end
             moment = get_cmoment(rmeasure, imeasure, tsupp, cql, blocks, cl, blocksize, basis, ipart=ipart, nb=nb, ConjugateBasis=ConjugateBasis)
         end
@@ -911,21 +888,28 @@ function clique_decomp(npop::Vector{T}, n; order="min", alg="MF", ReducedCS=true
     return cliques,cql,cliquesize
 end
 
+# Only one representative of each conjugate pair has a coefficient equation.
+# Its dual accounts for both terms; self-conjugate moments have full weight.
+function complex_moment(mon, rmeasure, imeasure, tsupp, itsupp)
+    reversed = mon[1] > mon[2]
+    canonical = reversed ? conj(mon) : mon
+    re = rmeasure[bfind(tsupp, canonical)]
+    mon[1] == mon[2] && return re
+    isnothing(imeasure) && return re/2
+    im_part = imeasure[bfind(itsupp, canonical)]
+    return complex(re, reversed ? im_part : -im_part)/2
+end
+
 function get_cmoment(rmeasure, imeasure, tsupp, cql, blocks, cl, blocksize, basis; ipart=true, nb=0, ConjugateBasis=false)
     NumberType = eltype(rmeasure)
     ctype = ipart ? Complex{NumberType} : NumberType
     moment = Vector{Vector{Matrix{ctype}}}(undef, cql)
-    if ipart == true
-        itsupp = tsupp[[item[1] != item[2] for item in tsupp]]
-    end
+    itsupp = ipart ? filter(mon -> mon[1] != mon[2], tsupp) : nothing
     for i = 1:cql
         moment[i] = Vector{Matrix{ctype}}(undef, cl[i][1])
         for l = 1:cl[i][1]
             bs = blocksize[i][1][l]
-            rtemp = zeros(NumberType, bs, bs)
-            if ipart == true
-                itemp = zeros(NumberType, bs, bs)
-            end
+            block = zeros(ctype, bs, bs)
             for t = 1:bs, r = t:bs
                 if ConjugateBasis == false
                     bi = tuple(basis[i][1][blocks[i][1][l][t]], basis[i][1][blocks[i][1][l][r]])
@@ -933,26 +917,10 @@ function get_cmoment(rmeasure, imeasure, tsupp, cql, blocks, cl, blocksize, basi
                     bi = sadd(basis[i][1][blocks[i][1][l][t]], conj(basis[i][1][blocks[i][1][l][r]]))
                 end
                 nb > 0 ? bi = reduce_unitnorm(bi, nb) : nothing
-                if ipart == true
-                    if bi[1] < bi[2]
-                        Locb = bfind(itsupp, bi)
-                        itemp[t,r] = imeasure[Locb]
-                    elseif bi[1] > bi[2]
-                        Locb = bfind(itsupp, conj(bi))
-                        itemp[t,r] = -imeasure[Locb]
-                    end
-                end
-                bi[1] > bi[2] ? bi = conj(bi) : nothing
-                Locb = bfind(tsupp, bi)
-                rtemp[t,r] = t != r && bi[1] == bi[2] ? 2*rmeasure[Locb] : rmeasure[Locb]
+                block[t,r] = complex_moment(bi, rmeasure, imeasure, tsupp, itsupp)
+                block[r,t] = conj(block[t,r])
             end
-            rtemp = (rtemp + rtemp')/2
-            if ipart == true
-                itemp = (itemp - itemp')/2
-                moment[i][l] = rtemp - itemp*im
-            else
-                moment[i][l] = rtemp
-            end
+            moment[i][l] = block
         end
     end
     return moment
