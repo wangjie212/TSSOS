@@ -269,17 +269,16 @@ function extract_solutions_pmo_robust(moment, n, d, p; basis=[], pop=nothing, x=
 end
 
 function extract_weight_matrix(moment, n, d, q, sol; tol=1e-2)
-    ind = [1]
-    for i = 2:length(sol)
-        if abs(norm(sol[i]-sol[i-1])) > tol
-            push!(ind, i)
-        end
+    ind = Int[]
+    for i in eachindex(sol)
+        any(j -> norm(sol[i]-sol[j]) <= tol, ind) || push!(ind, i)
     end
     sol = sol[ind]
     basis = get_basis(n, d)
     A = kron([prod(v[item]) for item in basis, v in sol], Diagonal(ones(q)))
     ind = rref_with_pivots!(Matrix(A'), tol)[2]
-    W = A[ind, :]^(-1)*moment[ind, 1:q]
+    length(ind) == size(A, 2) || throw(ArgumentError("moment basis does not distinguish all supplied atoms at this tolerance"))
+    W = A[ind, :] \ moment[ind, 1:q]
     return [W[(i-1)*q+1:i*q, :] for i = 1:length(sol)]
 end
 

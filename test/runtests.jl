@@ -24,6 +24,7 @@ using Test
 # include("high_precision_test.jl")
 # include("high_precision_interfaces_test.jl")
 include("algebra_regressions.jl")
+include("invariant_extraction.jl")
 
 
 @testset begin

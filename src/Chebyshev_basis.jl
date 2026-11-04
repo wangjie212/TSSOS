@@ -14,7 +14,11 @@ mutable struct polybasis_data
     GramMat # Gram matrices
     multiplier # multipliers for equality constraints
     SDP_status
+    moments # invariant dual functional, indexed by canonical original monomials
 end
+
+# Keep the certificate builders and existing callers source compatible.
+polybasis_data(args::Vararg{Any,15}) = polybasis_data(args..., nothing)
 
 """
     info = add_psatz_cheby!(model, nonneg, x, ineq_cons, eq_cons, order; TS="block", eqTS=TS, SO=1, QUIET=false)

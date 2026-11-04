@@ -6,6 +6,42 @@ using JuMP
 using TSSOS
 
 @testset "Algebraic regression cases" begin
+    @testset "Cross-clique unit-modulus constraints" begin
+        @complex_polyvar z[1:2]
+        squares = z .* conj.(z)
+        g = prod(squares) - 1
+        for numeq in (0, 1), TS in ("block", false)
+            opts = (; cliques=[[1],[2]], normality=0, numeq, TS, QUIET=true)
+            bound, _, _ = complex_cs_tssos([sum(squares), g], z, 2; nb=2, opts...)
+            @test bound ≈ 2 atol=1e-6
+            # On |z₁|=1 the constraint still imposes |z₂|² ≥ 1 (or = 1).
+            bound, _, _ = complex_cs_tssos(Poly{Float64}[squares[2], g], z, 2; nb=1, opts...)
+            @test bound ≈ 1 atol=1e-6
+        end
+    end
+
+    @testset "Matrix weights with separated duplicates" begin
+        left = [0.3 0.1; 0.1 0.2]
+        right = [0.1 0.0; 0.0 0.4]
+        mass, first_moment = left + right, right - left
+        moment = [mass first_moment; first_moment mass]
+        for (atoms, expected) in (([[-1.], [1.], [-1.]], [left, right]),
+                                  ([[1.], [-1.], [1.00001]], [right, left]))
+            weights = extract_weight_matrix(moment, 1, 1, 2, atoms)
+            @test length(weights) == 2
+            @test all(isapprox.(weights, expected))
+        end
+        @test_throws ArgumentError extract_weight_matrix(moment, 1, 1, 2, [[-1.], [0.], [1.]])
+    end
+
+    @testset "Dense sum-of-ratios optimizer" begin
+        @polyvar x
+        q = [1.0+x^2, 1.0+x^2]
+        @test SumOfRatios(q, q, [], [], [x], 1; QUIET=true) ≈ 2 atol=1e-6
+        solver = optimizer_with_attributes(COSMO.Optimizer, "eps_abs"=>1e-8, "eps_rel"=>1e-8)
+        @test SumOfRatios(q, q, [], [], [x], 1; optimizer=solver, dualize=true, QUIET=true) ≈ 2 atol=1e-6
+    end
+
     @testset "Polynomial identities" begin
         @polyvar x
         @complex_polyvar z

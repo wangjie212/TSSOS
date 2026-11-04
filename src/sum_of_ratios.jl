@@ -1,11 +1,11 @@
 """
-    optimum = SumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, GroebnerBasis=false)
+    optimum = SumOfRatios(p, q, g, h, x, d; QUIET=false, SignSymmetry=true, GroebnerBasis=false, optimizer=default_optimizer())
 
 Minimizing the sum of ratios p1/q1 + ... + pN/qN on the set defined by g >= 0 and h == 0.
 
 # Input arguments
-- `p`: vector of denominators
-- `q`: vector of numerator
+- `p`: vector of numerators
+- `q`: vector of denominators
 - `g`: inequality constraints
 - `h`: equality constraints
 - `x`: vector of variables
@@ -15,7 +15,7 @@ Minimizing the sum of ratios p1/q1 + ... + pN/qN on the set defined by g >= 0 an
 - `SignSymmetry`: exploit sign symmetries or not (`true`, `false`)
 - `GroebnerBasis`: exploit the quotient ring structure or not (`true`, `false`)
 """
-function SumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=true,  GroebnerBasis=false)
+function SumOfRatios(p, q, g, h, x, d; QUIET=false, dualize=false, SignSymmetry=true, GroebnerBasis=false, optimizer=default_optimizer())
     println("*********************************** TSSOS ***********************************")
     println("TSSOS is launching...")
     N = length(p)

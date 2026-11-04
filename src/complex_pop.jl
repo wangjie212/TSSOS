@@ -484,7 +484,7 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, b
             bi[1] <= bi[2] ? push!(tsupp, bi) : push!(tsupp, conj(bi))
         end
     end
-    if TS != false || joint_normality > 0
+    if TS != false || joint_normality > 0 || !isempty(Iprime) || !isempty(Jprime)
         csupp = get_csupp(rlorder, basis, ebasis, ineq_cons, eq_cons, I, J, Iprime, Jprime, blocks, eblocks, cl, blocksize, cql, cliquesize, 
         ConjugateBasis=ConjugateBasis, nb=nb, normality=normality, joint_normality=joint_normality)
         append!(tsupp, csupp)
@@ -627,6 +627,7 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, b
         for i in Iprime
             pos0 = @variable(model, lower_bound=0)
             for (j, item) in enumerate(ineq_cons[i].supp)
+                nb > 0 && (item = reduce_unitnorm(item, nb))
                 if item[1] <= item[2]
                     Locb = bfind(tsupp, item)
                     if ipart == true
@@ -639,6 +640,7 @@ function solvesdp(obj, ineq_cons::Vector{T1}, eq_cons::Vector{T2}, n, rlorder, b
         for i in Jprime
             pos0 = @variable(model)
             for (j, item) in enumerate(eq_cons[i].supp)
+                nb > 0 && (item = reduce_unitnorm(item, nb))
                 if item[1] <= item[2]
                     Locb = bfind(tsupp, item)
                     if ipart == true
