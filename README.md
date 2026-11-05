@@ -14,6 +14,11 @@ pkg> add https://github.com/wangjie212/TSSOS
 - [CliqueTrees](https://github.com/AlgebraicJulia/CliqueTrees.jl)
 
 ## Usage
+
+Quaternion polynomial optimization is available through `using TSSOS.QuaternionSOS`.
+See [the quaternion example](example/quaternion.jl) and
+[the API guide](docs/src/quaternion.md) for `qtssos` and `quaternion_to_real`.
+
 ### Unconstrained polynomial optimization
 An unconstrained polynomial optimization problem could be formulized as
 
